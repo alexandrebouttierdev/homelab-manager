@@ -1,0 +1,19 @@
+[Unit]
+Description=Homelab Manager
+After=network-online.target postgresql.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=homelab-manager
+Group=homelab-manager
+WorkingDirectory=/opt/homelab-manager
+ExecStart=/usr/local/bin/homelab-manager
+Restart=on-failure
+RestartSec=5
+NoNewPrivileges=true
+PrivateTmp=true
+EnvironmentFile=-/etc/homelab-manager/manager.env
+
+[Install]
+WantedBy=multi-user.target

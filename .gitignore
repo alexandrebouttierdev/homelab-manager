@@ -10,4 +10,3 @@ frontend/vite.config.js
 frontend/vite.config.d.ts
 backend/ent/generated/
 backend/bin/
-agent/bin/

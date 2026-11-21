@@ -1,2 +1,10 @@
 http_address: ":8080"
 database_url: "postgres://homelab_manager:change-me@127.0.0.1:5432/homelab_manager?sslmode=disable"
+tls_cert_file: ""
+tls_key_file: ""
+docker_proxy_socket: "/run/homelab-docker-proxy/docker.sock"
+web_root: "/opt/homelab-manager/frontend/dist"
+system_collect_interval_seconds: 10
+docker_collect_interval_seconds: 15
+docker_discovery_interval_seconds: 30
+metrics_retention_days: 30

@@ -12,14 +12,20 @@ import (
 // Tx is a transactional client that is created by calling Client.Tx().
 type Tx struct {
 	config
-	// Agent is the client for interacting with the Agent builders.
-	Agent *AgentClient
-	// AgentStatus is the client for interacting with the AgentStatus builders.
-	AgentStatus *AgentStatusClient
-	// AgentToken is the client for interacting with the AgentToken builders.
-	AgentToken *AgentTokenClient
-	// Metric is the client for interacting with the Metric builders.
-	Metric *MetricClient
+	// AuditLog is the client for interacting with the AuditLog builders.
+	AuditLog *AuditLogClient
+	// Container is the client for interacting with the Container builders.
+	Container *ContainerClient
+	// ContainerMetricSample is the client for interacting with the ContainerMetricSample builders.
+	ContainerMetricSample *ContainerMetricSampleClient
+	// Event is the client for interacting with the Event builders.
+	Event *EventClient
+	// HostInfo is the client for interacting with the HostInfo builders.
+	HostInfo *HostInfoClient
+	// Session is the client for interacting with the Session builders.
+	Session *SessionClient
+	// SystemMetricSample is the client for interacting with the SystemMetricSample builders.
+	SystemMetricSample *SystemMetricSampleClient
 	// User is the client for interacting with the User builders.
 	User *UserClient
 
@@ -153,10 +159,13 @@ func (tx *Tx) Client() *Client {
 }
 
 func (tx *Tx) init() {
-	tx.Agent = NewAgentClient(tx.config)
-	tx.AgentStatus = NewAgentStatusClient(tx.config)
-	tx.AgentToken = NewAgentTokenClient(tx.config)
-	tx.Metric = NewMetricClient(tx.config)
+	tx.AuditLog = NewAuditLogClient(tx.config)
+	tx.Container = NewContainerClient(tx.config)
+	tx.ContainerMetricSample = NewContainerMetricSampleClient(tx.config)
+	tx.Event = NewEventClient(tx.config)
+	tx.HostInfo = NewHostInfoClient(tx.config)
+	tx.Session = NewSessionClient(tx.config)
+	tx.SystemMetricSample = NewSystemMetricSampleClient(tx.config)
 	tx.User = NewUserClient(tx.config)
 }
 
@@ -167,7 +176,7 @@ func (tx *Tx) init() {
 // of them in order to commit or rollback the transaction.
 //
 // If a closed transaction is embedded in one of the generated entities, and the entity
-// applies a query, for example: Agent.QueryXXX(), the query will be executed
+// applies a query, for example: AuditLog.QueryXXX(), the query will be executed
 // through the driver which created this transaction.
 //
 // Note that txDriver is not goroutine safe.

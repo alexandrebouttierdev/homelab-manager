@@ -1,3 +1,0 @@
-manager_url: "https://manager.example.internal"
-agent_token: ""
-collect_interval_seconds: 30

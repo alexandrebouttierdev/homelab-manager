@@ -1,42 +1,50 @@
 # Exigences de sécurité — Homelab Manager
 
-Version 1.1 — 20 novembre 2026
+Version 2.0 — 21 novembre 2026
 
-## Authentification locale
-- Authentification par mot de passe administrateur local.
-- Stockage avec un algorithme de hachage de mot de passe adapté (Argon2id recommandé).
-- Cookies de session `HttpOnly`, `Secure` lorsque HTTPS est utilisé, et `SameSite` approprié.
-- Protection CSRF pour les mutations authentifiées par cookie.
-- Limitation des tentatives de connexion et délais progressifs.
-- Ne jamais journaliser mot de passe, cookie, token ou secret.
+## Authentification locale et HTTP
 
-## Agents
-- Enrôlement contrôlé par jeton à usage limité et durée de vie courte.
-- Identité propre à chaque Agent après enrôlement.
-- Révocation immédiate d'un Agent.
-- Connexion TLS ; authentification mutuelle ou secret Agent rotatif à préciser avant implémentation.
-- Stockage des secrets avec permissions système restrictives.
-- Un Agent révoqué ne peut plus publier ni recevoir de tâches.
+- Authentification locale par identifiant et mot de passe ; hash Argon2id recommandé.
+- Cookies `HttpOnly`, `Secure` sous HTTPS, `SameSite` approprié, expiration et révocation de sessions.
+- Protection CSRF des mutations authentifiées par cookie, limitation des tentatives et erreurs publiques non bavardes.
+- Validation serveur stricte, limite de taille des requêtes, timeouts, headers de sécurité et contrôle d'origine.
+- Ne jamais journaliser mots de passe, cookies, tokens ou secrets.
+- Le Content Security Policy n'autorise les styles inline que pour l'affichage ECharts ; les scripts inline restent interdits.
 
-## Autorisation des actions
-- Liste blanche d'actions nommées et documentées.
-- Chaque action définit ses paramètres, validation, privilèges requis, timeout et résultat.
-- L'Agent vérifie lui-même que l'action est reconnue.
-- Aucune commande arbitraire, aucun `sh -c` construit depuis une entrée utilisateur.
-- Confirmation UI pour les actions destructrices ou à impact.
-- Journalisation d'audit obligatoire.
+## Frontière Docker
 
-## HTTP et WebSocket
-- TLS en dehors du réseau local de confiance ; documenter la terminaison TLS.
-- Limites de taille des requêtes et messages.
-- Timeouts, limites de débit et nombre de connexions.
-- Origines WebSocket autorisées explicitement.
-- Validation stricte de toutes les entrées.
-- Erreurs publiques non bavardes.
-- Headers de sécurité adaptés.
+Le socket Docker rootful permet généralement un contrôle équivalent à root sur l'hôte. L'appartenance du processus Manager au groupe `docker` n'est donc pas une permission réellement en lecture seule et ne doit pas être présentée comme telle.
 
-## Système
-- Services `systemd` exécutés avec un utilisateur système dédié et privilèges minimaux.
-- PostgreSQL accessible localement au Manager uniquement.
-- Fichiers de configuration et secrets non lisibles par les utilisateurs non autorisés.
-- Pas de privilège root permanent pour l'Agent ; les opérations privilégiées doivent être isolées et limitées.
+| Option | Avantage | Risque |
+|---|---|---|
+| Accès direct au socket Unix rootful | Simple et peu de composants | Compromission du Manager = contrôle quasi root de l'hôte ; le socket ne sait pas appliquer une ACL HTTP en lecture seule |
+| Proxy local restreint | Peut limiter l'API aux consultations requises | Proxy privilégié à maintenir ; une route permissive ou mal validée réintroduit le risque Docker |
+| Docker rootless | Réduit l'impact au compte utilisateur dédié | Nécessite un daemon/configuration rootless et ne convient pas à tous les hôtes |
+
+### Décision cible
+
+Pour une installation domestique privilégiant la sécurité, utiliser un proxy local minimal, distinct du processus Manager, qui seul accède au socket Docker. Il doit appliquer une liste blanche exacte de méthodes et routes de consultation nécessaires à la liste/inspection/statistiques/événements ; refuser les autres chemins, paramètres de tunnel, méthodes mutatrices et accès aux fonctionnalités exec, archive, création, suppression, démarrage ou arrêt. Le proxy n'écoute que sur un socket Unix avec permissions restrictives, jamais sur une interface réseau.
+
+Le proxy fourni n'autorise que `GET /v1.41/containers/json?all=1`, l'inspection d'un ID hexadécimal et `stats?stream=false`. Il filtre récursivement les champs `Env` et `Labels`, limite les réponses à 8 MiB, les appels à 10 secondes et la concurrence à 16 requêtes. Il est lancé par socket activation systemd sur un socket Unix ; son unité utilise le compte dédié `homelab-docker-proxy`, seul membre attendu du groupe Docker. Vérifier les permissions effectives avant le déploiement.
+
+Le proxy ne propose pas de flux d'événements Docker ; les changements d'état sont détectés par réconciliation périodique de l'inventaire.
+
+Un mode direct sur socket rootful ne peut être retenu qu'en décision explicite d'exploitation, avec documentation du risque root-equivalent et sans prétendre au moindre privilège.
+
+## Collecte et données
+
+- Collecte strictement locale ; aucun canal de commande distant.
+- Aucune exécution shell à partir des données Docker, de l'API ou de l'interface.
+- Pas de fonctions de création, suppression, démarrage, arrêt ou exec de conteneurs dans le périmètre.
+- Limiter et filtrer labels, noms, chemins, métadonnées et journaux ; ne pas exposer les variables d'environnement.
+- Rétention bornée des métriques et événements, avec purge par lots.
+- Gestion séparée des erreurs Docker/PostgreSQL ; ne pas exposer chemin local, secrets ou détails internes.
+
+## Système et déploiement
+
+- Service systemd Manager sous utilisateur dédié sans groupe `docker` lorsqu'un proxy est utilisé.
+- Proxy Docker isolé, socket Unix protégé et non monté/exposé au Frontend.
+- PostgreSQL local, base et rôle dédiés, privilèges minimaux.
+- TLS en cas d'accès depuis le réseau local non fiable ; configuration de terminaison documentée.
+- Configuration et secrets lisibles seulement par les comptes système nécessaires.
+- Arrêt systemd propre : annuler et attendre les collecteurs avant de fermer PostgreSQL.

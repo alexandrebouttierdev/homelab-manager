@@ -1,0 +1,12 @@
+[Unit]
+Description=Restricted Docker API proxy socket
+
+[Socket]
+ListenStream=/run/homelab-docker-proxy/docker.sock
+SocketGroup=homelab-manager
+SocketMode=0660
+DirectoryMode=0750
+Service=homelab-docker-proxy.service
+
+[Install]
+WantedBy=sockets.target

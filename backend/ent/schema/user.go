@@ -2,6 +2,7 @@ package schema
 
 import (
 	"entgo.io/ent"
+	"entgo.io/ent/schema/edge"
 	"entgo.io/ent/schema/field"
 	"github.com/google/uuid"
 	"time"
@@ -19,4 +20,8 @@ func (User) Fields() []ent.Field {
 		field.Time("created_at").Default(timeNow),
 		field.Time("updated_at").UpdateDefault(timeNow),
 	}
+}
+
+func (User) Edges() []ent.Edge {
+	return []ent.Edge{edge.To("sessions", Session.Type)}
 }

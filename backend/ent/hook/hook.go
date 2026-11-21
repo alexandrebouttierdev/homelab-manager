@@ -8,52 +8,88 @@ import (
 	"homelab-manager/backend/ent"
 )
 
-// The AgentFunc type is an adapter to allow the use of ordinary
-// function as Agent mutator.
-type AgentFunc func(context.Context, *ent.AgentMutation) (ent.Value, error)
+// The AuditLogFunc type is an adapter to allow the use of ordinary
+// function as AuditLog mutator.
+type AuditLogFunc func(context.Context, *ent.AuditLogMutation) (ent.Value, error)
 
 // Mutate calls f(ctx, m).
-func (f AgentFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
-	if mv, ok := m.(*ent.AgentMutation); ok {
+func (f AuditLogFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.AuditLogMutation); ok {
 		return f(ctx, mv)
 	}
-	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AgentMutation", m)
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AuditLogMutation", m)
 }
 
-// The AgentStatusFunc type is an adapter to allow the use of ordinary
-// function as AgentStatus mutator.
-type AgentStatusFunc func(context.Context, *ent.AgentStatusMutation) (ent.Value, error)
+// The ContainerFunc type is an adapter to allow the use of ordinary
+// function as Container mutator.
+type ContainerFunc func(context.Context, *ent.ContainerMutation) (ent.Value, error)
 
 // Mutate calls f(ctx, m).
-func (f AgentStatusFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
-	if mv, ok := m.(*ent.AgentStatusMutation); ok {
+func (f ContainerFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ContainerMutation); ok {
 		return f(ctx, mv)
 	}
-	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AgentStatusMutation", m)
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ContainerMutation", m)
 }
 
-// The AgentTokenFunc type is an adapter to allow the use of ordinary
-// function as AgentToken mutator.
-type AgentTokenFunc func(context.Context, *ent.AgentTokenMutation) (ent.Value, error)
+// The ContainerMetricSampleFunc type is an adapter to allow the use of ordinary
+// function as ContainerMetricSample mutator.
+type ContainerMetricSampleFunc func(context.Context, *ent.ContainerMetricSampleMutation) (ent.Value, error)
 
 // Mutate calls f(ctx, m).
-func (f AgentTokenFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
-	if mv, ok := m.(*ent.AgentTokenMutation); ok {
+func (f ContainerMetricSampleFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.ContainerMetricSampleMutation); ok {
 		return f(ctx, mv)
 	}
-	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AgentTokenMutation", m)
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ContainerMetricSampleMutation", m)
 }
 
-// The MetricFunc type is an adapter to allow the use of ordinary
-// function as Metric mutator.
-type MetricFunc func(context.Context, *ent.MetricMutation) (ent.Value, error)
+// The EventFunc type is an adapter to allow the use of ordinary
+// function as Event mutator.
+type EventFunc func(context.Context, *ent.EventMutation) (ent.Value, error)
 
 // Mutate calls f(ctx, m).
-func (f MetricFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
-	if mv, ok := m.(*ent.MetricMutation); ok {
+func (f EventFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.EventMutation); ok {
 		return f(ctx, mv)
 	}
-	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.MetricMutation", m)
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EventMutation", m)
+}
+
+// The HostInfoFunc type is an adapter to allow the use of ordinary
+// function as HostInfo mutator.
+type HostInfoFunc func(context.Context, *ent.HostInfoMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f HostInfoFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.HostInfoMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.HostInfoMutation", m)
+}
+
+// The SessionFunc type is an adapter to allow the use of ordinary
+// function as Session mutator.
+type SessionFunc func(context.Context, *ent.SessionMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f SessionFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.SessionMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SessionMutation", m)
+}
+
+// The SystemMetricSampleFunc type is an adapter to allow the use of ordinary
+// function as SystemMetricSample mutator.
+type SystemMetricSampleFunc func(context.Context, *ent.SystemMetricSampleMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f SystemMetricSampleFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.SystemMetricSampleMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SystemMetricSampleMutation", m)
 }
 
 // The UserFunc type is an adapter to allow the use of ordinary

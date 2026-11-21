@@ -1,0 +1,27 @@
+[Unit]
+Description=Restricted Docker API proxy
+Requires=homelab-docker-proxy.socket
+After=homelab-docker-proxy.socket
+
+[Service]
+Type=simple
+User=homelab-docker-proxy
+Group=homelab-manager
+SupplementaryGroups=docker
+ExecStart=/usr/local/bin/homelab-docker-proxy
+Environment=HOMELAB_DOCKER_ENGINE_SOCKET=/var/run/docker.sock
+Restart=on-failure
+RestartSec=3
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_UNIX
+CapabilityBoundingSet=
+AmbientCapabilities=
+
+[Install]
+WantedBy=multi-user.target

@@ -6,10 +6,13 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"homelab-manager/backend/ent/agent"
-	"homelab-manager/backend/ent/agentstatus"
-	"homelab-manager/backend/ent/agenttoken"
-	"homelab-manager/backend/ent/metric"
+	"homelab-manager/backend/ent/auditlog"
+	"homelab-manager/backend/ent/container"
+	"homelab-manager/backend/ent/containermetricsample"
+	"homelab-manager/backend/ent/event"
+	"homelab-manager/backend/ent/hostinfo"
+	"homelab-manager/backend/ent/session"
+	"homelab-manager/backend/ent/systemmetricsample"
 	"homelab-manager/backend/ent/user"
 	"reflect"
 	"sync"
@@ -77,11 +80,14 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			agent.Table:       agent.ValidColumn,
-			agentstatus.Table: agentstatus.ValidColumn,
-			agenttoken.Table:  agenttoken.ValidColumn,
-			metric.Table:      metric.ValidColumn,
-			user.Table:        user.ValidColumn,
+			auditlog.Table:              auditlog.ValidColumn,
+			container.Table:             container.ValidColumn,
+			containermetricsample.Table: containermetricsample.ValidColumn,
+			event.Table:                 event.ValidColumn,
+			hostinfo.Table:              hostinfo.ValidColumn,
+			session.Table:               session.ValidColumn,
+			systemmetricsample.Table:    systemmetricsample.ValidColumn,
+			user.Table:                  user.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

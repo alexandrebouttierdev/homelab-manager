@@ -1,14 +1,26 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useForm } from 'react-hook-form'
+import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from 'react-router-dom'
 import { loginSchema, type LoginValues } from '../../schemas/login'
+import { ApiError, login } from '../../lib/api/auth'
 
 export function LoginPage() {
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const { register, handleSubmit, formState: { errors } } = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
   })
+  const mutation = useMutation({
+    mutationFn: (values: LoginValues) => login(values.username, values.password),
+    onSuccess: (result) => {
+      queryClient.setQueryData(['session'], result)
+      navigate('/')
+    },
+  })
 
-  function onSubmit() {
-    // API integration is intentionally deferred until authentication usecases exist.
+  function onSubmit(values: LoginValues) {
+    mutation.mutate(values)
   }
 
   return (
@@ -25,7 +37,12 @@ export function LoginPage() {
           <input id="password" type="password" autoComplete="current-password" {...register('password')} />
           {errors.password && <span className="field-error">{errors.password.message}</span>}
 
-          <button type="submit">Se connecter</button>
+          {mutation.error instanceof ApiError && (
+            <p className="field-error" role="alert">{mutation.error.message}</p>
+          )}
+          <button type="submit" disabled={mutation.isPending}>
+            {mutation.isPending ? 'Connexion...' : 'Se connecter'}
+          </button>
         </form>
       </section>
     </main>

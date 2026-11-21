@@ -1,49 +1,49 @@
 # Instructions Claude Code — Homelab Manager
 
 ## Référence obligatoire
-Lire `README.md` et tous les fichiers `docs/` avant toute modification structurante. Ces documents sont la source de vérité du projet.
+Lire `README.md` et tous les fichiers `docs/` avant toute modification structurante. Ces documents v2.0 sont la source de vérité.
+
+## Décision de périmètre
+Homelab Manager supervise définitivement une seule machine Linux : celle du Manager. La collecte système et Docker est locale et intégrée au Backend. Ne pas introduire de support d'hôtes distants, d'Agent de collecte, de multi-agent ou de synchronisation entre machines.
 
 ## Stack validée
-- Backend : Go ; routeur HTTP **Chi v5** (`github.com/go-chi/chi/v5`).
-- ORM : Ent (`entgo.io/ent`).
-- Base : PostgreSQL dédié.
-- WebSocket : `github.com/coder/websocket`.
-- Configuration : Viper.
-- Logs structurés : Zap.
-- Frontend : React, TypeScript, Vite.
-- Formulaires : React Hook Form + Zod.
-- Graphiques : Apache ECharts.
-- Tests frontend : Vitest + React Testing Library.
-- Tests backend : `testing` standard Go, `httptest`, tests d'intégration PostgreSQL.
+- Backend Go, routeur HTTP Chi v5 (`github.com/go-chi/chi/v5`).
+- ORM Ent (`entgo.io/ent`), PostgreSQL dédié.
+- Configuration Viper ; logs structurés Zap.
+- Collecte système Linux via interfaces locales (`/proc`, `/sys`) et bibliothèques Go adaptées.
+- Docker Engine API locale par socket Unix, derrière un adaptateur d'infrastructure restreint.
+- Frontend React, TypeScript strict, Vite, React Router, TanStack Query.
+- Formulaires React Hook Form + Zod ; graphiques Apache ECharts.
+- Tests Backend `testing`, `httptest`, intégration PostgreSQL ; Frontend Vitest + React Testing Library.
+- Déploiement natif Debian 13/systemd. Docker Compose est réservé au développement/test.
 
 ## Contraintes d'architecture
-- Architecture hexagonale / ports-adapters : Domain → Usecase → ports ; les adaptateurs dépendent des ports, jamais l'inverse.
-- Le domaine ne dépend ni de Chi, ni d'Ent, ni de PostgreSQL, ni de React.
-- Chi est uniquement dans la couche Delivery/HTTP. Les handlers convertissent HTTP vers des DTO et appellent les usecases.
-- Ent est confiné aux adaptateurs de persistance. Ne jamais exposer les entités Ent comme DTO API.
-- Séparer clairement Manager et Agent. L'Agent ne doit pas embarquer de logique métier du Manager.
-- Pas de logique métier dans les handlers HTTP ou les composants React.
-- Pas de dépendance à un service cloud pour le fonctionnement normal.
-- Pas d'exécution de commandes arbitraires envoyées par l'interface ou le Manager.
+- Architecture hexagonale : Domain → Usecase → ports ; adaptateurs dépendant des ports, jamais l'inverse.
+- Le domaine ne dépend ni de Chi, Ent, PostgreSQL, Docker ni de React.
+- Chi uniquement dans Delivery/HTTP ; handlers = DTO/validation/appel des usecases.
+- Ent confiné aux adaptateurs de persistance ; ne jamais exposer ses entités comme DTO.
+- Collecte indépendante des handlers et des utilisateurs connectés.
+- Docker derrière un port et un proxy local en liste blanche ; le Manager n'est pas ajouté directement au groupe `docker` dans le modèle cible.
+- Pas de logique métier dans les handlers ou composants React.
+- Pas de dépendance cloud pour le fonctionnement normal.
+- Aucune exécution de commandes arbitraires ; pas d'API Docker mutatrice ou d'administration de conteneurs sans nouvelle exigence explicite.
 
-## Qualité obligatoire
-- DTO d'entrée/sortie explicites et validation côté serveur.
-- Schémas Zod côté frontend ; ne jamais considérer la validation frontend comme une protection suffisante.
-- Tests unitaires pour chaque usecase et logique métier.
-- Tests des handlers HTTP avec `httptest`.
-- Tests d'intégration des repositories contre PostgreSQL réel (par exemple via environnement de test dédié).
-- Tests React des composants, formulaires, états de chargement/erreur et interactions.
+## Sécurité et qualité obligatoires
+- DTO explicites, validation serveur systématique, schémas Zod côté UI ; la validation UI n'est pas une protection.
+- Authentification locale, mots de passe hachés, sessions sécurisées et protections CSRF.
+- Ne jamais exposer le socket Docker, proxy, variables d'environnement ou secrets au navigateur.
+- Tests unitaires de logique métier et collecteurs avec fixtures/mocks, tests `httptest` et PostgreSQL réel.
 - `go test ./...`, `go test -race ./...`, `go vet ./...`, `gofmt`.
 - `npm run lint`, `npm run typecheck`, `npm run test`, `npm run build`.
-- Toute goroutine doit avoir un propriétaire, une stratégie d'arrêt et une limite de durée ou de ressources.
-- Toute erreur doit être traitée ; pas de panic pour un flux d'erreur attendu.
-- Ne pas introduire de dépendance sans expliquer son utilité et son impact.
+- Toute goroutine a un propriétaire, une stratégie d'arrêt et des limites de ressources/temps.
+- Toute erreur est traitée explicitement ; pas de panic pour un flux attendu.
+- Ne pas ajouter de dépendance sans expliquer son utilité et son impact.
 
 ## Règles de modification
-1. Examiner le code existant avant de modifier.
-2. Proposer un plan court pour les changements transverses.
-3. Préserver les contrats existants ou documenter une migration.
-4. Ajouter les tests dans le même changement que le code.
+1. Examiner le code et les documents avant modification.
+2. Pour un changement transverse, donner un plan court.
+3. Préserver les contrats ou documenter une migration.
+4. Ajouter les tests avec le code.
 5. Mettre à jour les documents concernés.
-6. Ne pas remplacer Chi par Gin ou un autre framework.
-7. Ne pas inventer des fonctionnalités absentes des spécifications.
+6. Ne pas remplacer Chi par Gin, Ent par GORM ou PostgreSQL par SQLite.
+7. Ne pas inventer des fonctionnalités hors spécification.

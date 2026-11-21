@@ -8,94 +8,153 @@ import (
 )
 
 var (
-	// AgentsColumns holds the columns for the "agents" table.
-	AgentsColumns = []*schema.Column{
+	// AuditLogsColumns holds the columns for the "audit_logs" table.
+	AuditLogsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
+		{Name: "actor", Type: field.TypeString},
+		{Name: "target_type", Type: field.TypeString},
+		{Name: "target_id", Type: field.TypeString},
+		{Name: "action", Type: field.TypeString},
+		{Name: "request_id", Type: field.TypeString, Nullable: true},
+		{Name: "outcome", Type: field.TypeString},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// AuditLogsTable holds the schema information for the "audit_logs" table.
+	AuditLogsTable = &schema.Table{
+		Name:       "audit_logs",
+		Columns:    AuditLogsColumns,
+		PrimaryKey: []*schema.Column{AuditLogsColumns[0]},
+	}
+	// ContainersColumns holds the columns for the "containers" table.
+	ContainersColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "docker_id", Type: field.TypeString, Unique: true},
 		{Name: "name", Type: field.TypeString},
-		{Name: "hostname", Type: field.TypeString, Unique: true},
-		{Name: "agent_version", Type: field.TypeString, Nullable: true},
-		{Name: "os", Type: field.TypeString, Nullable: true},
-		{Name: "architecture", Type: field.TypeString, Nullable: true},
-		{Name: "capabilities", Type: field.TypeJSON, Nullable: true},
-		{Name: "last_seen_at", Type: field.TypeTime, Nullable: true},
-		{Name: "created_at", Type: field.TypeTime},
-		{Name: "revoked_at", Type: field.TypeTime, Nullable: true},
+		{Name: "image", Type: field.TypeString},
+		{Name: "state", Type: field.TypeString},
+		{Name: "status", Type: field.TypeString, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime, Nullable: true},
+		{Name: "started_at", Type: field.TypeTime, Nullable: true},
+		{Name: "first_seen_at", Type: field.TypeTime},
+		{Name: "last_seen_at", Type: field.TypeTime},
+		{Name: "removed_at", Type: field.TypeTime, Nullable: true},
+		{Name: "restart_count", Type: field.TypeUint64, Default: 0},
+		{Name: "restart_policy", Type: field.TypeString, Nullable: true},
+		{Name: "ports", Type: field.TypeJSON, Nullable: true},
+		{Name: "networks", Type: field.TypeJSON, Nullable: true},
+		{Name: "mounts", Type: field.TypeJSON, Nullable: true},
+		{Name: "updated_at", Type: field.TypeTime},
 	}
-	// AgentsTable holds the schema information for the "agents" table.
-	AgentsTable = &schema.Table{
-		Name:       "agents",
-		Columns:    AgentsColumns,
-		PrimaryKey: []*schema.Column{AgentsColumns[0]},
+	// ContainersTable holds the schema information for the "containers" table.
+	ContainersTable = &schema.Table{
+		Name:       "containers",
+		Columns:    ContainersColumns,
+		PrimaryKey: []*schema.Column{ContainersColumns[0]},
 	}
-	// AgentStatusColumns holds the columns for the "agent_status" table.
-	AgentStatusColumns = []*schema.Column{
-		{Name: "id", Type: field.TypeUUID},
-		{Name: "status", Type: field.TypeEnum, Enums: []string{"unknown", "connected", "disconnected"}},
-		{Name: "observed_at", Type: field.TypeTime},
-		{Name: "details", Type: field.TypeJSON, Nullable: true},
-		{Name: "agent_statuses", Type: field.TypeUUID, Nullable: true},
-	}
-	// AgentStatusTable holds the schema information for the "agent_status" table.
-	AgentStatusTable = &schema.Table{
-		Name:       "agent_status",
-		Columns:    AgentStatusColumns,
-		PrimaryKey: []*schema.Column{AgentStatusColumns[0]},
-		ForeignKeys: []*schema.ForeignKey{
-			{
-				Symbol:     "agent_status_agents_statuses",
-				Columns:    []*schema.Column{AgentStatusColumns[4]},
-				RefColumns: []*schema.Column{AgentsColumns[0]},
-				OnDelete:   schema.SetNull,
-			},
-		},
-	}
-	// AgentTokensColumns holds the columns for the "agent_tokens" table.
-	AgentTokensColumns = []*schema.Column{
-		{Name: "id", Type: field.TypeUUID},
-		{Name: "token_hash", Type: field.TypeString, Unique: true},
-		{Name: "expires_at", Type: field.TypeTime},
-		{Name: "used_at", Type: field.TypeTime, Nullable: true},
-		{Name: "revoked_at", Type: field.TypeTime, Nullable: true},
-		{Name: "created_at", Type: field.TypeTime},
-		{Name: "agent_tokens", Type: field.TypeUUID, Nullable: true},
-	}
-	// AgentTokensTable holds the schema information for the "agent_tokens" table.
-	AgentTokensTable = &schema.Table{
-		Name:       "agent_tokens",
-		Columns:    AgentTokensColumns,
-		PrimaryKey: []*schema.Column{AgentTokensColumns[0]},
-		ForeignKeys: []*schema.ForeignKey{
-			{
-				Symbol:     "agent_tokens_agents_tokens",
-				Columns:    []*schema.Column{AgentTokensColumns[6]},
-				RefColumns: []*schema.Column{AgentsColumns[0]},
-				OnDelete:   schema.SetNull,
-			},
-		},
-	}
-	// MetricsColumns holds the columns for the "metrics" table.
-	MetricsColumns = []*schema.Column{
+	// ContainerMetricSamplesColumns holds the columns for the "container_metric_samples" table.
+	ContainerMetricSamplesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
 		{Name: "name", Type: field.TypeString},
 		{Name: "value", Type: field.TypeFloat64},
 		{Name: "unit", Type: field.TypeString, Nullable: true},
 		{Name: "labels", Type: field.TypeJSON, Nullable: true},
 		{Name: "recorded_at", Type: field.TypeTime},
-		{Name: "agent_metrics", Type: field.TypeUUID},
+		{Name: "container_id", Type: field.TypeUUID},
 	}
-	// MetricsTable holds the schema information for the "metrics" table.
-	MetricsTable = &schema.Table{
-		Name:       "metrics",
-		Columns:    MetricsColumns,
-		PrimaryKey: []*schema.Column{MetricsColumns[0]},
+	// ContainerMetricSamplesTable holds the schema information for the "container_metric_samples" table.
+	ContainerMetricSamplesTable = &schema.Table{
+		Name:       "container_metric_samples",
+		Columns:    ContainerMetricSamplesColumns,
+		PrimaryKey: []*schema.Column{ContainerMetricSamplesColumns[0]},
 		ForeignKeys: []*schema.ForeignKey{
 			{
-				Symbol:     "metrics_agents_metrics",
-				Columns:    []*schema.Column{MetricsColumns[6]},
-				RefColumns: []*schema.Column{AgentsColumns[0]},
+				Symbol:     "container_metric_samples_containers_metrics",
+				Columns:    []*schema.Column{ContainerMetricSamplesColumns[6]},
+				RefColumns: []*schema.Column{ContainersColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
 		},
+	}
+	// EventsColumns holds the columns for the "events" table.
+	EventsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "type", Type: field.TypeString},
+		{Name: "severity", Type: field.TypeEnum, Enums: []string{"info", "warning", "error", "critical"}, Default: "info"},
+		{Name: "message", Type: field.TypeString},
+		{Name: "metadata", Type: field.TypeJSON, Nullable: true},
+		{Name: "occurred_at", Type: field.TypeTime},
+		{Name: "container_id", Type: field.TypeUUID, Nullable: true},
+	}
+	// EventsTable holds the schema information for the "events" table.
+	EventsTable = &schema.Table{
+		Name:       "events",
+		Columns:    EventsColumns,
+		PrimaryKey: []*schema.Column{EventsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "events_containers_events",
+				Columns:    []*schema.Column{EventsColumns[6]},
+				RefColumns: []*schema.Column{ContainersColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+		},
+	}
+	// HostInfosColumns holds the columns for the "host_infos" table.
+	HostInfosColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "singleton_key", Type: field.TypeString, Unique: true},
+		{Name: "hostname", Type: field.TypeString},
+		{Name: "distribution", Type: field.TypeString, Nullable: true},
+		{Name: "os_version", Type: field.TypeString, Nullable: true},
+		{Name: "kernel_version", Type: field.TypeString, Nullable: true},
+		{Name: "boot_time", Type: field.TypeTime, Nullable: true},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// HostInfosTable holds the schema information for the "host_infos" table.
+	HostInfosTable = &schema.Table{
+		Name:       "host_infos",
+		Columns:    HostInfosColumns,
+		PrimaryKey: []*schema.Column{HostInfosColumns[0]},
+	}
+	// SessionsColumns holds the columns for the "sessions" table.
+	SessionsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "token_hash", Type: field.TypeString, Unique: true},
+		{Name: "expires_at", Type: field.TypeTime},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "revoked_at", Type: field.TypeTime, Nullable: true},
+		{Name: "ip_address", Type: field.TypeString, Nullable: true},
+		{Name: "user_agent", Type: field.TypeString, Nullable: true},
+		{Name: "user_id", Type: field.TypeUUID},
+	}
+	// SessionsTable holds the schema information for the "sessions" table.
+	SessionsTable = &schema.Table{
+		Name:       "sessions",
+		Columns:    SessionsColumns,
+		PrimaryKey: []*schema.Column{SessionsColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "sessions_users_sessions",
+				Columns:    []*schema.Column{SessionsColumns[7]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.NoAction,
+			},
+		},
+	}
+	// SystemMetricSamplesColumns holds the columns for the "system_metric_samples" table.
+	SystemMetricSamplesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "name", Type: field.TypeString},
+		{Name: "value", Type: field.TypeFloat64},
+		{Name: "unit", Type: field.TypeString, Nullable: true},
+		{Name: "labels", Type: field.TypeJSON, Nullable: true},
+		{Name: "recorded_at", Type: field.TypeTime},
+	}
+	// SystemMetricSamplesTable holds the schema information for the "system_metric_samples" table.
+	SystemMetricSamplesTable = &schema.Table{
+		Name:       "system_metric_samples",
+		Columns:    SystemMetricSamplesColumns,
+		PrimaryKey: []*schema.Column{SystemMetricSamplesColumns[0]},
 	}
 	// UsersColumns holds the columns for the "users" table.
 	UsersColumns = []*schema.Column{
@@ -113,16 +172,19 @@ var (
 	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
-		AgentsTable,
-		AgentStatusTable,
-		AgentTokensTable,
-		MetricsTable,
+		AuditLogsTable,
+		ContainersTable,
+		ContainerMetricSamplesTable,
+		EventsTable,
+		HostInfosTable,
+		SessionsTable,
+		SystemMetricSamplesTable,
 		UsersTable,
 	}
 )
 
 func init() {
-	AgentStatusTable.ForeignKeys[0].RefTable = AgentsTable
-	AgentTokensTable.ForeignKeys[0].RefTable = AgentsTable
-	MetricsTable.ForeignKeys[0].RefTable = AgentsTable
+	ContainerMetricSamplesTable.ForeignKeys[0].RefTable = ContainersTable
+	EventsTable.ForeignKeys[0].RefTable = ContainersTable
+	SessionsTable.ForeignKeys[0].RefTable = UsersTable
 }

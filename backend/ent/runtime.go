@@ -3,11 +3,14 @@
 package ent
 
 import (
-	"homelab-manager/backend/ent/agent"
-	"homelab-manager/backend/ent/agentstatus"
-	"homelab-manager/backend/ent/agenttoken"
-	"homelab-manager/backend/ent/metric"
+	"homelab-manager/backend/ent/auditlog"
+	"homelab-manager/backend/ent/container"
+	"homelab-manager/backend/ent/containermetricsample"
+	"homelab-manager/backend/ent/event"
+	"homelab-manager/backend/ent/hostinfo"
 	"homelab-manager/backend/ent/schema"
+	"homelab-manager/backend/ent/session"
+	"homelab-manager/backend/ent/systemmetricsample"
 	"homelab-manager/backend/ent/user"
 	"time"
 
@@ -18,58 +21,148 @@ import (
 // (default values, validators, hooks and policies) and stitches it
 // to their package variables.
 func init() {
-	agentFields := schema.Agent{}.Fields()
-	_ = agentFields
-	// agentDescName is the schema descriptor for name field.
-	agentDescName := agentFields[1].Descriptor()
-	// agent.NameValidator is a validator for the "name" field. It is called by the builders before save.
-	agent.NameValidator = agentDescName.Validators[0].(func(string) error)
-	// agentDescHostname is the schema descriptor for hostname field.
-	agentDescHostname := agentFields[2].Descriptor()
-	// agent.HostnameValidator is a validator for the "hostname" field. It is called by the builders before save.
-	agent.HostnameValidator = agentDescHostname.Validators[0].(func(string) error)
-	// agentDescCreatedAt is the schema descriptor for created_at field.
-	agentDescCreatedAt := agentFields[8].Descriptor()
-	// agent.DefaultCreatedAt holds the default value on creation for the created_at field.
-	agent.DefaultCreatedAt = agentDescCreatedAt.Default.(func() time.Time)
-	// agentDescID is the schema descriptor for id field.
-	agentDescID := agentFields[0].Descriptor()
-	// agent.DefaultID holds the default value on creation for the id field.
-	agent.DefaultID = agentDescID.Default.(func() uuid.UUID)
-	agentstatusFields := schema.AgentStatus{}.Fields()
-	_ = agentstatusFields
-	// agentstatusDescObservedAt is the schema descriptor for observed_at field.
-	agentstatusDescObservedAt := agentstatusFields[2].Descriptor()
-	// agentstatus.DefaultObservedAt holds the default value on creation for the observed_at field.
-	agentstatus.DefaultObservedAt = agentstatusDescObservedAt.Default.(func() time.Time)
-	// agentstatusDescID is the schema descriptor for id field.
-	agentstatusDescID := agentstatusFields[0].Descriptor()
-	// agentstatus.DefaultID holds the default value on creation for the id field.
-	agentstatus.DefaultID = agentstatusDescID.Default.(func() uuid.UUID)
-	agenttokenFields := schema.AgentToken{}.Fields()
-	_ = agenttokenFields
-	// agenttokenDescCreatedAt is the schema descriptor for created_at field.
-	agenttokenDescCreatedAt := agenttokenFields[5].Descriptor()
-	// agenttoken.DefaultCreatedAt holds the default value on creation for the created_at field.
-	agenttoken.DefaultCreatedAt = agenttokenDescCreatedAt.Default.(func() time.Time)
-	// agenttokenDescID is the schema descriptor for id field.
-	agenttokenDescID := agenttokenFields[0].Descriptor()
-	// agenttoken.DefaultID holds the default value on creation for the id field.
-	agenttoken.DefaultID = agenttokenDescID.Default.(func() uuid.UUID)
-	metricFields := schema.Metric{}.Fields()
-	_ = metricFields
-	// metricDescName is the schema descriptor for name field.
-	metricDescName := metricFields[1].Descriptor()
-	// metric.NameValidator is a validator for the "name" field. It is called by the builders before save.
-	metric.NameValidator = metricDescName.Validators[0].(func(string) error)
-	// metricDescRecordedAt is the schema descriptor for recorded_at field.
-	metricDescRecordedAt := metricFields[5].Descriptor()
-	// metric.DefaultRecordedAt holds the default value on creation for the recorded_at field.
-	metric.DefaultRecordedAt = metricDescRecordedAt.Default.(func() time.Time)
-	// metricDescID is the schema descriptor for id field.
-	metricDescID := metricFields[0].Descriptor()
-	// metric.DefaultID holds the default value on creation for the id field.
-	metric.DefaultID = metricDescID.Default.(func() uuid.UUID)
+	auditlogFields := schema.AuditLog{}.Fields()
+	_ = auditlogFields
+	// auditlogDescActor is the schema descriptor for actor field.
+	auditlogDescActor := auditlogFields[1].Descriptor()
+	// auditlog.ActorValidator is a validator for the "actor" field. It is called by the builders before save.
+	auditlog.ActorValidator = auditlogDescActor.Validators[0].(func(string) error)
+	// auditlogDescTargetType is the schema descriptor for target_type field.
+	auditlogDescTargetType := auditlogFields[2].Descriptor()
+	// auditlog.TargetTypeValidator is a validator for the "target_type" field. It is called by the builders before save.
+	auditlog.TargetTypeValidator = auditlogDescTargetType.Validators[0].(func(string) error)
+	// auditlogDescTargetID is the schema descriptor for target_id field.
+	auditlogDescTargetID := auditlogFields[3].Descriptor()
+	// auditlog.TargetIDValidator is a validator for the "target_id" field. It is called by the builders before save.
+	auditlog.TargetIDValidator = auditlogDescTargetID.Validators[0].(func(string) error)
+	// auditlogDescAction is the schema descriptor for action field.
+	auditlogDescAction := auditlogFields[4].Descriptor()
+	// auditlog.ActionValidator is a validator for the "action" field. It is called by the builders before save.
+	auditlog.ActionValidator = auditlogDescAction.Validators[0].(func(string) error)
+	// auditlogDescOutcome is the schema descriptor for outcome field.
+	auditlogDescOutcome := auditlogFields[6].Descriptor()
+	// auditlog.OutcomeValidator is a validator for the "outcome" field. It is called by the builders before save.
+	auditlog.OutcomeValidator = auditlogDescOutcome.Validators[0].(func(string) error)
+	// auditlogDescCreatedAt is the schema descriptor for created_at field.
+	auditlogDescCreatedAt := auditlogFields[7].Descriptor()
+	// auditlog.DefaultCreatedAt holds the default value on creation for the created_at field.
+	auditlog.DefaultCreatedAt = auditlogDescCreatedAt.Default.(func() time.Time)
+	// auditlogDescID is the schema descriptor for id field.
+	auditlogDescID := auditlogFields[0].Descriptor()
+	// auditlog.DefaultID holds the default value on creation for the id field.
+	auditlog.DefaultID = auditlogDescID.Default.(func() uuid.UUID)
+	containerFields := schema.Container{}.Fields()
+	_ = containerFields
+	// containerDescDockerID is the schema descriptor for docker_id field.
+	containerDescDockerID := containerFields[1].Descriptor()
+	// container.DockerIDValidator is a validator for the "docker_id" field. It is called by the builders before save.
+	container.DockerIDValidator = containerDescDockerID.Validators[0].(func(string) error)
+	// containerDescName is the schema descriptor for name field.
+	containerDescName := containerFields[2].Descriptor()
+	// container.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	container.NameValidator = containerDescName.Validators[0].(func(string) error)
+	// containerDescImage is the schema descriptor for image field.
+	containerDescImage := containerFields[3].Descriptor()
+	// container.ImageValidator is a validator for the "image" field. It is called by the builders before save.
+	container.ImageValidator = containerDescImage.Validators[0].(func(string) error)
+	// containerDescState is the schema descriptor for state field.
+	containerDescState := containerFields[4].Descriptor()
+	// container.StateValidator is a validator for the "state" field. It is called by the builders before save.
+	container.StateValidator = containerDescState.Validators[0].(func(string) error)
+	// containerDescFirstSeenAt is the schema descriptor for first_seen_at field.
+	containerDescFirstSeenAt := containerFields[8].Descriptor()
+	// container.DefaultFirstSeenAt holds the default value on creation for the first_seen_at field.
+	container.DefaultFirstSeenAt = containerDescFirstSeenAt.Default.(func() time.Time)
+	// containerDescLastSeenAt is the schema descriptor for last_seen_at field.
+	containerDescLastSeenAt := containerFields[9].Descriptor()
+	// container.DefaultLastSeenAt holds the default value on creation for the last_seen_at field.
+	container.DefaultLastSeenAt = containerDescLastSeenAt.Default.(func() time.Time)
+	// containerDescRestartCount is the schema descriptor for restart_count field.
+	containerDescRestartCount := containerFields[11].Descriptor()
+	// container.DefaultRestartCount holds the default value on creation for the restart_count field.
+	container.DefaultRestartCount = containerDescRestartCount.Default.(uint64)
+	// containerDescUpdatedAt is the schema descriptor for updated_at field.
+	containerDescUpdatedAt := containerFields[16].Descriptor()
+	// container.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	container.DefaultUpdatedAt = containerDescUpdatedAt.Default.(func() time.Time)
+	// containerDescID is the schema descriptor for id field.
+	containerDescID := containerFields[0].Descriptor()
+	// container.DefaultID holds the default value on creation for the id field.
+	container.DefaultID = containerDescID.Default.(func() uuid.UUID)
+	containermetricsampleFields := schema.ContainerMetricSample{}.Fields()
+	_ = containermetricsampleFields
+	// containermetricsampleDescName is the schema descriptor for name field.
+	containermetricsampleDescName := containermetricsampleFields[2].Descriptor()
+	// containermetricsample.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	containermetricsample.NameValidator = containermetricsampleDescName.Validators[0].(func(string) error)
+	// containermetricsampleDescRecordedAt is the schema descriptor for recorded_at field.
+	containermetricsampleDescRecordedAt := containermetricsampleFields[6].Descriptor()
+	// containermetricsample.DefaultRecordedAt holds the default value on creation for the recorded_at field.
+	containermetricsample.DefaultRecordedAt = containermetricsampleDescRecordedAt.Default.(func() time.Time)
+	// containermetricsampleDescID is the schema descriptor for id field.
+	containermetricsampleDescID := containermetricsampleFields[0].Descriptor()
+	// containermetricsample.DefaultID holds the default value on creation for the id field.
+	containermetricsample.DefaultID = containermetricsampleDescID.Default.(func() uuid.UUID)
+	eventFields := schema.Event{}.Fields()
+	_ = eventFields
+	// eventDescType is the schema descriptor for type field.
+	eventDescType := eventFields[2].Descriptor()
+	// event.TypeValidator is a validator for the "type" field. It is called by the builders before save.
+	event.TypeValidator = eventDescType.Validators[0].(func(string) error)
+	// eventDescMessage is the schema descriptor for message field.
+	eventDescMessage := eventFields[4].Descriptor()
+	// event.MessageValidator is a validator for the "message" field. It is called by the builders before save.
+	event.MessageValidator = eventDescMessage.Validators[0].(func(string) error)
+	// eventDescOccurredAt is the schema descriptor for occurred_at field.
+	eventDescOccurredAt := eventFields[6].Descriptor()
+	// event.DefaultOccurredAt holds the default value on creation for the occurred_at field.
+	event.DefaultOccurredAt = eventDescOccurredAt.Default.(func() time.Time)
+	// eventDescID is the schema descriptor for id field.
+	eventDescID := eventFields[0].Descriptor()
+	// event.DefaultID holds the default value on creation for the id field.
+	event.DefaultID = eventDescID.Default.(func() uuid.UUID)
+	hostinfoFields := schema.HostInfo{}.Fields()
+	_ = hostinfoFields
+	// hostinfoDescSingletonKey is the schema descriptor for singleton_key field.
+	hostinfoDescSingletonKey := hostinfoFields[1].Descriptor()
+	// hostinfo.SingletonKeyValidator is a validator for the "singleton_key" field. It is called by the builders before save.
+	hostinfo.SingletonKeyValidator = hostinfoDescSingletonKey.Validators[0].(func(string) error)
+	// hostinfoDescHostname is the schema descriptor for hostname field.
+	hostinfoDescHostname := hostinfoFields[2].Descriptor()
+	// hostinfo.HostnameValidator is a validator for the "hostname" field. It is called by the builders before save.
+	hostinfo.HostnameValidator = hostinfoDescHostname.Validators[0].(func(string) error)
+	// hostinfoDescUpdatedAt is the schema descriptor for updated_at field.
+	hostinfoDescUpdatedAt := hostinfoFields[7].Descriptor()
+	// hostinfo.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	hostinfo.DefaultUpdatedAt = hostinfoDescUpdatedAt.Default.(func() time.Time)
+	// hostinfoDescID is the schema descriptor for id field.
+	hostinfoDescID := hostinfoFields[0].Descriptor()
+	// hostinfo.DefaultID holds the default value on creation for the id field.
+	hostinfo.DefaultID = hostinfoDescID.Default.(func() uuid.UUID)
+	sessionFields := schema.Session{}.Fields()
+	_ = sessionFields
+	// sessionDescCreatedAt is the schema descriptor for created_at field.
+	sessionDescCreatedAt := sessionFields[4].Descriptor()
+	// session.DefaultCreatedAt holds the default value on creation for the created_at field.
+	session.DefaultCreatedAt = sessionDescCreatedAt.Default.(func() time.Time)
+	// sessionDescID is the schema descriptor for id field.
+	sessionDescID := sessionFields[0].Descriptor()
+	// session.DefaultID holds the default value on creation for the id field.
+	session.DefaultID = sessionDescID.Default.(func() uuid.UUID)
+	systemmetricsampleFields := schema.SystemMetricSample{}.Fields()
+	_ = systemmetricsampleFields
+	// systemmetricsampleDescName is the schema descriptor for name field.
+	systemmetricsampleDescName := systemmetricsampleFields[1].Descriptor()
+	// systemmetricsample.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	systemmetricsample.NameValidator = systemmetricsampleDescName.Validators[0].(func(string) error)
+	// systemmetricsampleDescRecordedAt is the schema descriptor for recorded_at field.
+	systemmetricsampleDescRecordedAt := systemmetricsampleFields[5].Descriptor()
+	// systemmetricsample.DefaultRecordedAt holds the default value on creation for the recorded_at field.
+	systemmetricsample.DefaultRecordedAt = systemmetricsampleDescRecordedAt.Default.(func() time.Time)
+	// systemmetricsampleDescID is the schema descriptor for id field.
+	systemmetricsampleDescID := systemmetricsampleFields[0].Descriptor()
+	// systemmetricsample.DefaultID holds the default value on creation for the id field.
+	systemmetricsample.DefaultID = systemmetricsampleDescID.Default.(func() uuid.UUID)
 	userFields := schema.User{}.Fields()
 	_ = userFields
 	// userDescUsername is the schema descriptor for username field.

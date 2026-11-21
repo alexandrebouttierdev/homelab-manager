@@ -6,17 +6,26 @@ import (
 	"entgo.io/ent/dialect/sql"
 )
 
-// Agent is the predicate function for agent builders.
-type Agent func(*sql.Selector)
+// AuditLog is the predicate function for auditlog builders.
+type AuditLog func(*sql.Selector)
 
-// AgentStatus is the predicate function for agentstatus builders.
-type AgentStatus func(*sql.Selector)
+// Container is the predicate function for container builders.
+type Container func(*sql.Selector)
 
-// AgentToken is the predicate function for agenttoken builders.
-type AgentToken func(*sql.Selector)
+// ContainerMetricSample is the predicate function for containermetricsample builders.
+type ContainerMetricSample func(*sql.Selector)
 
-// Metric is the predicate function for metric builders.
-type Metric func(*sql.Selector)
+// Event is the predicate function for event builders.
+type Event func(*sql.Selector)
+
+// HostInfo is the predicate function for hostinfo builders.
+type HostInfo func(*sql.Selector)
+
+// Session is the predicate function for session builders.
+type Session func(*sql.Selector)
+
+// SystemMetricSample is the predicate function for systemmetricsample builders.
+type SystemMetricSample func(*sql.Selector)
 
 // User is the predicate function for user builders.
 type User func(*sql.Selector)

@@ -1,184 +1,110 @@
 # Architecture technique — Homelab Manager
 
-Version 1.1 — 20 novembre 2026
+Version 2.0 — 21 novembre 2026
 
 ## 1. Vue logique
 
 ```text
-Navigateur (React / TypeScript)
-          |
-       HTTPS / REST
-          |
-Manager Go
+Navigateur React / TypeScript
+          | HTTPS / REST, même origine
+          v
+Backend Go
   |-- Delivery HTTP : Chi v5
-  |-- Delivery WebSocket : coder/websocket
   |-- Usecases
-  |-- Domain
-  |-- Ports (repositories, agent gateway, clock, ...)
-  |-- Adapters : Ent / PostgreSQL
-  |
-PostgreSQL dédié
-
-Agents Go (plusieurs hôtes)
-  |-- collecte système et capacités
-  |-- exécution d'actions autorisées uniquement
-  |-- connexion sortante WebSocket TLS vers Manager
-  |-- service systemd
+  |-- Domain et ports
+  |-- Collecteur système Linux
+  |-- Service de planification et rétention
+  |-- Adaptateur Docker : API locale via proxy en liste blanche
+  |-- Adaptateur Ent / PostgreSQL
+          |
+          +---- Unix socket local ---- Docker Engine
+          |
+          +---- PostgreSQL local dédié
 ```
 
-## 2. Backend Manager
+Le périmètre est un hôte Linux unique : celui qui exécute le Manager. Aucun collecteur, transport ou modèle n'est conçu pour un hôte distant.
 
-### Routeur HTTP : Chi v5
+## 2. Stack et responsabilités
 
-Dépendance validée :
-
-```bash
-go get github.com/go-chi/chi/v5
-```
-
-Import :
-
-```go
-import "github.com/go-chi/chi/v5"
-```
-
-Chi est le routeur HTTP de la couche Delivery. Il s'appuie sur `net/http` et ne doit pas devenir le cœur de l'application.
-
-Responsabilités de la couche HTTP :
-- routage et versionnement de l'API ;
-- middleware HTTP (request ID, récupération contrôlée des panics, logs, timeout, authentification, autorisation, limites de taille) ;
-- décodage et validation des DTO ;
-- conversion des erreurs applicatives vers des réponses HTTP ;
-- appel des usecases.
-
-Les handlers ne contiennent aucune logique métier et ne manipulent pas directement Ent.
-
-### Autres dépendances validées
-
-| Besoin | Technologie |
+| Besoin | Technologie / règle |
 |---|---|
-| Routeur HTTP | Chi v5 |
-| ORM | Ent |
-| PostgreSQL | PostgreSQL natif |
-| WebSocket | `github.com/coder/websocket` |
+| Langage Backend | Go |
+| API HTTP | Chi v5 et `net/http` |
+| ORM / persistance | Ent / PostgreSQL dédié |
 | Configuration | Viper |
-| Logs structurés | Zap |
-| Frontend | React + TypeScript + Vite |
-| Formulaires | React Hook Form + Zod |
+| Logs | Zap |
+| Collecte système | Interfaces Linux locales (`/proc`, `/sys`) et bibliothèques Go adaptées |
+| Collecte Docker | Docker Engine API sur socket Unix local, derrière un port d'infrastructure |
+| Frontend | React, TypeScript strict, Vite, React Router |
+| Cache serveur UI | TanStack Query |
+| Formulaires / validation UI | React Hook Form / Zod |
 | Graphiques | Apache ECharts |
-| Tests UI | Vitest + React Testing Library |
+| Tests | `testing`, `httptest`, Vitest et React Testing Library |
 
-Ne pas ajouter un framework web complet au-dessus de Chi sans décision d'architecture.
+Chi reste exclusivement dans Delivery/HTTP. Ent reste dans les adaptateurs de persistance. Le domaine ne dépend ni de Chi, ni d'Ent, ni de Docker, ni de PostgreSQL, ni de React.
 
-## 3. Communication hybride
+## 3. Architecture hexagonale
 
-### REST/HTTPS
-Utilisé pour :
-- authentification de l'administrateur ;
-- consultation des machines, agents, inventaires, métriques et événements ;
-- gestion des paramètres ;
-- création, consultation et suivi des opérations ;
-- enrôlement, révocation et administration des agents.
+- `domain/` : objets et règles métier pour l'hôte, les conteneurs, les mesures et événements.
+- `usecase/` : orchestration des lectures, collectes, historiques et paramètres.
+- `ports/` : interfaces minimales pour les collecteurs, repositories et horloge si nécessaire.
+- `adapters/` : Linux, API Docker, PostgreSQL/Ent et système de fichiers.
+- `delivery/http/` : handlers Chi, DTO, middleware et validation HTTP.
+- `cmd/manager/` : composition des dépendances et cycle de vie du processus.
 
-### WebSocket TLS
-Utilisé pour :
-- connexion persistante initiée par chaque Agent vers le Manager ;
-- heartbeat et état de présence ;
-- remontée de métriques et événements ;
-- réception des tâches autorisées et transmission de leurs résultats ;
-- négociation des capacités supportées par l'Agent.
+Les collecteurs ne sont jamais appelés directement depuis un handler. Un planificateur détenu par le Manager lance des cycles périodiques et s'arrête avec son contexte avant la fermeture des ressources.
 
-L'Agent initie la connexion sortante. Le Manager n'a pas besoin d'ouvrir un port entrant sur chaque machine supervisée.
+## 4. Collecte système
 
-Les messages WebSocket doivent être versionnés, typés, bornés en taille et validés. La reconnexion doit utiliser un délai progressif avec jitter et respecter l'annulation du contexte.
+Le collecteur système lit localement les compteurs CPU, charge, mémoire, swap, systèmes de fichiers, interfaces, uptime et informations d'OS accessibles. Les différences entre deux échantillons de compteurs permettent de calculer les taux et débits. `/proc`, `/sys` et les bibliothèques Go spécialisées sont privilégiés aux commandes shell répétées.
 
-## 4. Agent Go
+Les températures sont opportunistes : une source absente ou inaccessible produit une donnée indisponible, jamais une valeur estimée présentée comme réelle. Le collecteur expose ses erreurs et l'heure de dernière réussite.
 
-Responsabilités :
-- s'identifier auprès du Manager ;
-- annoncer version, OS, architecture et capacités ;
-- collecter les métriques et inventaires autorisés ;
-- envoyer heartbeat, métriques et événements ;
-- recevoir uniquement des tâches reconnues ;
-- vérifier localement que l'action est autorisée ;
-- appliquer des timeouts et limites de ressources ;
-- renvoyer résultat structuré et statut.
+## 5. Collecte Docker
 
-L'Agent ne doit jamais transformer une requête du Manager en commande shell libre. Les actions sont des opérations nommées, avec paramètres structurés et validation stricte.
+Un service de découverte interroge périodiquement la liste complète des conteneurs, arrêtés compris, et compare les identifiants/états avec l'état connu. Les nouveaux objets, suppressions, redémarrages et changements d'état sont persistés comme événements. Les statistiques par conteneur proviennent de Docker Engine API (`stats` non-streaming), indépendamment des pages affichées.
 
-## 5. Architecture hexagonale
+Le port applicatif expose seulement les besoins nécessaires, notamment `ListContainers` et `ContainerStats`. L'adaptateur encode les appels API Docker et traduit les réponses vers des types métier ; aucun type du SDK Docker ne traverse les ports/usecases. Les changements d'état sont identifiés par réconciliation périodique, pas par un flux d'événements.
 
-Organisation recommandée :
+Un proxy local en liste blanche est la frontière de sécurité. Il n'expose que les appels GET de liste, inspection et statistiques ; il refuse toute autre route, méthode, tunnel ou changement de daemon. Le processus Manager n'accède pas directement au socket rootful. Voir [SECURITY.md](./SECURITY.md).
 
-- `domain/` : entités métier, value objects, règles et erreurs métier.
-- `usecase/` : orchestration et cas d'utilisation.
-- `ports/` : interfaces nécessaires aux usecases.
-- `adapters/` : PostgreSQL/Ent, horloge, passerelle Agent, système de fichiers si nécessaire.
-- `delivery/http/` : handlers et middleware Chi.
-- `delivery/ws/` : protocole WebSocket.
-- `cmd/manager/` et `cmd/agent/` : points d'entrée.
+En cas d'indisponibilité du démon, conserver le dernier inventaire connu comme périmé, marquer la collecte en erreur, puis réessayer avec délai borné. Ne pas supprimer l'état connu parce qu'une requête temporaire a échoué.
 
-Le domaine et les usecases ne doivent pas importer Chi, Ent ou les packages PostgreSQL.
+## 6. Planification, persistance et ressources
 
-## 6. PostgreSQL
+- Les cycles système, découverte Docker, stats Docker et rétention ont des fréquences/configurations indépendantes et bornées.
+- La collecte démarre au lancement du Manager, non à la première requête.
+- Une panne ponctuelle d'un sous-système n'empêche pas l'autre collecteur de fonctionner.
+- Les insertions de métriques sont groupées ; les requêtes historiques ont des bornes temporelles et un plafond de résultats.
+- La purge est paginée/par lots afin de limiter les verrous et le travail PostgreSQL.
+- Toute goroutine a un propriétaire, une stratégie d'arrêt et des timeouts.
 
-- Installation native dédiée sur Debian 13.
-- Base dédiée `homelab_manager`.
-- Rôle PostgreSQL applicatif dédié, avec privilèges minimaux sur cette base.
-- Connexion locale uniquement par défaut ; aucun accès réseau PostgreSQL nécessaire au frontend ou aux Agents.
-- Migrations versionnées et testées.
-- Ent est l'accès ORM ; les types générés Ent restent dans l'adaptateur de persistance.
+Les périodes et formules sont définies dans [METRICS_COLLECTION.md](./METRICS_COLLECTION.md). Le modèle de persistance est décrit dans [DATA_MODEL.md](./DATA_MODEL.md).
 
-## 7. Frontend
+## 7. API et interface
 
-- React + TypeScript + Vite.
-- Client API centralisé, gestion uniforme des erreurs et de l'authentification.
-- Zod pour valider les réponses et entrées pertinentes côté client.
-- React Hook Form pour les formulaires.
-- ECharts pour les séries temporelles et visualisations.
-- WebSocket navigateur pour les mises à jour live ; REST reste la source de vérité pour les lectures et mutations durables.
-- États explicites : chargement, vide, erreur, données périmées, hors ligne.
+Le Frontend consomme exclusivement l'API REST de même origine. REST est aussi la source de vérité pour le rafraîchissement périodique des métriques ; aucun WebSocket applicatif n'est requis. TanStack Query gère rafraîchissement, chargement, erreur et fraîcheur.
 
-## 8. Arborescence monorepo proposée
+Les routes, DTO et limites sont décrits dans [API_CONTRACTS.md](./API_CONTRACTS.md). Le navigateur ne reçoit ni identifiants Docker ni accès à PostgreSQL.
+
+## 8. Déploiement Debian
+
+Le Manager est un service natif Debian 13, avec un utilisateur système dédié sans appartenance directe au groupe `docker`, un fichier de configuration protégé, un accès au proxy Docker local et une connexion PostgreSQL locale. Le Frontend compilé est servi par le Manager ou par un serveur local de même origine. Production ne requiert pas Docker Compose.
+
+L'arborescence cible ne comprend qu'un module Backend Go et le Frontend :
 
 ```text
 homelab-manager/
-├── CLAUDE.md
-├── README.md
-├── go.work
 ├── backend/
 │   ├── cmd/manager/
-│   ├── internal/
-│   │   ├── domain/
-│   │   ├── usecase/
-│   │   ├── ports/
-│   │   ├── adapters/postgres/
-│   │   └── delivery/
-│   │       ├── http/       # Chi v5
-│   │       └── websocket/
+│   ├── internal/{domain,usecase,ports,adapters,delivery/http}/
 │   ├── ent/schema/
 │   ├── migrations/
 │   └── go.mod
-├── agent/
-│   ├── cmd/agent/
-│   ├── internal/
-│   │   ├── collector/
-│   │   ├── executor/
-│   │   ├── transport/
-│   │   └── capabilities/
-│   └── go.mod
 ├── frontend/
-│   ├── src/
-│   │   ├── app/
-│   │   ├── features/
-│   │   ├── components/
-│   │   ├── lib/api/
-│   │   └── schemas/
-│   └── package.json
-├── deployments/
-│   ├── systemd/
-│   └── config/
-└── docs/
+├── deployments/systemd/       # Manager et proxy Docker restreint
+├── docs/
+└── scripts/
 ```
 
-Cette arborescence est une convention de départ ; ne pas créer artificiellement des couches vides. Garder les modules Go séparés si cela simplifie réellement les dépendances et les builds.
+Le Manager sert le contenu compilé de `frontend/dist` depuis la même origine. Le proxy est socket-activé par systemd ; son unité est séparée du Manager. Voir le [README](../README.md) pour la préparation des comptes, la configuration et l'installation.

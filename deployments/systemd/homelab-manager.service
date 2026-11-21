@@ -1,7 +1,7 @@
 [Unit]
 Description=Homelab Manager
-After=network-online.target postgresql.service
-Wants=network-online.target
+After=network-online.target postgresql.service homelab-docker-proxy.socket
+Wants=network-online.target homelab-docker-proxy.socket
 
 [Service]
 Type=simple
@@ -13,6 +13,14 @@ Restart=on-failure
 RestartSec=5
 NoNewPrivileges=true
 PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
+CapabilityBoundingSet=
+AmbientCapabilities=
 EnvironmentFile=-/etc/homelab-manager/manager.env
 
 [Install]

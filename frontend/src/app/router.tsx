@@ -4,6 +4,10 @@ import { DashboardPage } from '../features/dashboard/DashboardPage'
 import { HostPage } from '../features/host/HostPage'
 import { ContainersPage } from '../features/containers/ContainersPage'
 import { ContainerDetailPage } from '../features/containers/ContainerDetailPage'
+import { ImagesPage } from '../features/images/ImagesPage'
+import { VolumesPage } from '../features/volumes/VolumesPage'
+import { NetworksPage } from '../features/networks/NetworksPage'
+import { StoragePage } from '../features/storage/StoragePage'
 import { MetricsPage } from '../features/metrics/MetricsPage'
 import { NetworkPage } from '../features/network/NetworkPage'
 import { SettingsPage } from '../features/settings/SettingsPage'
@@ -18,12 +22,16 @@ export const router = createBrowserRouter([
     children: [
       { path: '/', element: <DashboardPage /> },
       { path: '/host', element: <HostPage /> },
+      { path: '/storage', element: <StoragePage /> },
+      { path: '/network', element: <NetworkPage /> },
+      { path: '/metrics', element: <MetricsPage /> },
       { path: '/containers', element: <ContainersPage /> },
       { path: '/containers/:containerID', element: <ContainerDetailPage /> },
-      { path: '/metrics', element: <MetricsPage /> },
-      { path: '/network', element: <NetworkPage /> },
-      { path: '/settings', element: <SettingsPage /> },
+      { path: '/images', element: <ImagesPage /> },
+      { path: '/volumes', element: <VolumesPage /> },
+      { path: '/networks', element: <NetworksPage /> },
       { path: '/events', element: <EventsPage /> },
+      { path: '/settings', element: <SettingsPage /> },
     ],
   },
 ])

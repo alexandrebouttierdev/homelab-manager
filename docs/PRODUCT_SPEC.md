@@ -14,7 +14,7 @@ Le Backend Go collecte directement les données système et découvre les conten
 - Backend Go, API REST Chi v5, Ent et PostgreSQL dédié.
 - Collecte système exécutée localement par le Backend.
 - Découverte et statistiques Docker via l'API du démon local, au travers d'un adaptateur restreint.
-- Frontend React/TypeScript/Vite, servi sur la même origine que l'API en production.
+- Frontend React/TypeScript/Vite avec Tailwind CSS, servi sur la même origine que l'API en production.
 - PostgreSQL local au Manager ; aucun accès direct depuis le navigateur.
 
 Docker Compose peut servir au développement ou aux tests, mais ne constitue pas un mode de déploiement de production requis.

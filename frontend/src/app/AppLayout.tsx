@@ -1,43 +1,34 @@
-import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { logout } from '../lib/api/auth'
-
-const navigation = [
-  { to: '/', label: "Vue d'ensemble", end: true },
-  { to: '/host', label: 'Machine' },
-  { to: '/containers', label: 'Conteneurs' },
-  { to: '/metrics', label: 'Métriques' },
-  { to: '/network', label: 'Réseau' },
-  { to: '/events', label: 'Événements' },
-  { to: '/settings', label: 'Paramètres' },
-]
+import { useEffect, useState } from 'react'
+import { Outlet, useLocation } from 'react-router-dom'
+import { AppSidebar } from '../components/layout/AppSidebar'
+import { TopBar } from '../components/layout/TopBar'
 
 export function AppLayout() {
-  const queryClient = useQueryClient()
-  const navigate = useNavigate()
-  const signOut = useMutation({
-    mutationFn: logout,
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['session'] })
-      navigate('/login', { replace: true })
-    },
-  })
+  const [sidebarOpen, setSidebarOpen] = useState(false)
+  const location = useLocation()
+
+  useEffect(() => {
+    window.scrollTo({ top: 0 })
+  }, [location.pathname])
 
   return (
-    <main className="dashboard-shell">
-      <aside className="sidebar">
-        <strong>Homelab Manager</strong>
-        <nav aria-label="Navigation principale">
-          {navigation.map(({ to, label, end }) => (
-            <NavLink key={to} to={to} end={end}>{label}</NavLink>
-          ))}
-        </nav>
-        <button type="button" className="logout-button" onClick={() => signOut.mutate()} disabled={signOut.isPending}>
-          {signOut.isPending ? 'Déconnexion...' : 'Se déconnecter'}
-        </button>
-        {signOut.isError && <p className="field-error" role="alert">{signOut.error.message}</p>}
-      </aside>
-      <Outlet />
-    </main>
+    <div className="min-h-screen bg-background">
+      <a
+        href="#contenu"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-4 focus:top-4 focus:z-[60] focus:rounded-md focus:bg-accent focus:px-3 focus:py-2 focus:text-sm focus:font-medium focus:text-on-accent"
+      >
+        Aller au contenu
+      </a>
+      <AppSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
+      <div className="min-h-screen lg:pl-64">
+        <TopBar onOpenMenu={() => setSidebarOpen(true)} />
+        <main
+          id="contenu"
+          className="mx-auto w-full max-w-[1700px] px-4 py-5 sm:px-6 lg:px-8"
+        >
+          <Outlet />
+        </main>
+      </div>
+    </div>
   )
 }

@@ -12,7 +12,7 @@ Homelab Manager supervise définitivement une seule machine Linux : celle du Man
 - Configuration Viper ; logs structurés Zap.
 - Collecte système Linux via interfaces locales (`/proc`, `/sys`) et bibliothèques Go adaptées.
 - Docker Engine API locale par socket Unix, derrière un adaptateur d'infrastructure restreint.
-- Frontend React, TypeScript strict, Vite, React Router, TanStack Query.
+- Frontend React, TypeScript strict, Vite, React Router, TanStack Query, Tailwind CSS.
 - Formulaires React Hook Form + Zod ; graphiques Apache ECharts.
 - Tests Backend `testing`, `httptest`, intégration PostgreSQL ; Frontend Vitest + React Testing Library.
 - Déploiement natif Debian 13/systemd. Docker Compose est réservé au développement/test.

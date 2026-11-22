@@ -36,6 +36,7 @@ Le périmètre est un hôte Linux unique : celui qui exécute le Manager. Aucun 
 | Collecte système | Interfaces Linux locales (`/proc`, `/sys`) et bibliothèques Go adaptées |
 | Collecte Docker | Docker Engine API sur socket Unix local, derrière un port d'infrastructure |
 | Frontend | React, TypeScript strict, Vite, React Router |
+| Styles et composants UI | Tailwind CSS v4, composants React internes |
 | Cache serveur UI | TanStack Query |
 | Formulaires / validation UI | React Hook Form / Zod |
 | Graphiques | Apache ECharts |

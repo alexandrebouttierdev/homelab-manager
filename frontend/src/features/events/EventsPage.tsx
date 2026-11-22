@@ -1,27 +1,202 @@
 import { useQuery } from '@tanstack/react-query'
-import { listEvents } from '../../lib/api/monitoring'
+import { AlertTriangle, Bell, CheckCircle2, Info, RefreshCw, SearchX } from 'lucide-react'
+import { useMemo, useState, type ReactNode } from 'react'
+import { Link } from 'react-router-dom'
+import { Badge } from '../../components/ui/Badge'
+import { Button } from '../../components/ui/Button'
+import { CardFooter } from '../../components/ui/Card'
+import { Table, TBody, TD, TH, THead, TR } from '../../components/ui/DataTable'
+import { EmptyState } from '../../components/ui/EmptyState'
+import { ErrorState } from '../../components/ui/ErrorState'
+import { EventIcon } from '../../components/ui/EventIcon'
+import { LoadingState } from '../../components/ui/LoadingState'
+import { PageHeader } from '../../components/ui/PageHeader'
+import { SearchField } from '../../components/ui/SearchField'
+import { SegmentedTabs } from '../../components/ui/SegmentedTabs'
+import { Select } from '../../components/ui/Select'
+import { listEvents, type MonitorEvent } from '../../lib/api/monitoring'
+import { eventSeverityLabel, eventTone, eventTypeLabel } from '../../lib/events'
+import { formatDateTime, formatRelativeTime } from '../../lib/format'
+import { useRefreshInterval } from '../../lib/refresh'
+
+type SeverityFilter = 'all' | 'info' | 'warning' | 'error'
+type RangeKey = '24h' | '7d' | '30d'
+
+const ranges: Array<{ value: RangeKey; label: string; milliseconds: number }> = [
+  { value: '24h', label: '24 heures', milliseconds: 24 * 60 * 60 * 1000 },
+  { value: '7d', label: '7 jours', milliseconds: 7 * 24 * 60 * 60 * 1000 },
+  { value: '30d', label: '30 jours', milliseconds: 30 * 24 * 60 * 60 * 1000 },
+]
+
+function rangeStart(range: RangeKey): Date {
+  return new Date(Date.now() - (ranges.find((item) => item.value === range)?.milliseconds ?? ranges[0].milliseconds))
+}
+
+function severityCounts(events: MonitorEvent[]) {
+  return {
+    info: events.filter((event) => event.severity === 'info').length,
+    warning: events.filter((event) => event.severity === 'warning').length,
+    error: events.filter((event) => event.severity === 'error' || event.severity === 'critical').length,
+  }
+}
 
 export function EventsPage() {
-  const events = useQuery({ queryKey: ['events'], queryFn: listEvents, refetchInterval: 30_000 })
+  const refreshInterval = useRefreshInterval()
+  const [range, setRange] = useState<RangeKey>('24h')
+  const [severity, setSeverity] = useState<SeverityFilter>('all')
+  const [search, setSearch] = useState('')
+
+  const events = useQuery({
+    queryKey: ['events', range],
+    queryFn: () => listEvents({ from: rangeStart(range), to: new Date(), limit: 500 }),
+    refetchInterval: refreshInterval || false,
+  })
+
+  const all = useMemo(() => events.data ?? [], [events.data])
+  const counts = severityCounts(all)
+
+  const filtered = useMemo(() => {
+    return all.filter((event) => {
+      if (severity === 'error' && event.severity !== 'error' && event.severity !== 'critical') return false
+      if (severity !== 'all' && severity !== 'error' && event.severity !== severity) return false
+      if (!search) return true
+      const haystack = `${event.type} ${event.message} ${event.severity}`.toLowerCase()
+      return haystack.includes(search.toLowerCase())
+    })
+  }, [all, search, severity])
+
   return (
-    <section className="content">
-      <header><div><p className="eyebrow">Dernières 24 heures</p><h1>Événements</h1></div></header>
-      {events.isLoading && <p>Chargement des événements...</p>}
-      {events.isError && <p className="field-error" role="alert">{events.error.message}</p>}
-      {!events.isLoading && !events.isError && events.data?.length === 0 && (
-        <article className="chart-card"><h2>Aucun événement enregistré</h2><p>Les changements d'état et incidents de collecte apparaîtront ici.</p></article>
+    <div className="space-y-4">
+      <PageHeader
+        title="Événements"
+        breadcrumb={[{ label: 'Activité' }, { label: 'Événements' }]}
+        badge={<Badge tone={counts.error > 0 ? 'danger' : counts.warning > 0 ? 'warning' : 'success'}>{all.length} événement(s)</Badge>}
+        description="Changements d'état des conteneurs détectés par la réconciliation Docker. Les événements de collecteur ne sont pas encore persistés."
+        actions={(
+          <Button
+            size="sm"
+            variant="secondary"
+            icon={<RefreshCw className="h-3.5 w-3.5" />}
+            onClick={() => { void events.refetch() }}
+          >
+            Actualiser
+          </Button>
+        )}
+      />
+
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Summary icon={<Bell className="h-3.5 w-3.5" />} label="Total" value={all.length} tone="text-text-primary" />
+        <Summary icon={<Info className="h-3.5 w-3.5" />} label="Informations" value={counts.info} tone="text-info" />
+        <Summary icon={<AlertTriangle className="h-3.5 w-3.5" />} label="Avertissements" value={counts.warning} tone="text-warning" />
+        <Summary icon={<AlertTriangle className="h-3.5 w-3.5" />} label="Erreurs" value={counts.error} tone="text-danger" />
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 rounded-lg border border-line bg-card p-2.5">
+        <SearchField
+          value={search}
+          onChange={setSearch}
+          placeholder="Rechercher dans les événements…"
+          ariaLabel="Rechercher un événement"
+          className="min-w-[220px] flex-1 border-0 bg-surface"
+        />
+        <SegmentedTabs
+          ariaLabel="Filtrer par gravité"
+          value={severity}
+          onChange={setSeverity}
+          options={[
+            { value: 'all', label: 'Tous', count: all.length },
+            { value: 'info', label: 'Info', count: counts.info },
+            { value: 'warning', label: 'Avertissement', count: counts.warning },
+            { value: 'error', label: 'Erreur', count: counts.error },
+          ]}
+        />
+        <Select
+          aria-label="Période des événements"
+          value={range}
+          onChange={(event) => setRange(event.target.value as RangeKey)}
+          className="min-w-[130px]"
+        >
+          {ranges.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+        </Select>
+      </div>
+
+      {events.isLoading && <LoadingState label="Chargement des événements…" rows={4} />}
+      {events.isError && <ErrorState message={events.error.message} onRetry={() => { void events.refetch() }} />}
+
+      {!events.isLoading && !events.isError && all.length === 0 && (
+        <EmptyState
+          icon={CheckCircle2}
+          title="Aucun événement enregistré"
+          description="Aucun changement d'état de conteneur n'a été détecté sur la période. Les événements apparaîtront lors des démarrages, arrêts ou redémarrages."
+        />
       )}
-      {events.data && events.data.length > 0 && (
-        <div className="event-list">
-          {events.data.map((event) => (
-            <article className="chart-card" key={event.id}>
-              <div className="event-heading"><strong>{event.type}</strong><span>{event.severity}</span></div>
-              <p>{event.message}</p>
-              <small>{new Date(event.occurredAt).toLocaleString('fr-FR')}</small>
-            </article>
-          ))}
-        </div>
+
+      {!events.isLoading && !events.isError && all.length > 0 && filtered.length === 0 && (
+        <EmptyState
+          icon={SearchX}
+          title="Aucun événement ne correspond"
+          description="Modifiez la recherche, la gravité ou la période pour retrouver un événement."
+          action={<Button size="sm" variant="secondary" onClick={() => { setSearch(''); setSeverity('all') }}>Réinitialiser les filtres</Button>}
+        />
       )}
-    </section>
+
+      {filtered.length > 0 && (
+        <>
+          <Table minWidthClassName="min-w-[900px]">
+            <THead>
+              <tr><TH>Date</TH><TH>Gravité</TH><TH>Type</TH><TH>Message</TH><TH>Conteneur</TH><TH>Ancienneté</TH></tr>
+            </THead>
+            <TBody>
+              {filtered.map((event) => (
+                <TR key={event.id}>
+                  <TD className="font-mono text-xs">{formatDateTime(event.occurredAt)}</TD>
+                  <TD>
+                    <Badge tone={eventTone(event.severity)} dot>
+                      {eventSeverityLabel(event.severity)}
+                    </Badge>
+                  </TD>
+                  <TD>
+                    <span className="flex items-center gap-2 text-xs font-medium text-text-primary">
+                      <EventIcon type={event.type} className="text-text-muted" />
+                      {eventTypeLabel(event.type)}
+                    </span>
+                  </TD>
+                  <TD><span className="block max-w-[420px] text-xs">{event.message || '—'}</span></TD>
+                  <TD>
+                    {event.containerId ? (
+                      <Link
+                        to={`/containers/${encodeURIComponent(event.containerId)}`}
+                        className="font-mono text-[10px] text-accent transition-colors hover:underline"
+                      >
+                        ouvrir le conteneur
+                      </Link>
+                    ) : (
+                      <span className="font-mono text-[10px] text-text-muted">—</span>
+                    )}
+                  </TD>
+                  <TD className="font-mono text-[10px]">{formatRelativeTime(event.occurredAt)}</TD>
+                </TR>
+              ))}
+            </TBody>
+          </Table>
+          <CardFooter className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line bg-card font-mono text-[10px] text-text-muted">
+            <span>{filtered.length} sur {all.length} événement(s)</span>
+            <span>Ordre antéchronologique · maximum 500 résultats</span>
+          </CardFooter>
+        </>
+      )}
+    </div>
+  )
+}
+
+function Summary({ icon, label, value, tone }: { icon: ReactNode; label: string; value: number; tone: string }) {
+  return (
+    <div className="flex items-start justify-between gap-3 rounded-lg border border-line bg-card p-4">
+      <div>
+        <p className="font-mono text-[11px] uppercase tracking-wider text-text-muted">{label}</p>
+        <p className={`mt-1 font-mono text-2xl font-semibold tracking-tight ${tone}`}>{value}</p>
+      </div>
+      <span className="flex h-7 w-7 items-center justify-center rounded-md border border-line bg-elevated text-text-muted">{icon}</span>
+    </div>
   )
 }

@@ -7,7 +7,7 @@ La spécification produit v2.0 est dans [docs/PRODUCT_SPEC.md](docs/PRODUCT_SPEC
 ## Architecture
 
 - `backend/` : module Go unique, API REST Chi v5, Ent/PostgreSQL, collecte Linux et Docker.
-- `frontend/` : React, TypeScript strict, Vite, React Router, TanStack Query, Zod, React Hook Form et ECharts.
+- `frontend/` : React, TypeScript strict, Vite, React Router, TanStack Query, Zod, React Hook Form, Tailwind CSS et ECharts.
 - `deployments/systemd/` : unités Manager et proxy Docker local en liste blanche.
 - `docs/` : architecture, contrats API, données, sécurité, métriques et stratégie de tests.
 
@@ -15,7 +15,7 @@ Aucun Agent distant, enrôlement, protocole Manager-Agent, commande distante ou 
 
 ## État fonctionnel et limites connues
 
-Le code v2.0 est en place : authentification locale, collecteurs système/Docker, API protégée, historique PostgreSQL, événements de changement de conteneur, interface dashboard/hôte/containers/métriques/réseau/événements/paramètres, proxy Docker Unix filtré et unités systemd.
+Le code v2.0 est en place : authentification locale, collecteurs système/Docker, API protégée, historique PostgreSQL, événements de changement de conteneur, interface dashboard/hôte/containers/images/volumes/réseaux Docker/stockage/métriques/réseau/événements/paramètres, proxy Docker Unix filtré et unités systemd. L'interface utilise Tailwind CSS et des composants React internes ; les écrans sans support Backend restent explicitement marqués « à venir ».
 
 Les limites actuelles sont explicites :
 

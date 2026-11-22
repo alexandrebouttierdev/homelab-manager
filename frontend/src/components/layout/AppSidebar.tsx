@@ -1,4 +1,3 @@
-import { useQuery } from '@tanstack/react-query'
 import {
   Activity,
   Bell,
@@ -20,7 +19,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
-import { getHost } from '../../lib/api/monitoring'
+import { useHost } from '../../hooks/useHost'
 import { cn } from '../../lib/cn'
 import { formatUptime } from '../../lib/format'
 import { Logo } from '../ui/Logo'
@@ -114,12 +113,7 @@ type AppSidebarProps = {
 }
 
 export function AppSidebar({ open, onClose }: AppSidebarProps) {
-  const host = useQuery({
-    queryKey: ['host'],
-    queryFn: getHost,
-    staleTime: 60_000,
-    retry: false,
-  })
+  const { host, online, osLabel } = useHost()
 
   return (
     <>
@@ -197,28 +191,22 @@ export function AppSidebar({ open, onClose }: AppSidebarProps) {
         <div className="border-t border-line px-4 py-3">
           <div className="flex items-center gap-2">
             <StatusDot
-              tone={host.data?.collector.status === 'ok' ? 'success' : 'warning'}
-              pulse={host.data?.collector.status === 'ok'}
-              label={
-                host.data?.collector.status === 'ok'
-                  ? 'Collecte système active'
-                  : 'Collecte système dégradée'
-              }
+              tone={online ? 'success' : 'warning'}
+              pulse={online}
+              label={online ? 'Collecte système active' : 'Collecte système dégradée'}
             />
             <span className="font-mono text-[10px] uppercase tracking-wider text-text-secondary">
-              {host.data?.collector.status === 'ok' ? 'Collecte active' : 'Collecte locale'}
+              {online ? 'Collecte active' : 'Collecte locale'}
             </span>
           </div>
           <p className="mt-2 truncate text-xs font-medium text-text-primary">
-            {host.data?.hostname ?? 'Homelab local'}
+            {host?.hostname ?? 'Homelab local'}
           </p>
           <p className="mt-0.5 truncate font-mono text-[10px] text-text-muted">
-            {host.data
-              ? `${host.data.os.distribution || 'Linux'} ${host.data.os.version || ''}`.trim()
-              : 'Connexion au Manager…'}
+            {host ? osLabel : 'Connexion au Manager…'}
           </p>
           <p className="mt-1 font-mono text-[10px] text-text-muted">
-            Uptime {host.data ? formatUptime(host.data.uptimeSeconds) : '—'}
+            Uptime {host ? formatUptime(host.uptimeSeconds) : '—'}
           </p>
           <p className="mt-2 font-mono text-[10px] uppercase tracking-wider text-text-muted/70">
             Version {APP_VERSION}

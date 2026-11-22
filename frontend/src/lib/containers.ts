@@ -98,3 +98,58 @@ export function imageTag(image: string): { repository: string; tag: string } {
   }
   return { repository: withoutDigest, tag: 'latest' }
 }
+
+export type ContainerStateFilter = 'all' | 'running' | 'stopped' | 'error'
+export type ContainerSortOrder = 'name' | 'state' | 'uptime' | 'restarts'
+
+type SearchableContainer = {
+  name: string
+  image: string
+  dockerId: string
+  status: string
+  state: string
+  networks: string[]
+  ports: Array<Record<string, unknown>>
+}
+
+/** Case-insensitive search over name, image, ID, state, networks and ports. */
+export function matchesContainerSearch(container: SearchableContainer, search: string): boolean {
+  if (!search) return true
+  const haystack = [
+    container.name,
+    container.image,
+    container.dockerId,
+    container.status,
+    container.state,
+    ...container.networks,
+    ...formatPorts(container.ports),
+  ]
+    .join(' ')
+    .toLowerCase()
+  return haystack.includes(search.toLowerCase())
+}
+
+export function matchesStateFilter(state: string, filter: ContainerStateFilter): boolean {
+  if (filter === 'running') return isRunning(state)
+  if (filter === 'stopped') return isStopped(state)
+  if (filter === 'error') return isErrorState(state)
+  return true
+}
+
+/** Sorted copy; ties are broken by name. */
+export function sortContainers<
+  T extends { name: string; state: string; uptimeSeconds: number | null; restartCount: number },
+>(containers: T[], order: ContainerSortOrder): T[] {
+  return [...containers].sort((left, right) => {
+    switch (order) {
+      case 'state':
+        return left.state.localeCompare(right.state) || left.name.localeCompare(right.name)
+      case 'uptime':
+        return (right.uptimeSeconds ?? -1) - (left.uptimeSeconds ?? -1)
+      case 'restarts':
+        return right.restartCount - left.restartCount || left.name.localeCompare(right.name)
+      default:
+        return left.name.localeCompare(right.name)
+    }
+  })
+}

@@ -1,7 +1,5 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { Container as ContainerIcon, ExternalLink, RefreshCw, SearchX } from 'lucide-react'
-import { useMemo, useState } from 'react'
-import { Link, useSearchParams } from 'react-router-dom'
+import { Link } from 'react-router-dom'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { CardFooter } from '../../components/ui/Card'
@@ -15,152 +13,66 @@ import { SearchField } from '../../components/ui/SearchField'
 import { SegmentedTabs } from '../../components/ui/SegmentedTabs'
 import { Select } from '../../components/ui/Select'
 import { StatusDot } from '../../components/ui/StatusDot'
-import {
-  getCurrentContainerMetrics,
-  listContainers,
-  type ContainerInfo,
-} from '../../lib/api/monitoring'
-import {
-  containerStateLabel,
-  containerStateTone,
-  formatPorts,
-  imageTag,
-  isErrorState,
-  isRunning,
-  isStopped,
-  shortId,
-} from '../../lib/containers'
+import { containerStateLabel, containerStateTone, isRunning, shortId } from '../../lib/containers'
 import { formatBytes, formatPercent, formatUptime } from '../../lib/format'
-import { latestOne } from '../../lib/metrics'
-import { useRefreshInterval } from '../../lib/refresh'
+import type { ContainerSortOrder } from '../../lib/containers'
+import { useContainerUsage } from './useContainerUsage'
+import { maxUsageRows, useContainersPage } from './useContainersPage'
 
-type StateFilter = 'all' | 'running' | 'stopped' | 'error'
-type SortOrder = 'name' | 'state' | 'uptime' | 'restarts'
-
-function ContainerUsageCells({ containerId, enabled }: { containerId: string; enabled: boolean }) {
-  const refreshInterval = useRefreshInterval()
-  const metrics = useQuery({
-    queryKey: ['container', containerId, 'current-metrics'],
-    queryFn: () => getCurrentContainerMetrics(containerId),
-    enabled,
-    staleTime: 15_000,
-    refetchInterval: enabled && refreshInterval > 0 ? refreshInterval : false,
-  })
-
-  if (!enabled) {
-    return (
-      <>
-        <TD className="font-mono text-[10px] text-text-muted">—</TD>
-        <TD className="font-mono text-[10px] text-text-muted">—</TD>
-      </>
-    )
+/** CPU and memory of one container, rendered inside the "Charge" cell. */
+function ContainerUsage({ containerId, enabled }: { containerId: string; enabled: boolean }) {
+  const usage = useContainerUsage(containerId, enabled)
+  if (usage.state !== 'ok') {
+    const label = { disabled: '—', loading: '…', error: 'indisponible' }[usage.state]
+    return <span className="font-mono text-[10px] text-text-muted">{label}</span>
   }
-  if (metrics.isLoading) {
-    return (
-      <>
-        <TD className="font-mono text-[10px] text-text-muted">…</TD>
-        <TD className="font-mono text-[10px] text-text-muted">…</TD>
-      </>
-    )
-  }
-  if (metrics.isError) {
-    return (
-      <>
-        <TD className="font-mono text-[10px] text-text-muted">indisponible</TD>
-        <TD className="font-mono text-[10px] text-text-muted">indisponible</TD>
-      </>
-    )
-  }
-
-  const samples = metrics.data?.samples ?? []
-  const cpu = latestOne(samples, 'cpu.percent')?.value ?? null
-  const memory = latestOne(samples, 'memory.usage_bytes')?.value ?? null
-  const memoryLimit = latestOne(samples, 'memory.limit_bytes')?.value ?? null
-  const memoryPercent = latestOne(samples, 'memory.percent')?.value ?? null
-
   return (
-    <>
-      <TD>
-        <div className="min-w-[78px] space-y-1">
-          <span className="block font-mono text-xs text-text-primary">{formatPercent(cpu)}</span>
-          <ProgressBar value={cpu} tone="cpu" label="Utilisation CPU du conteneur" />
+    <div className="min-w-[150px] space-y-1.5">
+      <div className="space-y-1">
+        <div className="flex items-baseline justify-between gap-2 font-mono text-[10px]">
+          <span className="text-text-muted">CPU</span>
+          <span className="text-text-primary">{formatPercent(usage.cpu)}</span>
         </div>
-      </TD>
-      <TD>
-        <div className="min-w-[128px] space-y-1">
-          <div className="flex items-baseline justify-between gap-2 font-mono text-[10px]">
-            <span className="text-text-primary">{formatPercent(memoryPercent)}</span>
-            <span className="text-text-muted">{formatBytes(memory)}</span>
-          </div>
-          <ProgressBar value={memoryPercent} tone="ram" label="Utilisation mémoire du conteneur" />
-          {memoryLimit != null && (
-            <span className="block font-mono text-[9px] text-text-muted">
-              sur {formatBytes(memoryLimit)}
-            </span>
-          )}
+        <ProgressBar value={usage.cpu} tone="cpu" label="Utilisation CPU du conteneur" />
+      </div>
+      <div className="space-y-1">
+        <div className="flex items-baseline justify-between gap-2 font-mono text-[10px]">
+          <span className="text-text-muted">RAM {formatPercent(usage.memoryPercent)}</span>
+          <span className="text-text-primary">
+            {formatBytes(usage.memory)}
+            {usage.memoryLimit != null && (
+              <span className="text-text-muted"> / {formatBytes(usage.memoryLimit)}</span>
+            )}
+          </span>
         </div>
-      </TD>
-    </>
+        <ProgressBar
+          value={usage.memoryPercent}
+          tone="ram"
+          label="Utilisation mémoire du conteneur"
+        />
+      </div>
+    </div>
   )
 }
 
-function matchesSearch(container: ContainerInfo, search: string): boolean {
-  if (!search) return true
-  const haystack = [
-    container.name,
-    container.image,
-    container.dockerId,
-    container.status,
-    container.state,
-    ...container.networks,
-    ...formatPorts(container.ports),
-  ]
-    .join(' ')
-    .toLowerCase()
-  return haystack.includes(search.toLowerCase())
-}
-
 export function ContainersPage() {
-  const queryClient = useQueryClient()
-  const refreshInterval = useRefreshInterval()
-  const [searchParams] = useSearchParams()
-  const [search, setSearch] = useState(searchParams.get('image') ?? '')
-  const [stateFilter, setStateFilter] = useState<StateFilter>('all')
-  const [sortOrder, setSortOrder] = useState<SortOrder>('name')
-  const [includeRemoved, setIncludeRemoved] = useState(false)
-
-  const containers = useQuery({
-    queryKey: ['containers', includeRemoved],
-    queryFn: () => listContainers(includeRemoved),
-    refetchInterval: refreshInterval || false,
-  })
-
-  const all = useMemo(() => containers.data ?? [], [containers.data])
-  const running = all.filter((container) => isRunning(container.state))
-  const stopped = all.filter((container) => isStopped(container.state))
-  const errors = all.filter((container) => isErrorState(container.state))
-
-  const filtered = useMemo(() => {
-    const result = all.filter((container) => {
-      if (stateFilter === 'running' && !isRunning(container.state)) return false
-      if (stateFilter === 'stopped' && !isStopped(container.state)) return false
-      if (stateFilter === 'error' && !isErrorState(container.state)) return false
-      return matchesSearch(container, search)
-    })
-
-    return [...result].sort((left, right) => {
-      switch (sortOrder) {
-        case 'state':
-          return left.state.localeCompare(right.state) || left.name.localeCompare(right.name)
-        case 'uptime':
-          return (right.uptimeSeconds ?? -1) - (left.uptimeSeconds ?? -1)
-        case 'restarts':
-          return right.restartCount - left.restartCount || left.name.localeCompare(right.name)
-        default:
-          return left.name.localeCompare(right.name)
-      }
-    })
-  }, [all, search, sortOrder, stateFilter])
+  const {
+    search,
+    setSearch,
+    stateFilter,
+    setStateFilter,
+    sortOrder,
+    setSortOrder,
+    includeRemoved,
+    setIncludeRemoved,
+    counts,
+    rows,
+    isLoading,
+    error,
+    retry,
+    refresh,
+    resetFilters,
+  } = useContainersPage()
 
   return (
     <div className="space-y-4">
@@ -174,9 +86,7 @@ export function ContainersPage() {
             size="sm"
             variant="secondary"
             icon={<RefreshCw className="h-3.5 w-3.5" />}
-            onClick={() => {
-              void queryClient.invalidateQueries({ queryKey: ['containers'] })
-            }}
+            onClick={refresh}
           >
             Rafraîchir
           </Button>
@@ -189,15 +99,15 @@ export function ContainersPage() {
           value={stateFilter}
           onChange={setStateFilter}
           options={[
-            { value: 'all', label: 'Tous', count: all.length },
-            { value: 'running', label: 'Actifs', count: running.length },
-            { value: 'stopped', label: 'Arrêtés', count: stopped.length },
-            { value: 'error', label: 'Incidents', count: errors.length },
+            { value: 'all', label: 'Tous', count: counts.all },
+            { value: 'running', label: 'Actifs', count: counts.running },
+            { value: 'stopped', label: 'Arrêtés', count: counts.stopped },
+            { value: 'error', label: 'Incidents', count: counts.errors },
           ]}
         />
-        <Badge tone={errors.length > 0 ? 'danger' : 'success'} dot={errors.length > 0}>
-          {errors.length > 0
-            ? `${errors.length} conteneur(s) en incident`
+        <Badge tone={counts.errors > 0 ? 'danger' : 'success'} dot={counts.errors > 0}>
+          {counts.errors > 0
+            ? `${counts.errors} conteneur(s) en incident`
             : 'Aucun incident détecté'}
         </Badge>
       </div>
@@ -213,7 +123,7 @@ export function ContainersPage() {
         <Select
           aria-label="Trier les conteneurs"
           value={sortOrder}
-          onChange={(event) => setSortOrder(event.target.value as SortOrder)}
+          onChange={(event) => setSortOrder(event.target.value as ContainerSortOrder)}
           className="min-w-[150px]"
         >
           <option value="name">Trier par nom</option>
@@ -232,17 +142,17 @@ export function ContainersPage() {
         </label>
       </div>
 
-      {containers.isLoading && <LoadingState label="Chargement des conteneurs…" rows={4} />}
-      {containers.isError && (
+      {isLoading && <LoadingState label="Chargement des conteneurs…" rows={4} />}
+      {error && (
         <ErrorState
-          message={containers.error.message}
+          message={error.message}
           onRetry={() => {
-            void containers.refetch()
+            retry()
           }}
         />
       )}
 
-      {!containers.isLoading && !containers.isError && all.length === 0 && (
+      {!isLoading && !error && counts.all === 0 && (
         <EmptyState
           icon={ContainerIcon}
           title="Aucun conteneur détecté"
@@ -250,27 +160,20 @@ export function ContainersPage() {
         />
       )}
 
-      {!containers.isLoading && !containers.isError && all.length > 0 && filtered.length === 0 && (
+      {!isLoading && !error && counts.all > 0 && rows.length === 0 && (
         <EmptyState
           icon={SearchX}
           title="Aucun conteneur ne correspond"
           description="Modifiez la recherche ou le filtre d'état pour retrouver un conteneur."
           action={
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => {
-                setSearch('')
-                setStateFilter('all')
-              }}
-            >
+            <Button size="sm" variant="secondary" onClick={resetFilters}>
               Réinitialiser les filtres
             </Button>
           }
         />
       )}
 
-      {filtered.length > 0 && (
+      {rows.length > 0 && (
         <>
           <Table minWidthClassName="min-w-[1180px]">
             <THead>
@@ -289,9 +192,7 @@ export function ContainersPage() {
               </tr>
             </THead>
             <TBody>
-              {filtered.map((container, index) => {
-                const ports = formatPorts(container.ports)
-                const tag = imageTag(container.image)
+              {rows.map(({ container, ports, tag, showUsage }) => {
                 return (
                   <TR key={container.id}>
                     <TD>
@@ -381,10 +282,7 @@ export function ContainersPage() {
                       )}
                     </TD>
                     <TD>
-                      <ContainerUsageCells
-                        containerId={container.id}
-                        enabled={isRunning(container.state) && index < 50}
-                      />
+                      <ContainerUsage containerId={container.id} enabled={showUsage} />
                     </TD>
                     <TD>
                       <Link
@@ -403,8 +301,10 @@ export function ContainersPage() {
 
           <CardFooter className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line bg-card font-mono text-[10px] text-text-muted">
             <span>
-              {filtered.length} sur {all.length} conteneur(s) affiché(s)
-              {all.length > 50 ? ' · charge détaillée limitée aux 50 premiers actifs' : ''}
+              {rows.length} sur {counts.all} conteneur(s) affiché(s)
+              {counts.all > maxUsageRows
+                ? ` · charge détaillée limitée aux ${maxUsageRows} premiers actifs`
+                : ''}
             </span>
             <span>Découverte automatique via le proxy Docker local · lecture seule</span>
           </CardFooter>

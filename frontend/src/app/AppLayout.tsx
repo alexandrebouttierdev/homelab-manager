@@ -1,15 +1,12 @@
-import { useEffect, useState } from 'react'
-import { Outlet, useLocation } from 'react-router-dom'
+import { useState } from 'react'
+import { Outlet } from 'react-router-dom'
 import { AppSidebar } from '../components/layout/AppSidebar'
 import { TopBar } from '../components/layout/TopBar'
+import { useScrollToTopOnNavigation } from '../hooks/useScrollToTopOnNavigation'
 
 export function AppLayout() {
   const [sidebarOpen, setSidebarOpen] = useState(false)
-  const location = useLocation()
-
-  useEffect(() => {
-    window.scrollTo({ top: 0 })
-  }, [location.pathname])
+  useScrollToTopOnNavigation()
 
   return (
     <div className="min-h-screen bg-background">

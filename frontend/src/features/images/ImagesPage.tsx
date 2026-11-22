@@ -1,6 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
 import { ExternalLink, Images as ImagesIcon } from 'lucide-react'
-import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Badge } from '../../components/ui/Badge'
 import { CardFooter } from '../../components/ui/Card'
@@ -10,50 +8,20 @@ import { ErrorState } from '../../components/ui/ErrorState'
 import { LoadingState } from '../../components/ui/LoadingState'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { SearchField } from '../../components/ui/SearchField'
-import { listContainers } from '../../lib/api/monitoring'
-import { imageTag, isRunning } from '../../lib/containers'
-import { useRefreshInterval } from '../../lib/refresh'
-
-type ImageGroup = {
-  image: string
-  repository: string
-  tag: string
-  containers: Array<{ id: string; name: string; state: string }>
-  running: number
-}
+import { useImagesPage } from './useImagesPage'
 
 export function ImagesPage() {
-  const refreshInterval = useRefreshInterval()
-  const [search, setSearch] = useState('')
-  const containers = useQuery({
-    queryKey: ['containers', false],
-    queryFn: () => listContainers(false),
-    refetchInterval: refreshInterval || false,
-  })
-
-  const images = useMemo(() => {
-    const grouped = new Map<string, ImageGroup>()
-    for (const container of containers.data ?? []) {
-      const existing = grouped.get(container.image) ?? {
-        image: container.image,
-        ...imageTag(container.image),
-        containers: [],
-        running: 0,
-      }
-      existing.containers.push({ id: container.id, name: container.name, state: container.state })
-      if (isRunning(container.state)) existing.running += 1
-      grouped.set(container.image, existing)
-    }
-    return Array.from(grouped.values()).sort((left, right) => left.image.localeCompare(right.image))
-  }, [containers.data])
-
-  const filtered = images.filter(
-    (image) =>
-      !search ||
-      `${image.image} ${image.repository} ${image.tag}`
-        .toLowerCase()
-        .includes(search.toLowerCase()),
-  )
+  const {
+    search,
+    setSearch,
+    isLoading,
+    error,
+    retry,
+    containerCount,
+    activeImageCount,
+    images,
+    filtered,
+  } = useImagesPage()
 
   return (
     <div className="space-y-4">
@@ -76,16 +44,14 @@ export function ImagesPage() {
             Conteneurs associés
           </p>
           <p className="mt-1 font-mono text-2xl font-semibold text-text-primary">
-            {(containers.data ?? []).length}
+            {containerCount}
           </p>
         </div>
         <div className="rounded-lg border border-line bg-card p-4">
           <p className="font-mono text-[11px] uppercase tracking-wider text-text-muted">
             Images actives
           </p>
-          <p className="mt-1 font-mono text-2xl font-semibold text-success">
-            {images.filter((image) => image.running > 0).length}
-          </p>
+          <p className="mt-1 font-mono text-2xl font-semibold text-success">{activeImageCount}</p>
         </div>
       </div>
 
@@ -96,17 +62,17 @@ export function ImagesPage() {
         ariaLabel="Rechercher une image"
       />
 
-      {containers.isLoading && <LoadingState label="Chargement des images…" rows={3} />}
-      {containers.isError && (
+      {isLoading && <LoadingState label="Chargement des images…" rows={3} />}
+      {error && (
         <ErrorState
-          message={containers.error.message}
+          message={error.message}
           onRetry={() => {
-            void containers.refetch()
+            retry()
           }}
         />
       )}
 
-      {!containers.isLoading && !containers.isError && filtered.length === 0 && (
+      {!isLoading && !error && filtered.length === 0 && (
         <EmptyState
           icon={ImagesIcon}
           title={images.length === 0 ? 'Aucune image observée' : 'Aucune image ne correspond'}
@@ -135,9 +101,6 @@ export function ImagesPage() {
             </THead>
             <TBody>
               {filtered.map((image) => {
-                const states = Array.from(
-                  new Set(image.containers.map((container) => container.state)),
-                )
                 return (
                   <TR key={image.image}>
                     <TD>
@@ -179,7 +142,7 @@ export function ImagesPage() {
                     </TD>
                     <TD>
                       <div className="flex flex-wrap gap-1">
-                        {states.map((state) => (
+                        {image.states.map((state) => (
                           <Badge key={state} tone="neutral">
                             {state}
                           </Badge>

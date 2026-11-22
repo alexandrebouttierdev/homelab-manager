@@ -1,4 +1,3 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Activity,
   Clock3,
@@ -22,12 +21,6 @@ import { MetricCard } from '../../components/ui/MetricCard'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { ProgressBar } from '../../components/ui/ProgressBar'
 import {
-  getCurrentHostMetrics,
-  getHost,
-  getSettings,
-  type MetricSample,
-} from '../../lib/api/monitoring'
-import {
   formatBytes,
   formatDateTime,
   formatMetricValue,
@@ -35,59 +28,33 @@ import {
   formatRelativeTime,
   formatUptime,
 } from '../../lib/format'
-import { filesystemSummary } from '../../lib/host'
-import { latestGrouped, latestOne, latestSamples } from '../../lib/metrics'
-import { useRefreshInterval } from '../../lib/refresh'
 import { CollectorRow } from '../../components/ui/CollectorRow'
 import { collectorStatusLabel, collectorStatusTone } from '../../lib/collectors'
-
-function metricLabel(name: string): string {
-  return name.replaceAll('.', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())
-}
-
-function metricLabels(sample: MetricSample): string {
-  const labels = Object.entries(sample.labels ?? {})
-  if (labels.length === 0) return '—'
-  return labels.map(([key, value]) => `${key}=${value}`).join(' · ')
-}
+import { metricLabel, metricLabels, useHostPage } from './useHostPage'
 
 export function HostPage() {
-  const queryClient = useQueryClient()
-  const refreshInterval = useRefreshInterval()
-  const host = useQuery({
-    queryKey: ['host'],
-    queryFn: getHost,
-    refetchInterval: refreshInterval || false,
-  })
-  const current = useQuery({
-    queryKey: ['host', 'current-metrics'],
-    queryFn: getCurrentHostMetrics,
-    refetchInterval: refreshInterval || false,
-  })
-  const settings = useQuery({
-    queryKey: ['settings'],
-    queryFn: getSettings,
-    staleTime: 60_000,
-  })
-
-  const samples = current.data?.samples ?? []
-  const cpu = latestOne(samples, 'cpu.percent', { core: 'all' })?.value ?? null
-  const cores = latestOne(samples, 'cpu.cores')?.value ?? null
-  const load1 = latestOne(samples, 'cpu.load1')?.value ?? null
-  const load5 = latestOne(samples, 'cpu.load5')?.value ?? null
-  const load15 = latestOne(samples, 'cpu.load15')?.value ?? null
-  const memoryTotal = latestOne(samples, 'memory.total')?.value ?? null
-  const memoryUsed = latestOne(samples, 'memory.used')?.value ?? null
-  const memoryAvailable = latestOne(samples, 'memory.available')?.value ?? null
-  const memoryPercent = memoryTotal && memoryUsed != null ? (memoryUsed / memoryTotal) * 100 : null
-  const filesystems = filesystemSummary(samples)
-  const temperatures = Array.from(latestGrouped(samples, 'temperature.celsius', 'sensor').entries())
-    .map(([sensor, sample]) => ({ sensor, value: sample.value }))
-    .sort((left, right) => right.value - left.value)
-  const metrics = latestSamples(samples).sort((left, right) => left.name.localeCompare(right.name))
-
-  const systemStatus = settings.data?.collectors.system ?? host.data?.collector
-  const dockerStatus = settings.data?.collectors.docker
+  const {
+    queryClient,
+    host,
+    current,
+    cpu,
+    cores,
+    load1,
+    load5,
+    load15,
+    memoryTotal,
+    memoryUsed,
+    memoryAvailable,
+    memoryPercent,
+    filesystems,
+    temperatures,
+    metrics,
+    systemStatus,
+    dockerStatus,
+    hostInfo,
+    settingsInfo,
+    temperatureAlert,
+  } = useHostPage()
 
   return (
     <div className="space-y-4">
@@ -95,20 +62,20 @@ export function HostPage() {
         title="Machine"
         breadcrumb={[{ label: 'Système' }, { label: 'Machine' }]}
         badge={
-          <Badge tone={collectorStatusTone(host.data?.collector.status ?? '')} dot>
-            {host.data ? collectorStatusLabel(host.data.collector.status) : 'Collecte'}
+          <Badge tone={collectorStatusTone(hostInfo?.collector.status ?? '')} dot>
+            {hostInfo ? collectorStatusLabel(hostInfo.collector.status) : 'Collecte'}
           </Badge>
         }
         description={
-          host.data ? (
+          hostInfo ? (
             <>
               <span className="font-mono text-text-primary">
-                {host.data.hostname || 'hôte local'}
+                {hostInfo.hostname || 'hôte local'}
               </span>
               {' · '}
-              {`${host.data.os.distribution || 'Linux'} ${host.data.os.version || ''}`.trim()}
+              {`${hostInfo.os.distribution || 'Linux'} ${hostInfo.os.version || ''}`.trim()}
               {' · noyau '}
-              <span className="font-mono">{host.data.kernelVersion || 'indisponible'}</span>
+              <span className="font-mono">{hostInfo.kernelVersion || 'indisponible'}</span>
             </>
           ) : (
             'Identité et ressources de la machine qui héberge le Manager.'
@@ -141,7 +108,7 @@ export function HostPage() {
         <LoadingState label="Chargement des informations système…" rows={2} />
       )}
 
-      {host.data && !host.isError && (
+      {hostInfo && !host.isError && (
         <>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <MetricCard
@@ -189,9 +156,7 @@ export function HostPage() {
               title={temperatures.length > 0 ? 'Capteurs locaux' : 'Aucun capteur'}
               value={temperatures[0] ? formatMetricValue(temperatures[0].value, 'celsius') : '—'}
               badge={
-                <Badge
-                  tone={temperatures.some((sensor) => sensor.value >= 80) ? 'warning' : 'neutral'}
-                >
+                <Badge tone={temperatureAlert ? 'warning' : 'neutral'}>
                   {temperatures.length} capteur(s)
                 </Badge>
               }
@@ -212,19 +177,19 @@ export function HostPage() {
               />
               <CardBody>
                 <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  <Info label="Nom d'hôte" value={host.data.hostname || '—'} mono />
+                  <Info label="Nom d'hôte" value={hostInfo.hostname || '—'} mono />
                   <Info
                     label="Distribution"
-                    value={`${host.data.os.distribution || '—'} ${host.data.os.version || ''}`.trim()}
+                    value={`${hostInfo.os.distribution || '—'} ${hostInfo.os.version || ''}`.trim()}
                   />
-                  <Info label="Noyau" value={host.data.kernelVersion || '—'} mono />
-                  <Info label="Démarrage" value={formatDateTime(host.data.bootTime)} />
-                  <Info label="Uptime" value={formatUptime(host.data.uptimeSeconds)} />
+                  <Info label="Noyau" value={hostInfo.kernelVersion || '—'} mono />
+                  <Info label="Démarrage" value={formatDateTime(hostInfo.bootTime)} />
+                  <Info label="Uptime" value={formatUptime(hostInfo.uptimeSeconds)} />
                   <Info
                     label="Dernière collecte"
                     value={
-                      host.data.collector.lastSuccessAt
-                        ? formatRelativeTime(host.data.collector.lastSuccessAt)
+                      hostInfo.collector.lastSuccessAt
+                        ? formatRelativeTime(hostInfo.collector.lastSuccessAt)
                         : 'Aucune'
                     }
                   />
@@ -261,9 +226,9 @@ export function HostPage() {
                   lastSuccessAt={dockerStatus?.lastSuccessAt}
                 />
                 <div className="rounded-md border border-line/70 bg-surface/50 px-3 py-2.5 font-mono text-[10px] text-text-muted">
-                  <p>Intervalle système : {settings.data?.systemCollectIntervalSeconds ?? '—'} s</p>
+                  <p>Intervalle système : {settingsInfo?.systemCollectIntervalSeconds ?? '—'} s</p>
                   <p className="mt-1">
-                    Rétention : {settings.data?.metricsRetentionDays ?? '—'} jours
+                    Rétention : {settingsInfo?.metricsRetentionDays ?? '—'} jours
                   </p>
                 </div>
               </CardBody>

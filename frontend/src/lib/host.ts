@@ -134,3 +134,9 @@ export function diskSummary(samples: MetricSample[]) {
     }))
     .sort((left, right) => left.device.localeCompare(right.device))
 }
+
+/** Occupancy colour: warning above 80 %, danger above 90 %. */
+export function usageTone(percent: number | null): 'success' | 'warning' | 'danger' {
+  if (percent == null || percent <= 80) return 'success'
+  return percent > 90 ? 'danger' : 'warning'
+}

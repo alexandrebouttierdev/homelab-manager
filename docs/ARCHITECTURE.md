@@ -85,7 +85,7 @@ Les périodes et formules sont définies dans [METRICS_COLLECTION.md](./METRICS_
 
 ## 7. API et interface
 
-Le Frontend consomme exclusivement l'API REST de même origine. REST est aussi la source de vérité pour le rafraîchissement périodique des métriques ; aucun WebSocket applicatif n'est requis. TanStack Query gère rafraîchissement, chargement, erreur et fraîcheur.
+Le Frontend consomme exclusivement l'API REST de même origine. Il suit la même séparation que le Backend : pages et composants pour l'affichage seul, hooks `use…` pour l'accès aux données et l'orchestration, fonctions pures de `src/lib/` pour les calculs (CODE_RULES.md § 4.3). REST est aussi la source de vérité pour le rafraîchissement périodique des métriques ; aucun WebSocket applicatif n'est requis. TanStack Query gère rafraîchissement, chargement, erreur et fraîcheur.
 
 Les routes, DTO et limites sont décrits dans [API_CONTRACTS.md](./API_CONTRACTS.md). Le navigateur ne reçoit ni identifiants Docker ni accès à la base SQLite.
 

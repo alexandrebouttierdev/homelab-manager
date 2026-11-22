@@ -37,7 +37,7 @@ Lire `README.md` et tous les fichiers de `docs/` avant toute modification struct
 - Hexagonale : domain → usecase → ports ← adapters. Le domaine ne dépend ni de Chi, Ent, SQLite, Docker ni de React.
 - Chi uniquement dans `delivery/http` : DTO, validation, appel des usecases. Ent uniquement dans les adaptateurs ; jamais d'entité Ent en DTO.
 - Collecte indépendante des requêtes HTTP et des utilisateurs connectés.
-- Pas de logique métier dans les handlers ni dans les composants React.
+- Pas de logique métier dans les handlers. Côté React, **aucun code métier dans les pages et composants** : requêtes, mutations, formulaires, calculs, filtres et décisions vont dans des hooks `use…` (un par page, `src/features/<domaine>/use<Page>.ts`) et des fonctions pures de `src/lib/` ; les composants ne font qu'afficher le modèle de vue (règle détaillée et contrôle ESLint : `docs/CODE_RULES.md` § 4.3).
 - Pas de dépendance cloud pour le fonctionnement normal.
 - Pas d'API Docker mutatrice. Toute action privilégiée future suit le modèle de `docs/SPEC_ADMINISTRATION.md` § 2 (D-Bus, polkit en liste blanche, unités systemd dédiées) ; le Manager ne tourne jamais en root.
 

@@ -110,3 +110,9 @@ export function latestValue(
 ): number | null {
   return latestOne(samples, name, labels)?.value ?? null
 }
+
+/** "key=value · key=value", or an em dash for a series without labels. */
+export function labelsText(labels: Record<string, string> | null | undefined): string {
+  const entries = Object.entries(labels ?? {})
+  return entries.length > 0 ? entries.map(([key, value]) => `${key}=${value}`).join(' · ') : '—'
+}

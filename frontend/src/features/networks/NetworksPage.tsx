@@ -1,6 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
 import { Cable, Network } from 'lucide-react'
-import { useMemo, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { Badge } from '../../components/ui/Badge'
 import { CardFooter } from '../../components/ui/Card'
@@ -11,45 +9,21 @@ import { LoadingState } from '../../components/ui/LoadingState'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { SearchField } from '../../components/ui/SearchField'
 import { StatusDot } from '../../components/ui/StatusDot'
-import { listContainers } from '../../lib/api/monitoring'
-import { containerStateTone, isRunning } from '../../lib/containers'
-import { useRefreshInterval } from '../../lib/refresh'
-
-type NetworkGroup = {
-  name: string
-  containers: Array<{ id: string; name: string; state: string }>
-  running: number
-}
+import { containerStateTone } from '../../lib/containers'
+import { useNetworksPage } from './useNetworksPage'
 
 export function NetworksPage() {
-  const refreshInterval = useRefreshInterval()
-  const [search, setSearch] = useState('')
-  const containers = useQuery({
-    queryKey: ['containers', false],
-    queryFn: () => listContainers(false),
-    refetchInterval: refreshInterval || false,
-  })
-
-  const networks = useMemo(() => {
-    const grouped = new Map<string, NetworkGroup>()
-    for (const container of containers.data ?? []) {
-      for (const network of container.networks) {
-        const existing = grouped.get(network) ?? { name: network, containers: [], running: 0 }
-        existing.containers.push({ id: container.id, name: container.name, state: container.state })
-        if (isRunning(container.state)) existing.running += 1
-        grouped.set(network, existing)
-      }
-    }
-    return Array.from(grouped.values()).sort((left, right) => left.name.localeCompare(right.name))
-  }, [containers.data])
-
-  const filtered = networks.filter(
-    (network) =>
-      !search ||
-      `${network.name} ${network.containers.map((container) => container.name).join(' ')}`
-        .toLowerCase()
-        .includes(search.toLowerCase()),
-  )
+  const {
+    search,
+    setSearch,
+    isLoading,
+    error,
+    retry,
+    attachedContainerCount,
+    activeNetworkCount,
+    networks,
+    filtered,
+  } = useNetworksPage()
 
   return (
     <div className="space-y-4">
@@ -74,16 +48,14 @@ export function NetworksPage() {
             Conteneurs attachés
           </p>
           <p className="mt-1 font-mono text-2xl font-semibold text-accent">
-            {(containers.data ?? []).filter((container) => container.networks.length > 0).length}
+            {attachedContainerCount}
           </p>
         </div>
         <div className="rounded-lg border border-line bg-card p-4">
           <p className="font-mono text-[11px] uppercase tracking-wider text-text-muted">
             Réseaux actifs
           </p>
-          <p className="mt-1 font-mono text-2xl font-semibold text-success">
-            {networks.filter((network) => network.running > 0).length}
-          </p>
+          <p className="mt-1 font-mono text-2xl font-semibold text-success">{activeNetworkCount}</p>
         </div>
       </div>
 
@@ -94,17 +66,17 @@ export function NetworksPage() {
         ariaLabel="Rechercher un réseau"
       />
 
-      {containers.isLoading && <LoadingState label="Chargement des réseaux…" rows={3} />}
-      {containers.isError && (
+      {isLoading && <LoadingState label="Chargement des réseaux…" rows={3} />}
+      {error && (
         <ErrorState
-          message={containers.error.message}
+          message={error.message}
           onRetry={() => {
-            void containers.refetch()
+            retry()
           }}
         />
       )}
 
-      {!containers.isLoading && !containers.isError && filtered.length === 0 && (
+      {!isLoading && !error && filtered.length === 0 && (
         <EmptyState
           icon={Cable}
           title={networks.length === 0 ? 'Aucun réseau observé' : 'Aucun réseau ne correspond'}
@@ -172,9 +144,7 @@ export function NetworksPage() {
                   </TD>
                   <TD>
                     <div className="flex flex-wrap gap-1">
-                      {Array.from(
-                        new Set(network.containers.map((container) => container.state)),
-                      ).map((state) => (
+                      {network.states.map((state) => (
                         <Badge key={state} tone="neutral">
                           {state}
                         </Badge>

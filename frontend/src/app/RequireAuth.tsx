@@ -1,16 +1,10 @@
-import { useQuery } from '@tanstack/react-query'
 import { Navigate } from 'react-router-dom'
 import type { ReactNode } from 'react'
-import { getSession } from '../lib/api/auth'
 import { Logo } from '../components/ui/Logo'
+import { useSession } from '../hooks/useSession'
 
 export function RequireAuth({ children }: { children: ReactNode }) {
-  const session = useQuery({
-    queryKey: ['session'],
-    queryFn: getSession,
-    retry: false,
-    staleTime: 30_000,
-  })
+  const session = useSession()
 
   if (session.isPending) {
     return (
@@ -30,11 +24,11 @@ export function RequireAuth({ children }: { children: ReactNode }) {
     )
   }
 
-  if (session.isError && 'status' in session.error && session.error.status === 401) {
+  if (session.unauthenticated) {
     return <Navigate to="/login" replace />
   }
 
-  if (session.isError) {
+  if (session.error) {
     return (
       <main className="flex min-h-screen items-center justify-center bg-background px-4">
         <div className="w-full max-w-md rounded-lg border border-danger/30 bg-card p-6 text-center">

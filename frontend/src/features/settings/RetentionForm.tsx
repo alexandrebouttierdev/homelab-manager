@@ -1,39 +1,24 @@
-import { zodResolver } from '@hookform/resolvers/zod'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Save } from 'lucide-react'
-import { useForm, useWatch } from 'react-hook-form'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { Card, CardBody, CardFooter, CardHeader } from '../../components/ui/Card'
-import { updateRetention, type MonitoringSettings } from '../../lib/api/monitoring'
-import {
-  estimatedStorageGigabytes,
-  retentionSchema,
-  type RetentionValues,
-} from '../../schemas/retention'
+import type { MonitoringSettings } from '../../lib/api/monitoring'
+import { useRetentionForm } from './useRetentionForm'
 
 const numberFormat = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 })
 
 export function RetentionForm({ settings }: { settings: MonitoringSettings }) {
-  const queryClient = useQueryClient()
   const {
     register,
-    handleSubmit,
-    control,
-    formState: { errors, isDirty },
-  } = useForm<RetentionValues>({
-    resolver: zodResolver(retentionSchema),
-    values: { metricsRetentionDays: settings.metricsRetentionDays },
-  })
-  const mutation = useMutation({
-    mutationFn: (values: RetentionValues) => updateRetention(values.metricsRetentionDays),
-    onSuccess: (updated) => queryClient.setQueryData(['settings'], updated),
-  })
-
-  const days = useWatch({ control, name: 'metricsRetentionDays' })
-  const estimate = Number.isFinite(days)
-    ? estimatedStorageGigabytes(days, settings.systemCollectIntervalSeconds)
-    : null
+    errors,
+    isDirty,
+    onSubmit,
+    isPending,
+    errorMessage,
+    saved,
+    estimate,
+    customised,
+  } = useRetentionForm(settings)
 
   return (
     <Card>
@@ -41,17 +26,13 @@ export function RetentionForm({ settings }: { settings: MonitoringSettings }) {
         title="Rétention des métriques"
         subtitle="Durée de conservation de l'historique et des événements"
         actions={
-          <Badge tone={settings.metricsRetentionSource === 'user' ? 'accent' : 'neutral'}>
-            {settings.metricsRetentionSource === 'user' ? 'Personnalisée' : 'Par défaut'}
+          <Badge tone={customised ? 'accent' : 'neutral'}>
+            {customised ? 'Personnalisée' : 'Par défaut'}
           </Badge>
         }
       />
       <CardBody>
-        <form
-          className="space-y-3"
-          onSubmit={handleSubmit((values) => mutation.mutate(values))}
-          noValidate
-        >
+        <form className="space-y-3" onSubmit={onSubmit} noValidate>
           <div>
             <label
               htmlFor="metricsRetentionDays"
@@ -73,21 +54,21 @@ export function RetentionForm({ settings }: { settings: MonitoringSettings }) {
               <p className="mt-1 text-xs text-danger">{errors.metricsRetentionDays.message}</p>
             )}
           </div>
-          {estimate !== null && !errors.metricsRetentionDays && (
+          {estimate !== null && (
             <p className="text-xs text-text-secondary">
               Taille estimée de la base : ≈ {numberFormat.format(estimate)} Go avec une collecte
               toutes les {settings.systemCollectIntervalSeconds} s.
             </p>
           )}
-          {mutation.isError && (
+          {errorMessage && (
             <div
               className="rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger"
               role="alert"
             >
-              {mutation.error.message}
+              {errorMessage}
             </div>
           )}
-          {mutation.isSuccess && !isDirty && (
+          {saved && (
             <div
               className="rounded-md border border-success/30 bg-success/10 px-3 py-2 text-xs text-success"
               role="status"
@@ -98,7 +79,7 @@ export function RetentionForm({ settings }: { settings: MonitoringSettings }) {
           <Button
             type="submit"
             variant="primary"
-            loading={mutation.isPending}
+            loading={isPending}
             disabled={!isDirty}
             icon={<Save className="h-4 w-4" />}
           >

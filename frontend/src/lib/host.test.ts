@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { MetricSample } from './api/monitoring'
-import { filesystemSummary, interfaceSummary } from './host'
+import { filesystemSummary, interfaceSummary, usageTone } from './host'
 
 const at = '2026-11-22T21:00:00Z'
 const gb = 1e9
@@ -68,5 +68,14 @@ describe('interfaceSummary', () => {
     ])
     expect(wlan.errors).toBe(0)
     expect(wlan.drops).toBe(24837)
+  })
+})
+
+describe('usageTone', () => {
+  it('turns warning above 80 % and danger above 90 %', () => {
+    expect(usageTone(null)).toBe('success')
+    expect(usageTone(80)).toBe('success')
+    expect(usageTone(85)).toBe('warning')
+    expect(usageTone(95)).toBe('danger')
   })
 })

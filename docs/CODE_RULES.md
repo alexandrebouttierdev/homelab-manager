@@ -82,33 +82,49 @@ Corriger le formatage : `gofmt -w backend` et `npm --prefix frontend run format`
 
 | Dossier | Contenu |
 |---|---|
-| `src/features/<domaine>/` | Pages et composants propres à un domaine (`containers`, `settings`…) |
+| `src/features/<domaine>/` | Pages et composants propres à un domaine (`containers`, `settings`…) et leurs hooks `use<Page>.ts` |
+| `src/hooks/` | Hooks partagés entre domaines (`useSession`, `useHost`, `loadState`…) |
 | `src/components/ui/` | Composants génériques sans connaissance métier (Button, Card, Badge…) |
 | `src/components/charts/` | Enveloppes ECharts ; les pages n'importent pas `echarts-for-react` directement |
 | `src/lib/api/` | Seul accès au réseau, via `requestJSON` ; un fichier par domaine d'API ; types des DTO |
 | `src/lib/` | Logique pure testable (formatage, calculs de séries, thème) |
 | `src/schemas/` | Schémas Zod des formulaires, avec leurs tests |
 
-- Pas de logique métier dans un composant : calculs, regroupements et formatages vont dans `src/lib/` et sont testés.
 - Un composant par fichier exporté ; nom en PascalCase identique au fichier.
 
-### 4.3 Données et formulaires
+### 4.3 Aucun code métier dans les pages et composants
+
+Les pages et composants (`.tsx` de `src/app`, `src/components`, `src/features`) **affichent uniquement**. Toute la logique est dans des hooks `use…` :
+
+| Autorisé dans un composant | Dans un hook `use…` (fichier `.ts`) | Dans `src/lib/` (fonctions pures, testées) |
+|---|---|---|
+| Appeler un hook et déstructurer son modèle de vue | `useQuery`, `useMutation`, invalidations, appels à `src/lib/api/` | Calculs, filtres, tris, regroupements, résumés |
+| JSX, conditions d'affichage sur des valeurs déjà calculées | Formulaires (`useForm`, `zodResolver`, `useWatch`) et soumission | Seuils et décisions (`usageTone`, `matchesStateFilter`…) |
+| Formatage d'affichage (`formatBytes`, `formatPercent`, `Math.round` d'un nombre affiché) | Dérivations (`useMemo`), effets (`useEffect`), navigation après action | Traductions de valeurs (`collectorStatusLabel`…) |
+| État purement visuel (`useState` d'un menu ouvert, d'un mot de passe affiché) | État des filtres, de la recherche et de la période | |
+| `.map()` qui transforme une liste déjà prête en éléments JSX | Construction des options ECharts | |
+
+- Chaque page a son hook `src/features/<domaine>/use<Page>.ts` qui renvoie un **modèle de vue** : valeurs prêtes à afficher, actions (`refresh`, `onSubmit`, `retry`…) et états de chargement via `loadState` (`isLoading`, `isError`, `error`, `refetch`), jamais l'objet de requête TanStack brut ni `.data`.
+- Un hook ne renvoie que ce que la page affiche ; les intermédiaires restent internes.
+- Contrôle automatique : ESLint interdit aux `.tsx` de `src/app`, `src/components` et `src/features` d'importer `@tanstack/react-query`, `src/lib/api/*` (hors imports de types) et `useMemo`, `useEffect`, `useLayoutEffect`, `useReducer`. Un calcul écrit directement dans le JSX (`.filter`, `.reduce`, `.sort`, `new Set`…) n'est pas détecté par l'outil : il est refusé en revue.
+
+### 4.4 Données et formulaires
 
 - TanStack Query pour toute donnée serveur ; clés de requête hiérarchiques et stables (`['host', 'metrics', name, label, range]`) ; `refetchInterval` dérivé de `useRefreshInterval()`.
 - Formulaires : React Hook Form + `zodResolver` ; `useWatch` plutôt que `watch` ; les bornes du schéma Zod reprennent celles du contrat d'API. La validation de l'interface n'est jamais une protection.
 - Aucune donnée simulée présentée comme réelle ; une donnée absente s'affiche comme indisponible, jamais comme zéro.
 - Version de l'application : `src/lib/version.ts` uniquement.
 
-### 4.4 Interface
+### 4.5 Interface
 
 - Couleurs et espacements par les jetons Tailwind du thème (`text-text-primary`, `bg-card`, `border-line`…), jamais de couleur codée en dur.
 - Accessibilité : chaque champ a un `label` associé ; messages d'erreur en `role="alert"`, confirmations en `role="status"` ; boutons d'icône avec `aria-label`.
 - Thèmes clair et sombre et affichage mobile vérifiés pour toute nouvelle page.
 
-### 4.5 Tests
+### 4.6 Tests
 
 - Vitest + React Testing Library ; tester le comportement visible (textes, rôles), pas l'implémentation.
-- Tout schéma Zod, toute fonction de `src/lib/` et tout client d'API ont des tests.
+- Tout schéma Zod, toute fonction de `src/lib/`, tout utilitaire de `src/hooks/` et tout client d'API ont des tests. La logique d'un hook de page se teste par les fonctions pures qu'il appelle ; un hook à comportement propre (enchaînement d'actions, navigation) se teste avec `renderHook`.
 
 ## 5. API et documentation
 

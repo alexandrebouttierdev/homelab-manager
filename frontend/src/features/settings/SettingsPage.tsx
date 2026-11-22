@@ -1,5 +1,3 @@
-import { zodResolver } from '@hookform/resolvers/zod'
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Clock3,
   Database,
@@ -13,66 +11,27 @@ import {
   Sun,
   UserRound,
 } from 'lucide-react'
-import { useForm } from 'react-hook-form'
-import { useNavigate } from 'react-router-dom'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { Card, CardBody, CardFooter, CardHeader } from '../../components/ui/Card'
 import { ErrorState } from '../../components/ui/ErrorState'
 import { LoadingState } from '../../components/ui/LoadingState'
 import { PageHeader } from '../../components/ui/PageHeader'
-import { ApiError, changePassword, getSession, logout } from '../../lib/api/auth'
-import { getSettings } from '../../lib/api/monitoring'
 import { cn } from '../../lib/cn'
 import { useTheme, type Theme } from '../../lib/theme'
-import { passwordSchema, type PasswordValues } from '../../schemas/password'
 import { APP_VERSION } from '../../lib/version'
 import { RetentionForm } from './RetentionForm'
 import { CollectorRow } from '../../components/ui/CollectorRow'
+import { useSession, useSignOut } from '../../hooks/useSession'
+import { useChangePassword } from './useChangePassword'
+import { useSettings } from './useSettings'
 
 export function SettingsPage() {
-  const queryClient = useQueryClient()
-  const navigate = useNavigate()
   const { theme, setTheme } = useTheme()
-
-  const settings = useQuery({ queryKey: ['settings'], queryFn: getSettings })
-  const session = useQuery({ queryKey: ['session'], queryFn: getSession, staleTime: 60_000 })
-
-  const {
-    register,
-    handleSubmit,
-    reset,
-    formState: { errors },
-  } = useForm<PasswordValues>({
-    resolver: zodResolver(passwordSchema),
-    defaultValues: { currentPassword: '', newPassword: '', confirmPassword: '' },
-  })
-
-  const password = useMutation({
-    mutationFn: (values: PasswordValues) =>
-      changePassword(values.currentPassword, values.newPassword),
-    // The Manager revokes every session, including this one, after a change.
-    onSuccess: () => {
-      reset()
-      queryClient.removeQueries({ queryKey: ['session'] })
-      navigate('/login', {
-        replace: true,
-        state: { notice: 'Mot de passe modifié. Reconnectez-vous avec le nouveau mot de passe.' },
-      })
-    },
-  })
-  const signOut = useMutation({
-    mutationFn: logout,
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['session'] })
-      navigate('/login', { replace: true })
-    },
-  })
-
-  const passwordError =
-    password.error instanceof ApiError && password.error.status === 401
-      ? 'Le mot de passe actuel est incorrect.'
-      : password.error?.message
+  const { settings, isLoading, error, retry } = useSettings()
+  const session = useSession()
+  const signOut = useSignOut()
+  const password = useChangePassword()
 
   return (
     <div className="space-y-4">
@@ -83,19 +42,17 @@ export function SettingsPage() {
         description="Configuration effective du Manager, apparence de l'interface et sécurité du compte administrateur local."
       />
 
-      {settings.isError && (
+      {error && (
         <ErrorState
-          message={settings.error.message}
+          message={error.message}
           onRetry={() => {
-            void settings.refetch()
+            retry()
           }}
         />
       )}
-      {settings.isLoading && !settings.isError && (
-        <LoadingState label="Chargement de la configuration…" rows={2} />
-      )}
+      {isLoading && !error && <LoadingState label="Chargement de la configuration…" rows={2} />}
 
-      {settings.data && (
+      {settings && (
         <>
           <div className="grid items-start gap-4 xl:grid-cols-3">
             <Card className="xl:col-span-2">
@@ -108,22 +65,22 @@ export function SettingsPage() {
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
                   <SettingCard
                     label="Collecte système"
-                    value={`${settings.data.systemCollectIntervalSeconds} s`}
+                    value={`${settings.systemCollectIntervalSeconds} s`}
                     icon={<Clock3 className="h-3.5 w-3.5" />}
                   />
                   <SettingCard
                     label="Statistiques Docker"
-                    value={`${settings.data.dockerCollectIntervalSeconds} s`}
+                    value={`${settings.dockerCollectIntervalSeconds} s`}
                     icon={<RefreshCw className="h-3.5 w-3.5" />}
                   />
                   <SettingCard
                     label="Découverte Docker"
-                    value={`${settings.data.dockerDiscoveryIntervalSeconds} s`}
+                    value={`${settings.dockerDiscoveryIntervalSeconds} s`}
                     icon={<Database className="h-3.5 w-3.5" />}
                   />
                   <SettingCard
                     label="Rétention des métriques"
-                    value={`${settings.data.metricsRetentionDays} jours`}
+                    value={`${settings.metricsRetentionDays} jours`}
                     icon={<Clock3 className="h-3.5 w-3.5" />}
                   />
                 </div>
@@ -134,7 +91,7 @@ export function SettingsPage() {
               </CardFooter>
             </Card>
 
-            <RetentionForm settings={settings.data} />
+            <RetentionForm settings={settings} />
 
             <Card>
               <CardHeader
@@ -145,13 +102,13 @@ export function SettingsPage() {
               <CardBody className="space-y-3">
                 <CollectorRow
                   name="Système"
-                  status={settings.data.collectors.system.status}
-                  lastSuccessAt={settings.data.collectors.system.lastSuccessAt}
+                  status={settings.collectors.system.status}
+                  lastSuccessAt={settings.collectors.system.lastSuccessAt}
                 />
                 <CollectorRow
                   name="Docker"
-                  status={settings.data.collectors.docker.status}
-                  lastSuccessAt={settings.data.collectors.docker.lastSuccessAt}
+                  status={settings.collectors.docker.status}
+                  lastSuccessAt={settings.collectors.docker.lastSuccessAt}
                 />
                 <div className="rounded-md border border-line/70 bg-surface/50 px-3 py-2.5 font-mono text-[10px] text-text-muted">
                   <p>Le Manager supervise uniquement cette machine.</p>
@@ -205,7 +162,7 @@ export function SettingsPage() {
                     </span>
                     <div>
                       <p className="text-xs font-medium text-text-primary">
-                        {session.data?.user.username ?? 'administrateur'}
+                        {session.user?.username ?? 'administrateur'}
                       </p>
                       <p className="font-mono text-[10px] text-text-muted">Session authentifiée</p>
                     </div>
@@ -223,11 +180,11 @@ export function SettingsPage() {
                   size="sm"
                   icon={<LogOut className="h-3.5 w-3.5" />}
                   loading={signOut.isPending}
-                  onClick={() => signOut.mutate()}
+                  onClick={signOut.signOut}
                 >
                   Se déconnecter
                 </Button>
-                {signOut.isError && (
+                {signOut.error && (
                   <p className="text-xs text-danger" role="alert">
                     {signOut.error.message}
                   </p>
@@ -245,7 +202,7 @@ export function SettingsPage() {
             <CardBody>
               <form
                 className="grid max-w-2xl gap-4 sm:grid-cols-2"
-                onSubmit={handleSubmit((values) => password.mutate(values))}
+                onSubmit={password.onSubmit}
                 noValidate
               >
                 <div className="sm:col-span-2">
@@ -260,10 +217,12 @@ export function SettingsPage() {
                     type="password"
                     autoComplete="current-password"
                     className="h-10 w-full rounded-md border border-line bg-surface px-3 text-sm text-text-primary outline-none transition-colors focus:border-accent/60"
-                    {...register('currentPassword')}
+                    {...password.register('currentPassword')}
                   />
-                  {errors.currentPassword && (
-                    <p className="mt-1 text-xs text-danger">{errors.currentPassword.message}</p>
+                  {password.errors.currentPassword && (
+                    <p className="mt-1 text-xs text-danger">
+                      {password.errors.currentPassword.message}
+                    </p>
                   )}
                 </div>
                 <div>
@@ -278,10 +237,12 @@ export function SettingsPage() {
                     type="password"
                     autoComplete="new-password"
                     className="h-10 w-full rounded-md border border-line bg-surface px-3 text-sm text-text-primary outline-none transition-colors focus:border-accent/60"
-                    {...register('newPassword')}
+                    {...password.register('newPassword')}
                   />
-                  {errors.newPassword && (
-                    <p className="mt-1 text-xs text-danger">{errors.newPassword.message}</p>
+                  {password.errors.newPassword && (
+                    <p className="mt-1 text-xs text-danger">
+                      {password.errors.newPassword.message}
+                    </p>
                   )}
                 </div>
                 <div>
@@ -296,19 +257,21 @@ export function SettingsPage() {
                     type="password"
                     autoComplete="new-password"
                     className="h-10 w-full rounded-md border border-line bg-surface px-3 text-sm text-text-primary outline-none transition-colors focus:border-accent/60"
-                    {...register('confirmPassword')}
+                    {...password.register('confirmPassword')}
                   />
-                  {errors.confirmPassword && (
-                    <p className="mt-1 text-xs text-danger">{errors.confirmPassword.message}</p>
+                  {password.errors.confirmPassword && (
+                    <p className="mt-1 text-xs text-danger">
+                      {password.errors.confirmPassword.message}
+                    </p>
                   )}
                 </div>
 
-                {passwordError && (
+                {password.errorMessage && (
                   <div
                     className="rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger sm:col-span-2"
                     role="alert"
                   >
-                    {passwordError}
+                    {password.errorMessage}
                   </div>
                 )}
 

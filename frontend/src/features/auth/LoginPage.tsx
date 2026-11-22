@@ -1,5 +1,3 @@
-import { zodResolver } from '@hookform/resolvers/zod'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
 import {
   Eye,
   EyeOff,
@@ -13,62 +11,17 @@ import {
   UserRound,
 } from 'lucide-react'
 import { useState } from 'react'
-import { useForm } from 'react-hook-form'
-import { useLocation, useNavigate } from 'react-router-dom'
 import { Logo } from '../../components/ui/Logo'
 import { StatusDot } from '../../components/ui/StatusDot'
-import { ApiError, login } from '../../lib/api/auth'
 import { useTheme } from '../../lib/theme'
-import { loginSchema, type LoginValues } from '../../schemas/login'
 import { APP_VERSION } from '../../lib/version'
-
-const usernameStorageKey = 'homelab-manager-username'
-
-function readRememberedUsername(): string {
-  if (typeof window === 'undefined') return ''
-  return window.localStorage.getItem(usernameStorageKey) ?? ''
-}
+import { useLogin } from './useLogin'
 
 export function LoginPage() {
-  const navigate = useNavigate()
-  const location = useLocation()
-  const notice = (location.state as { notice?: unknown } | null)?.notice
-  const queryClient = useQueryClient()
   const { theme, toggleTheme } = useTheme()
-  const rememberedUsername = readRememberedUsername()
-  const [remember, setRemember] = useState(Boolean(rememberedUsername))
   const [showPassword, setShowPassword] = useState(false)
-
-  const {
-    register,
-    handleSubmit,
-    formState: { errors },
-  } = useForm<LoginValues>({
-    resolver: zodResolver(loginSchema),
-    defaultValues: { username: rememberedUsername, password: '' },
-  })
-
-  const mutation = useMutation({
-    mutationFn: (values: LoginValues) => login(values.username, values.password),
-    onSuccess: (result, values) => {
-      if (remember) {
-        window.localStorage.setItem(usernameStorageKey, values.username)
-      } else {
-        window.localStorage.removeItem(usernameStorageKey)
-      }
-      queryClient.setQueryData(['session'], result)
-      navigate('/')
-    },
-  })
-
-  function onSubmit(values: LoginValues) {
-    mutation.mutate(values)
-  }
-
-  const errorMessage =
-    mutation.error instanceof ApiError && mutation.error.status === 401
-      ? 'Identifiant ou mot de passe incorrect.'
-      : mutation.error?.message
+  const { register, errors, onSubmit, remember, setRemember, isPending, errorMessage, notice } =
+    useLogin()
 
   return (
     <main className="relative flex min-h-screen flex-col overflow-hidden bg-background">
@@ -113,7 +66,7 @@ export function LoginPage() {
             </p>
           </div>
 
-          <form className="mt-6 space-y-4" onSubmit={handleSubmit(onSubmit)} noValidate>
+          <form className="mt-6 space-y-4" onSubmit={onSubmit} noValidate>
             <div>
               <label
                 htmlFor="username"
@@ -178,7 +131,7 @@ export function LoginPage() {
               Se souvenir de mon identifiant
             </label>
 
-            {typeof notice === 'string' && !errorMessage && (
+            {notice && (
               <div
                 className="rounded-md border border-success/30 bg-success/10 px-3 py-2 text-xs text-success"
                 role="status"
@@ -197,10 +150,10 @@ export function LoginPage() {
 
             <button
               type="submit"
-              disabled={mutation.isPending}
+              disabled={isPending}
               className="flex h-10 w-full items-center justify-center gap-2 rounded-md bg-accent px-4 text-sm font-medium text-on-accent transition-colors hover:bg-accent/90 disabled:cursor-wait disabled:opacity-60"
             >
-              {mutation.isPending ? (
+              {isPending ? (
                 <span
                   className="h-4 w-4 animate-spin rounded-full border-2 border-on-accent/30 border-t-on-accent"
                   aria-hidden="true"
@@ -208,7 +161,7 @@ export function LoginPage() {
               ) : (
                 <LogIn className="h-4 w-4" aria-hidden="true" />
               )}
-              {mutation.isPending ? 'Connexion…' : 'Se connecter'}
+              {isPending ? 'Connexion…' : 'Se connecter'}
             </button>
           </form>
 

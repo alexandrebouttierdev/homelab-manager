@@ -22,4 +22,36 @@ export default tseslint.config(
       'react-refresh/only-export-components': ['warn', { allowConstantExport: true }],
     },
   },
+  {
+    // Pages and components only render (docs/CODE_RULES.md § 4.2): data
+    // access, mutations, derived state and effects live in use* hooks.
+    files: ['src/app/**/*.tsx', 'src/components/**/*.tsx', 'src/features/**/*.tsx'],
+    ignores: ['**/*.test.tsx'],
+    rules: {
+      '@typescript-eslint/no-restricted-imports': [
+        'error',
+        {
+          paths: [
+            {
+              name: '@tanstack/react-query',
+              allowTypeImports: true,
+              message: 'Query and mutate in a use* hook, not in a component.',
+            },
+            {
+              name: 'react',
+              importNames: ['useMemo', 'useEffect', 'useLayoutEffect', 'useReducer'],
+              message: 'Derived state and effects belong in a use* hook.',
+            },
+          ],
+          patterns: [
+            {
+              group: ['**/lib/api/*'],
+              allowTypeImports: true,
+              message: 'Call the API from a use* hook, not from a component.',
+            },
+          ],
+        },
+      ],
+    },
+  },
 )

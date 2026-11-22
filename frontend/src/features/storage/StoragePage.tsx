@@ -1,7 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
-import type { EChartsOption } from 'echarts'
 import { Activity, HardDrive, RefreshCw } from 'lucide-react'
-import { useState } from 'react'
 import { Chart } from '../../components/charts/Chart'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
@@ -14,95 +11,22 @@ import { PageHeader } from '../../components/ui/PageHeader'
 import { ProgressBar } from '../../components/ui/ProgressBar'
 import { SegmentedTabs } from '../../components/ui/SegmentedTabs'
 import { Select } from '../../components/ui/Select'
-import { getCurrentHostMetrics, getHostMetrics } from '../../lib/api/monitoring'
-import { formatBytes, formatChartTime, formatMetricValue, formatPercent } from '../../lib/format'
-import { diskSummary, filesystemSummary } from '../../lib/host'
-import { series } from '../../lib/metrics'
-import { useRefreshInterval } from '../../lib/refresh'
-import { useChartTheme } from '../../lib/theme'
-
-type RangeKey = '6h' | '24h' | '7d'
-
-const ranges: Array<{ value: RangeKey; label: string; milliseconds: number }> = [
-  { value: '6h', label: '6 h', milliseconds: 6 * 60 * 60 * 1000 },
-  { value: '24h', label: '24 h', milliseconds: 24 * 60 * 60 * 1000 },
-  { value: '7d', label: '7 j', milliseconds: 7 * 24 * 60 * 60 * 1000 },
-]
-
-function rangeStart(range: RangeKey): Date {
-  return new Date(
-    Date.now() -
-      (ranges.find((item) => item.value === range)?.milliseconds ?? ranges[1].milliseconds),
-  )
-}
+import { formatBytes, formatMetricValue, formatPercent } from '../../lib/format'
+import { ranges, useStoragePage } from './useStoragePage'
 
 export function StoragePage() {
-  const refreshInterval = useRefreshInterval()
-  const chartTheme = useChartTheme()
-  const [range, setRange] = useState<RangeKey>('24h')
-  const [selectedMountpoint, setSelectedMountpoint] = useState('')
-
-  const current = useQuery({
-    queryKey: ['host', 'current-metrics'],
-    queryFn: getCurrentHostMetrics,
-    refetchInterval: refreshInterval || false,
-  })
-  const samples = current.data?.samples ?? []
-  const filesystems = filesystemSummary(samples)
-  const disks = diskSummary(samples)
-  const mountpoint = selectedMountpoint || filesystems.entries[0]?.mountpoint || ''
-
-  const history = useQuery({
-    queryKey: ['host', 'metrics', 'filesystem.percent', mountpoint, range],
-    queryFn: () =>
-      getHostMetrics('filesystem.percent', rangeStart(range), { labels: { mountpoint } }),
-    enabled: Boolean(mountpoint),
-  })
-  const historySeries = series(history.data ?? [], 'filesystem.percent', { mountpoint })
-
-  const chartOption: EChartsOption = {
-    backgroundColor: 'transparent',
-    tooltip: {
-      trigger: 'axis',
-      backgroundColor: chartTheme.tooltipBackground,
-      borderColor: chartTheme.tooltipBorder,
-      textStyle: { color: chartTheme.tooltipText, fontSize: 11 },
-    },
-    grid: { left: 44, right: 12, top: 18, bottom: 28 },
-    xAxis: {
-      type: 'category',
-      boundaryGap: false,
-      data: historySeries.map((sample) => sample.recordedAt),
-      axisTick: { show: false },
-      axisLine: { lineStyle: { color: chartTheme.axis } },
-      axisLabel: {
-        color: chartTheme.muted,
-        fontSize: 10,
-        formatter: (value: string) => formatChartTime(value),
-      },
-    },
-    yAxis: {
-      type: 'value',
-      min: 0,
-      max: 100,
-      axisTick: { show: false },
-      axisLine: { show: false },
-      axisLabel: { color: chartTheme.muted, fontSize: 10, formatter: '{value} %' },
-      splitLine: { lineStyle: { color: chartTheme.grid } },
-    },
-    series: [
-      {
-        name: mountpoint || 'Occupation',
-        type: 'line',
-        smooth: true,
-        showSymbol: false,
-        data: historySeries.map((sample) => sample.value),
-        lineStyle: { color: chartTheme.cpu, width: 1.8 },
-        itemStyle: { color: chartTheme.cpu },
-        areaStyle: { color: chartTheme.cpu, opacity: 0.08 },
-      },
-    ],
-  }
+  const {
+    range,
+    setRange,
+    setSelectedMountpoint,
+    current,
+    filesystems,
+    disks,
+    mountpoint,
+    history,
+    historySeries,
+    chartOption,
+  } = useStoragePage()
 
   return (
     <div className="space-y-4">

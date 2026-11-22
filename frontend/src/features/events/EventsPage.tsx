@@ -1,6 +1,5 @@
-import { useQuery } from '@tanstack/react-query'
 import { AlertTriangle, Bell, CheckCircle2, Info, RefreshCw, SearchX } from 'lucide-react'
-import { useMemo, useState, type ReactNode } from 'react'
+import { type ReactNode } from 'react'
 import { Link } from 'react-router-dom'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
@@ -14,61 +13,23 @@ import { PageHeader } from '../../components/ui/PageHeader'
 import { SearchField } from '../../components/ui/SearchField'
 import { SegmentedTabs } from '../../components/ui/SegmentedTabs'
 import { Select } from '../../components/ui/Select'
-import { listEvents, type MonitorEvent } from '../../lib/api/monitoring'
 import { eventSeverityLabel, eventTone, eventTypeLabel } from '../../lib/events'
 import { formatDateTime, formatRelativeTime } from '../../lib/format'
-import { useRefreshInterval } from '../../lib/refresh'
-
-type SeverityFilter = 'all' | 'info' | 'warning' | 'error'
-type RangeKey = '24h' | '7d' | '30d'
-
-const ranges: Array<{ value: RangeKey; label: string; milliseconds: number }> = [
-  { value: '24h', label: '24 heures', milliseconds: 24 * 60 * 60 * 1000 },
-  { value: '7d', label: '7 jours', milliseconds: 7 * 24 * 60 * 60 * 1000 },
-  { value: '30d', label: '30 jours', milliseconds: 30 * 24 * 60 * 60 * 1000 },
-]
-
-function rangeStart(range: RangeKey): Date {
-  return new Date(
-    Date.now() -
-      (ranges.find((item) => item.value === range)?.milliseconds ?? ranges[0].milliseconds),
-  )
-}
-
-function severityCounts(events: MonitorEvent[]) {
-  return {
-    info: events.filter((event) => event.severity === 'info').length,
-    warning: events.filter((event) => event.severity === 'warning').length,
-    error: events.filter((event) => event.severity === 'error' || event.severity === 'critical')
-      .length,
-  }
-}
+import { type RangeKey, ranges, useEventsPage } from './useEventsPage'
 
 export function EventsPage() {
-  const refreshInterval = useRefreshInterval()
-  const [range, setRange] = useState<RangeKey>('24h')
-  const [severity, setSeverity] = useState<SeverityFilter>('all')
-  const [search, setSearch] = useState('')
-
-  const events = useQuery({
-    queryKey: ['events', range],
-    queryFn: () => listEvents({ from: rangeStart(range), to: new Date(), limit: 500 }),
-    refetchInterval: refreshInterval || false,
-  })
-
-  const all = useMemo(() => events.data ?? [], [events.data])
-  const counts = severityCounts(all)
-
-  const filtered = useMemo(() => {
-    return all.filter((event) => {
-      if (severity === 'error' && event.severity !== 'error' && event.severity !== 'critical')
-        return false
-      if (severity !== 'all' && severity !== 'error' && event.severity !== severity) return false
-      if (!search) return true
-      const haystack = `${event.type} ${event.message} ${event.severity}`.toLowerCase()
-      return haystack.includes(search.toLowerCase())
-    })
-  }, [all, search, severity])
+  const {
+    range,
+    setRange,
+    severity,
+    setSeverity,
+    search,
+    setSearch,
+    events,
+    all,
+    counts,
+    filtered,
+  } = useEventsPage()
 
   return (
     <div className="space-y-4">

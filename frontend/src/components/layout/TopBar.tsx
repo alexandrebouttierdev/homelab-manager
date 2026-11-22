@@ -1,4 +1,3 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import {
   Bell,
   Clock3,
@@ -12,9 +11,9 @@ import {
   Terminal,
   UserRound,
 } from 'lucide-react'
-import { Link, useNavigate } from 'react-router-dom'
-import { getSession, logout } from '../../lib/api/auth'
-import { getHost } from '../../lib/api/monitoring'
+import { Link } from 'react-router-dom'
+import { useHost } from '../../hooks/useHost'
+import { useSession, useSignOut } from '../../hooks/useSession'
 import { cn } from '../../lib/cn'
 import { formatUptime } from '../../lib/format'
 import { refreshChoices, useRefreshControl } from '../../lib/refresh'
@@ -27,33 +26,11 @@ type TopBarProps = {
 }
 
 export function TopBar({ onOpenMenu }: TopBarProps) {
-  const queryClient = useQueryClient()
-  const navigate = useNavigate()
   const { interval, setInterval } = useRefreshControl()
   const { theme, toggleTheme } = useTheme()
-
-  const session = useQuery({
-    queryKey: ['session'],
-    queryFn: getSession,
-    staleTime: 60_000,
-    retry: false,
-  })
-  const host = useQuery({
-    queryKey: ['host'],
-    queryFn: getHost,
-    staleTime: 30_000,
-    retry: false,
-  })
-  const signOut = useMutation({
-    mutationFn: logout,
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ['session'] })
-      navigate('/login', { replace: true })
-    },
-  })
-
-  const hostInfo = host.data
-  const hostOnline = hostInfo?.collector.status === 'ok'
+  const session = useSession()
+  const { host: hostInfo, online: hostOnline, osLabel } = useHost()
+  const signOut = useSignOut()
 
   return (
     <>
@@ -81,11 +58,7 @@ export function TopBar({ onOpenMenu }: TopBarProps) {
 
           <div className="hidden items-center gap-1.5 font-mono text-[11px] text-text-muted xl:flex">
             <Terminal className="h-3.5 w-3.5" aria-hidden="true" />
-            <span className="max-w-[180px] truncate">
-              {hostInfo
-                ? `${hostInfo.os.distribution || 'Linux'} ${hostInfo.os.version || ''}`.trim()
-                : 'Linux'}
-            </span>
+            <span className="max-w-[180px] truncate">{hostInfo ? osLabel : 'Linux'}</span>
             <span className="text-line-strong">•</span>
             <span className="max-w-[160px] truncate">
               {hostInfo?.kernelVersion || 'noyau indisponible'}
@@ -136,7 +109,7 @@ export function TopBar({ onOpenMenu }: TopBarProps) {
 
           <button
             type="button"
-            onClick={() => signOut.mutate()}
+            onClick={signOut.signOut}
             disabled={signOut.isPending}
             className={cn(
               'rounded-md border border-line bg-card p-1.5 text-text-secondary transition-colors hover:bg-danger/10 hover:text-danger',
@@ -155,13 +128,13 @@ export function TopBar({ onOpenMenu }: TopBarProps) {
           >
             <UserRound className="h-3.5 w-3.5" aria-hidden="true" />
             <span className="max-w-[110px] truncate font-mono text-[11px]">
-              {session.data?.user.username ?? 'admin'}
+              {session.user?.username ?? 'admin'}
             </span>
           </Link>
         </div>
       </header>
 
-      {signOut.isError && (
+      {signOut.error && (
         <div
           className="fixed bottom-4 right-4 z-50 animate-toast-in rounded-lg border border-danger/30 bg-card px-4 py-3 text-sm text-danger shadow-xl"
           role="alert"

@@ -72,7 +72,10 @@ export function formatPorts(ports: Array<Record<string, unknown>>): string[] {
   })
 }
 
-export function mountField(mount: Record<string, unknown>, key: 'type' | 'source' | 'destination' | 'rw'): string {
+export function mountField(
+  mount: Record<string, unknown>,
+  key: 'type' | 'source' | 'destination' | 'rw',
+): string {
   const value = field(mount, key, key.charAt(0).toUpperCase() + key.slice(1))
   if (typeof value === 'boolean') return value ? 'Lecture/écriture' : 'Lecture seule'
   return value == null ? '' : String(value)
@@ -88,7 +91,10 @@ export function imageTag(image: string): { repository: string; tag: string } {
   const separator = withoutDigest.lastIndexOf(':')
   const slash = withoutDigest.lastIndexOf('/')
   if (separator > slash) {
-    return { repository: withoutDigest.slice(0, separator), tag: withoutDigest.slice(separator + 1) }
+    return {
+      repository: withoutDigest.slice(0, separator),
+      tag: withoutDigest.slice(separator + 1),
+    }
   }
   return { repository: withoutDigest, tag: 'latest' }
 }

@@ -73,7 +73,10 @@ export function TopBar({ onOpenMenu }: TopBarProps) {
             <span className="max-w-[160px] truncate font-mono text-[11px] text-text-secondary">
               {hostInfo?.hostname ?? 'hôte local'}
             </span>
-            <StatusDot tone={hostOnline ? 'success' : 'warning'} label={hostOnline ? 'Hôte en ligne' : 'Collecte dégradée'} />
+            <StatusDot
+              tone={hostOnline ? 'success' : 'warning'}
+              label={hostOnline ? 'Hôte en ligne' : 'Collecte dégradée'}
+            />
           </div>
 
           <div className="hidden items-center gap-1.5 font-mono text-[11px] text-text-muted xl:flex">
@@ -84,7 +87,9 @@ export function TopBar({ onOpenMenu }: TopBarProps) {
                 : 'Linux'}
             </span>
             <span className="text-line-strong">•</span>
-            <span className="max-w-[160px] truncate">{hostInfo?.kernelVersion || 'noyau indisponible'}</span>
+            <span className="max-w-[160px] truncate">
+              {hostInfo?.kernelVersion || 'noyau indisponible'}
+            </span>
           </div>
 
           <div className="hidden items-center gap-1.5 font-mono text-[11px] text-text-muted md:flex">

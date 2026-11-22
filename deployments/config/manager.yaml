@@ -7,4 +7,4 @@ web_root: "/opt/homelab-manager/frontend/dist"
 system_collect_interval_seconds: 10
 docker_collect_interval_seconds: 15
 docker_discovery_interval_seconds: 30
-metrics_retention_days: 30
+metrics_retention_days: 7

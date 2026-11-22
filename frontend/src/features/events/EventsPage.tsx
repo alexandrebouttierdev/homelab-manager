@@ -29,14 +29,18 @@ const ranges: Array<{ value: RangeKey; label: string; milliseconds: number }> = 
 ]
 
 function rangeStart(range: RangeKey): Date {
-  return new Date(Date.now() - (ranges.find((item) => item.value === range)?.milliseconds ?? ranges[0].milliseconds))
+  return new Date(
+    Date.now() -
+      (ranges.find((item) => item.value === range)?.milliseconds ?? ranges[0].milliseconds),
+  )
 }
 
 function severityCounts(events: MonitorEvent[]) {
   return {
     info: events.filter((event) => event.severity === 'info').length,
     warning: events.filter((event) => event.severity === 'warning').length,
-    error: events.filter((event) => event.severity === 'error' || event.severity === 'critical').length,
+    error: events.filter((event) => event.severity === 'error' || event.severity === 'critical')
+      .length,
   }
 }
 
@@ -57,7 +61,8 @@ export function EventsPage() {
 
   const filtered = useMemo(() => {
     return all.filter((event) => {
-      if (severity === 'error' && event.severity !== 'error' && event.severity !== 'critical') return false
+      if (severity === 'error' && event.severity !== 'error' && event.severity !== 'critical')
+        return false
       if (severity !== 'all' && severity !== 'error' && event.severity !== severity) return false
       if (!search) return true
       const haystack = `${event.type} ${event.message} ${event.severity}`.toLowerCase()
@@ -70,25 +75,51 @@ export function EventsPage() {
       <PageHeader
         title="Événements"
         breadcrumb={[{ label: 'Activité' }, { label: 'Événements' }]}
-        badge={<Badge tone={counts.error > 0 ? 'danger' : counts.warning > 0 ? 'warning' : 'success'}>{all.length} événement(s)</Badge>}
+        badge={
+          <Badge tone={counts.error > 0 ? 'danger' : counts.warning > 0 ? 'warning' : 'success'}>
+            {all.length} événement(s)
+          </Badge>
+        }
         description="Changements d'état des conteneurs détectés par la réconciliation Docker. Les événements de collecteur ne sont pas encore persistés."
-        actions={(
+        actions={
           <Button
             size="sm"
             variant="secondary"
             icon={<RefreshCw className="h-3.5 w-3.5" />}
-            onClick={() => { void events.refetch() }}
+            onClick={() => {
+              void events.refetch()
+            }}
           >
             Actualiser
           </Button>
-        )}
+        }
       />
 
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        <Summary icon={<Bell className="h-3.5 w-3.5" />} label="Total" value={all.length} tone="text-text-primary" />
-        <Summary icon={<Info className="h-3.5 w-3.5" />} label="Informations" value={counts.info} tone="text-info" />
-        <Summary icon={<AlertTriangle className="h-3.5 w-3.5" />} label="Avertissements" value={counts.warning} tone="text-warning" />
-        <Summary icon={<AlertTriangle className="h-3.5 w-3.5" />} label="Erreurs" value={counts.error} tone="text-danger" />
+        <Summary
+          icon={<Bell className="h-3.5 w-3.5" />}
+          label="Total"
+          value={all.length}
+          tone="text-text-primary"
+        />
+        <Summary
+          icon={<Info className="h-3.5 w-3.5" />}
+          label="Informations"
+          value={counts.info}
+          tone="text-info"
+        />
+        <Summary
+          icon={<AlertTriangle className="h-3.5 w-3.5" />}
+          label="Avertissements"
+          value={counts.warning}
+          tone="text-warning"
+        />
+        <Summary
+          icon={<AlertTriangle className="h-3.5 w-3.5" />}
+          label="Erreurs"
+          value={counts.error}
+          tone="text-danger"
+        />
       </div>
 
       <div className="flex flex-wrap items-center gap-2 rounded-lg border border-line bg-card p-2.5">
@@ -116,12 +147,23 @@ export function EventsPage() {
           onChange={(event) => setRange(event.target.value as RangeKey)}
           className="min-w-[130px]"
         >
-          {ranges.map((item) => <option key={item.value} value={item.value}>{item.label}</option>)}
+          {ranges.map((item) => (
+            <option key={item.value} value={item.value}>
+              {item.label}
+            </option>
+          ))}
         </Select>
       </div>
 
       {events.isLoading && <LoadingState label="Chargement des événements…" rows={4} />}
-      {events.isError && <ErrorState message={events.error.message} onRetry={() => { void events.refetch() }} />}
+      {events.isError && (
+        <ErrorState
+          message={events.error.message}
+          onRetry={() => {
+            void events.refetch()
+          }}
+        />
+      )}
 
       {!events.isLoading && !events.isError && all.length === 0 && (
         <EmptyState
@@ -136,7 +178,18 @@ export function EventsPage() {
           icon={SearchX}
           title="Aucun événement ne correspond"
           description="Modifiez la recherche, la gravité ou la période pour retrouver un événement."
-          action={<Button size="sm" variant="secondary" onClick={() => { setSearch(''); setSeverity('all') }}>Réinitialiser les filtres</Button>}
+          action={
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => {
+                setSearch('')
+                setSeverity('all')
+              }}
+            >
+              Réinitialiser les filtres
+            </Button>
+          }
         />
       )}
 
@@ -144,7 +197,14 @@ export function EventsPage() {
         <>
           <Table minWidthClassName="min-w-[900px]">
             <THead>
-              <tr><TH>Date</TH><TH>Gravité</TH><TH>Type</TH><TH>Message</TH><TH>Conteneur</TH><TH>Ancienneté</TH></tr>
+              <tr>
+                <TH>Date</TH>
+                <TH>Gravité</TH>
+                <TH>Type</TH>
+                <TH>Message</TH>
+                <TH>Conteneur</TH>
+                <TH>Ancienneté</TH>
+              </tr>
             </THead>
             <TBody>
               {filtered.map((event) => (
@@ -161,7 +221,9 @@ export function EventsPage() {
                       {eventTypeLabel(event.type)}
                     </span>
                   </TD>
-                  <TD><span className="block max-w-[420px] text-xs">{event.message || '—'}</span></TD>
+                  <TD>
+                    <span className="block max-w-[420px] text-xs">{event.message || '—'}</span>
+                  </TD>
                   <TD>
                     {event.containerId ? (
                       <Link
@@ -180,7 +242,9 @@ export function EventsPage() {
             </TBody>
           </Table>
           <CardFooter className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line bg-card font-mono text-[10px] text-text-muted">
-            <span>{filtered.length} sur {all.length} événement(s)</span>
+            <span>
+              {filtered.length} sur {all.length} événement(s)
+            </span>
             <span>Ordre antéchronologique · maximum 500 résultats</span>
           </CardFooter>
         </>
@@ -189,14 +253,26 @@ export function EventsPage() {
   )
 }
 
-function Summary({ icon, label, value, tone }: { icon: ReactNode; label: string; value: number; tone: string }) {
+function Summary({
+  icon,
+  label,
+  value,
+  tone,
+}: {
+  icon: ReactNode
+  label: string
+  value: number
+  tone: string
+}) {
   return (
     <div className="flex items-start justify-between gap-3 rounded-lg border border-line bg-card p-4">
       <div>
         <p className="font-mono text-[11px] uppercase tracking-wider text-text-muted">{label}</p>
         <p className={`mt-1 font-mono text-2xl font-semibold tracking-tight ${tone}`}>{value}</p>
       </div>
-      <span className="flex h-7 w-7 items-center justify-center rounded-md border border-line bg-elevated text-text-muted">{icon}</span>
+      <span className="flex h-7 w-7 items-center justify-center rounded-md border border-line bg-elevated text-text-muted">
+        {icon}
+      </span>
     </div>
   )
 }

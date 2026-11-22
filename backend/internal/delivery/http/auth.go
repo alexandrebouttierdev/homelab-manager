@@ -1,6 +1,7 @@
 package httpdelivery
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -18,6 +19,14 @@ import (
 )
 
 const sessionCookieName = "homelab_session"
+
+type sessionUserKey struct{}
+
+// sessionUser returns the user authenticated by requireSession.
+func sessionUser(r *http.Request) (domain.User, bool) {
+	user, ok := r.Context().Value(sessionUserKey{}).(domain.User)
+	return user, ok
+}
 
 var loginAttempts = struct {
 	sync.Mutex
@@ -192,11 +201,12 @@ func requireSession(auth *usecase.AuthUsecase) func(http.Handler) http.Handler {
 				writeError(w, r, http.StatusUnauthorized, "SESSION_NOT_FOUND", "Authentication is required.")
 				return
 			}
-			if _, _, err := auth.Session(r.Context(), cookie.Value); err != nil {
+			user, _, err := auth.Session(r.Context(), cookie.Value)
+			if err != nil {
 				writeError(w, r, http.StatusUnauthorized, "SESSION_NOT_FOUND", "Authentication is required.")
 				return
 			}
-			next.ServeHTTP(w, r)
+			next.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), sessionUserKey{}, user)))
 		})
 	}
 }

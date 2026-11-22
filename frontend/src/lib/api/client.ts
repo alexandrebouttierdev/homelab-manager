@@ -15,7 +15,8 @@ export class ApiError extends Error {
  */
 export const errorMessages: Record<string, string> = {
   VALIDATION_ERROR: 'La requête envoyée au Manager est invalide.',
-  AUTH_UNAVAILABLE: "Authentification indisponible : la base de données du Manager n'est pas accessible.",
+  AUTH_UNAVAILABLE:
+    "Authentification indisponible : la base de données du Manager n'est pas accessible.",
   INVALID_CREDENTIALS: 'Identifiant ou mot de passe incorrect.',
   SESSION_NOT_FOUND: 'Session expirée. Reconnectez-vous.',
   CROSS_ORIGIN_REQUEST: 'Requête refusée : origine non autorisée.',
@@ -23,6 +24,8 @@ export const errorMessages: Record<string, string> = {
   NOT_FOUND: 'Élément introuvable.',
   METHOD_NOT_ALLOWED: 'Opération non autorisée.',
   METRICS_UNAVAILABLE: 'Métriques momentanément indisponibles.',
+  TOO_MANY_POINTS: 'Trop de points pour cette période : choisissez une période plus courte.',
+  SETTINGS_UPDATE_FAILED: "Les paramètres n'ont pas pu être enregistrés.",
   EVENTS_UNAVAILABLE: 'Événements momentanément indisponibles.',
   LOGOUT_FAILED: 'La déconnexion a échoué.',
   PASSWORD_CHANGE_FAILED: "Le mot de passe n'a pas pu être modifié.",
@@ -58,7 +61,7 @@ export async function requestJSON<T>(path: string, init?: RequestInit): Promise<
   }
 
   if (!response.ok) {
-    const body = await response.json().catch(() => null) as ErrorBody | null
+    const body = (await response.json().catch(() => null)) as ErrorBody | null
     const code = body?.error?.code
     throw new ApiError(
       response.status,

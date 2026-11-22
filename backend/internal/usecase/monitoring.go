@@ -28,10 +28,17 @@ type MonitoringUsecase struct {
 	logger *zap.Logger
 	now    func() time.Time
 
+	// settings is optional: without it the configured retention applies.
+	settings ports.SettingsRepository
+	// purgeNow asks the retention worker to run immediately (buffer of one).
+	purgeNow chan struct{}
+
 	mu             sync.RWMutex
 	systemStatus   domain.CollectorStatus
 	dockerStatus   domain.CollectorStatus
 	databaseStatus domain.CollectorStatus
+	// userRetentionDays overrides config.Retention when > 0.
+	userRetentionDays int
 }
 
 type ContainerCounts struct {
@@ -73,24 +80,85 @@ func NewMonitoringUsecase(system ports.SystemCollector, docker ports.DockerSourc
 	return &MonitoringUsecase{
 		system: system, docker: docker, repo: repository, config: config, logger: logger,
 		now:            time.Now,
+		purgeNow:       make(chan struct{}, 1),
 		systemStatus:   domain.CollectorStatus{Status: StatusStarting},
 		dockerStatus:   domain.CollectorStatus{Status: StatusStarting},
 		databaseStatus: domain.CollectorStatus{Status: StatusStarting},
 	}
 }
 
+// WithSettings enables the retention chosen from the interface.
+func (u *MonitoringUsecase) WithSettings(settings ports.SettingsRepository) *MonitoringUsecase {
+	u.settings = settings
+	return u
+}
+
 func (u *MonitoringUsecase) Run(ctx context.Context) {
+	u.loadRetention(ctx)
 	var workers sync.WaitGroup
 	workers.Add(4)
-	go u.runPeriodic(ctx, &workers, u.config.SystemInterval, "system", u.collectSystem)
-	go u.runPeriodic(ctx, &workers, u.config.DockerScanInterval, "docker discovery", u.discoverContainers)
-	go u.runPeriodic(ctx, &workers, u.config.DockerStatsInterval, "docker stats", u.collectContainerMetrics)
-	go u.runPeriodic(ctx, &workers, retentionInterval, "metrics retention", u.purgeMetrics)
+	go u.runPeriodic(ctx, &workers, u.config.SystemInterval, "system", u.collectSystem, nil)
+	go u.runPeriodic(ctx, &workers, u.config.DockerScanInterval, "docker discovery", u.discoverContainers, nil)
+	go u.runPeriodic(ctx, &workers, u.config.DockerStatsInterval, "docker stats", u.collectContainerMetrics, nil)
+	go u.runPeriodic(ctx, &workers, retentionInterval, "metrics retention", u.purgeMetrics, u.purgeNow)
 	<-ctx.Done()
 	workers.Wait()
 }
 
-func (u *MonitoringUsecase) runPeriodic(ctx context.Context, workers *sync.WaitGroup, interval time.Duration, name string, work func(context.Context) error) {
+func (u *MonitoringUsecase) loadRetention(ctx context.Context) {
+	if u.settings == nil {
+		return
+	}
+	loadCtx, cancel := context.WithTimeout(ctx, 5*time.Second)
+	defer cancel()
+	days, err := u.settings.RetentionDays(loadCtx)
+	if err != nil {
+		u.logger.Warn("could not load the retention chosen from the interface; using the configured value", zap.Error(err))
+		return
+	}
+	if days != nil && *days >= domain.MinRetentionDays && *days <= domain.MaxRetentionDays {
+		u.mu.Lock()
+		u.userRetentionDays = *days
+		u.mu.Unlock()
+	}
+}
+
+// retention returns the effective retention and whether it was chosen from
+// the interface.
+func (u *MonitoringUsecase) retention() (time.Duration, bool) {
+	u.mu.RLock()
+	defer u.mu.RUnlock()
+	if u.userRetentionDays > 0 {
+		return time.Duration(u.userRetentionDays) * 24 * time.Hour, true
+	}
+	return u.config.Retention, false
+}
+
+// UpdateRetention stores a retention chosen from the interface, applies it
+// at once and starts a purge without waiting for the hourly cycle.
+func (u *MonitoringUsecase) UpdateRetention(ctx context.Context, days int, audit domain.AuditEntry) error {
+	if days < domain.MinRetentionDays || days > domain.MaxRetentionDays {
+		return domain.ErrInvalidRetention
+	}
+	if u.settings == nil {
+		return errors.New("settings storage is unavailable")
+	}
+	audit.TargetType, audit.TargetID, audit.Action, audit.Outcome = "settings", "metrics_retention_days", "update", "success"
+	if err := u.settings.SetRetentionDays(ctx, days, audit); err != nil {
+		return err
+	}
+	u.mu.Lock()
+	u.userRetentionDays = days
+	u.mu.Unlock()
+	select {
+	case u.purgeNow <- struct{}{}:
+	default: // a purge is already pending
+	}
+	return nil
+}
+
+// runPeriodic runs work now, then at every interval or trigger, until ctx ends.
+func (u *MonitoringUsecase) runPeriodic(ctx context.Context, workers *sync.WaitGroup, interval time.Duration, name string, work func(context.Context) error, trigger <-chan struct{}) {
 	defer workers.Done()
 	ticker := time.NewTicker(interval)
 	defer ticker.Stop()
@@ -105,6 +173,7 @@ func (u *MonitoringUsecase) runPeriodic(ctx context.Context, workers *sync.WaitG
 		case <-ctx.Done():
 			return
 		case <-ticker.C:
+		case <-trigger:
 		}
 	}
 }
@@ -225,7 +294,8 @@ func (u *MonitoringUsecase) purgeMetrics(ctx context.Context) error {
 	// Small batches keep each write short (the single SQLite connection is
 	// shared); the loop drains the whole backlog unless the cycle deadline
 	// expires, in which case the next run continues.
-	before := u.now().UTC().Add(-u.config.Retention)
+	retention, _ := u.retention()
+	before := u.now().UTC().Add(-retention)
 	for {
 		if err := ctx.Err(); err != nil {
 			return err
@@ -261,8 +331,8 @@ func (u *MonitoringUsecase) Container(ctx context.Context, id string) (domain.Co
 	return u.repo.GetContainer(ctx, id)
 }
 
-func (u *MonitoringUsecase) Metrics(ctx context.Context, containerID *string, metric string, from, to time.Time, limit int) ([]domain.MetricSample, error) {
-	return u.repo.ListMetrics(ctx, containerID, metric, from, to, limit)
+func (u *MonitoringUsecase) Metrics(ctx context.Context, query domain.MetricQuery) ([]domain.MetricSample, error) {
+	return u.repo.ListMetrics(ctx, query)
 }
 
 func (u *MonitoringUsecase) Events(ctx context.Context, containerID *string, from, to time.Time, limit int) ([]domain.MonitorEvent, error) {
@@ -364,17 +434,27 @@ type EffectiveSettings struct {
 	DockerCollectIntervalSeconds   int
 	DockerDiscoveryIntervalSeconds int
 	MetricsRetentionDays           int
-	System                         domain.CollectorStatus
-	Docker                         domain.CollectorStatus
+	DefaultRetentionDays           int
+	// RetentionSource is "config" or "user" (chosen from the interface).
+	RetentionSource string
+	System          domain.CollectorStatus
+	Docker          domain.CollectorStatus
 }
 
 func (u *MonitoringUsecase) Settings() EffectiveSettings {
 	systemStatus, dockerStatus := u.Status()
+	retention, fromUser := u.retention()
+	source := "config"
+	if fromUser {
+		source = "user"
+	}
 	return EffectiveSettings{
 		SystemCollectIntervalSeconds:   int(u.config.SystemInterval.Seconds()),
 		DockerCollectIntervalSeconds:   int(u.config.DockerStatsInterval.Seconds()),
 		DockerDiscoveryIntervalSeconds: int(u.config.DockerScanInterval.Seconds()),
-		MetricsRetentionDays:           int(u.config.Retention.Hours() / 24),
+		MetricsRetentionDays:           int(retention.Hours() / 24),
+		DefaultRetentionDays:           int(u.config.Retention.Hours() / 24),
+		RetentionSource:                source,
 		System:                         systemStatus,
 		Docker:                         dockerStatus,
 	}

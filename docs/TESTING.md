@@ -47,6 +47,7 @@ go test ./internal/adapters/sqlite -count=1 -v
 
 Commandes :
 ```bash
+npm run format:check
 npm run lint
 npm run typecheck
 npm run test
@@ -64,7 +65,7 @@ npm run build
 
 ### Couverture actuelle
 
-Les sections précédentes fixent les exigences. Aujourd'hui couverts automatiquement : formules CPU (deltas `/proc/stat`), débits réseau/disque et remises à zéro, formules CPU/mémoire Docker, découverte Docker avec conteneur disparu (API simulée), liste blanche du proxy, usecases (indépendance des collecteurs, arrêt, état `stale`, horodatage de `restart.count`, purge complète d'un arriéré, anti-énumération à la connexion), routes HTTP (santé, SPA, 404/405 JSON, contrôle d'origine, validation des paramètres), intégration SQLite (voir plus bas), configuration, client REST et schémas Zod du Frontend, pages de connexion et dashboard.
+Les sections précédentes fixent les exigences. Aujourd'hui couverts automatiquement : formules CPU (deltas `/proc/stat`), débits réseau/disque et remises à zéro, formules CPU/mémoire Docker, découverte Docker avec conteneur disparu (API simulée), liste blanche du proxy, usecases (indépendance des collecteurs, arrêt, état `stale`, horodatage de `restart.count`, purge complète d'un arriéré, rétention choisie dans l'interface et purge immédiate, anti-énumération à la connexion), routes HTTP (santé, SPA, 404/405 JSON, contrôle d'origine, validation des paramètres), intégration SQLite (voir plus bas), dont l'agrégation (moyenne, min, max, nombre par intervalle), le filtre par label, le refus `TOO_MANY_POINTS` et le stockage de la rétention avec son audit, configuration, client REST, schémas Zod (connexion, mot de passe, rétention) et estimation de taille du Frontend, pages de connexion et dashboard.
 
 Non couverts automatiquement, à vérifier manuellement avant une version : parcours transverses ci-dessus, démarrage systemd réel et permissions des sockets, accessibilité clavier et affichage mobile.
 

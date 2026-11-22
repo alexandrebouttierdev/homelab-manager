@@ -1,12 +1,4 @@
-import {
-  AlertTriangle,
-  Activity,
-  Play,
-  Plus,
-  RotateCw,
-  Square,
-  Trash2,
-} from 'lucide-react'
+import { AlertTriangle, Activity, Play, Plus, RotateCw, Square, Trash2 } from 'lucide-react'
 import { cn } from '../../lib/cn'
 
 type EventIconProps = {

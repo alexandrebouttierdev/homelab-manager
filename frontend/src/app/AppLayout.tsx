@@ -22,10 +22,7 @@ export function AppLayout() {
       <AppSidebar open={sidebarOpen} onClose={() => setSidebarOpen(false)} />
       <div className="min-h-screen lg:pl-64">
         <TopBar onOpenMenu={() => setSidebarOpen(true)} />
-        <main
-          id="contenu"
-          className="mx-auto w-full max-w-[1700px] px-4 py-5 sm:px-6 lg:px-8"
-        >
+        <main id="contenu" className="mx-auto w-full max-w-[1700px] px-4 py-5 sm:px-6 lg:px-8">
           <Outlet />
         </main>
       </div>

@@ -8,6 +8,18 @@ import (
 	"homelab-manager/backend/ent"
 )
 
+// The AppSettingFunc type is an adapter to allow the use of ordinary
+// function as AppSetting mutator.
+type AppSettingFunc func(context.Context, *ent.AppSettingMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f AppSettingFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.AppSettingMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AppSettingMutation", m)
+}
+
 // The AuditLogFunc type is an adapter to allow the use of ordinary
 // function as AuditLog mutator.
 type AuditLogFunc func(context.Context, *ent.AuditLogMutation) (ent.Value, error)

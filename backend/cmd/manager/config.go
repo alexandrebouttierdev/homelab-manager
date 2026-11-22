@@ -49,7 +49,7 @@ func LoadConfig() (Config, error) {
 	v.SetDefault("system_collect_interval_seconds", 10)
 	v.SetDefault("docker_collect_interval_seconds", 15)
 	v.SetDefault("docker_discovery_interval_seconds", 30)
-	v.SetDefault("metrics_retention_days", 30)
+	v.SetDefault("metrics_retention_days", 7)
 
 	if err := v.ReadInConfig(); err != nil {
 		var notFound viper.ConfigFileNotFoundError

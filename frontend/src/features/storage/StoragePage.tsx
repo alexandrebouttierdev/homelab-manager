@@ -15,12 +15,7 @@ import { ProgressBar } from '../../components/ui/ProgressBar'
 import { SegmentedTabs } from '../../components/ui/SegmentedTabs'
 import { Select } from '../../components/ui/Select'
 import { getCurrentHostMetrics, getHostMetrics } from '../../lib/api/monitoring'
-import {
-  formatBytes,
-  formatChartTime,
-  formatMetricValue,
-  formatPercent,
-} from '../../lib/format'
+import { formatBytes, formatChartTime, formatMetricValue, formatPercent } from '../../lib/format'
 import { diskSummary, filesystemSummary } from '../../lib/host'
 import { series } from '../../lib/metrics'
 import { useRefreshInterval } from '../../lib/refresh'
@@ -35,7 +30,10 @@ const ranges: Array<{ value: RangeKey; label: string; milliseconds: number }> = 
 ]
 
 function rangeStart(range: RangeKey): Date {
-  return new Date(Date.now() - (ranges.find((item) => item.value === range)?.milliseconds ?? ranges[1].milliseconds))
+  return new Date(
+    Date.now() -
+      (ranges.find((item) => item.value === range)?.milliseconds ?? ranges[1].milliseconds),
+  )
 }
 
 export function StoragePage() {
@@ -56,7 +54,8 @@ export function StoragePage() {
 
   const history = useQuery({
     queryKey: ['host', 'metrics', 'filesystem.percent', mountpoint, range],
-    queryFn: () => getHostMetrics('filesystem.percent', rangeStart(range)),
+    queryFn: () =>
+      getHostMetrics('filesystem.percent', rangeStart(range), { labels: { mountpoint } }),
     enabled: Boolean(mountpoint),
   })
   const historySeries = series(history.data ?? [], 'filesystem.percent', { mountpoint })
@@ -91,16 +90,18 @@ export function StoragePage() {
       axisLabel: { color: chartTheme.muted, fontSize: 10, formatter: '{value} %' },
       splitLine: { lineStyle: { color: chartTheme.grid } },
     },
-    series: [{
-      name: mountpoint || 'Occupation',
-      type: 'line',
-      smooth: true,
-      showSymbol: false,
-      data: historySeries.map((sample) => sample.value),
-      lineStyle: { color: chartTheme.cpu, width: 1.8 },
-      itemStyle: { color: chartTheme.cpu },
-      areaStyle: { color: chartTheme.cpu, opacity: 0.08 },
-    }],
+    series: [
+      {
+        name: mountpoint || 'Occupation',
+        type: 'line',
+        smooth: true,
+        showSymbol: false,
+        data: historySeries.map((sample) => sample.value),
+        lineStyle: { color: chartTheme.cpu, width: 1.8 },
+        itemStyle: { color: chartTheme.cpu },
+        areaStyle: { color: chartTheme.cpu, opacity: 0.08 },
+      },
+    ],
   }
 
   return (
@@ -108,30 +109,63 @@ export function StoragePage() {
       <PageHeader
         title="Stockage"
         breadcrumb={[{ label: 'Système' }, { label: 'Stockage' }]}
-        badge={<Badge tone={filesystems.percent != null && filesystems.percent > 90 ? 'warning' : 'success'}>{formatPercent(filesystems.percent)}</Badge>}
+        badge={
+          <Badge
+            tone={filesystems.percent != null && filesystems.percent > 90 ? 'warning' : 'success'}
+          >
+            {formatPercent(filesystems.percent)}
+          </Badge>
+        }
         description="Capacité, occupation et activité d'E/S des systèmes de fichiers locaux. Les valeurs proviennent directement des collecteurs système."
-        actions={(
+        actions={
           <Button
             size="sm"
             variant="secondary"
             icon={<RefreshCw className="h-3.5 w-3.5" />}
-            onClick={() => { void current.refetch() }}
+            onClick={() => {
+              void current.refetch()
+            }}
           >
             Actualiser
           </Button>
-        )}
+        }
       />
 
-      {current.isError && <ErrorState message={current.error.message} onRetry={() => { void current.refetch() }} />}
-      {current.isLoading && !current.isError && <LoadingState label="Chargement du stockage…" rows={2} />}
+      {current.isError && (
+        <ErrorState
+          message={current.error.message}
+          onRetry={() => {
+            void current.refetch()
+          }}
+        />
+      )}
+      {current.isLoading && !current.isError && (
+        <LoadingState label="Chargement du stockage…" rows={2} />
+      )}
 
       {!current.isLoading && !current.isError && (
         <>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <Summary label="Capacité totale" value={formatBytes(filesystems.total)} tone="text-text-primary" />
-            <Summary label="Espace utilisé" value={formatBytes(filesystems.used)} tone="text-warning" />
-            <Summary label="Espace disponible" value={formatBytes(filesystems.available)} tone="text-success" />
-            <Summary label="Systèmes de fichiers" value={String(filesystems.entries.length)} tone="text-accent" />
+            <Summary
+              label="Capacité totale"
+              value={formatBytes(filesystems.total)}
+              tone="text-text-primary"
+            />
+            <Summary
+              label="Espace utilisé"
+              value={formatBytes(filesystems.used)}
+              tone="text-warning"
+            />
+            <Summary
+              label="Espace disponible"
+              value={formatBytes(filesystems.available)}
+              tone="text-success"
+            />
+            <Summary
+              label="Systèmes de fichiers"
+              value={String(filesystems.entries.length)}
+              tone="text-accent"
+            />
           </div>
 
           {filesystems.entries.length === 0 ? (
@@ -150,7 +184,14 @@ export function StoragePage() {
               <CardBody className="p-0">
                 <Table minWidthClassName="min-w-[820px]" className="rounded-none border-0">
                   <THead>
-                    <tr><TH>Point de montage</TH><TH>Capacité</TH><TH>Utilisé</TH><TH>Disponible</TH><TH>Occupation</TH><TH>Statut</TH></tr>
+                    <tr>
+                      <TH>Point de montage</TH>
+                      <TH>Capacité</TH>
+                      <TH>Utilisé</TH>
+                      <TH>Disponible</TH>
+                      <TH>Occupation</TH>
+                      <TH>Statut</TH>
+                    </tr>
                   </THead>
                   <TBody>
                     {filesystems.entries.map((entry) => (
@@ -162,19 +203,32 @@ export function StoragePage() {
                         <TD>
                           <div className="min-w-[160px] space-y-1">
                             <div className="flex items-center justify-between gap-2 font-mono text-[10px]">
-                              <span className="text-text-secondary">{formatPercent(entry.percent)}</span>
-                              <span className="text-text-muted">{formatBytes(entry.available)} libres</span>
+                              <span className="text-text-secondary">
+                                {formatPercent(entry.percent)}
+                              </span>
+                              <span className="text-text-muted">
+                                {formatBytes(entry.available)} libres
+                              </span>
                             </div>
                             <ProgressBar
                               value={entry.percent}
-                              tone={entry.percent != null && entry.percent > 90 ? 'warning' : 'success'}
+                              tone={
+                                entry.percent != null && entry.percent > 90 ? 'warning' : 'success'
+                              }
                               label={`Occupation ${entry.mountpoint}`}
                             />
                           </div>
                         </TD>
                         <TD>
-                          <Badge tone={entry.percent != null && entry.percent > 90 ? 'warning' : 'success'} dot>
-                            {entry.percent != null && entry.percent > 90 ? 'À surveiller' : 'Normal'}
+                          <Badge
+                            tone={
+                              entry.percent != null && entry.percent > 90 ? 'warning' : 'success'
+                            }
+                            dot
+                          >
+                            {entry.percent != null && entry.percent > 90
+                              ? 'À surveiller'
+                              : 'Normal'}
                           </Badge>
                         </TD>
                       </TR>
@@ -195,7 +249,7 @@ export function StoragePage() {
                 title="Historique d'occupation"
                 subtitle={mountpoint ? `Point de montage ${mountpoint}` : 'Aucun point de montage'}
                 icon={<Activity className="h-3.5 w-3.5" />}
-                actions={(
+                actions={
                   <div className="flex flex-wrap items-center gap-2">
                     <Select
                       aria-label="Choisir un point de montage"
@@ -204,7 +258,9 @@ export function StoragePage() {
                       className="h-8 max-w-[190px] font-mono text-[11px]"
                     >
                       {filesystems.entries.map((entry) => (
-                        <option key={entry.mountpoint} value={entry.mountpoint}>{entry.mountpoint}</option>
+                        <option key={entry.mountpoint} value={entry.mountpoint}>
+                          {entry.mountpoint}
+                        </option>
                       ))}
                     </Select>
                     <SegmentedTabs
@@ -214,15 +270,21 @@ export function StoragePage() {
                       options={ranges.map((item) => ({ value: item.value, label: item.label }))}
                     />
                   </div>
-                )}
+                }
               />
               <CardBody>
                 {history.isError && <ErrorState message={history.error.message} />}
                 {!history.isError && historySeries.length === 0 && (
-                  <p className="py-8 text-center text-sm text-text-muted">Aucun échantillon sur la période sélectionnée.</p>
+                  <p className="py-8 text-center text-sm text-text-muted">
+                    Aucun échantillon sur la période sélectionnée.
+                  </p>
                 )}
                 {historySeries.length > 0 && (
-                  <Chart option={chartOption} height={280} label="Historique d'occupation du stockage" />
+                  <Chart
+                    option={chartOption}
+                    height={280}
+                    label="Historique d'occupation du stockage"
+                  />
                 )}
               </CardBody>
               <CardFooter className="font-mono text-[10px] text-text-muted">
@@ -231,15 +293,25 @@ export function StoragePage() {
             </Card>
 
             <Card>
-              <CardHeader title="Activité d'E/S" subtitle="Valeurs courantes par périphérique" icon={<Activity className="h-3.5 w-3.5" />} />
+              <CardHeader
+                title="Activité d'E/S"
+                subtitle="Valeurs courantes par périphérique"
+                icon={<Activity className="h-3.5 w-3.5" />}
+              />
               <CardBody className="space-y-2">
-                {disks.length === 0 && <p className="text-sm text-text-muted">Aucune activité disque mesurée.</p>}
+                {disks.length === 0 && (
+                  <p className="text-sm text-text-muted">Aucune activité disque mesurée.</p>
+                )}
                 {disks.map((disk) => (
-                  <div key={disk.device} className="rounded-md border border-line/70 bg-surface/50 px-3 py-2.5">
+                  <div
+                    key={disk.device}
+                    className="rounded-md border border-line/70 bg-surface/50 px-3 py-2.5"
+                  >
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-mono text-xs text-text-primary">{disk.device}</span>
                       <span className="font-mono text-[10px] text-text-muted">
-                        {formatMetricValue(disk.readIops, 'iops')} R · {formatMetricValue(disk.writeIops, 'iops')} W
+                        {formatMetricValue(disk.readIops, 'iops')} R ·{' '}
+                        {formatMetricValue(disk.writeIops, 'iops')} W
                       </span>
                     </div>
                     <div className="mt-1.5 grid grid-cols-2 gap-2 font-mono text-[10px] text-text-muted">

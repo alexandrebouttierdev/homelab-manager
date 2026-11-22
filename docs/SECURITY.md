@@ -10,6 +10,8 @@ Version 2.1 — 22 novembre 2026
 - Protection CSRF : cookie `SameSite=Lax` et contrôle `Origin`/`Sec-Fetch-Site` sur la connexion et toutes les routes authentifiées (détail dans API_CONTRACTS.md § 3).
 - Connexion : 10 tentatives par minute et par IP, réponse identique et coût Argon2id équivalent que le compte existe ou non (pas d'énumération des comptes).
 - Changement de mot de passe : révocation de toutes les sessions de l'utilisateur, y compris la courante.
+- Journal d'audit : toute modification faite depuis l'interface (aujourd'hui la rétention) est tracée avec l'acteur et le `requestId`.
+- Modules d'administration v3 : interdits (aucun terminal, shell ni SSH ; comptes propres au Manager ; aucune exécution de code arbitraire) et modèle de privilèges (D-Bus, polkit en liste blanche, unités systemd dédiées) dans SPEC_ADMINISTRATION.md §§ 1–2.
 - Erreurs publiques non bavardes : codes stables, messages génériques, `requestId` pour corréler avec les journaux.
 - Validation serveur stricte, limite de taille des requêtes, timeouts, headers de sécurité et contrôle d'origine.
 - Ne jamais journaliser mots de passe, cookies, tokens ou secrets.

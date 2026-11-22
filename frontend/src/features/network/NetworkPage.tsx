@@ -14,12 +14,7 @@ import { PageHeader } from '../../components/ui/PageHeader'
 import { SegmentedTabs } from '../../components/ui/SegmentedTabs'
 import { Select } from '../../components/ui/Select'
 import { getCurrentHostMetrics, getHostMetrics, type MetricSample } from '../../lib/api/monitoring'
-import {
-  formatBytes,
-  formatChartTime,
-  formatNumber,
-  formatRate,
-} from '../../lib/format'
+import { formatBytes, formatChartTime, formatNumber, formatRate } from '../../lib/format'
 import { interfaceSummary } from '../../lib/host'
 import { series } from '../../lib/metrics'
 import { useRefreshInterval } from '../../lib/refresh'
@@ -34,14 +29,20 @@ const ranges: Array<{ value: RangeKey; label: string; milliseconds: number }> = 
 ]
 
 function rangeStart(range: RangeKey): Date {
-  return new Date(Date.now() - (ranges.find((item) => item.value === range)?.milliseconds ?? ranges[0].milliseconds))
+  return new Date(
+    Date.now() -
+      (ranges.find((item) => item.value === range)?.milliseconds ?? ranges[0].milliseconds),
+  )
 }
 
-async function getRateHistory(iface: string, range: RangeKey): Promise<{ rx: MetricSample[]; tx: MetricSample[] }> {
+async function getRateHistory(
+  iface: string,
+  range: RangeKey,
+): Promise<{ rx: MetricSample[]; tx: MetricSample[] }> {
   const from = rangeStart(range)
   const [rx, tx] = await Promise.all([
-    getHostMetrics('network.rx_bytes_per_second', from),
-    getHostMetrics('network.tx_bytes_per_second', from),
+    getHostMetrics('network.rx_bytes_per_second', from, { labels: { interface: iface } }),
+    getHostMetrics('network.tx_bytes_per_second', from, { labels: { interface: iface } }),
   ])
   return {
     rx: series(rx, 'network.rx_bytes_per_second', { interface: iface }),
@@ -80,10 +81,12 @@ export function NetworkPage() {
   const txSeries = useMemo(() => history.data?.tx ?? [], [history.data])
 
   const chartOption = useMemo<EChartsOption>(() => {
-    const timestamps = Array.from(new Set([
-      ...rxSeries.map((sample) => sample.recordedAt),
-      ...txSeries.map((sample) => sample.recordedAt),
-    ])).sort()
+    const timestamps = Array.from(
+      new Set([
+        ...rxSeries.map((sample) => sample.recordedAt),
+        ...txSeries.map((sample) => sample.recordedAt),
+      ]),
+    ).sort()
     const rxMap = new Map(rxSeries.map((sample) => [sample.recordedAt, sample.value]))
     const txMap = new Map(txSeries.map((sample) => [sample.recordedAt, sample.value]))
 
@@ -111,13 +114,21 @@ export function NetworkPage() {
         data: timestamps,
         axisTick: { show: false },
         axisLine: { lineStyle: { color: chartTheme.axis } },
-        axisLabel: { color: chartTheme.muted, fontSize: 10, formatter: (value: string) => formatChartTime(value) },
+        axisLabel: {
+          color: chartTheme.muted,
+          fontSize: 10,
+          formatter: (value: string) => formatChartTime(value),
+        },
       },
       yAxis: {
         type: 'value',
         axisTick: { show: false },
         axisLine: { show: false },
-        axisLabel: { color: chartTheme.muted, fontSize: 10, formatter: (value: number) => formatBytes(value) },
+        axisLabel: {
+          color: chartTheme.muted,
+          fontSize: 10,
+          formatter: (value: number) => formatBytes(value),
+        },
         splitLine: { lineStyle: { color: chartTheme.grid } },
       },
       series: [
@@ -152,28 +163,53 @@ export function NetworkPage() {
       <PageHeader
         title="Réseau"
         breadcrumb={[{ label: 'Système' }, { label: 'Réseau' }]}
-        badge={<Badge tone={totalErrors > 0 ? 'warning' : 'success'}>{totalErrors > 0 ? `${formatNumber(totalErrors)} erreur(s)` : 'Aucune erreur'}</Badge>}
+        badge={
+          <Badge tone={totalErrors > 0 ? 'warning' : 'success'}>
+            {totalErrors > 0 ? `${formatNumber(totalErrors)} erreur(s)` : 'Aucune erreur'}
+          </Badge>
+        }
         description="Interfaces locales, compteurs cumulés et débits mesurés par le collecteur système. Les adresses et compteurs proviennent du noyau Linux."
-        actions={(
+        actions={
           <Button
             size="sm"
             variant="secondary"
             icon={<RefreshCw className="h-3.5 w-3.5" />}
-            onClick={() => { void current.refetch() }}
+            onClick={() => {
+              void current.refetch()
+            }}
           >
             Actualiser
           </Button>
-        )}
+        }
       />
 
-      {current.isError && <ErrorState message={current.error.message} onRetry={() => { void current.refetch() }} />}
-      {current.isLoading && !current.isError && <LoadingState label="Chargement des interfaces réseau…" rows={2} />}
+      {current.isError && (
+        <ErrorState
+          message={current.error.message}
+          onRetry={() => {
+            void current.refetch()
+          }}
+        />
+      )}
+      {current.isLoading && !current.isError && (
+        <LoadingState label="Chargement des interfaces réseau…" rows={2} />
+      )}
 
       {!current.isLoading && !current.isError && (
         <>
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <Summary label="Trafic reçu" value={formatBytes(totalRx)} hint={`${interfaces.length} interface(s)`} tone="text-net" />
-            <Summary label="Trafic envoyé" value={formatBytes(totalTx)} hint="Compteurs cumulés" tone="text-accent" />
+            <Summary
+              label="Trafic reçu"
+              value={formatBytes(totalRx)}
+              hint={`${interfaces.length} interface(s)`}
+              tone="text-net"
+            />
+            <Summary
+              label="Trafic envoyé"
+              value={formatBytes(totalTx)}
+              hint="Compteurs cumulés"
+              tone="text-accent"
+            />
             <Summary
               label="Débit courant"
               value={formatRate(currentRxRate)}
@@ -204,7 +240,16 @@ export function NetworkPage() {
               <CardBody className="p-0">
                 <Table minWidthClassName="min-w-[980px]" className="rounded-none border-0">
                   <THead>
-                    <tr><TH>Interface</TH><TH>Adresses</TH><TH>MAC</TH><TH>RX</TH><TH>TX</TH><TH>Débits</TH><TH>Erreurs</TH><TH>État</TH></tr>
+                    <tr>
+                      <TH>Interface</TH>
+                      <TH>Adresses</TH>
+                      <TH>MAC</TH>
+                      <TH>RX</TH>
+                      <TH>TX</TH>
+                      <TH>Débits</TH>
+                      <TH>Erreurs</TH>
+                      <TH>État</TH>
+                    </tr>
                   </THead>
                   <TBody>
                     {interfaces.map((entry) => (
@@ -212,8 +257,14 @@ export function NetworkPage() {
                         <TD className="font-mono text-xs text-text-primary">{entry.name}</TD>
                         <TD>
                           <div className="space-y-0.5 font-mono text-[10px] text-text-secondary">
-                            {entry.addresses.length === 0 && <span className="text-text-muted">—</span>}
-                            {entry.addresses.map((address) => <span key={address} className="block">{address}</span>)}
+                            {entry.addresses.length === 0 && (
+                              <span className="text-text-muted">—</span>
+                            )}
+                            {entry.addresses.map((address) => (
+                              <span key={address} className="block">
+                                {address}
+                              </span>
+                            ))}
                           </div>
                         </TD>
                         <TD className="font-mono text-[10px]">{entry.mac || '—'}</TD>
@@ -222,10 +273,12 @@ export function NetworkPage() {
                         <TD>
                           <div className="space-y-1 font-mono text-[10px]">
                             <span className="flex items-center gap-1 text-text-secondary">
-                              <ArrowDownRight className="h-3 w-3 text-net" /> {formatRate(entry.rxRate)}
+                              <ArrowDownRight className="h-3 w-3 text-net" />{' '}
+                              {formatRate(entry.rxRate)}
                             </span>
                             <span className="flex items-center gap-1 text-text-secondary">
-                              <ArrowUpRight className="h-3 w-3 text-accent" /> {formatRate(entry.txRate)}
+                              <ArrowUpRight className="h-3 w-3 text-accent" />{' '}
+                              {formatRate(entry.txRate)}
                             </span>
                           </div>
                         </TD>
@@ -235,7 +288,10 @@ export function NetworkPage() {
                           </Badge>
                         </TD>
                         <TD>
-                          <Badge tone={entry.rx != null || entry.tx != null ? 'success' : 'neutral'} dot={entry.rx != null || entry.tx != null}>
+                          <Badge
+                            tone={entry.rx != null || entry.tx != null ? 'success' : 'neutral'}
+                            dot={entry.rx != null || entry.tx != null}
+                          >
                             {entry.rx != null || entry.tx != null ? 'Active' : 'Inconnue'}
                           </Badge>
                         </TD>
@@ -256,7 +312,7 @@ export function NetworkPage() {
               title="Débit par interface"
               subtitle={iface ? `Interface ${iface}` : 'Aucune interface sélectionnée'}
               icon={<ArrowDownRight className="h-3.5 w-3.5" />}
-              actions={(
+              actions={
                 <div className="flex flex-wrap items-center gap-2">
                   <Select
                     aria-label="Choisir une interface réseau"
@@ -264,7 +320,11 @@ export function NetworkPage() {
                     onChange={(event) => setSelectedInterface(event.target.value)}
                     className="h-8 max-w-[170px] font-mono text-[11px]"
                   >
-                    {interfaces.map((entry) => <option key={entry.name} value={entry.name}>{entry.name}</option>)}
+                    {interfaces.map((entry) => (
+                      <option key={entry.name} value={entry.name}>
+                        {entry.name}
+                      </option>
+                    ))}
                   </Select>
                   <SegmentedTabs
                     ariaLabel="Période de l'historique réseau"
@@ -273,13 +333,14 @@ export function NetworkPage() {
                     options={ranges.map((item) => ({ value: item.value, label: item.label }))}
                   />
                 </div>
-              )}
+              }
             />
             <CardBody>
               {history.isError && <ErrorState message={history.error.message} />}
               {!history.isError && rxSeries.length === 0 && txSeries.length === 0 && (
                 <p className="py-8 text-center text-sm text-text-muted">
-                  Aucun débit historique sur la période. Les débits nécessitent au moins deux collectes consécutives.
+                  Aucun débit historique sur la période. Les débits nécessitent au moins deux
+                  collectes consécutives.
                 </p>
               )}
               {(rxSeries.length > 0 || txSeries.length > 0) && (
@@ -287,7 +348,9 @@ export function NetworkPage() {
               )}
             </CardBody>
             <CardFooter className="flex flex-wrap items-center justify-between gap-2 font-mono text-[10px] text-text-muted">
-              <span>{rxSeries.length} point(s) RX · {txSeries.length} point(s) TX</span>
+              <span>
+                {rxSeries.length} point(s) RX · {txSeries.length} point(s) TX
+              </span>
               <span>Les débits sont calculés entre deux collectes successives.</span>
             </CardFooter>
           </Card>
@@ -297,7 +360,17 @@ export function NetworkPage() {
   )
 }
 
-function Summary({ label, value, hint, tone }: { label: string; value: string; hint: string; tone: string }) {
+function Summary({
+  label,
+  value,
+  hint,
+  tone,
+}: {
+  label: string
+  value: string
+  hint: string
+  tone: string
+}) {
   return (
     <div className="rounded-lg border border-line bg-card p-4">
       <p className="font-mono text-[11px] uppercase tracking-wider text-text-muted">{label}</p>

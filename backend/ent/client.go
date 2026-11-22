@@ -11,6 +11,7 @@ import (
 
 	"homelab-manager/backend/ent/migrate"
 
+	"homelab-manager/backend/ent/appsetting"
 	"homelab-manager/backend/ent/auditlog"
 	"homelab-manager/backend/ent/container"
 	"homelab-manager/backend/ent/containermetricsample"
@@ -32,6 +33,8 @@ type Client struct {
 	config
 	// Schema is the client for creating, migrating and dropping schema.
 	Schema *migrate.Schema
+	// AppSetting is the client for interacting with the AppSetting builders.
+	AppSetting *AppSettingClient
 	// AuditLog is the client for interacting with the AuditLog builders.
 	AuditLog *AuditLogClient
 	// Container is the client for interacting with the Container builders.
@@ -59,6 +62,7 @@ func NewClient(opts ...Option) *Client {
 
 func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
+	c.AppSetting = NewAppSettingClient(c.config)
 	c.AuditLog = NewAuditLogClient(c.config)
 	c.Container = NewContainerClient(c.config)
 	c.ContainerMetricSample = NewContainerMetricSampleClient(c.config)
@@ -159,6 +163,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	return &Tx{
 		ctx:                   ctx,
 		config:                cfg,
+		AppSetting:            NewAppSettingClient(cfg),
 		AuditLog:              NewAuditLogClient(cfg),
 		Container:             NewContainerClient(cfg),
 		ContainerMetricSample: NewContainerMetricSampleClient(cfg),
@@ -186,6 +191,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	return &Tx{
 		ctx:                   ctx,
 		config:                cfg,
+		AppSetting:            NewAppSettingClient(cfg),
 		AuditLog:              NewAuditLogClient(cfg),
 		Container:             NewContainerClient(cfg),
 		ContainerMetricSample: NewContainerMetricSampleClient(cfg),
@@ -200,7 +206,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 // Debug returns a new debug-client. It's used to get verbose logging on specific operations.
 //
 //	client.Debug().
-//		AuditLog.
+//		AppSetting.
 //		Query().
 //		Count(ctx)
 func (c *Client) Debug() *Client {
@@ -223,8 +229,8 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
-		c.AuditLog, c.Container, c.ContainerMetricSample, c.Event, c.HostInfo,
-		c.Session, c.SystemMetricSample, c.User,
+		c.AppSetting, c.AuditLog, c.Container, c.ContainerMetricSample, c.Event,
+		c.HostInfo, c.Session, c.SystemMetricSample, c.User,
 	} {
 		n.Use(hooks...)
 	}
@@ -234,8 +240,8 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
-		c.AuditLog, c.Container, c.ContainerMetricSample, c.Event, c.HostInfo,
-		c.Session, c.SystemMetricSample, c.User,
+		c.AppSetting, c.AuditLog, c.Container, c.ContainerMetricSample, c.Event,
+		c.HostInfo, c.Session, c.SystemMetricSample, c.User,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -244,6 +250,8 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 // Mutate implements the ent.Mutator interface.
 func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 	switch m := m.(type) {
+	case *AppSettingMutation:
+		return c.AppSetting.mutate(ctx, m)
 	case *AuditLogMutation:
 		return c.AuditLog.mutate(ctx, m)
 	case *ContainerMutation:
@@ -262,6 +270,139 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.User.mutate(ctx, m)
 	default:
 		return nil, fmt.Errorf("ent: unknown mutation type %T", m)
+	}
+}
+
+// AppSettingClient is a client for the AppSetting schema.
+type AppSettingClient struct {
+	config
+}
+
+// NewAppSettingClient returns a client for the AppSetting from the given config.
+func NewAppSettingClient(c config) *AppSettingClient {
+	return &AppSettingClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `appsetting.Hooks(f(g(h())))`.
+func (c *AppSettingClient) Use(hooks ...Hook) {
+	c.hooks.AppSetting = append(c.hooks.AppSetting, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `appsetting.Intercept(f(g(h())))`.
+func (c *AppSettingClient) Intercept(interceptors ...Interceptor) {
+	c.inters.AppSetting = append(c.inters.AppSetting, interceptors...)
+}
+
+// Create returns a builder for creating a AppSetting entity.
+func (c *AppSettingClient) Create() *AppSettingCreate {
+	mutation := newAppSettingMutation(c.config, OpCreate)
+	return &AppSettingCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of AppSetting entities.
+func (c *AppSettingClient) CreateBulk(builders ...*AppSettingCreate) *AppSettingCreateBulk {
+	return &AppSettingCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *AppSettingClient) MapCreateBulk(slice any, setFunc func(*AppSettingCreate, int)) *AppSettingCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &AppSettingCreateBulk{err: fmt.Errorf("calling to AppSettingClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*AppSettingCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &AppSettingCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for AppSetting.
+func (c *AppSettingClient) Update() *AppSettingUpdate {
+	mutation := newAppSettingMutation(c.config, OpUpdate)
+	return &AppSettingUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *AppSettingClient) UpdateOne(_m *AppSetting) *AppSettingUpdateOne {
+	mutation := newAppSettingMutation(c.config, OpUpdateOne, withAppSetting(_m))
+	return &AppSettingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *AppSettingClient) UpdateOneID(id uuid.UUID) *AppSettingUpdateOne {
+	mutation := newAppSettingMutation(c.config, OpUpdateOne, withAppSettingID(id))
+	return &AppSettingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for AppSetting.
+func (c *AppSettingClient) Delete() *AppSettingDelete {
+	mutation := newAppSettingMutation(c.config, OpDelete)
+	return &AppSettingDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *AppSettingClient) DeleteOne(_m *AppSetting) *AppSettingDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *AppSettingClient) DeleteOneID(id uuid.UUID) *AppSettingDeleteOne {
+	builder := c.Delete().Where(appsetting.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &AppSettingDeleteOne{builder}
+}
+
+// Query returns a query builder for AppSetting.
+func (c *AppSettingClient) Query() *AppSettingQuery {
+	return &AppSettingQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeAppSetting},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a AppSetting entity by its id.
+func (c *AppSettingClient) Get(ctx context.Context, id uuid.UUID) (*AppSetting, error) {
+	return c.Query().Where(appsetting.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *AppSettingClient) GetX(ctx context.Context, id uuid.UUID) *AppSetting {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *AppSettingClient) Hooks() []Hook {
+	return c.hooks.AppSetting
+}
+
+// Interceptors returns the client interceptors.
+func (c *AppSettingClient) Interceptors() []Interceptor {
+	return c.inters.AppSetting
+}
+
+func (c *AppSettingClient) mutate(ctx context.Context, m *AppSettingMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&AppSettingCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&AppSettingUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&AppSettingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&AppSettingDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown AppSetting mutation op: %q", m.Op())
 	}
 }
 
@@ -1428,11 +1569,11 @@ func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error)
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		AuditLog, Container, ContainerMetricSample, Event, HostInfo, Session,
-		SystemMetricSample, User []ent.Hook
+		AppSetting, AuditLog, Container, ContainerMetricSample, Event, HostInfo,
+		Session, SystemMetricSample, User []ent.Hook
 	}
 	inters struct {
-		AuditLog, Container, ContainerMetricSample, Event, HostInfo, Session,
-		SystemMetricSample, User []ent.Interceptor
+		AppSetting, AuditLog, Container, ContainerMetricSample, Event, HostInfo,
+		Session, SystemMetricSample, User []ent.Interceptor
 	}
 )

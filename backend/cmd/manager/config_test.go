@@ -44,3 +44,14 @@ func TestBootstrapAdminPassword(t *testing.T) {
 		t.Fatalf("configured password = (%q, %v), want configured value", password, isDefault)
 	}
 }
+
+func TestDefaultRetentionIsSevenDays(t *testing.T) {
+	t.Setenv("HOMELAB_ADMIN_PASSWORD", "")
+	config, err := LoadConfig()
+	if err != nil {
+		t.Fatalf("LoadConfig: %v", err)
+	}
+	if config.MetricsRetentionDays != 7 {
+		t.Fatalf("default retention = %d days, want 7", config.MetricsRetentionDays)
+	}
+}

@@ -82,7 +82,8 @@ export function formatRelativeTime(value: string | null | undefined): string {
   if (absolute < 3_600) return relativeFormat.format(Math.round(deltaSeconds / 60), 'minute')
   if (absolute < 86_400) return relativeFormat.format(Math.round(deltaSeconds / 3_600), 'hour')
   if (absolute < 2_592_000) return relativeFormat.format(Math.round(deltaSeconds / 86_400), 'day')
-  if (absolute < 31_536_000) return relativeFormat.format(Math.round(deltaSeconds / 2_592_000), 'month')
+  if (absolute < 31_536_000)
+    return relativeFormat.format(Math.round(deltaSeconds / 2_592_000), 'month')
   return relativeFormat.format(Math.round(deltaSeconds / 31_536_000), 'year')
 }
 

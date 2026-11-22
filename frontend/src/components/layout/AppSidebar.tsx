@@ -2,7 +2,6 @@ import { useQuery } from '@tanstack/react-query'
 import {
   Activity,
   Bell,
-  Boxes,
   Cable,
   CalendarClock,
   Container,
@@ -54,15 +53,12 @@ const systemItems: NavItem[] = [
   { label: 'Métriques', to: '/metrics', icon: Activity },
 ]
 
-const activityItems: NavItem[] = [
-  { label: 'Événements', to: '/events', icon: Gauge },
-]
+const activityItems: NavItem[] = [{ label: 'Événements', to: '/events', icon: Gauge }]
 
 const soonItems: SoonItem[] = [
   { label: 'Services système', icon: Wrench },
   { label: 'Journaux système', icon: ScrollText },
   { label: 'Alertes', icon: Bell },
-  { label: 'Applications PaaS', icon: Boxes },
   { label: 'Sauvegardes', icon: DatabaseBackup },
   { label: 'Tâches Cron', icon: CalendarClock },
   { label: 'Utilisateurs & accès', icon: Users },
@@ -77,14 +73,33 @@ function navLinkClass({ isActive }: { isActive: boolean }) {
   )
 }
 
-function NavSection({ title, items, onNavigate }: { title: string; items: NavItem[]; onNavigate: () => void }) {
+function NavSection({
+  title,
+  items,
+  onNavigate,
+}: {
+  title: string
+  items: NavItem[]
+  onNavigate: () => void
+}) {
   return (
     <div>
-      <p className="mb-1.5 px-2.5 font-mono text-[10px] font-medium uppercase tracking-wider text-text-muted">{title}</p>
+      <p className="mb-1.5 px-2.5 font-mono text-[10px] font-medium uppercase tracking-wider text-text-muted">
+        {title}
+      </p>
       <div className="space-y-0.5">
         {items.map((item) => (
-          <NavLink key={item.to} to={item.to} end={item.end} className={navLinkClass} onClick={onNavigate}>
-            <item.icon className="h-4 w-4 shrink-0 text-text-muted group-hover:text-text-secondary" aria-hidden="true" />
+          <NavLink
+            key={item.to}
+            to={item.to}
+            end={item.end}
+            className={navLinkClass}
+            onClick={onNavigate}
+          >
+            <item.icon
+              className="h-4 w-4 shrink-0 text-text-muted group-hover:text-text-secondary"
+              aria-hidden="true"
+            />
             <span className="truncate">{item.label}</span>
           </NavLink>
         ))}
@@ -148,7 +163,9 @@ export function AppSidebar({ open, onClose }: AppSidebarProps) {
           <NavSection title="Activité" items={activityItems} onNavigate={onClose} />
 
           <div>
-            <p className="mb-1.5 px-2.5 font-mono text-[10px] font-medium uppercase tracking-wider text-text-muted">Paramètres</p>
+            <p className="mb-1.5 px-2.5 font-mono text-[10px] font-medium uppercase tracking-wider text-text-muted">
+              Paramètres
+            </p>
             <NavLink to="/settings" className={navLinkClass} onClick={onClose}>
               <Settings className="h-4 w-4 shrink-0 text-text-muted" aria-hidden="true" />
               <span>Configuration</span>
@@ -156,7 +173,9 @@ export function AppSidebar({ open, onClose }: AppSidebarProps) {
           </div>
 
           <div>
-            <p className="mb-1.5 px-2.5 font-mono text-[10px] font-medium uppercase tracking-wider text-text-muted/70">Feuille de route</p>
+            <p className="mb-1.5 px-2.5 font-mono text-[10px] font-medium uppercase tracking-wider text-text-muted/70">
+              Feuille de route
+            </p>
             <div className="space-y-0.5">
               {soonItems.map((item) => (
                 <span
@@ -166,7 +185,9 @@ export function AppSidebar({ open, onClose }: AppSidebarProps) {
                 >
                   <item.icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
                   <span className="truncate">{item.label}</span>
-                  <span className="ml-auto rounded-sm border border-line/60 px-1 font-mono text-[9px] uppercase tracking-wide">à venir</span>
+                  <span className="ml-auto rounded-sm border border-line/60 px-1 font-mono text-[9px] uppercase tracking-wide">
+                    à venir
+                  </span>
                 </span>
               ))}
             </div>
@@ -178,7 +199,11 @@ export function AppSidebar({ open, onClose }: AppSidebarProps) {
             <StatusDot
               tone={host.data?.collector.status === 'ok' ? 'success' : 'warning'}
               pulse={host.data?.collector.status === 'ok'}
-              label={host.data?.collector.status === 'ok' ? 'Collecte système active' : 'Collecte système dégradée'}
+              label={
+                host.data?.collector.status === 'ok'
+                  ? 'Collecte système active'
+                  : 'Collecte système dégradée'
+              }
             />
             <span className="font-mono text-[10px] uppercase tracking-wider text-text-secondary">
               {host.data?.collector.status === 'ok' ? 'Collecte active' : 'Collecte locale'}
@@ -195,7 +220,9 @@ export function AppSidebar({ open, onClose }: AppSidebarProps) {
           <p className="mt-1 font-mono text-[10px] text-text-muted">
             Uptime {host.data ? formatUptime(host.data.uptimeSeconds) : '—'}
           </p>
-          <p className="mt-2 font-mono text-[10px] uppercase tracking-wider text-text-muted/70">Version {APP_VERSION}</p>
+          <p className="mt-2 font-mono text-[10px] uppercase tracking-wider text-text-muted/70">
+            Version {APP_VERSION}
+          </p>
         </div>
       </aside>
     </>

@@ -18,7 +18,11 @@ import { AppLayout } from './AppLayout'
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
   {
-    element: <RequireAuth><AppLayout /></RequireAuth>,
+    element: (
+      <RequireAuth>
+        <AppLayout />
+      </RequireAuth>
+    ),
     children: [
       { path: '/', element: <DashboardPage /> },
       { path: '/host', element: <HostPage /> },

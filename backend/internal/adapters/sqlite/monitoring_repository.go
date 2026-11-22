@@ -2,7 +2,13 @@ package sqlite
 
 import (
 	"context"
+	"database/sql"
+	"encoding/json"
 	"errors"
+	"fmt"
+	"regexp"
+	"sort"
+	"strings"
 	"time"
 
 	"homelab-manager/backend/ent"
@@ -14,15 +20,18 @@ import (
 	"homelab-manager/backend/internal/domain"
 
 	entsql "entgo.io/ent/dialect/sql"
+	"entgo.io/ent/dialect/sql/sqljson"
 	"github.com/google/uuid"
 )
 
 type MonitoringRepository struct {
 	client *ent.Client
+	// db serves the aggregation queries that Ent cannot express.
+	db *sql.DB
 }
 
-func NewMonitoringRepository(client *ent.Client) *MonitoringRepository {
-	return &MonitoringRepository{client: client}
+func NewMonitoringRepository(database *Database) *MonitoringRepository {
+	return &MonitoringRepository{client: database.client, db: database.db}
 }
 
 func (r *MonitoringRepository) SaveHost(ctx context.Context, host domain.HostInfo) error {
@@ -285,20 +294,58 @@ func (r *MonitoringRepository) GetContainer(ctx context.Context, id string) (dom
 	return containerDomain(record), nil
 }
 
-func (r *MonitoringRepository) ListMetrics(ctx context.Context, containerID *string, name string, from, to time.Time, limit int) ([]domain.MetricSample, error) {
-	if limit < 1 || limit > 2000 {
-		limit = 500
+// maxHistoryLimit is the absolute cap on one history response.
+const maxHistoryLimit = 2000
+
+// labelKeyPattern restricts label keys used in JSON paths.
+var labelKeyPattern = regexp.MustCompile(`^[a-z0-9_]{1,32}$`)
+
+func (r *MonitoringRepository) ListMetrics(ctx context.Context, query domain.MetricQuery) ([]domain.MetricSample, error) {
+	if query.Limit < 1 || query.Limit > maxHistoryLimit {
+		query.Limit = 500
 	}
-	result := make([]domain.MetricSample, 0)
-	if containerID == nil {
-		query := r.client.SystemMetricSample.Query().Where(
-			entsystemmetricsample.RecordedAtGTE(from),
-			entsystemmetricsample.RecordedAtLT(to),
-		)
-		if name != "" {
-			query = query.Where(entsystemmetricsample.Name(name))
+	for key := range query.Labels {
+		if !labelKeyPattern.MatchString(key) {
+			return nil, fmt.Errorf("invalid label key %q", key)
 		}
-		records, err := query.Order(entsystemmetricsample.ByRecordedAt(entsql.OrderDesc())).Limit(limit).All(ctx)
+	}
+	var containerID *uuid.UUID
+	if query.ContainerID != nil {
+		container, err := r.GetContainer(ctx, *query.ContainerID)
+		if err != nil {
+			return nil, err
+		}
+		containerID = &container.ID
+	}
+	if query.Step > 0 {
+		return r.aggregateMetrics(ctx, containerID, query)
+	}
+	return r.rawMetrics(ctx, containerID, query)
+}
+
+func labelPredicates(labels map[string]string) []*entsql.Predicate {
+	predicates := make([]*entsql.Predicate, 0, len(labels))
+	for key, value := range labels {
+		predicates = append(predicates, sqljson.ValueEQ("labels", value, sqljson.Path(key)))
+	}
+	return predicates
+}
+
+func (r *MonitoringRepository) rawMetrics(ctx context.Context, containerID *uuid.UUID, query domain.MetricQuery) ([]domain.MetricSample, error) {
+	result := make([]domain.MetricSample, 0)
+	labels := labelPredicates(query.Labels)
+	if containerID == nil {
+		builder := r.client.SystemMetricSample.Query().Where(
+			entsystemmetricsample.RecordedAtGTE(query.From),
+			entsystemmetricsample.RecordedAtLT(query.To),
+		)
+		if query.Name != "" {
+			builder = builder.Where(entsystemmetricsample.Name(query.Name))
+		}
+		for _, predicate := range labels {
+			builder = builder.Where(func(s *entsql.Selector) { s.Where(predicate) })
+		}
+		records, err := builder.Order(entsystemmetricsample.ByRecordedAt(entsql.OrderDesc())).Limit(query.Limit).All(ctx)
 		if err != nil {
 			return nil, err
 		}
@@ -311,30 +358,100 @@ func (r *MonitoringRepository) ListMetrics(ctx context.Context, containerID *str
 		reverseMetrics(result)
 		return result, nil
 	}
-	container, err := r.GetContainer(ctx, *containerID)
-	if err != nil {
-		return nil, err
-	}
-	query := r.client.ContainerMetricSample.Query().Where(
-		entcontainermetricsample.HasContainerWith(entcontainer.ID(container.ID)),
-		entcontainermetricsample.RecordedAtGTE(from),
-		entcontainermetricsample.RecordedAtLT(to),
+	builder := r.client.ContainerMetricSample.Query().Where(
+		entcontainermetricsample.ContainerID(*containerID),
+		entcontainermetricsample.RecordedAtGTE(query.From),
+		entcontainermetricsample.RecordedAtLT(query.To),
 	)
-	if name != "" {
-		query = query.Where(entcontainermetricsample.Name(name))
+	if query.Name != "" {
+		builder = builder.Where(entcontainermetricsample.Name(query.Name))
 	}
-	records, err := query.Order(entcontainermetricsample.ByRecordedAt(entsql.OrderDesc())).Limit(limit).All(ctx)
+	for _, predicate := range labels {
+		builder = builder.Where(func(s *entsql.Selector) { s.Where(predicate) })
+	}
+	records, err := builder.Order(entcontainermetricsample.ByRecordedAt(entsql.OrderDesc())).Limit(query.Limit).All(ctx)
 	if err != nil {
 		return nil, err
 	}
 	for _, record := range records {
-		id := container.ID
+		id := *containerID
 		result = append(result, domain.MetricSample{
 			ID: record.ID, ContainerID: &id, Name: record.Name, Value: record.Value,
 			Unit: record.Unit, Labels: record.Labels, RecordedAt: record.RecordedAt,
 		})
 	}
 	reverseMetrics(result)
+	return result, nil
+}
+
+// aggregateMetrics groups samples per series (name, unit, labels) and per
+// UTC bucket aligned on the Unix epoch. Timestamps are stored as
+// "YYYY-MM-DD HH:MM:SS…+00:00", so the first 19 characters are a UTC
+// SQLite datetime.
+func (r *MonitoringRepository) aggregateMetrics(ctx context.Context, containerID *uuid.UUID, query domain.MetricQuery) ([]domain.MetricSample, error) {
+	step := int64(query.Step / time.Second)
+	if step < 1 {
+		return nil, errors.New("aggregation step must be at least one second")
+	}
+	table := "system_metric_samples"
+	where := []string{"name = ?", "recorded_at >= ?", "recorded_at < ?"}
+	args := []any{step, step, query.Name, query.From, query.To}
+	if containerID != nil {
+		table = "container_metric_samples"
+		where = append(where, "container_id = ?")
+		args = append(args, containerID.String())
+	}
+	keys := make([]string, 0, len(query.Labels))
+	for key := range query.Labels {
+		keys = append(keys, key)
+	}
+	sort.Strings(keys)
+	for _, key := range keys {
+		where = append(where, "json_extract(labels, ?) = ?")
+		args = append(args, `$."`+key+`"`, query.Labels[key])
+	}
+	args = append(args, query.Limit+1)
+	statement := `SELECT name, COALESCE(unit, ''), labels,
+			(CAST(strftime('%s', substr(recorded_at, 1, 19)) AS INTEGER) / ?) * ? AS bucket,
+			AVG(value), MIN(value), MAX(value), COUNT(*)
+		FROM ` + table + `
+		WHERE ` + strings.Join(where, " AND ") + `
+		GROUP BY name, unit, labels, bucket
+		ORDER BY bucket, labels
+		LIMIT ?`
+	rows, err := r.db.QueryContext(ctx, statement, args...)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	result := make([]domain.MetricSample, 0)
+	for rows.Next() {
+		var (
+			sample    domain.MetricSample
+			rawLabels sql.NullString
+			bucket    int64
+			aggregate domain.MetricAggregate
+		)
+		if err := rows.Scan(&sample.Name, &sample.Unit, &rawLabels, &bucket,
+			&sample.Value, &aggregate.Min, &aggregate.Max, &aggregate.Count); err != nil {
+			return nil, err
+		}
+		if rawLabels.Valid && rawLabels.String != "" && rawLabels.String != "null" {
+			if err := json.Unmarshal([]byte(rawLabels.String), &sample.Labels); err != nil {
+				return nil, fmt.Errorf("decode metric labels: %w", err)
+			}
+		}
+		sample.RecordedAt = time.Unix(bucket, 0).UTC()
+		sample.Aggregate = &aggregate
+		sample.ContainerID = containerID
+		result = append(result, sample)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	if len(result) > query.Limit {
+		return nil, domain.ErrTooManyPoints
+	}
 	return result, nil
 }
 

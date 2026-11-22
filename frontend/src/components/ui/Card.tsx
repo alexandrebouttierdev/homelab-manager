@@ -15,12 +15,27 @@ type CardHeaderProps = {
 
 export function CardHeader({ title, subtitle, icon, actions, className }: CardHeaderProps) {
   return (
-    <div className={cn('flex flex-wrap items-center justify-between gap-3 border-b border-line/70 px-4 py-3', className)}>
+    <div
+      className={cn(
+        'flex flex-wrap items-center justify-between gap-3 border-b border-line/70 px-4 py-3',
+        className,
+      )}
+    >
       <div className="flex min-w-0 items-center gap-2.5">
-        {icon && <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-line bg-elevated text-text-secondary">{icon}</span>}
+        {icon && (
+          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-line bg-elevated text-text-secondary">
+            {icon}
+          </span>
+        )}
         <div className="min-w-0">
-          <h2 className="truncate text-sm font-semibold tracking-tight text-text-primary">{title}</h2>
-          {subtitle && <p className="mt-0.5 truncate font-mono text-[10px] uppercase tracking-wider text-text-muted">{subtitle}</p>}
+          <h2 className="truncate text-sm font-semibold tracking-tight text-text-primary">
+            {title}
+          </h2>
+          {subtitle && (
+            <p className="mt-0.5 truncate font-mono text-[10px] uppercase tracking-wider text-text-muted">
+              {subtitle}
+            </p>
+          )}
         </div>
       </div>
       {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}

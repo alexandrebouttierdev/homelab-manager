@@ -41,9 +41,7 @@ import { latestGrouped, latestOne, latestSamples } from '../../lib/metrics'
 import { useRefreshInterval } from '../../lib/refresh'
 
 function metricLabel(name: string): string {
-  return name
-    .replaceAll('.', ' ')
-    .replace(/\b\w/g, (letter) => letter.toUpperCase())
+  return name.replaceAll('.', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())
 }
 
 function metricLabels(sample: MetricSample): string {
@@ -95,38 +93,46 @@ export function HostPage() {
       <PageHeader
         title="Machine"
         breadcrumb={[{ label: 'Système' }, { label: 'Machine' }]}
-        badge={(
+        badge={
           <Badge tone={host.data?.collector.status === 'ok' ? 'success' : 'warning'} dot>
             {host.data?.collector.status === 'ok' ? 'Collecte active' : 'Collecte dégradée'}
           </Badge>
-        )}
-        description={host.data
-          ? (
-              <>
-                <span className="font-mono text-text-primary">{host.data.hostname || 'hôte local'}</span>
-                {' · '}
-                {`${host.data.os.distribution || 'Linux'} ${host.data.os.version || ''}`.trim()}
-                {' · noyau '}
-                <span className="font-mono">{host.data.kernelVersion || 'indisponible'}</span>
-              </>
-            )
-          : 'Identité et ressources de la machine qui héberge le Manager.'}
-        actions={(
+        }
+        description={
+          host.data ? (
+            <>
+              <span className="font-mono text-text-primary">
+                {host.data.hostname || 'hôte local'}
+              </span>
+              {' · '}
+              {`${host.data.os.distribution || 'Linux'} ${host.data.os.version || ''}`.trim()}
+              {' · noyau '}
+              <span className="font-mono">{host.data.kernelVersion || 'indisponible'}</span>
+            </>
+          ) : (
+            'Identité et ressources de la machine qui héberge le Manager.'
+          )
+        }
+        actions={
           <Button
             size="sm"
             variant="secondary"
             icon={<RefreshCw className="h-3.5 w-3.5" />}
-            onClick={() => { void queryClient.invalidateQueries() }}
+            onClick={() => {
+              void queryClient.invalidateQueries()
+            }}
           >
             Rafraîchir
           </Button>
-        )}
+        }
       />
 
       {(host.isError || current.isError) && (
         <ErrorState
           message={(host.error ?? current.error)?.message ?? 'Informations système indisponibles.'}
-          onRetry={() => { void queryClient.invalidateQueries() }}
+          onRetry={() => {
+            void queryClient.invalidateQueries()
+          }}
         />
       )}
 
@@ -164,46 +170,84 @@ export function HostPage() {
               value={formatBytes(filesystems.used)}
               unit={filesystems.total > 0 ? `/ ${formatBytes(filesystems.total)}` : undefined}
               badge={<Badge tone="success">{formatPercent(filesystems.percent)}</Badge>}
-              hint={filesystems.total > 0 ? `${formatBytes(filesystems.available)} disponibles` : 'Aucune mesure'}
+              hint={
+                filesystems.total > 0
+                  ? `${formatBytes(filesystems.available)} disponibles`
+                  : 'Aucune mesure'
+              }
             >
-              <ProgressBar value={filesystems.percent} tone="success" label="Utilisation du stockage" />
+              <ProgressBar
+                value={filesystems.percent}
+                tone="success"
+                label="Utilisation du stockage"
+              />
             </MetricCard>
 
             <MetricCard
               label="Températures"
               title={temperatures.length > 0 ? 'Capteurs locaux' : 'Aucun capteur'}
               value={temperatures[0] ? formatMetricValue(temperatures[0].value, 'celsius') : '—'}
-              badge={<Badge tone={temperatures.some((sensor) => sensor.value >= 80) ? 'warning' : 'neutral'}>{temperatures.length} capteur(s)</Badge>}
-              hint={temperatures[0] ? `Maximum : ${temperatures[0].sensor}` : 'Le matériel n’expose aucun capteur lisible.'}
+              badge={
+                <Badge
+                  tone={temperatures.some((sensor) => sensor.value >= 80) ? 'warning' : 'neutral'}
+                >
+                  {temperatures.length} capteur(s)
+                </Badge>
+              }
+              hint={
+                temperatures[0]
+                  ? `Maximum : ${temperatures[0].sensor}`
+                  : 'Le matériel n’expose aucun capteur lisible.'
+              }
             />
           </div>
 
           <div className="grid items-start gap-4 xl:grid-cols-3">
             <Card className="xl:col-span-2">
-              <CardHeader title="Identité de l'hôte" subtitle="Informations lues localement" icon={<Server className="h-3.5 w-3.5" />} />
+              <CardHeader
+                title="Identité de l'hôte"
+                subtitle="Informations lues localement"
+                icon={<Server className="h-3.5 w-3.5" />}
+              />
               <CardBody>
                 <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   <Info label="Nom d'hôte" value={host.data.hostname || '—'} mono />
-                  <Info label="Distribution" value={`${host.data.os.distribution || '—'} ${host.data.os.version || ''}`.trim()} />
+                  <Info
+                    label="Distribution"
+                    value={`${host.data.os.distribution || '—'} ${host.data.os.version || ''}`.trim()}
+                  />
                   <Info label="Noyau" value={host.data.kernelVersion || '—'} mono />
                   <Info label="Démarrage" value={formatDateTime(host.data.bootTime)} />
                   <Info label="Uptime" value={formatUptime(host.data.uptimeSeconds)} />
                   <Info
                     label="Dernière collecte"
-                    value={host.data.collector.lastSuccessAt ? formatRelativeTime(host.data.collector.lastSuccessAt) : 'Aucune'}
+                    value={
+                      host.data.collector.lastSuccessAt
+                        ? formatRelativeTime(host.data.collector.lastSuccessAt)
+                        : 'Aucune'
+                    }
                   />
                 </dl>
               </CardBody>
               <CardFooter className="flex flex-wrap items-center justify-between gap-2 font-mono text-[10px] text-text-muted">
-                <span className="flex items-center gap-1.5"><Clock3 className="h-3 w-3" /> Uptime calculé depuis l'heure de démarrage.</span>
-                <Link to="/metrics" className="inline-flex items-center gap-1 text-text-secondary hover:text-text-primary">
+                <span className="flex items-center gap-1.5">
+                  <Clock3 className="h-3 w-3" /> Uptime calculé depuis l'heure de démarrage.
+                </span>
+                <Link
+                  to="/metrics"
+                  className="inline-flex items-center gap-1 text-text-secondary hover:text-text-primary"
+                >
                   <Activity className="h-3 w-3" /> Historique des métriques
                 </Link>
               </CardFooter>
             </Card>
 
             <Card>
-              <CardHeader title="Collecteurs" subtitle="État de la supervision" icon={<ShieldCheck className="h-3.5 w-3.5" />} />
+              <CardHeader
+                title="Collecteurs"
+                subtitle="État de la supervision"
+                icon={<ShieldCheck className="h-3.5 w-3.5" />}
+              />
               <CardBody className="space-y-3">
                 <CollectorRow
                   name="Système"
@@ -217,11 +261,16 @@ export function HostPage() {
                 />
                 <div className="rounded-md border border-line/70 bg-surface/50 px-3 py-2.5 font-mono text-[10px] text-text-muted">
                   <p>Intervalle système : {settings.data?.systemCollectIntervalSeconds ?? '—'} s</p>
-                  <p className="mt-1">Rétention : {settings.data?.metricsRetentionDays ?? '—'} jours</p>
+                  <p className="mt-1">
+                    Rétention : {settings.data?.metricsRetentionDays ?? '—'} jours
+                  </p>
                 </div>
               </CardBody>
               <CardFooter>
-                <Link to="/settings" className="text-[11px] text-text-secondary transition-colors hover:text-text-primary">
+                <Link
+                  to="/settings"
+                  className="text-[11px] text-text-secondary transition-colors hover:text-text-primary"
+                >
                   Voir la configuration effective
                 </Link>
               </CardFooter>
@@ -234,15 +283,26 @@ export function HostPage() {
                 title="Systèmes de fichiers"
                 subtitle="Capacité et occupation"
                 icon={<HardDrive className="h-3.5 w-3.5" />}
-                actions={<Link to="/storage" className="text-[11px] text-text-secondary transition-colors hover:text-text-primary">Détails</Link>}
+                actions={
+                  <Link
+                    to="/storage"
+                    className="text-[11px] text-text-secondary transition-colors hover:text-text-primary"
+                  >
+                    Détails
+                  </Link>
+                }
               />
               <CardBody className="space-y-3">
-                {filesystems.entries.length === 0 && <p className="text-sm text-text-muted">Aucun système de fichiers mesuré.</p>}
+                {filesystems.entries.length === 0 && (
+                  <p className="text-sm text-text-muted">Aucun système de fichiers mesuré.</p>
+                )}
                 {filesystems.entries.slice(0, 5).map((entry) => (
                   <div key={entry.mountpoint} className="space-y-1.5">
                     <div className="flex items-center justify-between gap-2 font-mono text-[11px]">
                       <span className="truncate text-text-primary">{entry.mountpoint}</span>
-                      <span className="text-text-muted">{formatBytes(entry.used)} / {formatBytes(entry.total)}</span>
+                      <span className="text-text-muted">
+                        {formatBytes(entry.used)} / {formatBytes(entry.total)}
+                      </span>
                     </div>
                     <ProgressBar
                       value={entry.percent}
@@ -271,9 +331,22 @@ export function HostPage() {
                 ) : (
                   <div className="space-y-2">
                     {temperatures.map((sensor) => (
-                      <div key={sensor.sensor} className="flex items-center justify-between gap-3 rounded-md border border-line/70 bg-surface/50 px-3 py-2">
-                        <span className="truncate font-mono text-xs text-text-secondary">{sensor.sensor}</span>
-                        <Badge tone={sensor.value >= 80 ? 'danger' : sensor.value >= 65 ? 'warning' : 'success'}>
+                      <div
+                        key={sensor.sensor}
+                        className="flex items-center justify-between gap-3 rounded-md border border-line/70 bg-surface/50 px-3 py-2"
+                      >
+                        <span className="truncate font-mono text-xs text-text-secondary">
+                          {sensor.sensor}
+                        </span>
+                        <Badge
+                          tone={
+                            sensor.value >= 80
+                              ? 'danger'
+                              : sensor.value >= 65
+                                ? 'warning'
+                                : 'success'
+                          }
+                        >
                           {formatMetricValue(sensor.value, 'celsius')}
                         </Badge>
                       </div>
@@ -296,15 +369,30 @@ export function HostPage() {
               ) : (
                 <Table minWidthClassName="min-w-[760px]" className="rounded-none border-0">
                   <THead>
-                    <tr><TH>Métrique</TH><TH>Étiquettes</TH><TH>Valeur</TH><TH>Horodatage</TH></tr>
+                    <tr>
+                      <TH>Métrique</TH>
+                      <TH>Étiquettes</TH>
+                      <TH>Valeur</TH>
+                      <TH>Horodatage</TH>
+                    </tr>
                   </THead>
                   <TBody>
                     {metrics.slice(0, 80).map((sample) => (
-                      <TR key={`${sample.name}-${JSON.stringify(sample.labels)}-${sample.recordedAt}`}>
-                        <TD className="font-mono text-xs text-text-primary">{metricLabel(sample.name)}</TD>
-                        <TD className="font-mono text-[10px] text-text-muted">{metricLabels(sample)}</TD>
-                        <TD className="font-mono text-xs">{formatMetricValue(sample.value, sample.unit)}</TD>
-                        <TD className="font-mono text-[10px]">{formatDateTime(sample.recordedAt)}</TD>
+                      <TR
+                        key={`${sample.name}-${JSON.stringify(sample.labels)}-${sample.recordedAt}`}
+                      >
+                        <TD className="font-mono text-xs text-text-primary">
+                          {metricLabel(sample.name)}
+                        </TD>
+                        <TD className="font-mono text-[10px] text-text-muted">
+                          {metricLabels(sample)}
+                        </TD>
+                        <TD className="font-mono text-xs">
+                          {formatMetricValue(sample.value, sample.unit)}
+                        </TD>
+                        <TD className="font-mono text-[10px]">
+                          {formatDateTime(sample.recordedAt)}
+                        </TD>
                       </TR>
                     ))}
                   </TBody>
@@ -312,7 +400,9 @@ export function HostPage() {
               )}
             </CardBody>
             <CardFooter className="flex flex-wrap items-center justify-between gap-2 font-mono text-[10px] text-text-muted">
-              <span className="flex items-center gap-1.5"><Cpu className="h-3 w-3" /> {metrics.length} séries distinctes</span>
+              <span className="flex items-center gap-1.5">
+                <Cpu className="h-3 w-3" /> {metrics.length} séries distinctes
+              </span>
               <span>Les valeurs indisponibles ne sont jamais remplacées par zéro.</span>
             </CardFooter>
           </Card>
@@ -326,12 +416,25 @@ function Info({ label, value, mono = false }: { label: string; value: string; mo
   return (
     <div className="min-w-0 rounded-md border border-line/70 bg-surface/50 px-3 py-2">
       <dt className="font-mono text-[10px] uppercase tracking-wider text-text-muted">{label}</dt>
-      <dd className={`mt-1 truncate text-xs text-text-primary ${mono ? 'font-mono' : ''}`} title={value}>{value}</dd>
+      <dd
+        className={`mt-1 truncate text-xs text-text-primary ${mono ? 'font-mono' : ''}`}
+        title={value}
+      >
+        {value}
+      </dd>
     </div>
   )
 }
 
-function CollectorRow({ name, status, lastSuccessAt }: { name: string; status?: string; lastSuccessAt?: string | null }) {
+function CollectorRow({
+  name,
+  status,
+  lastSuccessAt,
+}: {
+  name: string
+  status?: string
+  lastSuccessAt?: string | null
+}) {
   return (
     <div className="flex items-center justify-between gap-3 rounded-md border border-line/70 bg-surface/50 px-3 py-2.5">
       <div className="flex items-center gap-2">

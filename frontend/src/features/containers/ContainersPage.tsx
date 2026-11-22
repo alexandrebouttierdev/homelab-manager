@@ -1,10 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
-import {
-  Container as ContainerIcon,
-  ExternalLink,
-  RefreshCw,
-  SearchX,
-} from 'lucide-react'
+import { Container as ContainerIcon, ExternalLink, RefreshCw, SearchX } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Badge } from '../../components/ui/Badge'
@@ -99,7 +94,9 @@ function ContainerUsageCells({ containerId, enabled }: { containerId: string; en
           </div>
           <ProgressBar value={memoryPercent} tone="ram" label="Utilisation mémoire du conteneur" />
           {memoryLimit != null && (
-            <span className="block font-mono text-[9px] text-text-muted">sur {formatBytes(memoryLimit)}</span>
+            <span className="block font-mono text-[9px] text-text-muted">
+              sur {formatBytes(memoryLimit)}
+            </span>
           )}
         </div>
       </TD>
@@ -117,7 +114,9 @@ function matchesSearch(container: ContainerInfo, search: string): boolean {
     container.state,
     ...container.networks,
     ...formatPorts(container.ports),
-  ].join(' ').toLowerCase()
+  ]
+    .join(' ')
+    .toLowerCase()
   return haystack.includes(search.toLowerCase())
 }
 
@@ -170,16 +169,18 @@ export function ContainersPage() {
         breadcrumb={[{ label: 'Docker' }, { label: 'Conteneurs' }]}
         badge={<Badge tone="neutral">Docker local</Badge>}
         description="Inventaire en lecture seule des conteneurs découverts sur la machine. Aucune action de démarrage, d'arrêt ou d'administration n'est exposée."
-        actions={(
+        actions={
           <Button
             size="sm"
             variant="secondary"
             icon={<RefreshCw className="h-3.5 w-3.5" />}
-            onClick={() => { void queryClient.invalidateQueries({ queryKey: ['containers'] }) }}
+            onClick={() => {
+              void queryClient.invalidateQueries({ queryKey: ['containers'] })
+            }}
           >
             Rafraîchir
           </Button>
-        )}
+        }
       />
 
       <div className="flex flex-wrap items-center justify-between gap-2">
@@ -195,7 +196,9 @@ export function ContainersPage() {
           ]}
         />
         <Badge tone={errors.length > 0 ? 'danger' : 'success'} dot={errors.length > 0}>
-          {errors.length > 0 ? `${errors.length} conteneur(s) en incident` : 'Aucun incident détecté'}
+          {errors.length > 0
+            ? `${errors.length} conteneur(s) en incident`
+            : 'Aucun incident détecté'}
         </Badge>
       </div>
 
@@ -233,7 +236,9 @@ export function ContainersPage() {
       {containers.isError && (
         <ErrorState
           message={containers.error.message}
-          onRetry={() => { void containers.refetch() }}
+          onRetry={() => {
+            void containers.refetch()
+          }}
         />
       )}
 
@@ -250,7 +255,18 @@ export function ContainersPage() {
           icon={SearchX}
           title="Aucun conteneur ne correspond"
           description="Modifiez la recherche ou le filtre d'état pour retrouver un conteneur."
-          action={<Button size="sm" variant="secondary" onClick={() => { setSearch(''); setStateFilter('all') }}>Réinitialiser les filtres</Button>}
+          action={
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={() => {
+                setSearch('')
+                setStateFilter('all')
+              }}
+            >
+              Réinitialiser les filtres
+            </Button>
+          }
         />
       )}
 
@@ -267,7 +283,9 @@ export function ContainersPage() {
                 <TH>Ports</TH>
                 <TH>Réseaux</TH>
                 <TH>Charge</TH>
-                <TH><span className="sr-only">Détail</span></TH>
+                <TH>
+                  <span className="sr-only">Détail</span>
+                </TH>
               </tr>
             </THead>
             <TBody>
@@ -299,16 +317,24 @@ export function ContainersPage() {
                       </div>
                     </TD>
                     <TD>
-                      <span className="block max-w-[240px] truncate font-mono text-xs text-text-secondary" title={container.image}>
+                      <span
+                        className="block max-w-[240px] truncate font-mono text-xs text-text-secondary"
+                        title={container.image}
+                      >
                         {tag.repository}
                       </span>
-                      <Badge tone="neutral" className="mt-1">{tag.tag}</Badge>
+                      <Badge tone="neutral" className="mt-1">
+                        {tag.tag}
+                      </Badge>
                     </TD>
                     <TD>
                       <Badge tone={containerStateTone(container.state)} dot>
                         {containerStateLabel(container.state)}
                       </Badge>
-                      <p className="mt-1 max-w-[220px] truncate font-mono text-[10px] text-text-muted" title={container.status}>
+                      <p
+                        className="mt-1 max-w-[220px] truncate font-mono text-[10px] text-text-muted"
+                        title={container.status}
+                      >
                         {container.status || '—'}
                       </p>
                     </TD>
@@ -322,11 +348,19 @@ export function ContainersPage() {
                     </TD>
                     <TD>
                       {ports.length === 0 ? (
-                        <span className="font-mono text-[10px] text-text-muted">Aucun port publié</span>
+                        <span className="font-mono text-[10px] text-text-muted">
+                          Aucun port publié
+                        </span>
                       ) : (
                         <div className="space-y-1 font-mono text-[10px] text-text-secondary">
-                          {ports.slice(0, 2).map((port) => <span key={port} className="block whitespace-nowrap">{port}</span>)}
-                          {ports.length > 2 && <span className="text-text-muted">+{ports.length - 2} autre(s)</span>}
+                          {ports.slice(0, 2).map((port) => (
+                            <span key={port} className="block whitespace-nowrap">
+                              {port}
+                            </span>
+                          ))}
+                          {ports.length > 2 && (
+                            <span className="text-text-muted">+{ports.length - 2} autre(s)</span>
+                          )}
                         </div>
                       )}
                     </TD>
@@ -335,8 +369,14 @@ export function ContainersPage() {
                         <span className="font-mono text-[10px] text-text-muted">—</span>
                       ) : (
                         <div className="flex max-w-[180px] flex-wrap gap-1">
-                          {container.networks.slice(0, 3).map((network) => <Badge key={network} tone="neutral">{network}</Badge>)}
-                          {container.networks.length > 3 && <Badge tone="neutral">+{container.networks.length - 3}</Badge>}
+                          {container.networks.slice(0, 3).map((network) => (
+                            <Badge key={network} tone="neutral">
+                              {network}
+                            </Badge>
+                          ))}
+                          {container.networks.length > 3 && (
+                            <Badge tone="neutral">+{container.networks.length - 3}</Badge>
+                          )}
                         </div>
                       )}
                     </TD>

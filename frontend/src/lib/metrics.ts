@@ -103,6 +103,10 @@ export function average(values: number[]): number | null {
   return values.reduce((sum, value) => sum + value, 0) / values.length
 }
 
-export function latestValue(samples: MetricSample[], name: string, labels?: LabelMatcher): number | null {
+export function latestValue(
+  samples: MetricSample[],
+  name: string,
+  labels?: LabelMatcher,
+): number | null {
   return latestOne(samples, name, labels)?.value ?? null
 }

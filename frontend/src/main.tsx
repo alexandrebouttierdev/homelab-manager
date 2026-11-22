@@ -25,7 +25,8 @@ const queryClient: QueryClient = new QueryClient({
       staleTime: 30_000,
       // Client errors (4xx) are final; only network/5xx failures are retried once.
       retry: (failureCount, error) =>
-        failureCount < 1 && !(error instanceof ApiError && error.status >= 400 && error.status < 500),
+        failureCount < 1 &&
+        !(error instanceof ApiError && error.status >= 400 && error.status < 500),
     },
   },
 })

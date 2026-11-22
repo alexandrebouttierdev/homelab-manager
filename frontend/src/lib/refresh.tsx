@@ -1,12 +1,5 @@
 /* eslint-disable react-refresh/only-export-components -- provider and hooks are intentionally colocated */
-import {
-  createContext,
-  useContext,
-  useEffect,
-  useMemo,
-  useState,
-  type ReactNode,
-} from 'react'
+import { createContext, useContext, useEffect, useMemo, useState, type ReactNode } from 'react'
 
 export const refreshChoices = [
   { value: 5_000, label: '5 s' },
@@ -39,10 +32,7 @@ export function RefreshProvider({ children }: { children: ReactNode }) {
     window.localStorage.setItem(storageKey, String(interval))
   }, [interval])
 
-  const value = useMemo(
-    () => ({ interval, setInterval: setIntervalState }),
-    [interval],
-  )
+  const value = useMemo(() => ({ interval, setInterval: setIntervalState }), [interval])
 
   return <RefreshContext.Provider value={value}>{children}</RefreshContext.Provider>
 }

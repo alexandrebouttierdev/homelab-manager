@@ -1,6 +1,17 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { Eye, EyeOff, KeyRound, LockKeyhole, LogIn, Moon, Server, ShieldCheck, Sun, UserRound } from 'lucide-react'
+import {
+  Eye,
+  EyeOff,
+  KeyRound,
+  LockKeyhole,
+  LogIn,
+  Moon,
+  Server,
+  ShieldCheck,
+  Sun,
+  UserRound,
+} from 'lucide-react'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { useLocation, useNavigate } from 'react-router-dom'
@@ -28,7 +39,11 @@ export function LoginPage() {
   const [remember, setRemember] = useState(Boolean(rememberedUsername))
   const [showPassword, setShowPassword] = useState(false)
 
-  const { register, handleSubmit, formState: { errors } } = useForm<LoginValues>({
+  const {
+    register,
+    handleSubmit,
+    formState: { errors },
+  } = useForm<LoginValues>({
     resolver: zodResolver(loginSchema),
     defaultValues: { username: rememberedUsername, password: '' },
   })
@@ -50,9 +65,10 @@ export function LoginPage() {
     mutation.mutate(values)
   }
 
-  const errorMessage = mutation.error instanceof ApiError && mutation.error.status === 401
-    ? 'Identifiant ou mot de passe incorrect.'
-    : mutation.error?.message
+  const errorMessage =
+    mutation.error instanceof ApiError && mutation.error.status === 401
+      ? 'Identifiant ou mot de passe incorrect.'
+      : mutation.error?.message
 
   return (
     <main className="relative flex min-h-screen flex-col overflow-hidden bg-background">
@@ -78,12 +94,20 @@ export function LoginPage() {
       </header>
 
       <div className="relative z-10 flex flex-1 items-center justify-center px-4 py-10">
-        <section className="w-full max-w-md rounded-xl border border-line bg-card/95 p-6 shadow-2xl shadow-black/20 backdrop-blur-sm sm:p-8" aria-labelledby="login-title">
+        <section
+          className="w-full max-w-md rounded-xl border border-line bg-card/95 p-6 shadow-2xl shadow-black/20 backdrop-blur-sm sm:p-8"
+          aria-labelledby="login-title"
+        >
           <div className="flex flex-col items-center text-center">
             <span className="flex h-11 w-11 items-center justify-center rounded-lg border border-line bg-elevated text-accent">
               <Server className="h-5 w-5" aria-hidden="true" />
             </span>
-            <h1 id="login-title" className="mt-3 text-xl font-semibold tracking-tight text-text-primary">Connexion</h1>
+            <h1
+              id="login-title"
+              className="mt-3 text-xl font-semibold tracking-tight text-text-primary"
+            >
+              Connexion
+            </h1>
             <p className="mt-1 font-mono text-[11px] uppercase tracking-wider text-text-muted">
               Homelab Manager · supervision locale
             </p>
@@ -91,7 +115,10 @@ export function LoginPage() {
 
           <form className="mt-6 space-y-4" onSubmit={handleSubmit(onSubmit)} noValidate>
             <div>
-              <label htmlFor="username" className="mb-1.5 block font-mono text-[10px] font-medium uppercase tracking-wider text-text-secondary">
+              <label
+                htmlFor="username"
+                className="mb-1.5 block font-mono text-[10px] font-medium uppercase tracking-wider text-text-secondary"
+              >
                 Nom d'utilisateur
               </label>
               <div className="flex items-center gap-2 rounded-md border border-line bg-surface px-3 transition-colors focus-within:border-accent/60">
@@ -105,11 +132,16 @@ export function LoginPage() {
                   {...register('username')}
                 />
               </div>
-              {errors.username && <p className="mt-1 text-xs text-danger">{errors.username.message}</p>}
+              {errors.username && (
+                <p className="mt-1 text-xs text-danger">{errors.username.message}</p>
+              )}
             </div>
 
             <div>
-              <label htmlFor="password" className="mb-1.5 block font-mono text-[10px] font-medium uppercase tracking-wider text-text-secondary">
+              <label
+                htmlFor="password"
+                className="mb-1.5 block font-mono text-[10px] font-medium uppercase tracking-wider text-text-secondary"
+              >
                 Mot de passe
               </label>
               <div className="flex items-center gap-2 rounded-md border border-line bg-surface px-3 transition-colors focus-within:border-accent/60">
@@ -131,7 +163,9 @@ export function LoginPage() {
                   {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                 </button>
               </div>
-              {errors.password && <p className="mt-1 text-xs text-danger">{errors.password.message}</p>}
+              {errors.password && (
+                <p className="mt-1 text-xs text-danger">{errors.password.message}</p>
+              )}
             </div>
 
             <label className="flex cursor-pointer select-none items-center gap-2 text-xs text-text-secondary">
@@ -145,12 +179,18 @@ export function LoginPage() {
             </label>
 
             {typeof notice === 'string' && !errorMessage && (
-              <div className="rounded-md border border-success/30 bg-success/10 px-3 py-2 text-xs text-success" role="status">
+              <div
+                className="rounded-md border border-success/30 bg-success/10 px-3 py-2 text-xs text-success"
+                role="status"
+              >
                 {notice}
               </div>
             )}
             {errorMessage && (
-              <div className="rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger" role="alert">
+              <div
+                className="rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger"
+                role="alert"
+              >
                 {errorMessage}
               </div>
             )}
@@ -161,7 +201,10 @@ export function LoginPage() {
               className="flex h-10 w-full items-center justify-center gap-2 rounded-md bg-accent px-4 text-sm font-medium text-on-accent transition-colors hover:bg-accent/90 disabled:cursor-wait disabled:opacity-60"
             >
               {mutation.isPending ? (
-                <span className="h-4 w-4 animate-spin rounded-full border-2 border-on-accent/30 border-t-on-accent" aria-hidden="true" />
+                <span
+                  className="h-4 w-4 animate-spin rounded-full border-2 border-on-accent/30 border-t-on-accent"
+                  aria-hidden="true"
+                />
               ) : (
                 <LogIn className="h-4 w-4" aria-hidden="true" />
               )}
@@ -172,7 +215,8 @@ export function LoginPage() {
           <div className="mt-6 flex items-start gap-2 rounded-md border border-line/70 bg-surface/60 px-3 py-2.5">
             <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" aria-hidden="true" />
             <p className="text-[11px] leading-relaxed text-text-muted">
-              Authentification locale. La session est protégée par un cookie HTTP-only et aucune donnée ne quitte cet hôte.
+              Authentification locale. La session est protégée par un cookie HTTP-only et aucune
+              donnée ne quitte cet hôte.
             </p>
           </div>
 
@@ -186,7 +230,11 @@ export function LoginPage() {
       <footer className="relative z-10 flex flex-col items-center justify-between gap-2 border-t border-line/60 bg-background/60 px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-text-muted sm:flex-row sm:px-6">
         <span>Homelab Manager · supervision mono-hôte</span>
         <span className="flex items-center gap-2">
-          <span>{typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'TLS actif' : 'HTTP local'}</span>
+          <span>
+            {typeof window !== 'undefined' && window.location.protocol === 'https:'
+              ? 'TLS actif'
+              : 'HTTP local'}
+          </span>
           <span className="text-line-strong">•</span>
           <span>v{APP_VERSION}</span>
         </span>

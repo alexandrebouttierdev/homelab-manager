@@ -23,7 +23,9 @@ describe('requestJSON', () => {
 
   it('reports a network failure without leaking details', async () => {
     vi.stubGlobal('fetch', vi.fn().mockRejectedValue(new TypeError('Failed to fetch')))
-    await expect(requestJSON('/api/v1/dashboard')).rejects.toThrow('Impossible de joindre le Manager local.')
+    await expect(requestJSON('/api/v1/dashboard')).rejects.toThrow(
+      'Impossible de joindre le Manager local.',
+    )
   })
 })
 

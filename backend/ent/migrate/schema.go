@@ -8,6 +8,19 @@ import (
 )
 
 var (
+	// AppSettingsColumns holds the columns for the "app_settings" table.
+	AppSettingsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "singleton_key", Type: field.TypeString, Unique: true},
+		{Name: "metrics_retention_days", Type: field.TypeInt, Nullable: true},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// AppSettingsTable holds the schema information for the "app_settings" table.
+	AppSettingsTable = &schema.Table{
+		Name:       "app_settings",
+		Columns:    AppSettingsColumns,
+		PrimaryKey: []*schema.Column{AppSettingsColumns[0]},
+	}
 	// AuditLogsColumns holds the columns for the "audit_logs" table.
 	AuditLogsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -172,6 +185,7 @@ var (
 	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
+		AppSettingsTable,
 		AuditLogsTable,
 		ContainersTable,
 		ContainerMetricSamplesTable,

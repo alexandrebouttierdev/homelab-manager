@@ -47,11 +47,41 @@ function currentMetricsResponse() {
       { name: 'memory.used', value: 1073741824, unit: 'bytes', labels: null, recordedAt },
       { name: 'memory.total', value: 2147483648, unit: 'bytes', labels: null, recordedAt },
       { name: 'memory.available', value: 1073741824, unit: 'bytes', labels: null, recordedAt },
-      { name: 'filesystem.total', value: 1000000000, unit: 'bytes', labels: { mountpoint: '/' }, recordedAt },
-      { name: 'filesystem.used', value: 400000000, unit: 'bytes', labels: { mountpoint: '/' }, recordedAt },
-      { name: 'filesystem.percent', value: 40, unit: 'percent', labels: { mountpoint: '/' }, recordedAt },
-      { name: 'network.rx_bytes', value: 2048, unit: 'bytes', labels: { interface: 'eth0' }, recordedAt },
-      { name: 'network.tx_bytes', value: 1024, unit: 'bytes', labels: { interface: 'eth0' }, recordedAt },
+      {
+        name: 'filesystem.total',
+        value: 1000000000,
+        unit: 'bytes',
+        labels: { mountpoint: '/' },
+        recordedAt,
+      },
+      {
+        name: 'filesystem.used',
+        value: 400000000,
+        unit: 'bytes',
+        labels: { mountpoint: '/' },
+        recordedAt,
+      },
+      {
+        name: 'filesystem.percent',
+        value: 40,
+        unit: 'percent',
+        labels: { mountpoint: '/' },
+        recordedAt,
+      },
+      {
+        name: 'network.rx_bytes',
+        value: 2048,
+        unit: 'bytes',
+        labels: { interface: 'eth0' },
+        recordedAt,
+      },
+      {
+        name: 'network.tx_bytes',
+        value: 1024,
+        unit: 'bytes',
+        labels: { interface: 'eth0' },
+        recordedAt,
+      },
     ],
   }
 }
@@ -59,11 +89,29 @@ function currentMetricsResponse() {
 function historyResponse() {
   return {
     samples: [
-      { name: 'cpu.percent', value: 18.2, unit: 'percent', labels: { core: 'all' }, recordedAt: '2026-11-21T08:30:00Z' },
+      {
+        name: 'cpu.percent',
+        value: 18.2,
+        unit: 'percent',
+        labels: { core: 'all' },
+        recordedAt: '2026-11-21T08:30:00Z',
+      },
       { name: 'cpu.percent', value: 21.4, unit: 'percent', labels: { core: 'all' }, recordedAt },
-      { name: 'memory.used', value: 1000000000, unit: 'bytes', labels: null, recordedAt: '2026-11-21T08:30:00Z' },
+      {
+        name: 'memory.used',
+        value: 1000000000,
+        unit: 'bytes',
+        labels: null,
+        recordedAt: '2026-11-21T08:30:00Z',
+      },
       { name: 'memory.used', value: 1073741824, unit: 'bytes', labels: null, recordedAt },
-      { name: 'memory.total', value: 2147483648, unit: 'bytes', labels: null, recordedAt: '2026-11-21T08:30:00Z' },
+      {
+        name: 'memory.total',
+        value: 2147483648,
+        unit: 'bytes',
+        labels: null,
+        recordedAt: '2026-11-21T08:30:00Z',
+      },
       { name: 'memory.total', value: 2147483648, unit: 'bytes', labels: null, recordedAt },
     ],
   }
@@ -73,15 +121,19 @@ describe('DashboardPage', () => {
   afterEach(() => vi.unstubAllGlobals())
 
   it('renders host metrics and collector status from the API', async () => {
-    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
-      const url = String(input)
-      if (url.startsWith('/api/v1/dashboard')) return jsonResponse(dashboardResponse())
-      if (url.startsWith('/api/v1/host/metrics/current')) return jsonResponse(currentMetricsResponse())
-      if (url.startsWith('/api/v1/containers')) return jsonResponse({ containers: [] })
-      if (url.startsWith('/api/v1/events')) return jsonResponse({ events: [] })
-      if (url.startsWith('/api/v1/host/metrics/')) return jsonResponse(historyResponse())
-      return jsonResponse({})
-    }))
+    vi.stubGlobal(
+      'fetch',
+      vi.fn((input: RequestInfo | URL) => {
+        const url = String(input)
+        if (url.startsWith('/api/v1/dashboard')) return jsonResponse(dashboardResponse())
+        if (url.startsWith('/api/v1/host/metrics/current'))
+          return jsonResponse(currentMetricsResponse())
+        if (url.startsWith('/api/v1/containers')) return jsonResponse({ containers: [] })
+        if (url.startsWith('/api/v1/events')) return jsonResponse({ events: [] })
+        if (url.startsWith('/api/v1/host/metrics/')) return jsonResponse(historyResponse())
+        return jsonResponse({})
+      }),
+    )
 
     const client = new QueryClient({ defaultOptions: { queries: { retry: false } } })
 

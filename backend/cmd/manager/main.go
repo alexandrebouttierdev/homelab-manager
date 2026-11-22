@@ -64,7 +64,7 @@ func main() {
 			logger.Info("Administrator created", zap.String("username", config.AdminUsername))
 		}
 		authUsecase = usecase.NewAuthUsecase(authRepository, authRepository, hasher)
-		monitoringRepository := sqlite.NewMonitoringRepository(client)
+		monitoringRepository := sqlite.NewMonitoringRepository(database)
 		dockerClient := dockerengine.NewClient(config.DockerProxySocket)
 		dockerClientCloser = dockerClient
 		monitoringUsecase = usecase.NewMonitoringUsecase(
@@ -78,7 +78,7 @@ func main() {
 				Retention:           time.Duration(config.MetricsRetentionDays) * 24 * time.Hour,
 			},
 			logger,
-		)
+		).WithSettings(sqlite.NewSettingsRepository(database))
 		schedulerDone = make(chan struct{})
 		go func() {
 			defer close(schedulerDone)

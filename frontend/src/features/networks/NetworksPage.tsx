@@ -43,10 +43,12 @@ export function NetworksPage() {
     return Array.from(grouped.values()).sort((left, right) => left.name.localeCompare(right.name))
   }, [containers.data])
 
-  const filtered = networks.filter((network) =>
-    !search || `${network.name} ${network.containers.map((container) => container.name).join(' ')}`
-      .toLowerCase()
-      .includes(search.toLowerCase()),
+  const filtered = networks.filter(
+    (network) =>
+      !search ||
+      `${network.name} ${network.containers.map((container) => container.name).join(' ')}`
+        .toLowerCase()
+        .includes(search.toLowerCase()),
   )
 
   return (
@@ -60,17 +62,25 @@ export function NetworksPage() {
 
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="rounded-lg border border-line bg-card p-4">
-          <p className="font-mono text-[11px] uppercase tracking-wider text-text-muted">Réseaux distincts</p>
-          <p className="mt-1 font-mono text-2xl font-semibold text-text-primary">{networks.length}</p>
+          <p className="font-mono text-[11px] uppercase tracking-wider text-text-muted">
+            Réseaux distincts
+          </p>
+          <p className="mt-1 font-mono text-2xl font-semibold text-text-primary">
+            {networks.length}
+          </p>
         </div>
         <div className="rounded-lg border border-line bg-card p-4">
-          <p className="font-mono text-[11px] uppercase tracking-wider text-text-muted">Conteneurs attachés</p>
+          <p className="font-mono text-[11px] uppercase tracking-wider text-text-muted">
+            Conteneurs attachés
+          </p>
           <p className="mt-1 font-mono text-2xl font-semibold text-accent">
             {(containers.data ?? []).filter((container) => container.networks.length > 0).length}
           </p>
         </div>
         <div className="rounded-lg border border-line bg-card p-4">
-          <p className="font-mono text-[11px] uppercase tracking-wider text-text-muted">Réseaux actifs</p>
+          <p className="font-mono text-[11px] uppercase tracking-wider text-text-muted">
+            Réseaux actifs
+          </p>
           <p className="mt-1 font-mono text-2xl font-semibold text-success">
             {networks.filter((network) => network.running > 0).length}
           </p>
@@ -85,15 +95,24 @@ export function NetworksPage() {
       />
 
       {containers.isLoading && <LoadingState label="Chargement des réseaux…" rows={3} />}
-      {containers.isError && <ErrorState message={containers.error.message} onRetry={() => { void containers.refetch() }} />}
+      {containers.isError && (
+        <ErrorState
+          message={containers.error.message}
+          onRetry={() => {
+            void containers.refetch()
+          }}
+        />
+      )}
 
       {!containers.isLoading && !containers.isError && filtered.length === 0 && (
         <EmptyState
           icon={Cable}
           title={networks.length === 0 ? 'Aucun réseau observé' : 'Aucun réseau ne correspond'}
-          description={networks.length === 0
-            ? 'Les réseaux apparaîtront dès que des conteneurs attachés à un réseau seront découverts.'
-            : 'Modifiez la recherche pour retrouver un réseau.'}
+          description={
+            networks.length === 0
+              ? 'Les réseaux apparaîtront dès que des conteneurs attachés à un réseau seront découverts.'
+              : 'Modifiez la recherche pour retrouver un réseau.'
+          }
         />
       )}
 
@@ -101,7 +120,13 @@ export function NetworksPage() {
         <>
           <Table minWidthClassName="min-w-[820px]">
             <THead>
-              <tr><TH>Réseau</TH><TH>Conteneurs</TH><TH>Actifs</TH><TH>Membres</TH><TH>États</TH></tr>
+              <tr>
+                <TH>Réseau</TH>
+                <TH>Conteneurs</TH>
+                <TH>Actifs</TH>
+                <TH>Membres</TH>
+                <TH>États</TH>
+              </tr>
             </THead>
             <TBody>
               {filtered.map((network) => (
@@ -112,9 +137,14 @@ export function NetworksPage() {
                       <span className="font-mono text-xs text-text-primary">{network.name}</span>
                     </span>
                   </TD>
-                  <TD><span className="font-mono text-xs">{network.containers.length}</span></TD>
                   <TD>
-                    <Badge tone={network.running > 0 ? 'success' : 'neutral'} dot={network.running > 0}>
+                    <span className="font-mono text-xs">{network.containers.length}</span>
+                  </TD>
+                  <TD>
+                    <Badge
+                      tone={network.running > 0 ? 'success' : 'neutral'}
+                      dot={network.running > 0}
+                    >
                       {network.running}
                     </Badge>
                   </TD>
@@ -126,19 +156,28 @@ export function NetworksPage() {
                           to={`/containers/${encodeURIComponent(container.id)}`}
                           className="inline-flex items-center gap-1 rounded-sm border border-line px-1.5 py-0.5 font-mono text-[10px] text-text-secondary transition-colors hover:border-accent/40 hover:text-accent"
                         >
-                          <StatusDot tone={containerStateTone(container.state)} className="h-1 w-1" />
+                          <StatusDot
+                            tone={containerStateTone(container.state)}
+                            className="h-1 w-1"
+                          />
                           {container.name}
                         </Link>
                       ))}
                       {network.containers.length > 5 && (
-                        <span className="font-mono text-[10px] text-text-muted">+{network.containers.length - 5}</span>
+                        <span className="font-mono text-[10px] text-text-muted">
+                          +{network.containers.length - 5}
+                        </span>
                       )}
                     </div>
                   </TD>
                   <TD>
                     <div className="flex flex-wrap gap-1">
-                      {Array.from(new Set(network.containers.map((container) => container.state))).map((state) => (
-                        <Badge key={state} tone="neutral">{state}</Badge>
+                      {Array.from(
+                        new Set(network.containers.map((container) => container.state)),
+                      ).map((state) => (
+                        <Badge key={state} tone="neutral">
+                          {state}
+                        </Badge>
                       ))}
                     </div>
                   </TD>

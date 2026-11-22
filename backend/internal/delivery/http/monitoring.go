@@ -5,12 +5,14 @@ import (
 	"net/http"
 	"regexp"
 	"strconv"
+	"strings"
 	"time"
 
 	"homelab-manager/backend/internal/domain"
 	"homelab-manager/backend/internal/usecase"
 
 	"github.com/go-chi/chi/v5"
+	"github.com/go-chi/chi/v5/middleware"
 )
 
 var (
@@ -27,6 +29,8 @@ type settingsDTO struct {
 	DockerCollectIntervalSeconds   int                               `json:"dockerCollectIntervalSeconds"`
 	DockerDiscoveryIntervalSeconds int                               `json:"dockerDiscoveryIntervalSeconds"`
 	MetricsRetentionDays           int                               `json:"metricsRetentionDays"`
+	MetricsRetentionDefaultDays    int                               `json:"metricsRetentionDefaultDays"`
+	MetricsRetentionSource         string                            `json:"metricsRetentionSource"`
 	Collectors                     map[string]domain.CollectorStatus `json:"collectors"`
 }
 
@@ -69,6 +73,10 @@ type metricDTO struct {
 	Unit       string            `json:"unit"`
 	Labels     map[string]string `json:"labels"`
 	RecordedAt time.Time         `json:"recordedAt"`
+	// Present on aggregated samples only.
+	Min   *float64 `json:"min,omitempty"`
+	Max   *float64 `json:"max,omitempty"`
+	Count *int     `json:"count,omitempty"`
 }
 
 type eventDTO struct {
@@ -116,10 +124,15 @@ func containerResponse(container domain.Container) containerDTO {
 func metricResponses(samples []domain.MetricSample) []metricDTO {
 	result := make([]metricDTO, 0, len(samples))
 	for _, sample := range samples {
-		result = append(result, metricDTO{
+		item := metricDTO{
 			Name: sample.Name, Value: sample.Value, Unit: sample.Unit,
 			Labels: sample.Labels, RecordedAt: sample.RecordedAt,
-		})
+		}
+		if sample.Aggregate != nil {
+			aggregate := *sample.Aggregate
+			item.Min, item.Max, item.Count = &aggregate.Min, &aggregate.Max, &aggregate.Count
+		}
+		result = append(result, item)
 	}
 	return result
 }
@@ -152,16 +165,51 @@ func hostHandler(monitoring *usecase.MonitoringUsecase) http.HandlerFunc {
 	}
 }
 
+func settingsResponse(settings usecase.EffectiveSettings) settingsDTO {
+	return settingsDTO{
+		SystemCollectIntervalSeconds:   settings.SystemCollectIntervalSeconds,
+		DockerCollectIntervalSeconds:   settings.DockerCollectIntervalSeconds,
+		DockerDiscoveryIntervalSeconds: settings.DockerDiscoveryIntervalSeconds,
+		MetricsRetentionDays:           settings.MetricsRetentionDays,
+		MetricsRetentionDefaultDays:    settings.DefaultRetentionDays,
+		MetricsRetentionSource:         settings.RetentionSource,
+		Collectors:                     map[string]domain.CollectorStatus{"system": settings.System, "docker": settings.Docker},
+	}
+}
+
 func settingsHandler(monitoring *usecase.MonitoringUsecase) http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
-		settings := monitoring.Settings()
-		writeJSON(w, http.StatusOK, settingsDTO{
-			SystemCollectIntervalSeconds:   settings.SystemCollectIntervalSeconds,
-			DockerCollectIntervalSeconds:   settings.DockerCollectIntervalSeconds,
-			DockerDiscoveryIntervalSeconds: settings.DockerDiscoveryIntervalSeconds,
-			MetricsRetentionDays:           settings.MetricsRetentionDays,
-			Collectors:                     map[string]domain.CollectorStatus{"system": settings.System, "docker": settings.Docker},
-		})
+		writeJSON(w, http.StatusOK, settingsResponse(monitoring.Settings()))
+	}
+}
+
+type retentionRequest struct {
+	MetricsRetentionDays *int `json:"metricsRetentionDays"`
+}
+
+func updateRetentionHandler(monitoring *usecase.MonitoringUsecase) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var request retentionRequest
+		if err := decodeJSON(r, &request); err != nil || request.MetricsRetentionDays == nil {
+			writeError(w, r, http.StatusBadRequest, "VALIDATION_ERROR", "metricsRetentionDays is required.")
+			return
+		}
+		days := *request.MetricsRetentionDays
+		if days < domain.MinRetentionDays || days > domain.MaxRetentionDays {
+			writeError(w, r, http.StatusBadRequest, "VALIDATION_ERROR", "metricsRetentionDays must be between 1 and 365.")
+			return
+		}
+		user, ok := sessionUser(r)
+		if !ok {
+			writeError(w, r, http.StatusUnauthorized, "SESSION_NOT_FOUND", "Authentication is required.")
+			return
+		}
+		audit := domain.AuditEntry{Actor: user.Username, RequestID: middleware.GetReqID(r.Context())}
+		if err := monitoring.UpdateRetention(r.Context(), days, audit); err != nil {
+			writeError(w, r, http.StatusInternalServerError, "SETTINGS_UPDATE_FAILED", "Could not save the settings.")
+			return
+		}
+		writeJSON(w, http.StatusOK, settingsResponse(monitoring.Settings()))
 	}
 }
 
@@ -263,7 +311,12 @@ func currentMetricsHandler(monitoring *usecase.MonitoringUsecase, container bool
 
 func metricHistoryHandler(monitoring *usecase.MonitoringUsecase, container bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		from, to, limit, err := timeRange(r)
+		from, to, limit, err := timeRange(r, metricQueryParameters)
+		if err != nil {
+			writeError(w, r, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
+			return
+		}
+		step, resolution, labels, err := metricOptions(r)
 		if err != nil {
 			writeError(w, r, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
 			return
@@ -280,18 +333,21 @@ func metricHistoryHandler(monitoring *usecase.MonitoringUsecase, container bool)
 		if !ok {
 			return
 		}
-		samples, err := monitoring.Metrics(r.Context(), id, metricName, from, to, limit)
+		samples, err := monitoring.Metrics(r.Context(), domain.MetricQuery{
+			ContainerID: id, Name: metricName, From: from, To: to,
+			Limit: limit, Step: step, Labels: labels,
+		})
 		if errors.Is(err, domain.ErrContainerNotFound) {
 			writeError(w, r, http.StatusNotFound, "NOT_FOUND", "Container not found.")
+			return
+		}
+		if errors.Is(err, domain.ErrTooManyPoints) {
+			writeError(w, r, http.StatusBadRequest, "TOO_MANY_POINTS", "The range has more points than limit at this step; use a larger step or a label filter.")
 			return
 		}
 		if err != nil {
 			writeError(w, r, http.StatusInternalServerError, "METRICS_UNAVAILABLE", "Could not load metric history.")
 			return
-		}
-		resolution := r.URL.Query().Get("step")
-		if resolution == "" {
-			resolution = "raw"
 		}
 		writeJSON(w, http.StatusOK, map[string]any{
 			"samples": metricResponses(samples), "nextCursor": nil, "resolution": resolution,
@@ -301,7 +357,7 @@ func metricHistoryHandler(monitoring *usecase.MonitoringUsecase, container bool)
 
 func listEventsHandler(monitoring *usecase.MonitoringUsecase, container bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		from, to, limit, err := timeRange(r)
+		from, to, limit, err := timeRange(r, eventQueryParameters)
 		if err != nil {
 			writeError(w, r, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
 			return
@@ -357,13 +413,55 @@ func hostTemperaturesHandler(monitoring *usecase.MonitoringUsecase) http.Handler
 	}
 }
 
-func timeRange(r *http.Request) (time.Time, time.Time, int, error) {
-	allowed := map[string]struct{}{"from": {}, "to": {}, "step": {}, "limit": {}, "cursor": {}}
+var (
+	metricQueryParameters = map[string]bool{"from": false, "to": false, "step": false, "limit": false, "cursor": false, "label": true}
+	eventQueryParameters  = map[string]bool{"from": false, "to": false, "step": false, "limit": false, "cursor": false}
+	metricSteps           = map[string]time.Duration{"raw": 0, "1m": time.Minute, "5m": 5 * time.Minute, "1h": time.Hour}
+	labelKeyPattern       = regexp.MustCompile(`^[a-z0-9_]{1,32}$`)
+)
+
+const (
+	maxLabelFilters     = 4
+	maxLabelValueLength = 128
+)
+
+// metricOptions parses step (raw, 1m, 5m, 1h) and repeated label=key:value.
+func metricOptions(r *http.Request) (time.Duration, string, map[string]string, error) {
+	resolution := r.URL.Query().Get("step")
+	if resolution == "" {
+		resolution = "raw"
+	}
+	step, ok := metricSteps[resolution]
+	if !ok {
+		return 0, "", nil, errors.New("step must be raw, 1m, 5m or 1h")
+	}
+	values := r.URL.Query()["label"]
+	if len(values) > maxLabelFilters {
+		return 0, "", nil, errors.New("at most 4 label filters are allowed")
+	}
+	labels := make(map[string]string, len(values))
+	for _, value := range values {
+		key, labelValue, found := strings.Cut(value, ":")
+		if !found || !labelKeyPattern.MatchString(key) || labelValue == "" || len(labelValue) > maxLabelValueLength {
+			return 0, "", nil, errors.New("label must be key:value with a lowercase key")
+		}
+		if _, duplicate := labels[key]; duplicate {
+			return 0, "", nil, errors.New("a label key must not be repeated")
+		}
+		labels[key] = labelValue
+	}
+	return step, resolution, labels, nil
+}
+
+// timeRange validates from, to, limit and cursor; repeatable lists the
+// parameters accepted by the route and whether they may be repeated.
+func timeRange(r *http.Request, accepted map[string]bool) (time.Time, time.Time, int, error) {
 	for key, values := range r.URL.Query() {
-		if _, ok := allowed[key]; !ok {
+		repeatable, ok := accepted[key]
+		if !ok {
 			return time.Time{}, time.Time{}, 0, errors.New("unknown query parameter")
 		}
-		if len(values) != 1 {
+		if len(values) != 1 && !repeatable {
 			return time.Time{}, time.Time{}, 0, errors.New("query parameters must not be repeated")
 		}
 	}
@@ -389,9 +487,8 @@ func timeRange(r *http.Request) (time.Time, time.Time, int, error) {
 		}
 		limit = parsed
 	}
-	step := r.URL.Query().Get("step")
-	if step != "" && step != "raw" {
-		return time.Time{}, time.Time{}, 0, errors.New("only raw metric samples are currently supported")
+	if step := r.URL.Query().Get("step"); !accepted["label"] && step != "" && step != "raw" {
+		return time.Time{}, time.Time{}, 0, errors.New("events do not support step")
 	}
 	if r.URL.Query().Get("cursor") != "" {
 		return time.Time{}, time.Time{}, 0, errors.New("cursor pagination is not currently supported")

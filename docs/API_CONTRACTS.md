@@ -28,17 +28,18 @@ Ce document est le contrat exact de l'API implémentée. Toute différence entre
 | `GET /api/v1/dashboard` | oui | Synthèse (§ 4.2) |
 | `GET /api/v1/host` | oui | Identité de l'hôte (§ 4.3) |
 | `GET /api/v1/host/metrics/current` | oui | Dernier cycle hôte (§ 5.2) |
-| `GET /api/v1/host/metrics/{metricName}` | oui | Historique brut (§ 5.3) |
+| `GET /api/v1/host/metrics/{metricName}` | oui | Historique brut ou agrégé (§ 5.3) |
 | `GET /api/v1/host/temperatures` | oui | Températures du dernier cycle (§ 5.2) |
 | `GET /api/v1/containers` | oui | Inventaire (§ 6.1) |
 | `GET /api/v1/containers/{containerID}` | oui | Détail (§ 6.1) |
 | `GET /api/v1/containers/{containerID}/metrics/current` | oui | Dernier cycle du conteneur (§ 5.2) |
-| `GET /api/v1/containers/{containerID}/metrics/{metricName}` | oui | Historique brut (§ 5.3) |
+| `GET /api/v1/containers/{containerID}/metrics/{metricName}` | oui | Historique brut ou agrégé (§ 5.3) |
 | `GET /api/v1/containers/{containerID}/events` | oui | Événements du conteneur (§ 6.2) |
 | `GET /api/v1/events` | oui | Tous les événements (§ 6.2) |
 | `GET /api/v1/settings` | oui | Paramètres effectifs (§ 4.4) |
+| `PUT /api/v1/settings/retention` | oui | Modifie la rétention (§ 4.4) |
 
-Toutes les routes de supervision sont en lecture seule. Une route inconnue sous `/api` répond `404 NOT_FOUND`, une méthode non prévue `405 METHOD_NOT_ALLOWED`, toujours au format d'erreur du § 8. Il n'existe aucune route d'Agent, d'hôte distant, de journaux, ni d'action Docker (création, suppression, démarrage, arrêt, restart, exec).
+Toutes les routes de supervision sont en lecture seule ; les seules écritures sont l'authentification et `PUT /api/v1/settings/retention`. Une route inconnue sous `/api` répond `404 NOT_FOUND`, une méthode non prévue `405 METHOD_NOT_ALLOWED`, toujours au format d'erreur du § 8. Il n'existe aucune route d'Agent, d'hôte distant, de journaux, ni d'action Docker (création, suppression, démarrage, arrêt, restart, exec).
 
 ### Paramètres de chemin
 
@@ -153,7 +154,9 @@ Toutes les routes de supervision sont en lecture seule. Une route inconnue sous 
   "systemCollectIntervalSeconds": 10,
   "dockerCollectIntervalSeconds": 15,
   "dockerDiscoveryIntervalSeconds": 30,
-  "metricsRetentionDays": 30,
+  "metricsRetentionDays": 7,
+  "metricsRetentionDefaultDays": 7,
+  "metricsRetentionSource": "config",
   "collectors": {
     "system": { "status": "ok", "lastSuccessAt": "..." },
     "docker": { "status": "ok", "lastSuccessAt": "..." }
@@ -161,7 +164,15 @@ Toutes les routes de supervision sont en lecture seule. Une route inconnue sous 
 }
 ```
 
-Lecture seule. Les valeurs viennent du fichier de configuration ou des variables d'environnement (README, « Configuration ») et ne changent qu'au redémarrage du service.
+- Les intervalles viennent du fichier de configuration ou des variables d'environnement (README, « Configuration ») et ne changent qu'au redémarrage du service.
+- `metricsRetentionDays` est la rétention effective. `metricsRetentionDefaultDays` est celle de la configuration (`metrics_retention_days`, 7 par défaut). `metricsRetentionSource` vaut `config` tant qu'aucune valeur n'a été choisie dans l'interface, puis `user`.
+
+**Modifier la rétention** — `PUT /api/v1/settings/retention` avec `{ "metricsRetentionDays": 14 }` :
+
+- Entier de 1 à 365, obligatoire ; sinon `400 VALIDATION_ERROR`.
+- La valeur est enregistrée en base (table `app_settings`), prend effet immédiatement sans redémarrage, survit aux redémarrages et l'emporte ensuite sur la configuration. Une purge est lancée aussitôt : réduire la rétention supprime définitivement les données plus anciennes.
+- Chaque modification ajoute une entrée au journal d'audit (`audit_logs` : acteur, cible `settings/metrics_retention_days`, action `update`, `requestId`), dans la même transaction.
+- Réponse `200` : le DTO de paramètres ci-dessus. Échec d'écriture : `500 SETTINGS_UPDATE_FAILED`.
 
 ## 5. Métriques
 
@@ -187,16 +198,28 @@ Lecture seule. Les valeurs viennent du fichier de configuration ou des variables
 
 `GET /api/v1/host/temperatures` : `{ "samples": [...] }`, limité aux échantillons `temperature.celsius` du dernier cycle hôte.
 
-### 5.3 Historique brut
+### 5.3 Historique
 
-`GET …/metrics/{metricName}?from=…&to=…[&limit=…][&step=raw]` → `{ "samples": [...], "nextCursor": null, "resolution": "raw" }`.
+`GET …/metrics/{metricName}?from=…&to=…[&limit=…][&step=…][&label=clé:valeur…]` → `{ "samples": [...], "nextCursor": null, "resolution": "raw" | "1m" | "5m" | "1h" }`.
 
 - `from`, `to` : obligatoires, RFC 3339 avec n'importe quel décalage (normalisé en UTC). Intervalle semi-ouvert `[from, to)`. `from` doit précéder `to`, écart de 365 jours au plus.
 - `limit` : entier de 1 à 2 000, 500 par défaut.
-- `step` : absent ou `raw` uniquement. Toute autre valeur → `400 VALIDATION_ERROR` (agrégation non implémentée, § 9).
-- `cursor` : toute valeur non vide → `400 VALIDATION_ERROR` (pagination non implémentée).
-- Tout autre paramètre, ou paramètre répété → `400 VALIDATION_ERROR`.
-- Toutes les séries du nom demandé sont renvoyées (toutes valeurs de labels confondues). **Si l'intervalle contient plus de `limit` échantillons, seuls les `limit` plus récents sont renvoyés**, dans l'ordre chronologique croissant. Le client doit donc dimensionner son intervalle : une série de l'hôte produit 360 points par heure à l'intervalle par défaut, et `cpu.percent` compte une série par cœur plus `core=all`.
+- `step` : `raw` (défaut), `1m`, `5m` ou `1h`. Autre valeur → `400 VALIDATION_ERROR`.
+- `label` : répétable (4 au plus), format `clé:valeur`, clé `^[a-z0-9_]{1,32}$`, valeur de 1 à 128 caractères, clé non répétée. Ne garde que les séries portant tous ces labels (ex. `label=core:all`). Sans `label`, toutes les séries du nom sont renvoyées.
+- `cursor` : toute valeur non vide → `400 VALIDATION_ERROR` (pagination non implémentée, § 9).
+- Tout autre paramètre, ou paramètre répété autre que `label` → `400 VALIDATION_ERROR`.
+
+**Brut (`step=raw`)** — si l'intervalle contient plus de `limit` échantillons, seuls les `limit` plus récents sont renvoyés, dans l'ordre chronologique. Une série de l'hôte produit 360 points par heure à l'intervalle par défaut.
+
+**Agrégé (`1m`, `5m`, `1h`)** — un échantillon par série (`name` + `labels`) et par intervalle non vide, intervalles alignés sur l'époque Unix en UTC :
+
+```json
+{ "name": "cpu.percent", "value": 13.9, "min": 6.6, "max": 39.9, "count": 21, "unit": "percent", "labels": { "core": "all" }, "recordedAt": "2026-11-22T20:05:00Z" }
+```
+
+`value` est la moyenne, `recordedAt` le début de l'intervalle ; tri chronologique, puis par labels. Si le résultat dépasse `limit`, la requête échoue en `400 TOO_MANY_POINTS` au lieu de tronquer. `min`, `max` et `count` n'existent que sur les échantillons agrégés.
+
+**Pas recommandés au client** : ≤ 1 h → `raw` ; ≤ 6 h → `1m` ; ≤ 24 h → `5m` ; au-delà → `1h`. L'interface applique cette règle, filtre la série affichée par `label`, et passe au pas supérieur si la réponse brute atteint `limit` ou si l'API renvoie `TOO_MANY_POINTS`.
 
 ### 5.4 Catalogue des métriques hôte
 
@@ -315,6 +338,7 @@ Les routes sont versionnées sous `/api/v1`. Un changement incompatible (champ s
 | `INVALID_CREDENTIALS` | 401 | Identifiants ou mot de passe actuel incorrects |
 | `SESSION_NOT_FOUND` | 401 | Session absente, expirée ou révoquée |
 | `CROSS_ORIGIN_REQUEST` | 403 | Contrôle d'origine refusé |
+| `TOO_MANY_POINTS` | 400 | Historique agrégé dépassant `limit` |
 | `NOT_FOUND` | 404 | Route ou conteneur inconnu |
 | `METHOD_NOT_ALLOWED` | 405 | Méthode non prévue sur la route |
 | `RATE_LIMITED` | 429 | Trop de tentatives de connexion |
@@ -323,6 +347,7 @@ Les routes sont versionnées sous `/api/v1`. Un changement incompatible (champ s
 | `EVENTS_UNAVAILABLE` | 500 | Lecture des événements en échec |
 | `LOGOUT_FAILED` | 500 | Révocation de session en échec |
 | `PASSWORD_CHANGE_FAILED` | 500 | Écriture du nouveau mot de passe en échec |
+| `SETTINGS_UPDATE_FAILED` | 500 | Écriture des paramètres en échec |
 | `INTERNAL_ERROR` | 500 | Autre erreur serveur |
 
 Aucune trace de pile, chemin local, secret ou réponse Docker brute dans les erreurs. `requestId` correspond au champ `request_id` des journaux du Manager.
@@ -331,15 +356,6 @@ Aucune trace de pile, chemin local, secret ou réponse Docker brute dans les err
 
 Ces contrats sont arrêtés pour guider l'implémentation ; tant qu'ils ne sont pas livrés, les paramètres correspondants restent rejetés.
 
-### 9.1 Agrégation et filtre de série (priorité 1)
-
-Motif : sans agrégation, un historique de 24 h d'une seule série de l'hôte compte 8 640 points, au-delà du plafond de 2 000. Les graphiques couvrant plus d'environ une heure ne montrent donc aujourd'hui que la fin de la plage.
-
-- `step` ∈ `raw`, `1m`, `5m`, `1h`. Les intervalles d'agrégation sont alignés sur l'époque Unix en UTC. Pour chaque série (`name` + `labels`) et chaque intervalle non vide, la réponse contient un échantillon : `value` = moyenne, plus `min`, `max` et `count` ; `recordedAt` = début de l'intervalle. `resolution` reprend la valeur de `step`.
-- Paramètre `label`, répétable, au format `clé:valeur` (ex. `label=core:all`) : ne garde que les séries qui portent tous ces labels.
-- `limit` borne le nombre total d'échantillons renvoyés (2 000 au plus) ; en cas de dépassement, `400 VALIDATION_ERROR` invite à choisir un `step` plus grand, au lieu de tronquer.
-- Pas recommandés à l'interface : ≤ 1 h → `raw` ; ≤ 6 h → `1m` ; ≤ 24 h → `5m` ; au-delà → `1h`.
-
-### 9.2 Pagination par curseur (priorité 2)
+### 9.1 Pagination par curseur
 
 Pour `GET /api/v1/containers` et les événements : `cursor` opaque (base64url de `(clé de tri, id)`), `nextCursor` non nul tant qu'il reste des résultats. L'ordre doit être stable à égalité d'horodatage (départage par `id`).

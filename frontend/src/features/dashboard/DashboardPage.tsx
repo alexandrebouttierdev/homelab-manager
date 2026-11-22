@@ -99,7 +99,7 @@ export function DashboardPage() {
   })
   const cpuHistory = useQuery({
     queryKey: ['host', 'metrics', 'cpu.percent', '1h'],
-    queryFn: () => getHostMetrics('cpu.percent', oneHourAgo()),
+    queryFn: () => getHostMetrics('cpu.percent', oneHourAgo(), { labels: { core: 'all' } }),
     refetchInterval: refreshInterval ? 60_000 : false,
   })
   const memoryHistory = useQuery({
@@ -126,16 +126,20 @@ export function DashboardPage() {
   const interfaces = interfaceSummary(samples).filter((iface) => iface.name !== 'lo')
   const primaryInterface = interfaces[0]
 
-  const cpuValues = series(cpuHistory.data ?? [], 'cpu.percent', { core: 'all' }).map((sample) => sample.value)
+  const cpuValues = series(cpuHistory.data ?? [], 'cpu.percent', { core: 'all' }).map(
+    (sample) => sample.value,
+  )
   const memoryValues = (memoryHistory.data ?? []).map((sample) => sample.value)
 
   const chartOption = useMemo<EChartsOption>(() => {
     const cpuSeries = series(cpuHistory.data ?? [], 'cpu.percent', { core: 'all' })
     const memorySeries = memoryHistory.data ?? []
-    const timestamps = Array.from(new Set([
-      ...cpuSeries.map((sample) => sample.recordedAt),
-      ...memorySeries.map((sample) => sample.recordedAt),
-    ])).sort()
+    const timestamps = Array.from(
+      new Set([
+        ...cpuSeries.map((sample) => sample.recordedAt),
+        ...memorySeries.map((sample) => sample.recordedAt),
+      ]),
+    ).sort()
     const cpuMap = new Map(cpuSeries.map((sample) => [sample.recordedAt, sample.value]))
     const memoryMap = new Map(memorySeries.map((sample) => [sample.recordedAt, sample.value]))
 
@@ -208,17 +212,24 @@ export function DashboardPage() {
   const systemOk = dashboard.data?.collectors.system.status === 'ok'
   const dockerOk = dashboard.data?.collectors.docker.status === 'ok'
   const overallTone = systemOk && dockerOk ? 'success' : systemOk || dockerOk ? 'warning' : 'danger'
-  const overallLabel = systemOk && dockerOk
-    ? 'Statut général : optimal'
-    : systemOk || dockerOk
-      ? 'Statut général : dégradé'
-      : 'Statut général : indisponible'
+  const overallLabel =
+    systemOk && dockerOk
+      ? 'Statut général : optimal'
+      : systemOk || dockerOk
+        ? 'Statut général : dégradé'
+        : 'Statut général : indisponible'
 
   const containerList = containers.data ?? []
   const runningContainers = containerList.filter((container) => isRunning(container.state))
   const problemContainers = containerList.filter((container) => isErrorState(container.state))
-  const stoppedContainers = containerList.filter((container) => !isRunning(container.state) && !isErrorState(container.state))
-  const highlightedContainers = [...problemContainers, ...runningContainers, ...stoppedContainers].slice(0, 6)
+  const stoppedContainers = containerList.filter(
+    (container) => !isRunning(container.state) && !isErrorState(container.state),
+  )
+  const highlightedContainers = [
+    ...problemContainers,
+    ...runningContainers,
+    ...stoppedContainers,
+  ].slice(0, 6)
 
   const attentionItems: Array<{
     key: string
@@ -256,7 +267,9 @@ export function DashboardPage() {
       to: `/containers/${encodeURIComponent(container.id)}`,
     })
   }
-  for (const event of (events.data ?? []).filter((item) => item.severity === 'warning' || item.severity === 'error').slice(0, 2)) {
+  for (const event of (events.data ?? [])
+    .filter((item) => item.severity === 'warning' || item.severity === 'error')
+    .slice(0, 2)) {
     attentionItems.push({
       key: `event-${event.id}`,
       title: eventTypeLabel(event.type),
@@ -275,32 +288,42 @@ export function DashboardPage() {
       <PageHeader
         title="Vue d'ensemble"
         breadcrumb={[{ label: 'Homelab Manager' }, { label: "Vue d'ensemble" }]}
-        badge={(
+        badge={
           <span className="inline-flex items-center gap-2 rounded-md border border-line bg-card px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-text-secondary">
             <StatusDot tone={overallTone} pulse={overallTone === 'success'} />
             {overallLabel}
           </span>
-        )}
-        description={dashboard.data
-          ? (
-              <>
-                <span className="font-mono text-text-primary">{dashboard.data.host.hostname || 'hôte local'}</span>
-                {' · '}
-                {`${dashboard.data.host.os.distribution || 'Linux'} ${dashboard.data.host.os.version || ''}`.trim()}
-                {' · noyau '}
-                <span className="font-mono">{dashboard.data.host.kernelVersion || 'indisponible'}</span>
-                {' · '}
-                {lastCollection ? `dernière collecte ${formatRelativeTime(lastCollection)}` : 'collecte en attente'}
-              </>
-            )
-          : 'Supervision locale de la machine qui héberge le Manager.'}
-        actions={(
+        }
+        description={
+          dashboard.data ? (
+            <>
+              <span className="font-mono text-text-primary">
+                {dashboard.data.host.hostname || 'hôte local'}
+              </span>
+              {' · '}
+              {`${dashboard.data.host.os.distribution || 'Linux'} ${dashboard.data.host.os.version || ''}`.trim()}
+              {' · noyau '}
+              <span className="font-mono">
+                {dashboard.data.host.kernelVersion || 'indisponible'}
+              </span>
+              {' · '}
+              {lastCollection
+                ? `dernière collecte ${formatRelativeTime(lastCollection)}`
+                : 'collecte en attente'}
+            </>
+          ) : (
+            'Supervision locale de la machine qui héberge le Manager.'
+          )
+        }
+        actions={
           <>
             <Button
               size="sm"
               variant="secondary"
               icon={<RefreshCw className="h-3.5 w-3.5" />}
-              onClick={() => { void queryClient.invalidateQueries() }}
+              onClick={() => {
+                void queryClient.invalidateQueries()
+              }}
             >
               Rafraîchir
             </Button>
@@ -312,13 +335,17 @@ export function DashboardPage() {
               Machine
             </Link>
           </>
-        )}
+        }
       />
 
       {hasError && (
         <ErrorState
-          message={(dashboard.error ?? current.error)?.message ?? 'Impossible de charger la supervision.'}
-          onRetry={() => { void queryClient.invalidateQueries() }}
+          message={
+            (dashboard.error ?? current.error)?.message ?? 'Impossible de charger la supervision.'
+          }
+          onRetry={() => {
+            void queryClient.invalidateQueries()
+          }}
         />
       )}
 
@@ -332,20 +359,24 @@ export function DashboardPage() {
               title={cores ? `${Math.round(cores)} cœurs logiques` : 'Processeur'}
               value={formatPercent(cpu?.value)}
               badge={<Badge tone="info">{cores ? `${Math.round(cores)} cœurs` : 'CPU'}</Badge>}
-              aside={(
+              aside={
                 <div className="font-mono text-[10px] text-text-muted">
                   <span className="block">Charge 1/5/15</span>
                   <span className="text-text-secondary">
-                    {load1 != null ? load1.toFixed(2) : '—'} · {load5 != null ? load5.toFixed(2) : '—'} · {load15 != null ? load15.toFixed(2) : '—'}
+                    {load1 != null ? load1.toFixed(2) : '—'} ·{' '}
+                    {load5 != null ? load5.toFixed(2) : '—'} ·{' '}
+                    {load15 != null ? load15.toFixed(2) : '—'}
                   </span>
                 </div>
-              )}
+              }
               hint={cpu ? `Mesure du ${formatShortTime(cpu.recordedAt)}` : 'Mesure indisponible'}
             >
               {cpuValues.length > 1 ? (
                 <Sparkline values={cpuValues} tone="cpu" />
               ) : (
-                <p className="font-mono text-[10px] text-text-muted">Historique en cours de constitution.</p>
+                <p className="font-mono text-[10px] text-text-muted">
+                  Historique en cours de constitution.
+                </p>
               )}
             </MetricCard>
 
@@ -354,7 +385,11 @@ export function DashboardPage() {
               title={memoryTotal ? `${formatBytes(memoryTotal)} installés` : 'Mémoire'}
               value={formatBytes(memoryUsed)}
               unit={memoryTotal ? `/ ${formatBytes(memoryTotal)}` : undefined}
-              badge={<Badge tone={memoryPercent != null && memoryPercent > 90 ? 'warning' : 'accent'}>{formatPercent(memoryPercent)}</Badge>}
+              badge={
+                <Badge tone={memoryPercent != null && memoryPercent > 90 ? 'warning' : 'accent'}>
+                  {formatPercent(memoryPercent)}
+                </Badge>
+              }
               hint={`Cache ${formatBytes(memoryCached)} · Disponible ${formatBytes(memoryAvailable)}`}
             >
               <ProgressBar value={memoryPercent} tone="ram" label="Utilisation mémoire" />
@@ -365,11 +400,19 @@ export function DashboardPage() {
 
             <MetricCard
               label="Stockage système & média"
-              title={filesystems.entries.length > 0 ? `${filesystems.entries.length} système(s) de fichiers` : 'Stockage'}
+              title={
+                filesystems.entries.length > 0
+                  ? `${filesystems.entries.length} système(s) de fichiers`
+                  : 'Stockage'
+              }
               value={formatBytes(filesystems.used)}
               unit={filesystems.total > 0 ? `/ ${formatBytes(filesystems.total)}` : undefined}
               badge={<Badge tone="success">{formatPercent(filesystems.percent)}</Badge>}
-              hint={filesystems.total > 0 ? `${formatBytes(filesystems.total - filesystems.used)} libres` : 'Aucun système de fichiers mesuré'}
+              hint={
+                filesystems.total > 0
+                  ? `${formatBytes(filesystems.total - filesystems.used)} libres`
+                  : 'Aucun système de fichiers mesuré'
+              }
             >
               <div className="space-y-2">
                 {filesystems.entries.slice(0, 2).map((entry) => (
@@ -378,34 +421,55 @@ export function DashboardPage() {
                       <span className="truncate">{entry.mountpoint}</span>
                       <span>{formatPercent(entry.percent)}</span>
                     </div>
-                    <ProgressBar value={entry.percent} tone={entry.percent != null && entry.percent > 90 ? 'warning' : 'success'} />
+                    <ProgressBar
+                      value={entry.percent}
+                      tone={entry.percent != null && entry.percent > 90 ? 'warning' : 'success'}
+                    />
                   </div>
                 ))}
-                {filesystems.entries.length === 0 && <p className="font-mono text-[10px] text-text-muted">Donnée indisponible.</p>}
+                {filesystems.entries.length === 0 && (
+                  <p className="font-mono text-[10px] text-text-muted">Donnée indisponible.</p>
+                )}
               </div>
             </MetricCard>
 
             <MetricCard
               label="Trafic réseau"
               title={primaryInterface?.name ?? 'Interfaces'}
-              value={primaryInterface?.rxRate != null ? formatRate(primaryInterface.rxRate) : formatBytes(primaryInterface?.rx)}
+              value={
+                primaryInterface?.rxRate != null
+                  ? formatRate(primaryInterface.rxRate)
+                  : formatBytes(primaryInterface?.rx)
+              }
               unit="RX"
               badge={<Badge tone="neutral">{primaryInterface?.name ?? 'Réseau'}</Badge>}
-              aside={primaryInterface ? (
-                <div className="font-mono text-[10px] text-text-muted">
-                  <span className="block">TX</span>
-                  <span className="text-text-secondary">
-                    {primaryInterface.txRate != null ? formatRate(primaryInterface.txRate) : formatBytes(primaryInterface.tx)}
-                  </span>
-                </div>
-              ) : undefined}
-              hint={primaryInterface
-                ? `Cumul RX ${formatBytes(primaryInterface.rx)} · TX ${formatBytes(primaryInterface.tx)}`
-                : 'Aucune interface mesurée'}
+              aside={
+                primaryInterface ? (
+                  <div className="font-mono text-[10px] text-text-muted">
+                    <span className="block">TX</span>
+                    <span className="text-text-secondary">
+                      {primaryInterface.txRate != null
+                        ? formatRate(primaryInterface.txRate)
+                        : formatBytes(primaryInterface.tx)}
+                    </span>
+                  </div>
+                ) : undefined
+              }
+              hint={
+                primaryInterface
+                  ? `Cumul RX ${formatBytes(primaryInterface.rx)} · TX ${formatBytes(primaryInterface.tx)}`
+                  : 'Aucune interface mesurée'
+              }
             >
               <div className="flex items-center justify-between font-mono text-[10px] text-text-muted">
-                <span className="flex items-center gap-1"><ArrowDownRight className="h-3 w-3 text-net" /> {formatRate(primaryInterface?.rxRate)}</span>
-                <span className="flex items-center gap-1"><ArrowUpRight className="h-3 w-3 text-accent" /> {formatRate(primaryInterface?.txRate)}</span>
+                <span className="flex items-center gap-1">
+                  <ArrowDownRight className="h-3 w-3 text-net" />{' '}
+                  {formatRate(primaryInterface?.rxRate)}
+                </span>
+                <span className="flex items-center gap-1">
+                  <ArrowUpRight className="h-3 w-3 text-accent" />{' '}
+                  {formatRate(primaryInterface?.txRate)}
+                </span>
               </div>
             </MetricCard>
           </div>
@@ -416,13 +480,19 @@ export function DashboardPage() {
                 title="Charge télématique (CPU & RAM)"
                 subtitle="60 dernières minutes · échantillons bruts"
                 icon={<Activity className="h-3.5 w-3.5" />}
-                actions={<Badge tone="neutral">Auto {refreshInterval > 0 ? `${refreshInterval / 1000} s` : 'pause'}</Badge>}
+                actions={
+                  <Badge tone="neutral">
+                    Auto {refreshInterval > 0 ? `${refreshInterval / 1000} s` : 'pause'}
+                  </Badge>
+                }
               />
               <CardBody>
                 <Chart option={chartOption} height={272} label="Historique CPU et mémoire" />
               </CardBody>
               <CardFooter className="flex flex-wrap items-center justify-between gap-2 font-mono text-[10px] text-text-muted">
-                <span>CPU {formatPercent(cpu?.value)} · RAM {formatPercent(memoryPercent)}</span>
+                <span>
+                  CPU {formatPercent(cpu?.value)} · RAM {formatPercent(memoryPercent)}
+                </span>
                 <span>{cpuValues.length + memoryValues.length} points sur la période</span>
               </CardFooter>
             </Card>
@@ -432,14 +502,24 @@ export function DashboardPage() {
                 title="Trafic par interface"
                 subtitle="Compteurs et débits courants"
                 icon={<Network className="h-3.5 w-3.5" />}
-                actions={<Link to="/network" className="text-[11px] text-text-secondary transition-colors hover:text-text-primary">Détails</Link>}
+                actions={
+                  <Link
+                    to="/network"
+                    className="text-[11px] text-text-secondary transition-colors hover:text-text-primary"
+                  >
+                    Détails
+                  </Link>
+                }
               />
               <CardBody className="space-y-3">
                 {interfaces.length === 0 && (
                   <p className="text-sm text-text-muted">Aucune interface réseau mesurée.</p>
                 )}
                 {interfaces.slice(0, 4).map((iface) => (
-                  <div key={iface.name} className="rounded-md border border-line/70 bg-surface/50 px-3 py-2.5">
+                  <div
+                    key={iface.name}
+                    className="rounded-md border border-line/70 bg-surface/50 px-3 py-2.5"
+                  >
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-mono text-xs text-text-primary">{iface.name}</span>
                       <span className="font-mono text-[10px] text-text-muted">
@@ -468,18 +548,26 @@ export function DashboardPage() {
                 title="Services Docker"
                 subtitle={`${containerList.length} conteneur(s) observé(s)`}
                 icon={<ContainerIcon className="h-3.5 w-3.5" />}
-                actions={(
+                actions={
                   <div className="flex flex-wrap items-center gap-1.5">
-                    <Badge tone="success" dot>{runningContainers.length} actifs</Badge>
+                    <Badge tone="success" dot>
+                      {runningContainers.length} actifs
+                    </Badge>
                     <Badge tone="neutral">{stoppedContainers.length} arrêtés</Badge>
-                    <Badge tone={problemContainers.length > 0 ? 'danger' : 'neutral'} dot={problemContainers.length > 0}>
+                    <Badge
+                      tone={problemContainers.length > 0 ? 'danger' : 'neutral'}
+                      dot={problemContainers.length > 0}
+                    >
                       {problemContainers.length} incident(s)
                     </Badge>
-                    <Link to="/containers" className="ml-1 inline-flex items-center gap-1 text-[11px] text-text-secondary transition-colors hover:text-text-primary">
+                    <Link
+                      to="/containers"
+                      className="ml-1 inline-flex items-center gap-1 text-[11px] text-text-secondary transition-colors hover:text-text-primary"
+                    >
                       Gérer <ChevronRight className="h-3 w-3" />
                     </Link>
                   </div>
-                )}
+                }
               />
               <CardBody>
                 {containers.isError && <ErrorState message={containers.error.message} />}
@@ -507,12 +595,22 @@ export function DashboardPage() {
                               pulse={isRunning(container.state)}
                               label={containerStateLabel(container.state)}
                             />
-                            <span className="min-w-0 truncate text-xs font-medium text-text-primary group-hover:text-accent">{container.name}</span>
-                            <Badge tone={containerStateTone(container.state)} className="ml-auto">{containerStateLabel(container.state)}</Badge>
+                            <span className="min-w-0 truncate text-xs font-medium text-text-primary group-hover:text-accent">
+                              {container.name}
+                            </span>
+                            <Badge tone={containerStateTone(container.state)} className="ml-auto">
+                              {containerStateLabel(container.state)}
+                            </Badge>
                           </div>
-                          <p className="mt-1.5 truncate font-mono text-[10px] text-text-muted">{tag.repository}</p>
+                          <p className="mt-1.5 truncate font-mono text-[10px] text-text-muted">
+                            {tag.repository}
+                          </p>
                           <div className="mt-2 flex items-center justify-between font-mono text-[10px] text-text-muted">
-                            <span>{isRunning(container.state) ? formatUptime(container.uptimeSeconds) : containerStateLabel(container.state)}</span>
+                            <span>
+                              {isRunning(container.state)
+                                ? formatUptime(container.uptimeSeconds)
+                                : containerStateLabel(container.state)}
+                            </span>
                             <span>{container.restartCount} redémarrage(s)</span>
                           </div>
                         </Link>
@@ -523,7 +621,10 @@ export function DashboardPage() {
               </CardBody>
               <CardFooter className="flex flex-wrap items-center justify-between gap-2 font-mono text-[10px] text-text-muted">
                 <span>Lecture seule · aucune action Docker n'est exposée.</span>
-                <Link to="/events" className="inline-flex items-center gap-1 text-text-secondary hover:text-text-primary">
+                <Link
+                  to="/events"
+                  className="inline-flex items-center gap-1 text-text-secondary hover:text-text-primary"
+                >
                   Voir les événements <ChevronRight className="h-3 w-3" />
                 </Link>
               </CardFooter>
@@ -534,15 +635,28 @@ export function DashboardPage() {
                 title="Attention requise"
                 subtitle="Collecteurs, conteneurs et événements"
                 icon={<AlertTriangle className="h-3.5 w-3.5" />}
-                actions={attentionItems.length > 0 ? <Badge tone="warning">{attentionItems.length} point(s)</Badge> : <Badge tone="success">OK</Badge>}
+                actions={
+                  attentionItems.length > 0 ? (
+                    <Badge tone="warning">{attentionItems.length} point(s)</Badge>
+                  ) : (
+                    <Badge tone="success">OK</Badge>
+                  )
+                }
               />
               <CardBody className="space-y-2">
                 {attentionItems.length === 0 && (
                   <div className="flex items-start gap-2 rounded-md border border-success/20 bg-success/5 px-3 py-2.5">
-                    <CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-success" aria-hidden="true" />
+                    <CheckCircle2
+                      className="mt-0.5 h-4 w-4 shrink-0 text-success"
+                      aria-hidden="true"
+                    />
                     <div>
-                      <p className="text-xs font-medium text-text-primary">Aucune anomalie détectée</p>
-                      <p className="mt-0.5 text-[11px] text-text-muted">Les collecteurs répondent et aucun conteneur n'est en erreur.</p>
+                      <p className="text-xs font-medium text-text-primary">
+                        Aucune anomalie détectée
+                      </p>
+                      <p className="mt-0.5 text-[11px] text-text-muted">
+                        Les collecteurs répondent et aucun conteneur n'est en erreur.
+                      </p>
                     </div>
                   </div>
                 )}
@@ -553,18 +667,27 @@ export function DashboardPage() {
                     className="flex items-start gap-2 rounded-md border border-line/70 bg-surface/50 px-3 py-2.5 transition-colors hover:border-line-strong hover:bg-elevated/40"
                   >
                     <AlertTriangle
-                      className={item.tone === 'danger' ? 'mt-0.5 h-3.5 w-3.5 shrink-0 text-danger' : 'mt-0.5 h-3.5 w-3.5 shrink-0 text-warning'}
+                      className={
+                        item.tone === 'danger'
+                          ? 'mt-0.5 h-3.5 w-3.5 shrink-0 text-danger'
+                          : 'mt-0.5 h-3.5 w-3.5 shrink-0 text-warning'
+                      }
                       aria-hidden="true"
                     />
                     <div className="min-w-0">
                       <p className="truncate text-xs font-medium text-text-primary">{item.title}</p>
-                      <p className="mt-0.5 line-clamp-2 text-[11px] text-text-muted">{item.detail}</p>
+                      <p className="mt-0.5 line-clamp-2 text-[11px] text-text-muted">
+                        {item.detail}
+                      </p>
                     </div>
                   </Link>
                 ))}
               </CardBody>
               <CardFooter>
-                <Link to="/events" className="inline-flex items-center gap-1 text-[11px] text-text-secondary transition-colors hover:text-text-primary">
+                <Link
+                  to="/events"
+                  className="inline-flex items-center gap-1 text-[11px] text-text-secondary transition-colors hover:text-text-primary"
+                >
                   Consulter le journal <ChevronRight className="h-3 w-3" />
                 </Link>
               </CardFooter>
@@ -577,29 +700,50 @@ export function DashboardPage() {
                 title="Journal d'activité récent"
                 subtitle="Dernières 24 heures"
                 icon={<Activity className="h-3.5 w-3.5" />}
-                actions={<Link to="/events" className="text-[11px] text-text-secondary transition-colors hover:text-text-primary">Tout voir</Link>}
+                actions={
+                  <Link
+                    to="/events"
+                    className="text-[11px] text-text-secondary transition-colors hover:text-text-primary"
+                  >
+                    Tout voir
+                  </Link>
+                }
               />
               <CardBody className="space-y-1">
                 {events.isError && <ErrorState message={events.error.message} />}
                 {!events.isError && (events.data ?? []).length === 0 && (
-                  <p className="py-6 text-center text-sm text-text-muted">Aucun événement enregistré sur les dernières 24 heures.</p>
+                  <p className="py-6 text-center text-sm text-text-muted">
+                    Aucun événement enregistré sur les dernières 24 heures.
+                  </p>
                 )}
                 {(events.data ?? []).map((event) => (
-                  <div key={event.id} className="flex items-start gap-3 rounded-md px-2 py-2.5 transition-colors hover:bg-elevated/30">
+                  <div
+                    key={event.id}
+                    className="flex items-start gap-3 rounded-md px-2 py-2.5 transition-colors hover:bg-elevated/30"
+                  >
                     <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-line bg-surface text-text-muted">
                       <EventIcon type={event.type} />
                     </span>
                     <div className="min-w-0 flex-1">
                       <div className="flex flex-wrap items-center gap-2">
-                        <p className="text-xs font-medium text-text-primary">{eventTypeLabel(event.type)}</p>
-                        <Badge tone={eventTone(event.severity)}>{eventSeverityLabel(event.severity)}</Badge>
+                        <p className="text-xs font-medium text-text-primary">
+                          {eventTypeLabel(event.type)}
+                        </p>
+                        <Badge tone={eventTone(event.severity)}>
+                          {eventSeverityLabel(event.severity)}
+                        </Badge>
                       </div>
-                      <p className="mt-0.5 line-clamp-2 text-[11px] text-text-muted">{event.message}</p>
+                      <p className="mt-0.5 line-clamp-2 text-[11px] text-text-muted">
+                        {event.message}
+                      </p>
                     </div>
                     <div className="shrink-0 text-right font-mono text-[10px] text-text-muted">
                       <span className="block">{formatRelativeTime(event.occurredAt)}</span>
                       {event.containerId && (
-                        <Link to={`/containers/${encodeURIComponent(event.containerId)}`} className="text-accent hover:underline">
+                        <Link
+                          to={`/containers/${encodeURIComponent(event.containerId)}`}
+                          className="text-accent hover:underline"
+                        >
                           conteneur
                         </Link>
                       )}
@@ -614,31 +758,58 @@ export function DashboardPage() {
                 title="État des collecteurs"
                 subtitle="Supervision locale"
                 icon={<ShieldCheck className="h-3.5 w-3.5" />}
-                actions={<Link to="/settings" className="text-[11px] text-text-secondary transition-colors hover:text-text-primary">Configurer</Link>}
+                actions={
+                  <Link
+                    to="/settings"
+                    className="text-[11px] text-text-secondary transition-colors hover:text-text-primary"
+                  >
+                    Configurer
+                  </Link>
+                }
               />
               <CardBody className="space-y-3">
-                {dashboard.data && Object.entries(dashboard.data.collectors).map(([name, collector]) => (
-                  <div key={name} className="flex items-center justify-between gap-3 rounded-md border border-line/70 bg-surface/50 px-3 py-2.5">
-                    <div className="flex items-center gap-2">
-                      <StatusDot tone={collector.status === 'ok' ? 'success' : 'warning'} pulse={collector.status === 'ok'} />
-                      <span className="text-xs font-medium text-text-primary">{name === 'system' ? 'Système' : 'Docker'}</span>
+                {dashboard.data &&
+                  Object.entries(dashboard.data.collectors).map(([name, collector]) => (
+                    <div
+                      key={name}
+                      className="flex items-center justify-between gap-3 rounded-md border border-line/70 bg-surface/50 px-3 py-2.5"
+                    >
+                      <div className="flex items-center gap-2">
+                        <StatusDot
+                          tone={collector.status === 'ok' ? 'success' : 'warning'}
+                          pulse={collector.status === 'ok'}
+                        />
+                        <span className="text-xs font-medium text-text-primary">
+                          {name === 'system' ? 'Système' : 'Docker'}
+                        </span>
+                      </div>
+                      <div className="text-right font-mono text-[10px] text-text-muted">
+                        <span className="block uppercase tracking-wider">{collector.status}</span>
+                        <span>
+                          {collector.lastSuccessAt
+                            ? formatRelativeTime(collector.lastSuccessAt)
+                            : 'jamais'}
+                        </span>
+                      </div>
                     </div>
-                    <div className="text-right font-mono text-[10px] text-text-muted">
-                      <span className="block uppercase tracking-wider">{collector.status}</span>
-                      <span>{collector.lastSuccessAt ? formatRelativeTime(collector.lastSuccessAt) : 'jamais'}</span>
-                    </div>
-                  </div>
-                ))}
+                  ))}
                 <div className="rounded-md border border-line/70 bg-surface/50 px-3 py-2.5">
-                  <p className="font-mono text-[10px] uppercase tracking-wider text-text-muted">Hôte</p>
-                  <p className="mt-1 text-xs text-text-primary">{dashboard.data?.host.hostname || '—'}</p>
+                  <p className="font-mono text-[10px] uppercase tracking-wider text-text-muted">
+                    Hôte
+                  </p>
+                  <p className="mt-1 text-xs text-text-primary">
+                    {dashboard.data?.host.hostname || '—'}
+                  </p>
                   <p className="mt-0.5 font-mono text-[10px] text-text-muted">
-                    Uptime {formatUptime(dashboard.data?.host.uptimeSeconds)} · noyau {dashboard.data?.host.kernelVersion || '—'}
+                    Uptime {formatUptime(dashboard.data?.host.uptimeSeconds)} · noyau{' '}
+                    {dashboard.data?.host.kernelVersion || '—'}
                   </p>
                 </div>
               </CardBody>
               <CardFooter className="font-mono text-[10px] text-text-muted">
-                {lastCollection ? `Dernière collecte ${formatRelativeTime(lastCollection)}` : 'Aucune collecte réussie'}
+                {lastCollection
+                  ? `Dernière collecte ${formatRelativeTime(lastCollection)}`
+                  : 'Aucune collecte réussie'}
               </CardFooter>
             </Card>
           </div>

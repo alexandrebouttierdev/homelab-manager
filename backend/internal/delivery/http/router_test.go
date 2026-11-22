@@ -104,21 +104,44 @@ func TestProtectedMutationRejectsCrossOrigin(t *testing.T) {
 	}
 }
 
-func TestTimeRangeRejectsUnimplementedAggregationAndCursors(t *testing.T) {
+func TestTimeRangeRejectsEventStepsAndCursors(t *testing.T) {
 	tests := []struct {
-		name  string
-		query string
+		name     string
+		path     string
+		accepted map[string]bool
 	}{
-		{"aggregation", "?from=2026-11-20T00:00:00Z&to=2026-11-21T00:00:00Z&step=1m"},
-		{"cursor", "?from=2026-11-20T00:00:00Z&to=2026-11-21T00:00:00Z&cursor=opaque"},
+		{"event aggregation", "/api/v1/events?from=2026-11-20T00:00:00Z&to=2026-11-21T00:00:00Z&step=1m", eventQueryParameters},
+		{"event label", "/api/v1/events?from=2026-11-20T00:00:00Z&to=2026-11-21T00:00:00Z&label=core:all", eventQueryParameters},
+		{"cursor", "/api/v1/host/metrics/cpu.percent?from=2026-11-20T00:00:00Z&to=2026-11-21T00:00:00Z&cursor=opaque", metricQueryParameters},
+		{"repeated limit", "/api/v1/host/metrics/cpu.percent?from=2026-11-20T00:00:00Z&to=2026-11-21T00:00:00Z&limit=1&limit=2", metricQueryParameters},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			request := httptest.NewRequest(http.MethodGet, "/api/v1/events"+test.query, nil)
-			if _, _, _, err := timeRange(request); err == nil {
-				t.Fatal("expected unsupported query option to be rejected")
+			request := httptest.NewRequest(http.MethodGet, test.path, nil)
+			if _, _, _, err := timeRange(request, test.accepted); err == nil {
+				t.Fatal("expected the query option to be rejected")
 			}
 		})
+	}
+}
+
+func TestMetricOptions(t *testing.T) {
+	valid := httptest.NewRequest(http.MethodGet, "/x?step=5m&label=core:all&label=interface:veth1a2b", nil)
+	step, resolution, labels, err := metricOptions(valid)
+	if err != nil || step != 5*time.Minute || resolution != "5m" || labels["core"] != "all" || labels["interface"] != "veth1a2b" {
+		t.Fatalf("metricOptions = (%v, %q, %v, %v)", step, resolution, labels, err)
+	}
+	if step, resolution, _, err := metricOptions(httptest.NewRequest(http.MethodGet, "/x", nil)); err != nil || step != 0 || resolution != "raw" {
+		t.Fatalf("default = (%v, %q, %v), want raw", step, resolution, err)
+	}
+	for _, query := range []string{
+		"?step=2m", "?label=core", "?label=Core:all", "?label=core:", "?label=core:a&label=core:b",
+		"?label=a:1&label=b:2&label=c:3&label=d:4&label=e:5",
+		"?label=$.x:1",
+	} {
+		if _, _, _, err := metricOptions(httptest.NewRequest(http.MethodGet, "/x"+query, nil)); err == nil {
+			t.Errorf("%s should be rejected", query)
+		}
 	}
 }
 
@@ -172,6 +195,18 @@ func TestMetricHistoryValidatesPathParameters(t *testing.T) {
 	for _, valid := range []string{"9369be23-5ad3-467d-b954-470b622a1442", "aaaaaaaaaaaa", strings.Repeat("f", 64)} {
 		if !containerIDPattern.MatchString(valid) {
 			t.Errorf("%q should be a valid container ID", valid)
+		}
+	}
+}
+
+func TestUpdateRetentionValidatesTheBody(t *testing.T) {
+	// A nil usecase proves validation happens before any change.
+	handler := updateRetentionHandler(nil)
+	for _, body := range []string{``, `{}`, `{"metricsRetentionDays":0}`, `{"metricsRetentionDays":366}`, `{"metricsRetentionDays":"7"}`, `{"metricsRetentionDays":7,"extra":1}`} {
+		recorder := httptest.NewRecorder()
+		handler.ServeHTTP(recorder, httptest.NewRequest(http.MethodPut, "/api/v1/settings/retention", strings.NewReader(body)))
+		if recorder.Code != http.StatusBadRequest {
+			t.Errorf("body %q returned %d, want 400", body, recorder.Code)
 		}
 	}
 }

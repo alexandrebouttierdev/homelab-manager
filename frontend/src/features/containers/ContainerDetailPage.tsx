@@ -66,12 +66,15 @@ const ranges: Array<{ value: RangeKey; label: string; milliseconds: number }> = 
 ]
 
 function rangeStart(range: RangeKey): Date {
-  const milliseconds = ranges.find((item) => item.value === range)?.milliseconds ?? ranges[0].milliseconds
+  const milliseconds =
+    ranges.find((item) => item.value === range)?.milliseconds ?? ranges[0].milliseconds
   return new Date(Date.now() - milliseconds)
 }
 
 function buildTimestamps(...seriesList: Array<Array<{ recordedAt: string }>>): string[] {
-  return Array.from(new Set(seriesList.flatMap((values) => values.map((value) => value.recordedAt)))).sort()
+  return Array.from(
+    new Set(seriesList.flatMap((values) => values.map((value) => value.recordedAt))),
+  ).sort()
 }
 
 function buildChartOption(
@@ -107,7 +110,11 @@ function buildChartOption(
       data: timestamps,
       axisTick: { show: false },
       axisLine: { lineStyle: { color: theme.axis } },
-      axisLabel: { color: theme.muted, fontSize: 10, formatter: (value: string) => formatShortTime(value) },
+      axisLabel: {
+        color: theme.muted,
+        fontSize: 10,
+        formatter: (value: string) => formatShortTime(value),
+      },
     },
     yAxis: {
       type: 'value',
@@ -176,7 +183,8 @@ export function ContainerDetailPage() {
   })
   const events = useQuery({
     queryKey: ['container', containerID, 'events'],
-    queryFn: () => getContainerEvents(containerID, new Date(Date.now() - 24 * 60 * 60 * 1000), new Date(), 100),
+    queryFn: () =>
+      getContainerEvents(containerID, new Date(Date.now() - 24 * 60 * 60 * 1000), new Date(), 100),
     enabled: Boolean(containerID),
     refetchInterval: refreshInterval || false,
   })
@@ -192,10 +200,7 @@ export function ContainerDetailPage() {
   const rxBytes = latestOne(samples, 'network.rx_bytes')?.value ?? null
   const txBytes = latestOne(samples, 'network.tx_bytes')?.value ?? null
 
-  const cpuSeries = useMemo(
-    () => series(cpuHistory.data ?? [], 'cpu.percent'),
-    [cpuHistory.data],
-  )
+  const cpuSeries = useMemo(() => series(cpuHistory.data ?? [], 'cpu.percent'), [cpuHistory.data])
   const memorySeries = useMemo(
     () => series(memoryHistory.data ?? [], 'memory.percent'),
     [memoryHistory.data],
@@ -218,24 +223,30 @@ export function ContainerDetailPage() {
           { label: 'Conteneurs', to: '/containers' },
           { label: data?.name ?? 'Détail' },
         ]}
-        badge={data ? (
-          <>
-            <Badge tone={containerStateTone(data.state)} dot>{containerStateLabel(data.state)}</Badge>
-            {data.removedAt && <Badge tone="danger">Supprimé</Badge>}
-          </>
-        ) : undefined}
-        description={data
-          ? (
-              <>
-                <span className="font-mono">{data.image}</span>
-                {' · '}
-                <span className="font-mono">{shortId(data.dockerId, 24)}</span>
-                {' · observé '}
-                {formatRelativeTime(data.lastObservedAt)}
-              </>
-            )
-          : 'Informations détaillées du conteneur Docker local.'}
-        actions={(
+        badge={
+          data ? (
+            <>
+              <Badge tone={containerStateTone(data.state)} dot>
+                {containerStateLabel(data.state)}
+              </Badge>
+              {data.removedAt && <Badge tone="danger">Supprimé</Badge>}
+            </>
+          ) : undefined
+        }
+        description={
+          data ? (
+            <>
+              <span className="font-mono">{data.image}</span>
+              {' · '}
+              <span className="font-mono">{shortId(data.dockerId, 24)}</span>
+              {' · observé '}
+              {formatRelativeTime(data.lastObservedAt)}
+            </>
+          ) : (
+            'Informations détaillées du conteneur Docker local.'
+          )
+        }
+        actions={
           <>
             <Link
               to="/containers"
@@ -248,16 +259,25 @@ export function ContainerDetailPage() {
               size="sm"
               variant="secondary"
               icon={<RefreshCw className="h-3.5 w-3.5" />}
-              onClick={() => { void queryClient.invalidateQueries({ queryKey: ['container', containerID] }) }}
+              onClick={() => {
+                void queryClient.invalidateQueries({ queryKey: ['container', containerID] })
+              }}
             >
               Rafraîchir
             </Button>
           </>
-        )}
+        }
       />
 
       {container.isLoading && <LoadingState label="Chargement du conteneur…" rows={2} />}
-      {container.isError && <ErrorState message={container.error.message} onRetry={() => { void container.refetch() }} />}
+      {container.isError && (
+        <ErrorState
+          message={container.error.message}
+          onRetry={() => {
+            void container.refetch()
+          }}
+        />
+      )}
 
       {data && (
         <>
@@ -267,7 +287,9 @@ export function ContainerDetailPage() {
               title="Charge courante"
               value={formatPercent(cpu)}
               badge={<Badge tone="info">CPU</Badge>}
-              hint={isRunning(data.state) ? 'Statistiques Docker en direct' : 'Conteneur non démarré'}
+              hint={
+                isRunning(data.state) ? 'Statistiques Docker en direct' : 'Conteneur non démarré'
+              }
             >
               <ProgressBar value={cpu} tone="cpu" label="Utilisation CPU" />
             </MetricCard>
@@ -296,8 +318,16 @@ export function ContainerDetailPage() {
               label="Disponibilité"
               title={data.restartPolicy ? `Politique ${data.restartPolicy}` : 'Politique inconnue'}
               value={isRunning(data.state) ? formatUptime(data.uptimeSeconds) : '—'}
-              badge={<Badge tone={data.restartCount > 0 ? 'warning' : 'neutral'}>{data.restartCount} redémarrage(s)</Badge>}
-              hint={data.startedAt ? `Démarré ${formatRelativeTime(data.startedAt)}` : 'Date de démarrage indisponible'}
+              badge={
+                <Badge tone={data.restartCount > 0 ? 'warning' : 'neutral'}>
+                  {data.restartCount} redémarrage(s)
+                </Badge>
+              }
+              hint={
+                data.startedAt
+                  ? `Démarré ${formatRelativeTime(data.startedAt)}`
+                  : 'Date de démarrage indisponible'
+              }
             />
           </div>
 
@@ -306,43 +336,77 @@ export function ContainerDetailPage() {
               title="Historique CPU & mémoire"
               subtitle={`${range.replace('h', ' heure(s)')} · échantillons bruts`}
               icon={<Activity className="h-3.5 w-3.5" />}
-              actions={(
+              actions={
                 <SegmentedTabs
                   ariaLabel="Période de l'historique"
                   value={range}
                   onChange={setRange}
                   options={ranges.map((item) => ({ value: item.value, label: item.label }))}
                 />
-              )}
+              }
             />
             <CardBody>
               {cpuHistory.isError || memoryHistory.isError ? (
-                <ErrorState message={(cpuHistory.error ?? memoryHistory.error)?.message ?? 'Historique indisponible.'} />
+                <ErrorState
+                  message={
+                    (cpuHistory.error ?? memoryHistory.error)?.message ?? 'Historique indisponible.'
+                  }
+                />
               ) : cpuSeries.length === 0 && memorySeries.length === 0 ? (
-                <p className="py-8 text-center text-sm text-text-muted">Aucun échantillon sur la période sélectionnée.</p>
+                <p className="py-8 text-center text-sm text-text-muted">
+                  Aucun échantillon sur la période sélectionnée.
+                </p>
               ) : (
-                <Chart option={chartOption} height={300} label="Historique CPU et mémoire du conteneur" />
+                <Chart
+                  option={chartOption}
+                  height={300}
+                  label="Historique CPU et mémoire du conteneur"
+                />
               )}
             </CardBody>
             <CardFooter className="flex flex-wrap items-center justify-between gap-2 font-mono text-[10px] text-text-muted">
-              <span>{cpuSeries.length} point(s) CPU · {memorySeries.length} point(s) mémoire</span>
+              <span>
+                {cpuSeries.length} point(s) CPU · {memorySeries.length} point(s) mémoire
+              </span>
               <span>Les valeurs sont des échantillons bruts, sans agrégation.</span>
             </CardFooter>
           </Card>
 
           <div className="grid items-start gap-4 xl:grid-cols-2">
             <Card>
-              <CardHeader title="Configuration observée" icon={<ContainerIcon className="h-3.5 w-3.5" />} />
+              <CardHeader
+                title="Configuration observée"
+                icon={<ContainerIcon className="h-3.5 w-3.5" />}
+              />
               <CardBody>
                 <dl className="grid gap-3 sm:grid-cols-2">
-                  <DetailItem label="Image" value={<span className="font-mono">{data.image}</span>} />
+                  <DetailItem
+                    label="Image"
+                    value={<span className="font-mono">{data.image}</span>}
+                  />
                   <DetailItem label="Tag" value={<Badge tone="neutral">{tag?.tag ?? '—'}</Badge>} />
-                  <DetailItem label="ID Docker" value={<span className="font-mono">{shortId(data.dockerId, 24)}</span>} />
-                  <DetailItem label="État" value={<Badge tone={containerStateTone(data.state)}>{containerStateLabel(data.state)}</Badge>} />
+                  <DetailItem
+                    label="ID Docker"
+                    value={<span className="font-mono">{shortId(data.dockerId, 24)}</span>}
+                  />
+                  <DetailItem
+                    label="État"
+                    value={
+                      <Badge tone={containerStateTone(data.state)}>
+                        {containerStateLabel(data.state)}
+                      </Badge>
+                    }
+                  />
                   <DetailItem label="Créé le" value={formatDateTime(data.createdAt)} />
                   <DetailItem label="Démarré le" value={formatDateTime(data.startedAt)} />
-                  <DetailItem label="Dernière observation" value={formatDateTime(data.lastObservedAt)} />
-                  <DetailItem label="Politique de redémarrage" value={<span className="font-mono">{data.restartPolicy || '—'}</span>} />
+                  <DetailItem
+                    label="Dernière observation"
+                    value={formatDateTime(data.lastObservedAt)}
+                  />
+                  <DetailItem
+                    label="Politique de redémarrage"
+                    value={<span className="font-mono">{data.restartPolicy || '—'}</span>}
+                  />
                 </dl>
               </CardBody>
             </Card>
@@ -351,23 +415,34 @@ export function ContainerDetailPage() {
               <CardHeader title="Réseaux & ports" icon={<Network className="h-3.5 w-3.5" />} />
               <CardBody className="space-y-4">
                 <div>
-                  <p className="mb-2 font-mono text-[10px] uppercase tracking-wider text-text-muted">Réseaux attachés</p>
+                  <p className="mb-2 font-mono text-[10px] uppercase tracking-wider text-text-muted">
+                    Réseaux attachés
+                  </p>
                   {data.networks.length === 0 ? (
                     <p className="text-sm text-text-muted">Aucun réseau rapporté.</p>
                   ) : (
                     <div className="flex flex-wrap gap-1.5">
-                      {data.networks.map((network) => <Badge key={network} tone="neutral">{network}</Badge>)}
+                      {data.networks.map((network) => (
+                        <Badge key={network} tone="neutral">
+                          {network}
+                        </Badge>
+                      ))}
                     </div>
                   )}
                 </div>
                 <div>
-                  <p className="mb-2 font-mono text-[10px] uppercase tracking-wider text-text-muted">Ports publiés</p>
+                  <p className="mb-2 font-mono text-[10px] uppercase tracking-wider text-text-muted">
+                    Ports publiés
+                  </p>
                   {ports.length === 0 ? (
                     <p className="text-sm text-text-muted">Aucun port publié.</p>
                   ) : (
                     <ul className="space-y-1.5">
                       {ports.map((port) => (
-                        <li key={port} className="flex items-center gap-2 font-mono text-xs text-text-secondary">
+                        <li
+                          key={port}
+                          className="flex items-center gap-2 font-mono text-xs text-text-secondary"
+                        >
                           <ExternalLink className="h-3 w-3 text-text-muted" aria-hidden="true" />
                           {port}
                         </li>
@@ -391,14 +466,23 @@ export function ContainerDetailPage() {
               ) : (
                 <Table minWidthClassName="min-w-[720px]" className="rounded-none border-0">
                   <THead>
-                    <tr><TH>Source</TH><TH>Destination</TH><TH>Type</TH><TH>Accès</TH></tr>
+                    <tr>
+                      <TH>Source</TH>
+                      <TH>Destination</TH>
+                      <TH>Type</TH>
+                      <TH>Accès</TH>
+                    </tr>
                   </THead>
                   <TBody>
                     {data.mounts.map((mount, index) => (
                       <TR key={`${mountField(mount, 'source')}-${index}`}>
                         <TD className="font-mono text-xs">{mountField(mount, 'source') || '—'}</TD>
-                        <TD className="font-mono text-xs">{mountField(mount, 'destination') || '—'}</TD>
-                        <TD><Badge tone="neutral">{mountField(mount, 'type') || '—'}</Badge></TD>
+                        <TD className="font-mono text-xs">
+                          {mountField(mount, 'destination') || '—'}
+                        </TD>
+                        <TD>
+                          <Badge tone="neutral">{mountField(mount, 'type') || '—'}</Badge>
+                        </TD>
                         <TD>{mountField(mount, 'rw') || '—'}</TD>
                       </TR>
                     ))}
@@ -413,7 +497,14 @@ export function ContainerDetailPage() {
               title="Événements du conteneur"
               subtitle="Dernières 24 heures"
               icon={<RotateCw className="h-3.5 w-3.5" />}
-              actions={<Link to="/events" className="text-[11px] text-text-secondary transition-colors hover:text-text-primary">Journal global</Link>}
+              actions={
+                <Link
+                  to="/events"
+                  className="text-[11px] text-text-secondary transition-colors hover:text-text-primary"
+                >
+                  Journal global
+                </Link>
+              }
             />
             <CardBody className="space-y-1">
               {events.isError && <ErrorState message={events.error.message} />}
@@ -426,18 +517,28 @@ export function ContainerDetailPage() {
                 />
               )}
               {(events.data ?? []).map((event) => (
-                <div key={event.id} className="flex items-start gap-3 rounded-md px-2 py-2.5 hover:bg-elevated/30">
+                <div
+                  key={event.id}
+                  className="flex items-start gap-3 rounded-md px-2 py-2.5 hover:bg-elevated/30"
+                >
                   <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-md border border-line bg-surface text-text-muted">
                     <EventIcon type={event.type} />
                   </span>
                   <div className="min-w-0 flex-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      <p className="text-xs font-medium text-text-primary">{eventTypeLabel(event.type)}</p>
-                      <Badge tone={eventTone(event.severity)}>{eventSeverityLabel(event.severity)}</Badge>
+                      <p className="text-xs font-medium text-text-primary">
+                        {eventTypeLabel(event.type)}
+                      </p>
+                      <Badge tone={eventTone(event.severity)}>
+                        {eventSeverityLabel(event.severity)}
+                      </Badge>
                     </div>
                     <p className="mt-0.5 text-[11px] text-text-muted">{event.message}</p>
                   </div>
-                  <span className="shrink-0 font-mono text-[10px] text-text-muted" title={formatDateTime(event.occurredAt)}>
+                  <span
+                    className="shrink-0 font-mono text-[10px] text-text-muted"
+                    title={formatDateTime(event.occurredAt)}
+                  >
                     {formatRelativeTime(event.occurredAt)}
                   </span>
                 </div>

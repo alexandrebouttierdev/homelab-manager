@@ -11,7 +11,7 @@ Le Backend démarre en arrière-plan des collecteurs locaux indépendants : syst
 | Collecte système | `system_collect_interval_seconds` | 5–300 s | 10 s |
 | Statistiques Docker | `docker_collect_interval_seconds` | 5–300 s | 15 s |
 | Découverte Docker (inventaire + événements) | `docker_discovery_interval_seconds` | 10–600 s | 30 s |
-| Rétention | `metrics_retention_days` | 1–365 jours | 30 jours |
+| Rétention | `metrics_retention_days`, puis interface | 1–365 jours | 7 jours |
 | Purge | fixe | — | au démarrage puis toutes les heures |
 
 Chaque cycle s'exécute une première fois au démarrage, puis à son intervalle, dans sa propre goroutine. Un cycle dispose d'un délai maximal de `min(max(intervalle, 10 s), 30 s)` ; au-delà, son contexte est annulé et l'erreur est journalisée. Une collecte système échouée ne bloque pas Docker, et inversement. Rien n'est mis en file d'attente en mémoire : un cycle manqué est perdu, le suivant repart de l'état courant.
@@ -125,8 +125,8 @@ Les bytes de lecture/écriture viennent des entrées read/write de `blkio_stats.
 
 ## 4. Historique, fraîcheur et rétention
 
-Échantillons horodatés en UTC, écrits par lots dans SQLite. Par défaut, 30 jours de données brutes et d'événements sont conservés (configurable de 1 à 365 jours). La purge horaire supprime tout ce qui est plus ancien que la rétention, par lots, sur l'index temporel. Les endpoints imposent bornes temporelles et plafonds de points ; agrégation et curseurs sont spécifiés dans API_CONTRACTS.md § 9, pas encore implémentés.
+Échantillons horodatés en UTC, écrits par lots dans SQLite. Par défaut, 7 jours de données brutes et d'événements sont conservés. La valeur de la configuration (`metrics_retention_days`, 1–365) est la valeur par défaut ; l'utilisateur la remplace depuis Paramètres (API_CONTRACTS.md § 4.4), avec effet immédiat et purge aussitôt. La purge horaire supprime tout ce qui est plus ancien que la rétention, par lots, sur l'index temporel. Les historiques s'agrègent à la lecture (1 min, 5 min, 1 h) ; aucun agrégat n'est stocké.
 
-**Volume attendu.** Mesuré sur une machine à 8 cœurs, 4 systèmes de fichiers, 5 disques, 2 interfaces et 20 capteurs : environ 100 échantillons par cycle, soit **≈ 870 000 lignes par jour à l'intervalle par défaut de 10 s, ≈ 340 octets par ligne index compris, ≈ 300 Mo par jour**. La taille stable de la base est d'environ `300 Mo × rétention en jours` (≈ 9 Go pour 30 jours), plus environ 10 à 15 échantillons par conteneur en cours d'exécution tous les 15 s. Pour réduire le volume : allonger `system_collect_interval_seconds` (le volume est inversement proportionnel) ou réduire `metrics_retention_days`. Une réduction structurelle passe par des agrégats conservés plus longtemps que les données brutes (décision produit, PRODUCT_SPEC.md § 7).
+**Volume attendu.** Mesuré sur une machine à 8 cœurs, 4 systèmes de fichiers, 5 disques, 2 interfaces et 20 capteurs : environ 100 échantillons par cycle, soit **≈ 870 000 lignes par jour à l'intervalle par défaut de 10 s, ≈ 340 octets par ligne index compris, ≈ 300 Mo par jour**. La taille stable de la base est d'environ `300 Mo × rétention en jours` (≈ 2 Go pour les 7 jours par défaut, ≈ 9 Go pour 30 jours), plus environ 10 à 15 échantillons par conteneur en cours d'exécution tous les 15 s. Pour réduire le volume : allonger `system_collect_interval_seconds` (le volume est inversement proportionnel) ou réduire la rétention. L'interface affiche l'estimation de taille correspondant à la rétention saisie.
 
 Les vues courantes affichent `status`/`lastSuccessAt` du collecteur selon API_CONTRACTS.md § 4.1 (`starting`, `ok`, `stale` au-delà de 3 intervalles sans succès, `unavailable`). Une valeur zéro est une mesure réelle égale à zéro, pas une donnée inconnue.

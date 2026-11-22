@@ -37,7 +37,10 @@ export function TH({ className, children, ...props }: ThHTMLAttributes<HTMLTable
   return (
     <th
       scope="col"
-      className={cn('whitespace-nowrap px-4 py-2.5 font-mono text-[10px] font-medium uppercase tracking-wider text-text-muted', className)}
+      className={cn(
+        'whitespace-nowrap px-4 py-2.5 font-mono text-[10px] font-medium uppercase tracking-wider text-text-muted',
+        className,
+      )}
       {...props}
     >
       {children}
@@ -47,7 +50,13 @@ export function TH({ className, children, ...props }: ThHTMLAttributes<HTMLTable
 
 export function TD({ className, children, ...props }: TdHTMLAttributes<HTMLTableCellElement>) {
   return (
-    <td className={cn('border-t border-line/70 px-4 py-3 align-middle text-text-secondary', className)} {...props}>
+    <td
+      className={cn(
+        'border-t border-line/70 px-4 py-3 align-middle text-text-secondary',
+        className,
+      )}
+      {...props}
+    >
       {children}
     </td>
   )

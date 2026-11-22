@@ -18,7 +18,10 @@ export function Select({ className, containerClassName, children, ...props }: Se
       >
         {children}
       </select>
-      <ChevronDown className="pointer-events-none absolute right-2.5 h-3.5 w-3.5 text-text-muted" aria-hidden="true" />
+      <ChevronDown
+        className="pointer-events-none absolute right-2.5 h-3.5 w-3.5 text-text-muted"
+        aria-hidden="true"
+      />
     </div>
   )
 }

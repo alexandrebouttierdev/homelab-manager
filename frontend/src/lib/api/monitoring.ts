@@ -1,4 +1,4 @@
-import { requestJSON } from './client'
+import { ApiError, requestJSON } from './client'
 
 export type CollectorStatus = {
   status: string
@@ -11,6 +11,10 @@ export type MetricSample = {
   unit: string
   labels: Record<string, string> | null
   recordedAt: string
+  /** Present on aggregated samples: value is then the bucket mean. */
+  min?: number
+  max?: number
+  count?: number
 }
 
 export type HostInfo = {
@@ -68,7 +72,67 @@ export type MonitoringSettings = {
   dockerCollectIntervalSeconds: number
   dockerDiscoveryIntervalSeconds: number
   metricsRetentionDays: number
+  metricsRetentionDefaultDays: number
+  metricsRetentionSource: 'config' | 'user'
   collectors: { system: CollectorStatus; docker: CollectorStatus }
+}
+
+export type MetricStep = 'raw' | '1m' | '5m' | '1h'
+
+const metricSteps: MetricStep[] = ['raw', '1m', '5m', '1h']
+const historyLimit = 2000
+
+/** Resolution recommended for a time range (docs/API_CONTRACTS.md § 5.3). */
+export function stepForRange(milliseconds: number): MetricStep {
+  const hour = 60 * 60 * 1000
+  if (milliseconds <= hour) return 'raw'
+  if (milliseconds <= 6 * hour) return '1m'
+  if (milliseconds <= 24 * hour) return '5m'
+  return '1h'
+}
+
+export type HistoryOptions = {
+  to?: Date
+  /** Keep only the series carrying these label values (server-side). */
+  labels?: Record<string, string>
+  /** Defaults to stepForRange(to - from). */
+  step?: MetricStep
+}
+
+/**
+ * Loads a metric history, moving to the next coarser step when the range
+ * holds too many points: a raw answer filling the limit is truncated, an
+ * aggregated one is refused with TOO_MANY_POINTS.
+ */
+async function metricHistory(
+  path: string,
+  from: Date,
+  options: HistoryOptions,
+): Promise<MetricSample[]> {
+  const to = options.to ?? new Date()
+  let index = metricSteps.indexOf(options.step ?? stepForRange(to.getTime() - from.getTime()))
+  for (;;) {
+    const step = metricSteps[index]
+    const query = new URLSearchParams(timeRangeQuery(from, to, historyLimit))
+    query.set('step', step)
+    for (const [key, value] of Object.entries(options.labels ?? {}))
+      query.append('label', `${key}:${value}`)
+    const coarser = index < metricSteps.length - 1
+    try {
+      const body = await requestJSON<{ samples: MetricSample[] }>(`${path}?${query.toString()}`)
+      if (step === 'raw' && body.samples.length >= historyLimit && coarser) {
+        index += 1
+        continue
+      }
+      return body.samples
+    } catch (error) {
+      if (error instanceof ApiError && error.code === 'TOO_MANY_POINTS' && coarser) {
+        index += 1
+        continue
+      }
+      throw error
+    }
+  }
 }
 
 function timeRangeQuery(from: Date, to: Date, limit?: number): string {
@@ -92,11 +156,8 @@ export function getCurrentHostMetrics() {
   return requestJSON<CurrentMetrics>('/api/v1/host/metrics/current')
 }
 
-export async function getHostMetrics(metric: string, from: Date, to = new Date(), limit?: number) {
-  const body = await requestJSON<{ samples: MetricSample[] }>(
-    `/api/v1/host/metrics/${encodeURIComponent(metric)}?${timeRangeQuery(from, to, limit)}`,
-  )
-  return body.samples
+export function getHostMetrics(metric: string, from: Date, options: HistoryOptions = {}) {
+  return metricHistory(`/api/v1/host/metrics/${encodeURIComponent(metric)}`, from, options)
 }
 
 export async function getHostTemperatures() {
@@ -120,17 +181,17 @@ export function getCurrentContainerMetrics(containerID: string) {
   )
 }
 
-export async function getContainerMetrics(
+export function getContainerMetrics(
   containerID: string,
   metric: string,
   from: Date,
-  to = new Date(),
-  limit?: number,
+  options: HistoryOptions = {},
 ) {
-  const body = await requestJSON<{ samples: MetricSample[] }>(
-    `/api/v1/containers/${encodeURIComponent(containerID)}/metrics/${encodeURIComponent(metric)}?${timeRangeQuery(from, to, limit)}`,
+  return metricHistory(
+    `/api/v1/containers/${encodeURIComponent(containerID)}/metrics/${encodeURIComponent(metric)}`,
+    from,
+    options,
   )
-  return body.samples
 }
 
 export async function getContainerEvents(
@@ -156,4 +217,11 @@ export async function listEvents(options: { from?: Date; to?: Date; limit?: numb
 
 export function getSettings() {
   return requestJSON<MonitoringSettings>('/api/v1/settings')
+}
+
+export function updateRetention(metricsRetentionDays: number) {
+  return requestJSON<MonitoringSettings>('/api/v1/settings/retention', {
+    method: 'PUT',
+    body: JSON.stringify({ metricsRetentionDays }),
+  })
 }

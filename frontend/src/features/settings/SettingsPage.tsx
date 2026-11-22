@@ -29,6 +29,7 @@ import { formatRelativeTime } from '../../lib/format'
 import { useTheme, type Theme } from '../../lib/theme'
 import { passwordSchema, type PasswordValues } from '../../schemas/password'
 import { APP_VERSION } from '../../lib/version'
+import { RetentionForm } from './RetentionForm'
 
 export function SettingsPage() {
   const queryClient = useQueryClient()
@@ -49,12 +50,16 @@ export function SettingsPage() {
   })
 
   const password = useMutation({
-    mutationFn: (values: PasswordValues) => changePassword(values.currentPassword, values.newPassword),
+    mutationFn: (values: PasswordValues) =>
+      changePassword(values.currentPassword, values.newPassword),
     // The Manager revokes every session, including this one, after a change.
     onSuccess: () => {
       reset()
       queryClient.removeQueries({ queryKey: ['session'] })
-      navigate('/login', { replace: true, state: { notice: 'Mot de passe modifié. Reconnectez-vous avec le nouveau mot de passe.' } })
+      navigate('/login', {
+        replace: true,
+        state: { notice: 'Mot de passe modifié. Reconnectez-vous avec le nouveau mot de passe.' },
+      })
     },
   })
   const signOut = useMutation({
@@ -65,9 +70,10 @@ export function SettingsPage() {
     },
   })
 
-  const passwordError = password.error instanceof ApiError && password.error.status === 401
-    ? 'Le mot de passe actuel est incorrect.'
-    : password.error?.message
+  const passwordError =
+    password.error instanceof ApiError && password.error.status === 401
+      ? 'Le mot de passe actuel est incorrect.'
+      : password.error?.message
 
   return (
     <div className="space-y-4">
@@ -78,8 +84,17 @@ export function SettingsPage() {
         description="Configuration effective du Manager, apparence de l'interface et sécurité du compte administrateur local."
       />
 
-      {settings.isError && <ErrorState message={settings.error.message} onRetry={() => { void settings.refetch() }} />}
-      {settings.isLoading && !settings.isError && <LoadingState label="Chargement de la configuration…" rows={2} />}
+      {settings.isError && (
+        <ErrorState
+          message={settings.error.message}
+          onRetry={() => {
+            void settings.refetch()
+          }}
+        />
+      )}
+      {settings.isLoading && !settings.isError && (
+        <LoadingState label="Chargement de la configuration…" rows={2} />
+      )}
 
       {settings.data && (
         <>
@@ -87,28 +102,58 @@ export function SettingsPage() {
             <Card className="xl:col-span-2">
               <CardHeader
                 title="Supervision"
-                subtitle="Valeurs actives définies par la configuration locale"
+                subtitle="Valeurs actives du service"
                 icon={<MonitorCog className="h-3.5 w-3.5" />}
-                actions={<Badge tone="accent">Lecture seule</Badge>}
               />
               <CardBody>
                 <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
-                  <SettingCard label="Collecte système" value={`${settings.data.systemCollectIntervalSeconds} s`} icon={<Clock3 className="h-3.5 w-3.5" />} />
-                  <SettingCard label="Statistiques Docker" value={`${settings.data.dockerCollectIntervalSeconds} s`} icon={<RefreshCw className="h-3.5 w-3.5" />} />
-                  <SettingCard label="Découverte Docker" value={`${settings.data.dockerDiscoveryIntervalSeconds} s`} icon={<Database className="h-3.5 w-3.5" />} />
-                  <SettingCard label="Rétention des métriques" value={`${settings.data.metricsRetentionDays} jours`} icon={<Clock3 className="h-3.5 w-3.5" />} />
+                  <SettingCard
+                    label="Collecte système"
+                    value={`${settings.data.systemCollectIntervalSeconds} s`}
+                    icon={<Clock3 className="h-3.5 w-3.5" />}
+                  />
+                  <SettingCard
+                    label="Statistiques Docker"
+                    value={`${settings.data.dockerCollectIntervalSeconds} s`}
+                    icon={<RefreshCw className="h-3.5 w-3.5" />}
+                  />
+                  <SettingCard
+                    label="Découverte Docker"
+                    value={`${settings.data.dockerDiscoveryIntervalSeconds} s`}
+                    icon={<Database className="h-3.5 w-3.5" />}
+                  />
+                  <SettingCard
+                    label="Rétention des métriques"
+                    value={`${settings.data.metricsRetentionDays} jours`}
+                    icon={<Clock3 className="h-3.5 w-3.5" />}
+                  />
                 </div>
               </CardBody>
               <CardFooter className="font-mono text-[10px] text-text-muted">
-                Les valeurs sont définies dans le fichier de configuration ou les variables d'environnement du service. Un redémarrage est nécessaire après modification.
+                Les fréquences de collecte sont définies dans la configuration du service et
+                nécessitent un redémarrage. La rétention se règle ci-dessous, sans redémarrage.
               </CardFooter>
             </Card>
 
+            <RetentionForm settings={settings.data} />
+
             <Card>
-              <CardHeader title="Collecteurs" subtitle="État de la supervision locale" icon={<ShieldCheck className="h-3.5 w-3.5" />} />
+              <CardHeader
+                title="Collecteurs"
+                subtitle="État de la supervision locale"
+                icon={<ShieldCheck className="h-3.5 w-3.5" />}
+              />
               <CardBody className="space-y-3">
-                <CollectorRow name="Système" status={settings.data.collectors.system.status} lastSuccessAt={settings.data.collectors.system.lastSuccessAt} />
-                <CollectorRow name="Docker" status={settings.data.collectors.docker.status} lastSuccessAt={settings.data.collectors.docker.lastSuccessAt} />
+                <CollectorRow
+                  name="Système"
+                  status={settings.data.collectors.system.status}
+                  lastSuccessAt={settings.data.collectors.system.lastSuccessAt}
+                />
+                <CollectorRow
+                  name="Docker"
+                  status={settings.data.collectors.docker.status}
+                  lastSuccessAt={settings.data.collectors.docker.lastSuccessAt}
+                />
                 <div className="rounded-md border border-line/70 bg-surface/50 px-3 py-2.5 font-mono text-[10px] text-text-muted">
                   <p>Le Manager supervise uniquement cette machine.</p>
                   <p className="mt-1">Aucun agent distant n'est requis.</p>
@@ -160,14 +205,19 @@ export function SettingsPage() {
                       <UserRound className="h-3.5 w-3.5" />
                     </span>
                     <div>
-                      <p className="text-xs font-medium text-text-primary">{session.data?.user.username ?? 'administrateur'}</p>
+                      <p className="text-xs font-medium text-text-primary">
+                        {session.data?.user.username ?? 'administrateur'}
+                      </p>
                       <p className="font-mono text-[10px] text-text-muted">Session authentifiée</p>
                     </div>
                   </div>
-                  <Badge tone="success" dot>Active</Badge>
+                  <Badge tone="success" dot>
+                    Active
+                  </Badge>
                 </div>
                 <p className="text-xs leading-relaxed text-text-secondary">
-                  La session est protégée par un cookie HTTP-only. La déconnexion révoque immédiatement la session côté Manager.
+                  La session est protégée par un cookie HTTP-only. La déconnexion révoque
+                  immédiatement la session côté Manager.
                 </p>
                 <Button
                   variant="danger"
@@ -178,7 +228,11 @@ export function SettingsPage() {
                 >
                   Se déconnecter
                 </Button>
-                {signOut.isError && <p className="text-xs text-danger" role="alert">{signOut.error.message}</p>}
+                {signOut.isError && (
+                  <p className="text-xs text-danger" role="alert">
+                    {signOut.error.message}
+                  </p>
+                )}
               </CardBody>
             </Card>
           </div>
@@ -196,7 +250,10 @@ export function SettingsPage() {
                 noValidate
               >
                 <div className="sm:col-span-2">
-                  <label htmlFor="currentPassword" className="mb-1.5 block font-mono text-[10px] uppercase tracking-wider text-text-secondary">
+                  <label
+                    htmlFor="currentPassword"
+                    className="mb-1.5 block font-mono text-[10px] uppercase tracking-wider text-text-secondary"
+                  >
                     Mot de passe actuel
                   </label>
                   <input
@@ -206,10 +263,15 @@ export function SettingsPage() {
                     className="h-10 w-full rounded-md border border-line bg-surface px-3 text-sm text-text-primary outline-none transition-colors focus:border-accent/60"
                     {...register('currentPassword')}
                   />
-                  {errors.currentPassword && <p className="mt-1 text-xs text-danger">{errors.currentPassword.message}</p>}
+                  {errors.currentPassword && (
+                    <p className="mt-1 text-xs text-danger">{errors.currentPassword.message}</p>
+                  )}
                 </div>
                 <div>
-                  <label htmlFor="newPassword" className="mb-1.5 block font-mono text-[10px] uppercase tracking-wider text-text-secondary">
+                  <label
+                    htmlFor="newPassword"
+                    className="mb-1.5 block font-mono text-[10px] uppercase tracking-wider text-text-secondary"
+                  >
                     Nouveau mot de passe
                   </label>
                   <input
@@ -219,10 +281,15 @@ export function SettingsPage() {
                     className="h-10 w-full rounded-md border border-line bg-surface px-3 text-sm text-text-primary outline-none transition-colors focus:border-accent/60"
                     {...register('newPassword')}
                   />
-                  {errors.newPassword && <p className="mt-1 text-xs text-danger">{errors.newPassword.message}</p>}
+                  {errors.newPassword && (
+                    <p className="mt-1 text-xs text-danger">{errors.newPassword.message}</p>
+                  )}
                 </div>
                 <div>
-                  <label htmlFor="confirmPassword" className="mb-1.5 block font-mono text-[10px] uppercase tracking-wider text-text-secondary">
+                  <label
+                    htmlFor="confirmPassword"
+                    className="mb-1.5 block font-mono text-[10px] uppercase tracking-wider text-text-secondary"
+                  >
                     Confirmer le mot de passe
                   </label>
                   <input
@@ -232,17 +299,27 @@ export function SettingsPage() {
                     className="h-10 w-full rounded-md border border-line bg-surface px-3 text-sm text-text-primary outline-none transition-colors focus:border-accent/60"
                     {...register('confirmPassword')}
                   />
-                  {errors.confirmPassword && <p className="mt-1 text-xs text-danger">{errors.confirmPassword.message}</p>}
+                  {errors.confirmPassword && (
+                    <p className="mt-1 text-xs text-danger">{errors.confirmPassword.message}</p>
+                  )}
                 </div>
 
                 {passwordError && (
-                  <div className="rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger sm:col-span-2" role="alert">
+                  <div
+                    className="rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger sm:col-span-2"
+                    role="alert"
+                  >
                     {passwordError}
                   </div>
                 )}
 
                 <div className="sm:col-span-2">
-                  <Button type="submit" variant="primary" loading={password.isPending} icon={<KeyRound className="h-4 w-4" />}>
+                  <Button
+                    type="submit"
+                    variant="primary"
+                    loading={password.isPending}
+                    icon={<KeyRound className="h-4 w-4" />}
+                  >
                     Enregistrer le mot de passe
                   </Button>
                 </div>
@@ -256,12 +333,27 @@ export function SettingsPage() {
       )}
 
       <Card>
-        <CardHeader title="À propos" subtitle="Homelab Manager · architecture mono-hôte" icon={<Database className="h-3.5 w-3.5" />} />
+        <CardHeader
+          title="À propos"
+          subtitle="Homelab Manager · architecture mono-hôte"
+          icon={<Database className="h-3.5 w-3.5" />}
+        />
         <CardBody className="grid gap-3 text-xs text-text-secondary sm:grid-cols-2">
-          <p>Backend Go, API REST Chi, SQLite et collecte locale des métriques système et Docker.</p>
-          <p>Frontend React, TypeScript strict, Tailwind CSS et ECharts. Aucune dépendance cloud n'est requise pour le fonctionnement normal.</p>
-          <p>Le Manager n'expose ni socket Docker, ni commande arbitraire, ni administration des conteneurs au navigateur.</p>
-          <p>Les fonctionnalités non implémentées sont explicitement signalées comme indisponibles dans la navigation.</p>
+          <p>
+            Backend Go, API REST Chi, SQLite et collecte locale des métriques système et Docker.
+          </p>
+          <p>
+            Frontend React, TypeScript strict, Tailwind CSS et ECharts. Aucune dépendance cloud
+            n'est requise pour le fonctionnement normal.
+          </p>
+          <p>
+            Le Manager n'expose ni socket Docker, ni commande arbitraire, ni administration des
+            conteneurs au navigateur.
+          </p>
+          <p>
+            Les fonctionnalités non implémentées sont explicitement signalées comme indisponibles
+            dans la navigation.
+          </p>
         </CardBody>
         <CardFooter className="flex flex-wrap items-center justify-between gap-2 font-mono text-[10px] text-text-muted">
           <span>Version {APP_VERSION}</span>
@@ -272,7 +364,15 @@ export function SettingsPage() {
   )
 }
 
-function SettingCard({ label, value, icon }: { label: string; value: string; icon: React.ReactNode }) {
+function SettingCard({
+  label,
+  value,
+  icon,
+}: {
+  label: string
+  value: string
+  icon: React.ReactNode
+}) {
   return (
     <div className="rounded-md border border-line/70 bg-surface/50 p-3">
       <div className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-text-muted">
@@ -284,7 +384,15 @@ function SettingCard({ label, value, icon }: { label: string; value: string; ico
   )
 }
 
-function CollectorRow({ name, status, lastSuccessAt }: { name: string; status: string; lastSuccessAt: string | null }) {
+function CollectorRow({
+  name,
+  status,
+  lastSuccessAt,
+}: {
+  name: string
+  status: string
+  lastSuccessAt: string | null
+}) {
   return (
     <div className="flex items-center justify-between gap-3 rounded-md border border-line/70 bg-surface/50 px-3 py-2.5">
       <div className="flex items-center gap-2">
@@ -324,12 +432,14 @@ function ThemeChoice({
           : 'border-line bg-surface/50 hover:border-line-strong hover:bg-elevated/50',
       )}
     >
-      <span className={cn(
-        'flex h-10 w-10 shrink-0 items-center justify-center rounded-md border',
-        theme === 'dark'
-          ? 'border-line-strong bg-[#111315] text-[#8b9cfb]'
-          : 'border-[#dde1e7] bg-[#f3f4f6] text-[#4f5fd7]',
-      )}>
+      <span
+        className={cn(
+          'flex h-10 w-10 shrink-0 items-center justify-center rounded-md border',
+          theme === 'dark'
+            ? 'border-line-strong bg-[#111315] text-[#8b9cfb]'
+            : 'border-[#dde1e7] bg-[#f3f4f6] text-[#4f5fd7]',
+        )}
+      >
         {theme === 'dark' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
       </span>
       <span className="min-w-0">

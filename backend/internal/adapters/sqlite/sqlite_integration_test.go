@@ -10,7 +10,6 @@ import (
 	"testing"
 	"time"
 
-	"homelab-manager/backend/ent"
 	"homelab-manager/backend/internal/domain"
 
 	"github.com/google/uuid"
@@ -20,7 +19,8 @@ func TestSQLiteIntegration(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()
 
-	client := openTestDatabase(t, ctx)
+	database := openTestDatabase(t, ctx)
+	client := database.Client()
 
 	authRepository := NewAuthRepository(client)
 	username := "integration-" + uuid.NewString()
@@ -48,7 +48,7 @@ func TestSQLiteIntegration(t *testing.T) {
 		t.Fatalf("find active session = (%v, %v), want session %s", activeSession, err, session.ID)
 	}
 
-	repository := NewMonitoringRepository(client)
+	repository := NewMonitoringRepository(database)
 	host := domain.HostInfo{
 		Hostname: "integration-host", Distribution: "Debian", OSVersion: "13",
 		KernelVersion: "test-kernel",
@@ -72,7 +72,7 @@ func TestSQLiteIntegration(t *testing.T) {
 	if err := repository.SaveSystemMetrics(ctx, []domain.MetricSample{systemSample}); err != nil {
 		t.Fatalf("save system metrics: %v", err)
 	}
-	systemMetrics, err := repository.ListMetrics(ctx, nil, "cpu.percent", old.Add(-time.Second), old.Add(time.Second), 10)
+	systemMetrics, err := repository.ListMetrics(ctx, domain.MetricQuery{ContainerID: nil, Name: "cpu.percent", From: old.Add(-time.Second), To: old.Add(time.Second), Limit: 10})
 	if err != nil || len(systemMetrics) != 1 || systemMetrics[0].Value != systemSample.Value {
 		t.Fatalf("list system metrics = (%v, %v), want saved sample", systemMetrics, err)
 	}
@@ -103,7 +103,7 @@ func TestSQLiteIntegration(t *testing.T) {
 	if err := repository.SaveContainerMetrics(ctx, []domain.MetricSample{containerSample}); err != nil {
 		t.Fatalf("save container metrics: %v", err)
 	}
-	containerMetrics, err := repository.ListMetrics(ctx, &dockerID, "cpu.percent", old.Add(-time.Second), old.Add(time.Second), 10)
+	containerMetrics, err := repository.ListMetrics(ctx, domain.MetricQuery{ContainerID: &dockerID, Name: "cpu.percent", From: old.Add(-time.Second), To: old.Add(time.Second), Limit: 10})
 	if err != nil || len(containerMetrics) != 1 || containerMetrics[0].Value != containerSample.Value {
 		t.Fatalf("list container metrics = (%v, %v), want saved sample", containerMetrics, err)
 	}
@@ -174,8 +174,8 @@ func TestOpenReappliesMigrationsAndKeepsData(t *testing.T) {
 		t.Fatalf("busy_timeout = (%d, %v), want %d", busyTimeoutMillis, err, busyTimeout.Milliseconds())
 	}
 	var migrationsApplied int
-	if err := second.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM schema_migrations").Scan(&migrationsApplied); err != nil || migrationsApplied != 1 {
-		t.Fatalf("schema_migrations rows = (%d, %v), want 1", migrationsApplied, err)
+	if err := second.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM schema_migrations").Scan(&migrationsApplied); err != nil || migrationsApplied != 2 {
+		t.Fatalf("schema_migrations rows = (%d, %v), want 2", migrationsApplied, err)
 	}
 
 	info, err := os.Stat(path)
@@ -223,7 +223,7 @@ func TestMetricRangesAreTimezoneIndependent(t *testing.T) {
 
 	from := base.Add(30 * time.Minute).In(paris)
 	to := base.Add(2 * time.Hour)
-	got, err := repository.ListMetrics(ctx, nil, "memory.used_percent", from, to, 100)
+	got, err := repository.ListMetrics(ctx, domain.MetricQuery{ContainerID: nil, Name: "memory.used_percent", From: from, To: to, Limit: 100})
 	if err != nil {
 		t.Fatalf("list metrics: %v", err)
 	}
@@ -280,7 +280,7 @@ func TestConcurrentWritersAndReaders(t *testing.T) {
 		go func() {
 			defer wg.Done()
 			for range batches {
-				if _, err := repository.ListMetrics(ctx, nil, "cpu.percent", start, start.Add(time.Hour), 2000); err != nil {
+				if _, err := repository.ListMetrics(ctx, domain.MetricQuery{ContainerID: nil, Name: "cpu.percent", From: start, To: start.Add(time.Hour), Limit: 2000}); err != nil {
 					errs <- err
 					return
 				}
@@ -292,13 +292,13 @@ func TestConcurrentWritersAndReaders(t *testing.T) {
 	for err := range errs {
 		t.Fatalf("concurrent access failed: %v", err)
 	}
-	got, err := repository.ListMetrics(ctx, nil, "cpu.percent", start, start.Add(time.Hour), 2000)
+	got, err := repository.ListMetrics(ctx, domain.MetricQuery{ContainerID: nil, Name: "cpu.percent", From: start, To: start.Add(time.Hour), Limit: 2000})
 	if err != nil || len(got) != workers*batches*perBatch {
 		t.Fatalf("stored samples = (%d, %v), want %d", len(got), err, workers*batches*perBatch)
 	}
 }
 
-func openTestDatabase(t *testing.T, ctx context.Context) *ent.Client {
+func openTestDatabase(t *testing.T, ctx context.Context) *Database {
 	t.Helper()
 	database, err := Open(ctx, filepath.Join(t.TempDir(), "homelab-manager.db"))
 	if err != nil {
@@ -309,7 +309,7 @@ func openTestDatabase(t *testing.T, ctx context.Context) *ent.Client {
 			t.Errorf("close SQLite database: %v", err)
 		}
 	})
-	return database.Client()
+	return database
 }
 
 // The current view must contain the whole latest cycle, however many series
@@ -373,5 +373,99 @@ func TestLatestMetricsReturnsTheWholeLatestCycle(t *testing.T) {
 	missing := "ffffffffffff"
 	if _, err := repository.LatestMetrics(ctx, &missing, now.Add(-time.Minute)); !errors.Is(err, domain.ErrContainerNotFound) {
 		t.Fatalf("unknown container error = %v, want ErrContainerNotFound", err)
+	}
+}
+
+func TestAggregatedHistoryAndLabelFilter(t *testing.T) {
+	ctx := context.Background()
+	repository := NewMonitoringRepository(openTestDatabase(t, ctx))
+	start := time.Date(2026, 11, 22, 10, 0, 0, 0, time.UTC)
+	samples := make([]domain.MetricSample, 0)
+	// Two series every 10 s for 10 minutes: core=all at value i, core=0 at 100+i.
+	for i := range 60 {
+		at := start.Add(time.Duration(i) * 10 * time.Second)
+		samples = append(samples,
+			domain.MetricSample{ID: uuid.New(), Name: "cpu.percent", Value: float64(i), Unit: "percent", Labels: map[string]string{"core": "all"}, RecordedAt: at},
+			domain.MetricSample{ID: uuid.New(), Name: "cpu.percent", Value: float64(100 + i), Unit: "percent", Labels: map[string]string{"core": "0"}, RecordedAt: at},
+		)
+	}
+	if err := repository.SaveSystemMetrics(ctx, samples); err != nil {
+		t.Fatalf("save: %v", err)
+	}
+	window := domain.MetricQuery{Name: "cpu.percent", From: start, To: start.Add(10 * time.Minute), Limit: 2000}
+
+	filtered := window
+	filtered.Labels = map[string]string{"core": "all"}
+	raw, err := repository.ListMetrics(ctx, filtered)
+	if err != nil || len(raw) != 60 || raw[0].Labels["core"] != "all" || raw[0].Aggregate != nil {
+		t.Fatalf("raw filtered = (%d samples, %v), want 60 core=all raw samples", len(raw), err)
+	}
+
+	perFiveMinutes := filtered
+	perFiveMinutes.Step = 5 * time.Minute
+	buckets, err := repository.ListMetrics(ctx, perFiveMinutes)
+	if err != nil || len(buckets) != 2 {
+		t.Fatalf("5m buckets = (%v, %v), want 2", buckets, err)
+	}
+	first := buckets[0]
+	if !first.RecordedAt.Equal(start) || first.Aggregate == nil || first.Aggregate.Count != 30 ||
+		first.Value != 14.5 || first.Aggregate.Min != 0 || first.Aggregate.Max != 29 || first.Unit != "percent" {
+		t.Fatalf("first bucket = %+v (aggregate %+v), want mean 14.5 of 30 samples from %v", first, first.Aggregate, start)
+	}
+	if !buckets[1].RecordedAt.Equal(start.Add(5*time.Minute)) || buckets[1].Value != 44.5 {
+		t.Fatalf("second bucket = %+v, want mean 44.5 at +5 min", buckets[1])
+	}
+
+	allSeries := window
+	allSeries.Step = time.Minute
+	perMinute, err := repository.ListMetrics(ctx, allSeries)
+	if err != nil || len(perMinute) != 20 {
+		t.Fatalf("1m buckets for 2 series = (%d, %v), want 20", len(perMinute), err)
+	}
+	for i := 1; i < len(perMinute); i++ {
+		if perMinute[i].RecordedAt.Before(perMinute[i-1].RecordedAt) {
+			t.Fatal("aggregated samples must be in chronological order")
+		}
+	}
+
+	tooSmall := allSeries
+	tooSmall.Limit = 19
+	if _, err := repository.ListMetrics(ctx, tooSmall); !errors.Is(err, domain.ErrTooManyPoints) {
+		t.Fatalf("over-limit aggregation error = %v, want ErrTooManyPoints", err)
+	}
+
+	injected := window
+	injected.Labels = map[string]string{`core") OR 1=1 --`: "x"}
+	if _, err := repository.ListMetrics(ctx, injected); err == nil {
+		t.Fatal("a label key outside [a-z0-9_] must be rejected")
+	}
+}
+
+func TestSettingsRepositoryStoresRetentionWithAudit(t *testing.T) {
+	ctx := context.Background()
+	database := openTestDatabase(t, ctx)
+	repository := NewSettingsRepository(database)
+
+	if days, err := repository.RetentionDays(ctx); err != nil || days != nil {
+		t.Fatalf("initial retention = (%v, %v), want nil (configuration applies)", days, err)
+	}
+	audit := domain.AuditEntry{Actor: "admin", TargetType: "settings", TargetID: "metrics_retention_days", Action: "update", Outcome: "success", RequestID: "req-1"}
+	for _, days := range []int{14, 7} {
+		if err := repository.SetRetentionDays(ctx, days, audit); err != nil {
+			t.Fatalf("set %d: %v", days, err)
+		}
+	}
+	if days, err := repository.RetentionDays(ctx); err != nil || days == nil || *days != 7 {
+		t.Fatalf("stored retention = (%v, %v), want 7", days, err)
+	}
+	entries, err := database.Client().AuditLog.Query().All(ctx)
+	if err != nil || len(entries) != 2 || entries[0].Actor != "admin" || entries[0].RequestID != "req-1" {
+		t.Fatalf("audit entries = (%v, %v), want two entries by admin", entries, err)
+	}
+	if err := repository.SetRetentionDays(ctx, 400, audit); err == nil {
+		t.Fatal("the database must reject a retention above 365 days")
+	}
+	if days, _ := repository.RetentionDays(ctx); days == nil || *days != 7 {
+		t.Fatalf("a rejected update must leave the retention unchanged, got %v", days)
 	}
 }

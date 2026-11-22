@@ -63,6 +63,7 @@ func NewRouter(logger *zap.Logger, health *usecase.HealthUsecase, auth *usecase.
 			protected.Get("/containers/{containerID}/events", listEventsHandler(monitoring, true))
 			protected.Get("/events", listEventsHandler(monitoring, false))
 			protected.Get("/settings", settingsHandler(monitoring))
+			protected.Put("/settings/retention", updateRetentionHandler(monitoring))
 		})
 	})
 	if webRoot != "" {

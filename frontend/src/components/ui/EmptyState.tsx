@@ -19,7 +19,9 @@ export function EmptyState({
   className,
 }: EmptyStateProps) {
   return (
-    <Card className={cn('flex flex-col items-center justify-center px-6 py-12 text-center', className)}>
+    <Card
+      className={cn('flex flex-col items-center justify-center px-6 py-12 text-center', className)}
+    >
       <span className="mb-3 flex h-11 w-11 items-center justify-center rounded-lg border border-line bg-elevated text-text-muted">
         <Icon className="h-5 w-5" aria-hidden="true" />
       </span>

@@ -7,7 +7,8 @@ type ButtonSize = 'sm' | 'md'
 
 const variants: Record<ButtonVariant, string> = {
   primary: 'border border-transparent bg-accent text-on-accent hover:bg-accent/90',
-  secondary: 'border border-line bg-card text-text-secondary hover:bg-elevated hover:text-text-primary',
+  secondary:
+    'border border-line bg-card text-text-secondary hover:bg-elevated hover:text-text-primary',
   ghost: 'border border-transparent text-text-secondary hover:bg-elevated hover:text-text-primary',
   danger: 'border border-danger/30 bg-danger/10 text-danger hover:bg-danger/20',
 }

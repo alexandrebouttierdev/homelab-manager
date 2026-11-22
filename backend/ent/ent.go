@@ -6,6 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"homelab-manager/backend/ent/appsetting"
 	"homelab-manager/backend/ent/auditlog"
 	"homelab-manager/backend/ent/container"
 	"homelab-manager/backend/ent/containermetricsample"
@@ -80,6 +81,7 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
+			appsetting.Table:            appsetting.ValidColumn,
 			auditlog.Table:              auditlog.ValidColumn,
 			container.Table:             container.ValidColumn,
 			containermetricsample.Table: containermetricsample.ValidColumn,

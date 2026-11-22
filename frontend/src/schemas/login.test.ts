@@ -12,6 +12,8 @@ describe('loginSchema', () => {
   })
 
   it('rejects oversized passwords', () => {
-    expect(loginSchema.safeParse({ username: 'admin', password: 'x'.repeat(1025) }).success).toBe(false)
+    expect(loginSchema.safeParse({ username: 'admin', password: 'x'.repeat(1025) }).success).toBe(
+      false,
+    )
   })
 })

@@ -25,7 +25,10 @@ export function SegmentedTabs<T extends string | number>({
     <div
       role="group"
       aria-label={ariaLabel}
-      className={cn('inline-flex flex-wrap items-center gap-1 rounded-lg border border-line bg-card p-1', className)}
+      className={cn(
+        'inline-flex flex-wrap items-center gap-1 rounded-lg border border-line bg-card p-1',
+        className,
+      )}
     >
       {options.map((option) => {
         const active = option.value === value
@@ -44,10 +47,12 @@ export function SegmentedTabs<T extends string | number>({
           >
             {option.label}
             {option.count != null && (
-              <span className={cn(
-                'rounded-sm px-1 font-mono text-[10px]',
-                active ? 'bg-accent/15 text-accent' : 'bg-elevated text-text-muted',
-              )}>
+              <span
+                className={cn(
+                  'rounded-sm px-1 font-mono text-[10px]',
+                  active ? 'bg-accent/15 text-accent' : 'bg-elevated text-text-muted',
+                )}
+              >
                 {option.count}
               </span>
             )}

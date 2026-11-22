@@ -39,12 +39,14 @@ Modèle logique d'Ent et SQLite. Il décrit un hôte unique et ses conteneurs lo
 - La version actuelle enregistre les changements d'état de conteneur ; les événements hôte/collecteur ne sont pas encore persistés.
 
 ### AuditLog
-- UUID, acteur local, cible, action, request ID, résultat, timestamp.
-- Le schéma est préparé ; les opérations administratives ne sont pas encore journalisées par cette version.
+- UUID, acteur local, cible (`target_type`, `target_id`), action, request ID, résultat, timestamp.
+- Écrit dans la même transaction que la modification qu'il trace. Aujourd'hui : modification de la rétention (`settings` / `metrics_retention_days` / `update`). Les modules d'administration v3 y journaliseront chaque action (SPEC_ADMINISTRATION.md § 2.2).
+
+### AppSetting
+- Ligne singleton (`singleton_key = 'local'`) des réglages modifiés depuis l'interface : `metrics_retention_days` (NULL = valeur de la configuration du service, contrainte `CHECK` 1–365), `updated_at`.
 
 ### Configuration locale
-- Fréquences de collecte, rétention et autres paramètres locaux résident par défaut dans la configuration du service, pas dans la base.
-- N'ajouter une table de configuration que si une API d'administration persistante est spécifiée.
+- Fréquences de collecte et autres paramètres résident dans la configuration du service. Seuls les réglages modifiables depuis l'interface (aujourd'hui la rétention) sont dans `app_settings`, et l'emportent sur la configuration.
 
 ## Séries temporelles et croissance
 
@@ -58,12 +60,12 @@ Le stockage est un fichier SQLite unique ; aucune base de séries temporelles ni
 - Une seule connexion ouverte : les accès du Manager sont sérialisés, il n'y a pas d'erreur `SQLITE_BUSY` interne. Une transaction ne doit utiliser que son `tx`, sous peine de blocage.
 - Les pages libérées par la purge sont réutilisées ; le fichier ne rétrécit pas sans `VACUUM` manuel, Manager arrêté.
 
-- Volume : environ 870 000 échantillons hôte par jour à l'intervalle par défaut (≈ 300 Mo/jour, ≈ 9 Go pour 30 jours) ; détail et leviers dans METRICS_COLLECTION.md § 4.
+- Volume : environ 870 000 échantillons hôte par jour à l'intervalle par défaut (≈ 300 Mo/jour, ≈ 2 Go pour 7 jours) ; détail et leviers dans METRICS_COLLECTION.md § 4.
 - Vue courante : tous les échantillons d'un cycle partagent un même `recorded_at`, ce qui permet de lire le dernier cycle complet par égalité sur l'horodatage maximal (index `recorded_at`).
-- Durée de conservation brute par défaut : 30 jours, configurable de 1 à 365 jours.
+- Durée de conservation brute par défaut : 7 jours, configurable de 1 à 365 jours (configuration puis interface).
 - Purger toutes les heures, par lots de 1 000 lignes sur `recorded_at`, jusqu'à épuisement ; chaque lot est une écriture courte, pour ne pas bloquer les collectes.
 - Les événements et métriques sont purgés par lots selon la même rétention.
-- Limiter l'intervalle et le nombre de points retournés par l'API. Les pas agrégés et la pagination par curseur ne sont pas encore implémentés.
+- Limiter l'intervalle et le nombre de points retournés par l'API. L'agrégation se fait en SQL à la lecture (`GROUP BY` série et intervalle, horodatage converti par `strftime('%s', substr(recorded_at, 1, 19))`) ; la pagination par curseur n'est pas implémentée.
 - Mesures non disponibles : valeur absente/null ou absence d'échantillon avec fraîcheur explicite, jamais un zéro fictif.
 
 ## Intégrité et migrations
@@ -73,4 +75,4 @@ Le stockage est un fichier SQLite unique ; aucune base de séries temporelles ni
 - Horodatages UTC et migrations versionnées/reproductibles.
 - Les modèles Ent restent confinés aux adaptateurs ; DTO et domaine sont indépendants.
 - Les valeurs volatiles de stats ne sont pas dupliquées comme état courant dans `Container` si le dernier échantillon peut servir de source.
-- `001_initial.sql` crée le schéma SQLite complet ; les migrations suivantes s'ajoutent sous un nouveau numéro, sans modifier les fichiers déjà livrés. Les anciennes migrations PostgreSQL ont été retirées et leurs données ne sont pas reprises.
+- `001_initial.sql` crée le schéma SQLite initial, `002_app_settings.sql` la table `app_settings` ; les migrations suivantes s'ajoutent sous un nouveau numéro, sans modifier les fichiers déjà livrés. Les anciennes migrations PostgreSQL ont été retirées et leurs données ne sont pas reprises.

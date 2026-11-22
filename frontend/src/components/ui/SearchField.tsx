@@ -17,7 +17,12 @@ export function SearchField({
   className,
 }: SearchFieldProps) {
   return (
-    <div className={cn('flex h-9 min-w-0 items-center gap-2 rounded-md border border-line bg-card px-3 text-text-secondary transition-colors focus-within:border-accent/60', className)}>
+    <div
+      className={cn(
+        'flex h-9 min-w-0 items-center gap-2 rounded-md border border-line bg-card px-3 text-text-secondary transition-colors focus-within:border-accent/60',
+        className,
+      )}
+    >
       <Search className="h-4 w-4 shrink-0 text-text-muted" aria-hidden="true" />
       <input
         type="search"

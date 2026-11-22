@@ -3,6 +3,7 @@
 package ent
 
 import (
+	"homelab-manager/backend/ent/appsetting"
 	"homelab-manager/backend/ent/auditlog"
 	"homelab-manager/backend/ent/container"
 	"homelab-manager/backend/ent/containermetricsample"
@@ -21,6 +22,22 @@ import (
 // (default values, validators, hooks and policies) and stitches it
 // to their package variables.
 func init() {
+	appsettingFields := schema.AppSetting{}.Fields()
+	_ = appsettingFields
+	// appsettingDescSingletonKey is the schema descriptor for singleton_key field.
+	appsettingDescSingletonKey := appsettingFields[1].Descriptor()
+	// appsetting.SingletonKeyValidator is a validator for the "singleton_key" field. It is called by the builders before save.
+	appsetting.SingletonKeyValidator = appsettingDescSingletonKey.Validators[0].(func(string) error)
+	// appsettingDescUpdatedAt is the schema descriptor for updated_at field.
+	appsettingDescUpdatedAt := appsettingFields[3].Descriptor()
+	// appsetting.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	appsetting.DefaultUpdatedAt = appsettingDescUpdatedAt.Default.(func() time.Time)
+	// appsetting.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	appsetting.UpdateDefaultUpdatedAt = appsettingDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// appsettingDescID is the schema descriptor for id field.
+	appsettingDescID := appsettingFields[0].Descriptor()
+	// appsetting.DefaultID holds the default value on creation for the id field.
+	appsetting.DefaultID = appsettingDescID.Default.(func() uuid.UUID)
 	auditlogFields := schema.AuditLog{}.Fields()
 	_ = auditlogFields
 	// auditlogDescActor is the schema descriptor for actor field.

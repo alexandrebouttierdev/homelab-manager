@@ -50,7 +50,7 @@ func (testMonitoringRepository) ListContainers(context.Context, bool, int) ([]do
 func (testMonitoringRepository) GetContainer(context.Context, string) (domain.Container, error) {
 	return domain.Container{}, domain.ErrContainerNotFound
 }
-func (testMonitoringRepository) ListMetrics(context.Context, *string, string, time.Time, time.Time, int) ([]domain.MetricSample, error) {
+func (testMonitoringRepository) ListMetrics(context.Context, domain.MetricQuery) ([]domain.MetricSample, error) {
 	return nil, nil
 }
 func (testMonitoringRepository) LatestMetrics(context.Context, *string, time.Time) ([]domain.MetricSample, error) {
@@ -222,5 +222,58 @@ func TestPurgeStopsWhenItsDeadlineExpires(t *testing.T) {
 	cancel()
 	if err := monitoring.purgeMetrics(ctx); !errors.Is(err, context.Canceled) {
 		t.Fatalf("purge error = %v, want context cancellation", err)
+	}
+}
+
+type memorySettings struct {
+	days  *int
+	audit []domain.AuditEntry
+}
+
+func (s *memorySettings) RetentionDays(context.Context) (*int, error) { return s.days, nil }
+func (s *memorySettings) SetRetentionDays(_ context.Context, days int, audit domain.AuditEntry) error {
+	s.days = &days
+	s.audit = append(s.audit, audit)
+	return nil
+}
+
+func TestRetentionChosenFromTheInterface(t *testing.T) {
+	stored := 3
+	settings := &memorySettings{days: &stored}
+	repository := &backlogRepository{}
+	monitoring := NewMonitoringUsecase(&testSystemCollector{}, unavailableDocker{}, repository,
+		MonitoringConfig{Retention: 7 * 24 * time.Hour}, zap.NewNop()).WithSettings(settings)
+	now := time.Date(2026, 11, 22, 12, 0, 0, 0, time.UTC)
+	monitoring.now = func() time.Time { return now }
+
+	if got := monitoring.Settings(); got.MetricsRetentionDays != 7 || got.RetentionSource != "config" || got.DefaultRetentionDays != 7 {
+		t.Fatalf("before loading = %+v, want the configured 7 days", got)
+	}
+	monitoring.loadRetention(context.Background())
+	if got := monitoring.Settings(); got.MetricsRetentionDays != 3 || got.RetentionSource != "user" {
+		t.Fatalf("after loading = %+v, want the stored 3 days", got)
+	}
+
+	for _, invalid := range []int{0, 366} {
+		if err := monitoring.UpdateRetention(context.Background(), invalid, domain.AuditEntry{Actor: "admin"}); !errors.Is(err, domain.ErrInvalidRetention) {
+			t.Fatalf("UpdateRetention(%d) error = %v, want ErrInvalidRetention", invalid, err)
+		}
+	}
+	if err := monitoring.UpdateRetention(context.Background(), 14, domain.AuditEntry{Actor: "admin"}); err != nil {
+		t.Fatalf("UpdateRetention: %v", err)
+	}
+	if *settings.days != 14 || settings.audit[0].Actor != "admin" || settings.audit[0].Action != "update" || settings.audit[0].TargetID != "metrics_retention_days" {
+		t.Fatalf("stored = %d with audit %+v", *settings.days, settings.audit)
+	}
+	select {
+	case <-monitoring.purgeNow:
+	default:
+		t.Fatal("changing the retention must request an immediate purge")
+	}
+	if err := monitoring.purgeMetrics(context.Background()); err != nil {
+		t.Fatalf("purge: %v", err)
+	}
+	if want := now.Add(-14 * 24 * time.Hour); !repository.before.Equal(want) {
+		t.Fatalf("purge cutoff = %v, want %v (new retention)", repository.before, want)
 	}
 }

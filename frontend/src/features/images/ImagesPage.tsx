@@ -47,8 +47,12 @@ export function ImagesPage() {
     return Array.from(grouped.values()).sort((left, right) => left.image.localeCompare(right.image))
   }, [containers.data])
 
-  const filtered = images.filter((image) =>
-    !search || `${image.image} ${image.repository} ${image.tag}`.toLowerCase().includes(search.toLowerCase()),
+  const filtered = images.filter(
+    (image) =>
+      !search ||
+      `${image.image} ${image.repository} ${image.tag}`
+        .toLowerCase()
+        .includes(search.toLowerCase()),
   )
 
   return (
@@ -62,17 +66,23 @@ export function ImagesPage() {
 
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="rounded-lg border border-line bg-card p-4">
-          <p className="font-mono text-[11px] uppercase tracking-wider text-text-muted">Images distinctes</p>
+          <p className="font-mono text-[11px] uppercase tracking-wider text-text-muted">
+            Images distinctes
+          </p>
           <p className="mt-1 font-mono text-2xl font-semibold text-text-primary">{images.length}</p>
         </div>
         <div className="rounded-lg border border-line bg-card p-4">
-          <p className="font-mono text-[11px] uppercase tracking-wider text-text-muted">Conteneurs associés</p>
+          <p className="font-mono text-[11px] uppercase tracking-wider text-text-muted">
+            Conteneurs associés
+          </p>
           <p className="mt-1 font-mono text-2xl font-semibold text-text-primary">
             {(containers.data ?? []).length}
           </p>
         </div>
         <div className="rounded-lg border border-line bg-card p-4">
-          <p className="font-mono text-[11px] uppercase tracking-wider text-text-muted">Images actives</p>
+          <p className="font-mono text-[11px] uppercase tracking-wider text-text-muted">
+            Images actives
+          </p>
           <p className="mt-1 font-mono text-2xl font-semibold text-success">
             {images.filter((image) => image.running > 0).length}
           </p>
@@ -87,15 +97,24 @@ export function ImagesPage() {
       />
 
       {containers.isLoading && <LoadingState label="Chargement des images…" rows={3} />}
-      {containers.isError && <ErrorState message={containers.error.message} onRetry={() => { void containers.refetch() }} />}
+      {containers.isError && (
+        <ErrorState
+          message={containers.error.message}
+          onRetry={() => {
+            void containers.refetch()
+          }}
+        />
+      )}
 
       {!containers.isLoading && !containers.isError && filtered.length === 0 && (
         <EmptyState
           icon={ImagesIcon}
           title={images.length === 0 ? 'Aucune image observée' : 'Aucune image ne correspond'}
-          description={images.length === 0
-            ? 'Les images apparaîtront dès que des conteneurs seront découverts par le collecteur Docker.'
-            : 'Modifiez la recherche pour retrouver une image.'}
+          description={
+            images.length === 0
+              ? 'Les images apparaîtront dès que des conteneurs seront découverts par le collecteur Docker.'
+              : 'Modifiez la recherche pour retrouver une image.'
+          }
         />
       )}
 
@@ -103,19 +122,35 @@ export function ImagesPage() {
         <>
           <Table minWidthClassName="min-w-[820px]">
             <THead>
-              <tr><TH>Image</TH><TH>Tag</TH><TH>Conteneurs</TH><TH>Actifs</TH><TH>États observés</TH><TH><span className="sr-only">Action</span></TH></tr>
+              <tr>
+                <TH>Image</TH>
+                <TH>Tag</TH>
+                <TH>Conteneurs</TH>
+                <TH>Actifs</TH>
+                <TH>États observés</TH>
+                <TH>
+                  <span className="sr-only">Action</span>
+                </TH>
+              </tr>
             </THead>
             <TBody>
               {filtered.map((image) => {
-                const states = Array.from(new Set(image.containers.map((container) => container.state)))
+                const states = Array.from(
+                  new Set(image.containers.map((container) => container.state)),
+                )
                 return (
                   <TR key={image.image}>
                     <TD>
-                      <span className="block max-w-[420px] truncate font-mono text-xs text-text-primary" title={image.image}>
+                      <span
+                        className="block max-w-[420px] truncate font-mono text-xs text-text-primary"
+                        title={image.image}
+                      >
                         {image.repository}
                       </span>
                     </TD>
-                    <TD><Badge tone="neutral">{image.tag}</Badge></TD>
+                    <TD>
+                      <Badge tone="neutral">{image.tag}</Badge>
+                    </TD>
                     <TD>
                       <div className="flex max-w-[280px] flex-wrap gap-1">
                         {image.containers.slice(0, 3).map((container) => (
@@ -128,18 +163,27 @@ export function ImagesPage() {
                           </Link>
                         ))}
                         {image.containers.length > 3 && (
-                          <span className="font-mono text-[10px] text-text-muted">+{image.containers.length - 3}</span>
+                          <span className="font-mono text-[10px] text-text-muted">
+                            +{image.containers.length - 3}
+                          </span>
                         )}
                       </div>
                     </TD>
                     <TD>
-                      <Badge tone={image.running > 0 ? 'success' : 'neutral'} dot={image.running > 0}>
+                      <Badge
+                        tone={image.running > 0 ? 'success' : 'neutral'}
+                        dot={image.running > 0}
+                      >
                         {image.running} / {image.containers.length}
                       </Badge>
                     </TD>
                     <TD>
                       <div className="flex flex-wrap gap-1">
-                        {states.map((state) => <Badge key={state} tone="neutral">{state}</Badge>)}
+                        {states.map((state) => (
+                          <Badge key={state} tone="neutral">
+                            {state}
+                          </Badge>
+                        ))}
                       </div>
                     </TD>
                     <TD>

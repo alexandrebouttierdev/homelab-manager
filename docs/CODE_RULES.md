@@ -1,0 +1,130 @@
+# Règles de code — Homelab Manager
+
+Version 2.1 — 22 novembre 2026
+
+Ces règles s'appliquent à toute contribution, humaine ou assistée par un agent (voir [AGENTS.md](../AGENTS.md)). Une règle « doit » est vérifiée en revue ; les outils automatiques sont indiqués quand ils existent. Les exigences d'architecture et de sécurité sont dans ARCHITECTURE.md et SECURITY.md ; ce document fixe la façon d'écrire le code.
+
+## 1. Langues
+
+| Élément | Langue |
+|---|---|
+| Code, identifiants, commentaires, messages de log, messages d'erreur de l'API, messages de commit | Anglais |
+| Documentation (`docs/`, README), textes affichés dans l'interface, messages d'erreur montrés à l'utilisateur | Français |
+
+L'interface ne montre jamais un message d'erreur brut de l'API : elle traduit le `code` (`frontend/src/lib/api/client.ts`, `errorMessages`).
+
+## 2. Vérifications obligatoires
+
+`scripts/verify.sh` doit passer avant tout commit. Il enchaîne :
+
+| Côté | Contrôle | Commande |
+|---|---|---|
+| Go | Formatage | `gofmt -l backend` (doit être vide) |
+| Go | Tests et analyse | `go test ./...`, `go test -race ./...`, `go vet ./...` |
+| Frontend | Formatage | `npm run format:check` (Prettier) |
+| Frontend | Lint, types, tests, build | `npm run lint`, `npm run typecheck`, `npm run test`, `npm run build` |
+
+Corriger le formatage : `gofmt -w backend` et `npm --prefix frontend run format`. Un avertissement du linter est traité comme une erreur.
+
+## 3. Backend Go
+
+### 3.1 Structure
+
+- Couches hexagonales : `domain` → `usecase` → `ports` ← `adapters` ; `delivery/http` appelle les usecases ; `cmd/manager` assemble. Un package n'importe jamais une couche plus externe que la sienne.
+- `domain` : types et erreurs sentinelles (`var ErrX = errors.New(...)`), sans dépendance à Chi, Ent, SQLite, Docker ni zap.
+- `ports` : interfaces minimales, documentées quand la sémantique n'est pas évidente (ordre, bornes, cas vide).
+- `delivery/http` : DTO avec tags JSON, validation de **tous** les paramètres, traduction des erreurs du domaine en codes HTTP du contrat. Aucune règle métier.
+- `adapters/sqlite` : seul endroit où Ent et SQL apparaissent. SQL brut autorisé uniquement pour ce qu'Ent n'exprime pas (agrégation), toujours avec des paramètres liés (`?`), jamais par concaténation de valeurs.
+- Les entités Ent ne sortent jamais des adaptateurs.
+
+### 3.2 Style
+
+- `gofmt` ; noms Go idiomatiques (`ID`, `HTTP`, `URL` en majuscules) ; pas de bégaiement (`sqlite.Open`, pas `sqlite.OpenSQLite`).
+- `context.Context` en premier paramètre de toute fonction qui fait une E/S.
+- Constantes nommées pour toute borne, durée ou limite (`maxHistoryLimit`, `currentWindow`), avec un commentaire si la valeur n'est pas évidente.
+- Commentaires : ils expliquent le *pourquoi* ou une contrainte non visible, pas ce que le code dit déjà. Tout type ou fonction exporté porte un commentaire s'il a une sémantique non triviale.
+- Pas de code mort : une fonction, une méthode de port ou une colonne inutilisée est supprimée.
+
+### 3.3 Erreurs
+
+- Toute erreur est traitée ou renvoyée ; `_ =` seulement pour un nettoyage en chemin d'erreur (`tx.Rollback`) ou une écriture de réponse HTTP.
+- Contexte ajouté avec `fmt.Errorf("action: %w", err)` ; comparaison par `errors.Is` / `errors.As`, jamais par chaîne ni par `==`.
+- Pas de `panic` pour un cas prévisible ; pas de `log.Fatal` hors de `main`.
+- Une erreur renvoyée au client ne contient ni chemin, ni secret, ni détail interne (voir API_CONTRACTS.md § 8).
+
+### 3.4 Concurrence et temps
+
+- Toute goroutine a un propriétaire qui l'attend (`sync.WaitGroup`), s'arrête par annulation de contexte et a un délai maximal par cycle.
+- Pas de file d'attente non bornée ; canaux avec capacité explicite.
+- Horodatages en UTC (`.UTC()`) ; l'horloge est injectable (`now func() time.Time`) dans tout code dont le comportement dépend du temps, pour le tester.
+- SQLite : une seule connexion ; une transaction n'utilise que son `tx`.
+
+### 3.5 Journaux
+
+- zap, champs structurés (`zap.String("container_id", id)`), message en anglais, sans donnée sensible (mot de passe, cookie, jeton, secret, variable d'environnement).
+
+### 3.6 Tests
+
+- Fichier `_test.go` à côté du code ; nom `TestComportementAttendu` (ex. `TestPurgeDrainsTheWholeBacklog`).
+- Tests en tableau pour les validations ; faux objets écrits à la main (pas de framework de mock) ; `httptest` pour HTTP ; base SQLite réelle dans `t.TempDir()` pour l'adaptateur, jamais un mock du stockage.
+- Chaque correction de bug ajoute un test qui échoue sans la correction.
+- Pas de dépendance aux ressources de la machine (températures, Docker réel) dans les tests unitaires.
+
+## 4. Frontend React / TypeScript
+
+### 4.1 Formatage et analyse
+
+- **Prettier** (`frontend/.prettierrc.json`) : sans point-virgule, guillemets simples, virgule finale, 100 colonnes, fins de ligne LF. Ne pas reformater à la main : lancer `npm run format`.
+- ESLint (`eslint.config.js`) : règles TypeScript recommandées, règles des hooks React. Aucun `eslint-disable` sans commentaire justifiant l'exception.
+- TypeScript strict ; `any` interdit (utiliser `unknown` puis un rétrécissement) ; pas d'assertion `as` pour contourner une erreur de type, sauf sur une donnée JSON validée.
+
+### 4.2 Organisation
+
+| Dossier | Contenu |
+|---|---|
+| `src/features/<domaine>/` | Pages et composants propres à un domaine (`containers`, `settings`…) |
+| `src/components/ui/` | Composants génériques sans connaissance métier (Button, Card, Badge…) |
+| `src/components/charts/` | Enveloppes ECharts ; les pages n'importent pas `echarts-for-react` directement |
+| `src/lib/api/` | Seul accès au réseau, via `requestJSON` ; un fichier par domaine d'API ; types des DTO |
+| `src/lib/` | Logique pure testable (formatage, calculs de séries, thème) |
+| `src/schemas/` | Schémas Zod des formulaires, avec leurs tests |
+
+- Pas de logique métier dans un composant : calculs, regroupements et formatages vont dans `src/lib/` et sont testés.
+- Un composant par fichier exporté ; nom en PascalCase identique au fichier.
+
+### 4.3 Données et formulaires
+
+- TanStack Query pour toute donnée serveur ; clés de requête hiérarchiques et stables (`['host', 'metrics', name, label, range]`) ; `refetchInterval` dérivé de `useRefreshInterval()`.
+- Formulaires : React Hook Form + `zodResolver` ; `useWatch` plutôt que `watch` ; les bornes du schéma Zod reprennent celles du contrat d'API. La validation de l'interface n'est jamais une protection.
+- Aucune donnée simulée présentée comme réelle ; une donnée absente s'affiche comme indisponible, jamais comme zéro.
+- Version de l'application : `src/lib/version.ts` uniquement.
+
+### 4.4 Interface
+
+- Couleurs et espacements par les jetons Tailwind du thème (`text-text-primary`, `bg-card`, `border-line`…), jamais de couleur codée en dur.
+- Accessibilité : chaque champ a un `label` associé ; messages d'erreur en `role="alert"`, confirmations en `role="status"` ; boutons d'icône avec `aria-label`.
+- Thèmes clair et sombre et affichage mobile vérifiés pour toute nouvelle page.
+
+### 4.5 Tests
+
+- Vitest + React Testing Library ; tester le comportement visible (textes, rôles), pas l'implémentation.
+- Tout schéma Zod, toute fonction de `src/lib/` et tout client d'API ont des tests.
+
+## 5. API et documentation
+
+- `docs/API_CONTRACTS.md` est le contrat exact : toute route, paramètre, borne, DTO ou code d'erreur ajouté ou modifié l'est dans le même commit que le code.
+- Un changement de comportement met à jour le document qui le décrit (METRICS_COLLECTION.md, DATA_MODEL.md, SECURITY.md…) dans le même commit.
+- Nouvelle table ou colonne : nouvelle migration numérotée (`00N_description.sql`), jamais de modification d'une migration livrée ; schéma Ent régénéré avec `go run entgo.io/ent/cmd/ent@v0.14.6 generate ./ent/schema`.
+
+## 6. Dépendances
+
+- Toute nouvelle dépendance (Go ou npm) est justifiée dans la description du commit : usage, alternatives écartées, impact (taille, maintenance, sécurité).
+- Version figée ; version publiée depuis au moins deux semaines.
+- Préférer la bibliothèque standard et le code interne court et testé à une dépendance pour quelques lignes.
+
+## 7. Git
+
+- Branche de travail `dev` ; `main` reçoit des fusions de `dev`.
+- Messages au format Conventional Commits, en anglais : `type(scope): résumé à l'impératif`, avec `type` ∈ `feat`, `fix`, `refactor`, `perf`, `test`, `docs`, `chore`, `build` ; corps expliquant le pourquoi.
+- Un commit = un changement cohérent, avec ses tests et sa documentation, qui passe `scripts/verify.sh`.
+- Ne jamais versionner : `.env`, bases SQLite (`*.db`, `-wal`, `-shm`), binaires, `dist/`, secrets.

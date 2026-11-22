@@ -1,0 +1,11 @@
+---
+description: Règles générales de Homelab Manager (source unique AGENTS.md)
+alwaysApply: true
+---
+
+Les instructions du projet sont dans @AGENTS.md et les règles d'écriture du code dans @docs/CODE_RULES.md. Les suivre intégralement ; ne pas dupliquer leur contenu ici.
+
+Rappels non négociables :
+- aucun terminal, shell ni SSH dans l'application ; utilisateurs propres à Homelab Manager uniquement ; aucune exécution de code fourni par l'utilisateur ;
+- `docs/API_CONTRACTS.md` est le contrat exact de l'API, à modifier avec le code ;
+- `scripts/verify.sh` doit passer avant de livrer.

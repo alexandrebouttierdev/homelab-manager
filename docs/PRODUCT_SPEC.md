@@ -42,12 +42,14 @@ L'installation doit rester légère : un binaire, un fichier de base et le proxy
 - Aucune fonction de création, suppression, démarrage, arrêt, exec ou administration Docker.
 
 ### Historique, événements et paramètres
-- Séries historiques brutes avec bornes temporelles contrôlées.
+- Séries historiques brutes ou agrégées (1 min, 5 min, 1 h) avec bornes temporelles contrôlées.
 - Événements de changements d'état Docker ; le statut des collecteurs est exposé par la santé et les paramètres.
 - Authentification locale, session, changement du mot de passe administrateur.
-- Paramètres locaux de fréquence de collecte et de rétention, avec bornes et valeurs par défaut documentées.
+- Paramètres locaux de fréquence de collecte (configuration du service) et rétention réglable depuis l'interface : 7 jours par défaut, de 1 à 365 jours, effet immédiat, modification tracée dans le journal d'audit.
 
-Les alertes à seuil configurables ne sont pas incluses dans cette version de spécification, sauf si elles sont ultérieurement définies par une exigence produit explicite.
+### Modules d'administration (v3, spécifiés, non implémentés)
+
+Utilisateurs et accès, journaux système, services système, alertes et notifications, sauvegardes restic, tâches planifiées : voir [SPEC_ADMINISTRATION.md](./SPEC_ADMINISTRATION.md), qui fixe aussi les interdits (aucun terminal, shell ni SSH ; utilisateurs propres au Manager ; aucune exécution de code arbitraire) et le modèle de privilèges. Les applications PaaS restent gérées par Coolify et sont reportées à une version ultérieure.
 
 ## 4. Sécurité et limites
 
@@ -77,21 +79,23 @@ Présent dans le dépôt : module Backend unique, authentification locale (compt
 
 Limites connues, à ne pas présenter comme fonctionnelles :
 
-- **Historiques bruts uniquement** : au-delà d'environ une heure par série, la réponse est tronquée aux 2 000 points les plus récents. Les graphiques sur 24 h ou plus ne couvrent donc que la fin de la plage tant que l'agrégation (API_CONTRACTS.md § 9.1) n'est pas livrée.
-- Listes de conteneurs et d'événements plafonnées sans pagination (§ 9.2).
+- Listes de conteneurs et d'événements plafonnées sans pagination (API_CONTRACTS.md § 9.1).
+- Modules d'administration (SPEC_ADMINISTRATION.md) non implémentés : leurs entrées de navigation restent marquées « à venir ».
 - Images, volumes et réseaux Docker sont déduits de l'inventaire des conteneurs : une image, un volume ou un réseau inutilisé n'apparaît pas.
 - Aucune notification ni alerte, aucun journal de conteneur.
 - Le passage de PostgreSQL à SQLite ne migre pas les données existantes.
 
-## 7. Décisions produit ouvertes
+## 7. Décisions produit
 
-Ces points doivent être tranchés avant d'être implémentés ; tant qu'ils ne le sont pas, le comportement actuel s'applique.
+Tranchées le 22 novembre 2026 :
 
-1. **Volume de stockage.** À l'intervalle par défaut, la base atteint environ 9 Go pour 30 jours (METRICS_COLLECTION.md § 4). Options : abaisser les valeurs par défaut (ex. intervalle 30 s, rétention 7 jours → ≈ 0,7 Go), ou conserver les données brutes peu de temps et des agrégats horaires longtemps (nouvelles tables, migration `002`).
-2. **Entrées « à venir » de la navigation.** L'interface affiche des entrées désactivées (services système, journaux système, alertes, applications, sauvegardes, tâches planifiées, utilisateurs) qui ne figurent pas dans cette spécification. Les spécifier ou les retirer.
-3. **Ordre de réalisation proposé** : agrégation des historiques (§ 9.1 de l'API), puis décision 1, puis pagination.
+1. **Volume de stockage** : rétention par défaut ramenée à 7 jours (≈ 2 Go à l'intervalle de 10 s) et réglable par l'utilisateur dans l'interface.
+2. **Agrégation des historiques** : livrée (API_CONTRACTS.md § 5.3).
+3. **Entrées « à venir »** : spécifiées dans SPEC_ADMINISTRATION.md ; « Applications PaaS » retirée (Coolify).
+
+Ouvertes : voir SPEC_ADMINISTRATION.md § 10.
 
 ## 8. Historique
 
-- 2.1 — 22 novembre 2026 : stockage SQLite embarqué, compte initial `admin` / `admin`, contrats API exacts, état `stale`, vues courantes sur le dernier cycle complet, purge horaire.
+- 2.1 — 22 novembre 2026 : stockage SQLite embarqué, compte initial `admin` / `admin`, contrats API exacts, état `stale`, vues courantes sur le dernier cycle complet, purge horaire, agrégation des historiques et filtre par label, rétention réglable (7 jours par défaut), spécification des modules d'administration v3.
 - 2.0 — 21 novembre 2026 : périmètre mono-machine, abandon de l'Agent distant.

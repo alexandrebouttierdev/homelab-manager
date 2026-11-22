@@ -1,0 +1,11 @@
+---
+description: Règles du frontend React/TypeScript (Prettier, TanStack Query, Zod)
+globs: frontend/**/*.{ts,tsx,css}
+alwaysApply: false
+---
+
+Appliquer @docs/CODE_RULES.md § 4 (Frontend). Points clés :
+- Prettier (`frontend/.prettierrc.json`) et ESLint ; TypeScript strict, pas de `any` ;
+- réseau uniquement par `src/lib/api/` ; logique pure dans `src/lib/` ; schémas Zod dans `src/schemas/` avec tests ;
+- textes de l'interface en français ; erreurs traduites depuis le `code` de l'API ;
+- jetons de couleur Tailwind du thème, accessibilité (labels, `role="alert"` / `role="status"`).

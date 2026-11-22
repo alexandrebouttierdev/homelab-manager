@@ -1,0 +1,12 @@
+---
+description: Règles du backend Go (architecture hexagonale, SQLite, tests)
+globs: backend/**/*.go
+alwaysApply: false
+---
+
+Appliquer @docs/CODE_RULES.md § 3 (Backend Go). Points clés :
+- couches domain → usecase → ports ← adapters ; Chi seulement dans `internal/delivery/http`, Ent et SQL seulement dans `internal/adapters/sqlite` ;
+- erreurs enveloppées avec `%w`, comparées avec `errors.Is` ; pas de `panic` ;
+- horodatages UTC, horloge injectable, goroutines avec propriétaire et arrêt par contexte ;
+- tests à côté du code, SQLite réel dans `t.TempDir()`, `httptest` pour HTTP ;
+- `gofmt` et `go vet` propres.

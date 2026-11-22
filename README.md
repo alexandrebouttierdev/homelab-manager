@@ -19,8 +19,9 @@ Le code v2.1 est en place : authentification locale, collecteurs système/Docker
 
 Les limites actuelles sont explicites :
 
-- Les historiques renvoient des échantillons bruts (maximum 2 000 points par requête, les plus récents). Au-delà d'environ une heure par série, les graphiques ne couvrent que la fin de la plage. L'agrégation est spécifiée ([API § 9](docs/API_CONTRACTS.md)) mais pas implémentée.
-- À l'intervalle par défaut (10 s), la base croît d'environ 300 Mo par jour jusqu'à la rétention (≈ 9 Go pour 30 jours) : voir [Collecte § 4](docs/METRICS_COLLECTION.md) pour réduire ce volume.
+- Les historiques sont bruts ou agrégés (1 min, 5 min, 1 h), 2 000 points au plus par requête ; l'interface choisit le pas selon la période.
+- À l'intervalle par défaut (10 s), la base croît d'environ 300 Mo par jour jusqu'à la rétention : ≈ 2 Go pour les 7 jours par défaut. La rétention se règle dans Paramètres.
+- Les modules d'administration (utilisateurs, journaux, services, alertes, sauvegardes, Cron) sont spécifiés dans [docs/SPEC_ADMINISTRATION.md](docs/SPEC_ADMINISTRATION.md) mais pas implémentés. Les applications restent gérées par Coolify.
 - Les listes sont bornées et ne fournissent pas encore de pagination.
 - SQLite n'accepte qu'un écrivain à la fois ; le Manager sérialise ses accès sur une connexion unique, ce qui convient au volume d'une seule machine.
 - L'installation système (comptes, permissions et groupes) doit être réalisée par l'administrateur avant d'activer les unités systemd.
@@ -90,7 +91,7 @@ La configuration de développement est documentée dans [.env.example](.env.exam
 - `HOMELAB_SYSTEM_COLLECT_INTERVAL_SECONDS` : collecte système (5–300 s, défaut 10).
 - `HOMELAB_DOCKER_COLLECT_INTERVAL_SECONDS` : statistiques Docker (5–300 s, défaut 15).
 - `HOMELAB_DOCKER_DISCOVERY_INTERVAL_SECONDS` : inventaire Docker (10–600 s, défaut 30).
-- `HOMELAB_METRICS_RETENTION_DAYS` : rétention des métriques (1–365 jours, défaut 30).
+- `HOMELAB_METRICS_RETENTION_DAYS` : rétention par défaut des métriques (1–365 jours, défaut 7). Une valeur choisie dans Paramètres l'emporte et persiste.
 - `HOMELAB_DOCKER_PROXY_SOCKET` : socket du proxy local restreint.
 - `HOMELAB_DOCKER_ENGINE_SOCKET` : socket Engine lu par le proxy, pas par le Manager.
 - `HOMELAB_WEB_ROOT` : répertoire `dist` servi par le Manager.
@@ -144,3 +145,5 @@ Pour restaurer : arrêter `homelab-manager.service`, remplacer `homelab-manager.
 - [Collecte et formules](docs/METRICS_COLLECTION.md)
 - [Sécurité](docs/SECURITY.md)
 - [Stratégie de tests](docs/TESTING.md)
+- [Règles de code](docs/CODE_RULES.md)
+- [Modules d'administration (v3, à implémenter)](docs/SPEC_ADMINISTRATION.md)

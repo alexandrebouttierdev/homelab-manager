@@ -18,7 +18,7 @@ func (User) Fields() []ent.Field {
 		field.String("username").Unique().NotEmpty(),
 		field.String("password_hash").Sensitive(),
 		field.Time("created_at").Default(timeNow),
-		field.Time("updated_at").UpdateDefault(timeNow),
+		field.Time("updated_at").Default(timeNow).UpdateDefault(timeNow),
 	}
 }
 

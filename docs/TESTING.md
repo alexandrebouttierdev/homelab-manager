@@ -31,6 +31,15 @@ go test ./...
 go test -race ./...
 ```
 
+Les tests PostgreSQL opt-in utilisent `HOMELAB_TEST_DATABASE_URL`. Le nom de la base doit se terminer par `_test` ; chaque exécution crée un schéma temporaire dédié, applique les migrations et le supprime ensuite. Exemple :
+
+```bash
+HOMELAB_TEST_DATABASE_URL='postgres://homelab_test:password@127.0.0.1:5432/homelab_manager_test?sslmode=disable' \
+  go test ./internal/adapters/postgres -run TestPostgresIntegration -count=1
+```
+
+Le compte PostgreSQL doit pouvoir créer et supprimer un schéma dans cette base. Ne jamais fournir l'URL d'une base de développement ou de production ; les tests refusent les noms qui ne se terminent pas par `_test`.
+
 ## Frontend React
 
 - Vitest + React Testing Library pour dashboard, navigation, détails machine/conteneur et états loading/empty/error/stale.
@@ -58,4 +67,4 @@ npm run build
 
 Les tests doivent valider la cible mono-machine ; aucun test Agent distant, enrôlement ou protocole Manager-Agent ne fait partie de la spécification v2.0.
 
-L'intégration PostgreSQL n'est pas activée par défaut : configurer une instance de test dédiée avant d'ajouter et d'exécuter ces tests. Les tests unitaires actuels vérifient les formules Docker, les deltas système, la liste blanche du proxy et les routes HTTP de base.
+L'intégration PostgreSQL n'est pas activée par défaut : configurer une instance de test dédiée pour l'exécuter. Elle vérifie l'application répétée des migrations, l'authentification/persistance des sessions, l'hôte, les métriques, la réconciliation des conteneurs, les événements et la purge. Les tests unitaires vérifient également les formules Docker, les deltas système, la liste blanche du proxy et les routes HTTP de base.

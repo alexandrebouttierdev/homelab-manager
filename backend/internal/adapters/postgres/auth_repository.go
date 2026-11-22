@@ -45,16 +45,12 @@ func (r *AuthRepository) UpdatePasswordHash(ctx context.Context, userID uuid.UUI
 }
 
 func (r *AuthRepository) EnsureAdmin(ctx context.Context, username, passwordHash string) error {
-	existing, err := r.client.User.Query().Where(user.Username(username)).Only(ctx)
-	if ent.IsNotFound(err) {
-		_, err = r.client.User.Create().SetUsername(username).SetPasswordHash(passwordHash).Save(ctx)
+	exists, err := r.client.User.Query().Where(user.Username(username)).Exist(ctx)
+	if err != nil || exists {
 		return err
 	}
-	if err != nil {
-		return err
-	}
-	_ = existing
-	return nil
+	_, err = r.client.User.Create().SetUsername(username).SetPasswordHash(passwordHash).Save(ctx)
+	return err
 }
 
 func (r *AuthRepository) Create(ctx context.Context, userID uuid.UUID, tokenHash, ip, userAgent string, expiresAt time.Time) (domain.Session, error) {

@@ -1,6 +1,6 @@
 # Modèle de données — Homelab Manager
 
-Version 2.0 — 21 novembre 2026
+Version 2.1 — 22 novembre 2026
 
 Modèle logique d'Ent et SQLite. Il décrit un hôte unique et ses conteneurs locaux ; il n'existe pas d'entité agent ou de relation multi-hôtes.
 
@@ -20,7 +20,7 @@ Modèle logique d'Ent et SQLite. Il décrit un hôte unique et ses conteneurs lo
 - Les informations volatiles détaillées sont conservées dans les échantillons, pas dupliquées dans chaque ligne d'inventaire.
 
 ### Container
-- UUID interne ; `docker_id` unique et stable, nom canonique, image, tag si présent, état, statut, dates de création/démarrage, politique de redémarrage, ports, réseaux et montages.
+- UUID interne ; `docker_id` unique et stable, nom canonique, image (référence complète, tag compris, telle que renvoyée par l'inspection), état, statut, dates de création/démarrage, politique de redémarrage, ports, réseaux et montages.
 - `first_seen_at`, `last_seen_at`, `removed_at` ou état équivalent pour garder l'historique de découverte sans confondre une erreur de collecte avec une suppression.
 - Aucun champ de commande ou d'action arbitraire.
 
@@ -58,8 +58,10 @@ Le stockage est un fichier SQLite unique ; aucune base de séries temporelles ni
 - Une seule connexion ouverte : les accès du Manager sont sérialisés, il n'y a pas d'erreur `SQLITE_BUSY` interne. Une transaction ne doit utiliser que son `tx`, sous peine de blocage.
 - Les pages libérées par la purge sont réutilisées ; le fichier ne rétrécit pas sans `VACUUM` manuel, Manager arrêté.
 
+- Volume : environ 870 000 échantillons hôte par jour à l'intervalle par défaut (≈ 300 Mo/jour, ≈ 9 Go pour 30 jours) ; détail et leviers dans METRICS_COLLECTION.md § 4.
+- Vue courante : tous les échantillons d'un cycle partagent un même `recorded_at`, ce qui permet de lire le dernier cycle complet par égalité sur l'horodatage maximal (index `recorded_at`).
 - Durée de conservation brute par défaut : 30 jours, configurable de 1 à 365 jours.
-- Purger par lots sur `recorded_at`, avec index correspondant ; la purge ne doit pas bloquer les collectes.
+- Purger toutes les heures, par lots de 1 000 lignes sur `recorded_at`, jusqu'à épuisement ; chaque lot est une écriture courte, pour ne pas bloquer les collectes.
 - Les événements et métriques sont purgés par lots selon la même rétention.
 - Limiter l'intervalle et le nombre de points retournés par l'API. Les pas agrégés et la pagination par curseur ne sont pas encore implémentés.
 - Mesures non disponibles : valeur absente/null ou absence d'échantillon avec fraîcheur explicite, jamais un zéro fictif.

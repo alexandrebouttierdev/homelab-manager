@@ -11,11 +11,15 @@ import (
 )
 
 type mockUserRepository struct {
-	user domain.User
-	hash string
+	user    domain.User
+	hash    string
+	missing bool
 }
 
 func (m *mockUserRepository) FindByUsername(context.Context, string) (domain.User, string, error) {
+	if m.missing {
+		return domain.User{}, "", domain.ErrInvalidCredentials
+	}
 	return m.user, m.hash, nil
 }
 func (m *mockUserRepository) FindByID(context.Context, uuid.UUID) (domain.User, error) {
@@ -42,13 +46,15 @@ func (m *mockSessionRepository) RevokeByTokenHash(context.Context, string) error
 func (m *mockSessionRepository) RevokeAllForUser(context.Context, uuid.UUID) error { return nil }
 
 type mockHasher struct {
-	valid bool
+	valid    bool
+	verified []string
 }
 
 func (m *mockHasher) Hash(password string) (string, error) {
 	return "hash:" + password, nil
 }
 func (m *mockHasher) Verify(password, encodedHash string) (bool, error) {
+	m.verified = append(m.verified, encodedHash)
 	return m.valid && password != "", nil
 }
 
@@ -85,5 +91,19 @@ func TestAuthUsecaseRejectsInvalidPassword(t *testing.T) {
 	_, _, _, err := usecase.Login(context.Background(), "admin", "wrong", "", "")
 	if err != domain.ErrInvalidCredentials {
 		t.Fatalf("got error %v, want %v", err, domain.ErrInvalidCredentials)
+	}
+}
+
+func TestAuthUsecaseUnknownUserStillVerifiesAHash(t *testing.T) {
+	hasher := &mockHasher{valid: true}
+	usecase := NewAuthUsecase(&mockUserRepository{missing: true}, &mockSessionRepository{}, hasher)
+
+	for range 2 {
+		if _, _, _, err := usecase.Login(context.Background(), "nobody", "password", "", ""); err != domain.ErrInvalidCredentials {
+			t.Fatalf("got error %v, want %v", err, domain.ErrInvalidCredentials)
+		}
+	}
+	if len(hasher.verified) != 2 || hasher.verified[0] == "" || hasher.verified[0] != hasher.verified[1] {
+		t.Fatalf("verified hashes = %q, want the same dummy hash verified on each attempt", hasher.verified)
 	}
 }

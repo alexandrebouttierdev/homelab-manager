@@ -108,11 +108,6 @@ func allowedPath(requestURL *url.URL) bool {
 		query := requestURL.Query()
 		return len(query) == 1 && len(query["all"]) == 1 && query.Get("all") == "1"
 	}
-	if requestURL.RawQuery != "" {
-		if requestURL.Path == "" {
-			return false
-		}
-	}
 	parts := strings.Split(strings.TrimPrefix(requestURL.Path, dockerAPIVersion+"/containers/"), "/")
 	if len(parts) != 2 || !containerIDPattern.MatchString(parts[0]) {
 		return false

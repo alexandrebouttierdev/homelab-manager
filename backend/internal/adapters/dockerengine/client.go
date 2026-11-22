@@ -3,6 +3,7 @@ package dockerengine
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net"
@@ -20,6 +21,20 @@ import (
 
 const apiVersion = "v1.41"
 
+// apiStatusError reports a non-2xx answer from the Docker API (through the
+// restricted proxy), so callers can distinguish "gone" from "unavailable".
+type apiStatusError struct {
+	StatusCode int
+	Status     string
+}
+
+func (e *apiStatusError) Error() string { return "Docker API returned " + e.Status }
+
+func isNotFound(err error) bool {
+	var statusErr *apiStatusError
+	return errors.As(err, &statusErr) && statusErr.StatusCode == http.StatusNotFound
+}
+
 type Client struct {
 	http            *http.Client
 	mu              sync.Mutex
@@ -27,14 +42,18 @@ type Client struct {
 }
 
 func NewClient(socketPath string) *Client {
-	return &Client{http: &http.Client{
-		Transport: &http.Transport{
-			DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
-				return (&net.Dialer{Timeout: 3 * time.Second}).DialContext(ctx, "unix", socketPath)
-			},
+	return newClient(&http.Transport{
+		DialContext: func(ctx context.Context, _, _ string) (net.Conn, error) {
+			return (&net.Dialer{Timeout: 3 * time.Second}).DialContext(ctx, "unix", socketPath)
 		},
-		Timeout: 10 * time.Second,
-	}, previousNetwork: make(map[string]networkSnapshot)}
+	})
+}
+
+func newClient(transport http.RoundTripper) *Client {
+	return &Client{
+		http:            &http.Client{Transport: transport, Timeout: 10 * time.Second},
+		previousNetwork: make(map[string]networkSnapshot),
+	}
 }
 
 func (c *Client) CloseIdleConnections() {
@@ -78,6 +97,11 @@ func (c *Client) ListContainers(ctx context.Context) ([]domain.Container, error)
 			})
 		}
 		details, err := c.inspect(ctx, summary.ID)
+		if isNotFound(err) {
+			// Removed between the listing and the inspection: the next
+			// reconciliation records it as removed if it is really gone.
+			continue
+		}
 		if err != nil {
 			return nil, err
 		}
@@ -254,7 +278,8 @@ func (c *Client) get(ctx context.Context, endpoint string, target any) error {
 	}
 	defer response.Body.Close()
 	if response.StatusCode < 200 || response.StatusCode >= 300 {
-		return fmt.Errorf("Docker API returned %s", response.Status)
+		_, _ = io.Copy(io.Discard, io.LimitReader(response.Body, 64<<10))
+		return &apiStatusError{StatusCode: response.StatusCode, Status: response.Status}
 	}
 	decoder := json.NewDecoder(io.LimitReader(response.Body, 8<<20))
 	if err := decoder.Decode(target); err != nil {

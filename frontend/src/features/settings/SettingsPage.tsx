@@ -28,6 +28,7 @@ import { cn } from '../../lib/cn'
 import { formatRelativeTime } from '../../lib/format'
 import { useTheme, type Theme } from '../../lib/theme'
 import { passwordSchema, type PasswordValues } from '../../schemas/password'
+import { APP_VERSION } from '../../lib/version'
 
 export function SettingsPage() {
   const queryClient = useQueryClient()
@@ -49,7 +50,12 @@ export function SettingsPage() {
 
   const password = useMutation({
     mutationFn: (values: PasswordValues) => changePassword(values.currentPassword, values.newPassword),
-    onSuccess: () => reset(),
+    // The Manager revokes every session, including this one, after a change.
+    onSuccess: () => {
+      reset()
+      queryClient.removeQueries({ queryKey: ['session'] })
+      navigate('/login', { replace: true, state: { notice: 'Mot de passe modifié. Reconnectez-vous avec le nouveau mot de passe.' } })
+    },
   })
   const signOut = useMutation({
     mutationFn: logout,
@@ -68,7 +74,7 @@ export function SettingsPage() {
       <PageHeader
         title="Paramètres"
         breadcrumb={[{ label: 'Paramètres' }, { label: 'Configuration' }]}
-        badge={<Badge tone="neutral">v2.0</Badge>}
+        badge={<Badge tone="neutral">v{APP_VERSION}</Badge>}
         description="Configuration effective du Manager, apparence de l'interface et sécurité du compte administrateur local."
       />
 
@@ -234,11 +240,6 @@ export function SettingsPage() {
                     {passwordError}
                   </div>
                 )}
-                {password.isSuccess && (
-                  <div className="rounded-md border border-success/30 bg-success/10 px-3 py-2 text-xs text-success sm:col-span-2" role="status">
-                    Mot de passe modifié. Les autres sessions peuvent nécessiter une reconnexion.
-                  </div>
-                )}
 
                 <div className="sm:col-span-2">
                   <Button type="submit" variant="primary" loading={password.isPending} icon={<KeyRound className="h-4 w-4" />}>
@@ -263,7 +264,7 @@ export function SettingsPage() {
           <p>Les fonctionnalités non implémentées sont explicitement signalées comme indisponibles dans la navigation.</p>
         </CardBody>
         <CardFooter className="flex flex-wrap items-center justify-between gap-2 font-mono text-[10px] text-text-muted">
-          <span>Version 2.0 · stable</span>
+          <span>Version {APP_VERSION}</span>
           <span>Supervision locale uniquement</span>
         </CardFooter>
       </Card>

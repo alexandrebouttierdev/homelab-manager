@@ -38,7 +38,13 @@ func NewRouter(logger *zap.Logger, health *usecase.HealthUsecase, auth *usecase.
 	router.Get("/health", healthHandler(health, monitoring, false))
 	router.Route("/api/v1", func(r chi.Router) {
 		r.Get("/health", healthHandler(health, monitoring, true))
-		r.With(loginRateLimit).Post("/auth/login", loginHandler(auth, sessionSecure))
+		r.NotFound(func(w http.ResponseWriter, r *http.Request) {
+			writeError(w, r, http.StatusNotFound, "NOT_FOUND", "The requested API route does not exist.")
+		})
+		r.MethodNotAllowed(func(w http.ResponseWriter, r *http.Request) {
+			writeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "The HTTP method is not allowed on this route.")
+		})
+		r.With(sameOrigin, loginRateLimit).Post("/auth/login", loginHandler(auth, sessionSecure))
 		r.Get("/auth/session", sessionHandler(auth))
 		r.Group(func(protected chi.Router) {
 			protected.Use(requireSession(auth))

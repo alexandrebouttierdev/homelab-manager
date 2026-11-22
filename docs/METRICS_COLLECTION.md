@@ -1,14 +1,22 @@
 # Collecte et formules des métriques
 
-Version 2.0 — 21 novembre 2026
+Version 2.1 — 22 novembre 2026
 
 ## 1. Cycle de collecte
 
 Le Backend démarre en arrière-plan des collecteurs locaux indépendants : système Linux, découverte/événements Docker et statistiques Docker. Ils ne dépendent pas de requêtes HTTP ni d'une page ouverte. Chaque lot porte son horodatage UTC, son statut et la fraîcheur de la dernière réussite. Les erreurs ponctuelles ne sont pas transformées en mesures nulles ou en zéros.
 
-Les fréquences sont configurables avec les limites cibles suivantes : système 5–300 secondes (défaut 10), stats Docker 5–300 secondes (défaut 15), découverte complète 10–600 secondes (défaut 30), rétention 1–365 jours (défaut 30). La purge s'exécute quotidiennement par petits lots ; ces intervalles sont indépendants.
+| Cycle | Paramètre | Bornes | Défaut |
+|---|---|---|---|
+| Collecte système | `system_collect_interval_seconds` | 5–300 s | 10 s |
+| Statistiques Docker | `docker_collect_interval_seconds` | 5–300 s | 15 s |
+| Découverte Docker (inventaire + événements) | `docker_discovery_interval_seconds` | 10–600 s | 30 s |
+| Rétention | `metrics_retention_days` | 1–365 jours | 30 jours |
+| Purge | fixe | — | au démarrage puis toutes les heures |
 
-Une collecte système échouée ne bloque pas Docker, et inversement. Les écritures SQLite se font par lots avec timeouts. En cas d'indisponibilité, log structuré, statut stale et nouvelle tentative temporisée ; ne pas accumuler une file mémoire non bornée.
+Chaque cycle s'exécute une première fois au démarrage, puis à son intervalle, dans sa propre goroutine. Un cycle dispose d'un délai maximal de `min(max(intervalle, 10 s), 30 s)` ; au-delà, son contexte est annulé et l'erreur est journalisée. Une collecte système échouée ne bloque pas Docker, et inversement. Rien n'est mis en file d'attente en mémoire : un cycle manqué est perdu, le suivant repart de l'état courant.
+
+Les écritures SQLite se font par lots de 500 échantillons. La purge supprime par lots de 1 000 lignes (métriques puis événements) jusqu'à épuisement des données expirées ; si son délai expire, la purge suivante reprend.
 
 ## 2. Métriques système Linux
 
@@ -16,13 +24,15 @@ Toutes les métriques sont facultatives selon les interfaces et permissions disp
 
 ### CPU et charge
 
-Lire les compteurs `/proc/stat`. Pour un intervalle entre deux échantillons, `total` est la somme des compteurs CPU et `idle` désigne la somme des deltas `idle` et `iowait` :
+Lire les compteurs de `/proc/stat` (global et par cœur) à chaque cycle et calculer l'écart avec le cycle précédent :
 
 ```text
-CPU utilisé (%) = 100 × (Δtotal - Δidle) / Δtotal
+total = user + nice + system + idle + iowait + irq + softirq + steal
+idle  = idle + iowait
+CPU utilisé (%) = 100 × (Δtotal − Δidle) / Δtotal
 ```
 
-La même formule s'applique par cœur. Pour `/proc/stat`, `idle` désigne la somme des deltas `idle` et `iowait`, afin que l'attente I/O ne soit pas comptée comme du temps CPU actif. Si `Δtotal <= 0`, le point est absent. Charge système 1/5/15 minutes depuis `/proc/loadavg`, nombre de cœurs logiques depuis les interfaces locales.
+`guest` et `guest_nice` sont déjà inclus par le noyau dans `user` et `nice` : ils ne sont pas ajoutés une seconde fois. L'attente d'E/S n'est pas comptée comme du temps actif. Le premier cycle après le démarrage ne produit pas de `cpu.percent` (pas de référence) ; si `Δtotal ≤ 0` ou si les compteurs décroissent, le point est absent. Le pourcentage couvre donc tout l'intervalle de collecte, pas un échantillon instantané. Charge 1/5/15 minutes depuis `/proc/loadavg` ; `cpu.cores` = nombre de CPU logiques.
 
 ### Mémoire et swap
 
@@ -33,7 +43,7 @@ RAM utilisée = MemTotal - MemAvailable
 Swap utilisée = SwapTotal - SwapFree
 ```
 
-`Cached`, `Buffers` et `SReclaimable` sont exposés séparément si disponibles et ne sont pas additionnés une seconde fois à la mémoire utilisée. Si `MemAvailable` manque, ne pas inventer une équivalence silencieuse.
+`memory.cached` vaut `Cached + Buffers` ; il est informatif et n'est pas retranché une seconde fois de la mémoire utilisée. Si `MemAvailable` manque ou dépasse `MemTotal`, `memory.used` et `memory.available` sont absents : aucune équivalence n'est inventée.
 
 ### Stockage et activité bloc
 
@@ -44,7 +54,7 @@ utilisé = capacité totale - capacité disponible
 utilisation (%) = 100 × utilisé / capacité totale
 ```
 
-Disponibilité est calculée selon l'espace disponible à l'utilisateur du service. Lire `/proc/diskstats` pour les compteurs bloc lorsque présents :
+L'espace disponible est `f_bavail × f_bsize` (espace accessible aux comptes non privilégiés), ce qui exclut la réserve root : `filesystem.percent` correspond à ce que voit `df`. Seules les partitions physiques montées sont collectées ; un point de montage illisible est ignoré. Lire `/proc/diskstats` pour les compteurs bloc lorsque présents :
 
 ```text
 read_iops = Δlectures terminées / Δtemps (secondes)
@@ -63,7 +73,9 @@ débit entrant (octets/s) = Δoctets reçus / Δtemps
 débit sortant (octets/s) = Δoctets envoyés / Δtemps
 ```
 
-Les octets, paquets, erreurs et drops sont également conservés comme compteurs. Si un compteur décroît (reset/interface recréée), commencer une nouvelle base et omettre le débit de cet intervalle. IP/MAC sont des informations d'inventaire volatiles, non des métriques.
+Les octets, paquets, erreurs et drops sont également conservés comme compteurs. Si un compteur décroît (remise à zéro, interface recréée), le débit de cet intervalle est omis et la nouvelle valeur sert de référence.
+
+Les adresses IP et MAC sont de l'inventaire, pas des mesures. Elles sont aujourd'hui publiées comme échantillon `network.interface` (valeur `1`, labels `name`, `address`, `mac`, une ligne par adresse) dans chaque cycle, afin que l'interface puisse les afficher sans table dédiée. C'est la seule exception au principe « une métrique = une mesure ».
 
 ### Températures et système
 
@@ -95,7 +107,7 @@ mémoire disponible = max(limite - usage_effectif, 0)
 mémoire (%) = 100 × usage_effectif / limite
 ```
 
-`cache_inactif` : `total_inactive_file` sous cgroups v1, `inactive_file` sous v2. Si ces champs manquent, utiliser `usage_brut` et indiquer la méthode/champ dans les labels ou la fraîcheur. Une limite absente, nulle ou non finie donne un pourcentage indisponible (`null`), jamais un taux inventé. `usage` ne doit pas être décrit comme mémoire RSS pure.
+`cache_inactif` : `total_inactive_file` sous cgroups v1, `inactive_file` sous v2. Si ces champs manquent, `usage_brut` est utilisé tel quel. Si `usage_brut` vaut 0, aucune métrique mémoire n'est émise. Une limite absente ou nulle supprime `memory.limit_bytes`, `memory.available_bytes` et `memory.percent`, jamais remplacés par un taux inventé. Sans limite configurée, Docker renvoie la mémoire de l'hôte comme limite. `memory.usage_bytes` n'est pas une mémoire RSS pure.
 
 ### Réseau et stockage bloc
 
@@ -106,12 +118,15 @@ Les bytes de lecture/écriture viennent des entrées read/write de `blkio_stats.
 ### Autres informations
 
 - Nombre de processus depuis `pids_stats.current` si fourni.
-- Nombre de redémarrages depuis l'inspection Docker, avec horodatage de l'observation.
+- Nombre de redémarrages depuis l'inspection Docker. `restart.count` porte le même horodatage que les statistiques du conteneur (même cycle) ; pour un conteneur arrêté, il porte l'heure du cycle.
 - Uptime calculé depuis `StartedAt` uniquement si l'état est running.
 - État, ports, réseaux, volumes et politique de redémarrage depuis les réponses d'inspection/listing, avec secrets filtrés.
+- Un conteneur qui disparaît entre la liste et son inspection (réponse 404) est ignoré pour ce cycle ; toute autre erreur fait échouer la découverte, sans modifier l'inventaire connu.
 
 ## 4. Historique, fraîcheur et rétention
 
-Échantillons horodatés UTC, écrits par lots dans SQLite. Valeur par défaut : conserver 30 jours de données brutes et d'événements, configurable entre 1 et 365 jours. Purger quotidiennement en petits lots sur index temporel. Les endpoints imposent bornes temporelles et plafonds de points ; les historiques agrégés et curseurs ne sont pas encore disponibles.
+Échantillons horodatés en UTC, écrits par lots dans SQLite. Par défaut, 30 jours de données brutes et d'événements sont conservés (configurable de 1 à 365 jours). La purge horaire supprime tout ce qui est plus ancien que la rétention, par lots, sur l'index temporel. Les endpoints imposent bornes temporelles et plafonds de points ; agrégation et curseurs sont spécifiés dans API_CONTRACTS.md § 9, pas encore implémentés.
 
-`lastSuccessAt`, statut `ok/stale/unavailable` et âge de la mesure doivent accompagner les vues courantes. Une valeur zéro signifie une mesure réelle égale à zéro, pas une donnée inconnue.
+**Volume attendu.** Mesuré sur une machine à 8 cœurs, 4 systèmes de fichiers, 5 disques, 2 interfaces et 20 capteurs : environ 100 échantillons par cycle, soit **≈ 870 000 lignes par jour à l'intervalle par défaut de 10 s, ≈ 340 octets par ligne index compris, ≈ 300 Mo par jour**. La taille stable de la base est d'environ `300 Mo × rétention en jours` (≈ 9 Go pour 30 jours), plus environ 10 à 15 échantillons par conteneur en cours d'exécution tous les 15 s. Pour réduire le volume : allonger `system_collect_interval_seconds` (le volume est inversement proportionnel) ou réduire `metrics_retention_days`. Une réduction structurelle passe par des agrégats conservés plus longtemps que les données brutes (décision produit, PRODUCT_SPEC.md § 7).
+
+Les vues courantes affichent `status`/`lastSuccessAt` du collecteur selon API_CONTRACTS.md § 4.1 (`starting`, `ok`, `stale` au-delà de 3 intervalles sans succès, `unavailable`). Une valeur zéro est une mesure réelle égale à zéro, pas une donnée inconnue.

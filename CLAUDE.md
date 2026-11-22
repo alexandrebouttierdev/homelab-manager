@@ -1,7 +1,7 @@
 # Instructions Claude Code — Homelab Manager
 
 ## Référence obligatoire
-Lire `README.md` et tous les fichiers `docs/` avant toute modification structurante. Ces documents v2.0 sont la source de vérité.
+Lire `README.md` et tous les fichiers `docs/` avant toute modification structurante. Ces documents v2.1 sont la source de vérité ; `docs/API_CONTRACTS.md` est le contrat exact de l'API.
 
 ## Décision de périmètre
 Homelab Manager supervise définitivement une seule machine Linux : celle du Manager. La collecte système et Docker est locale et intégrée au Backend. Ne pas introduire de support d'hôtes distants, d'Agent de collecte, de multi-agent ou de synchronisation entre machines.

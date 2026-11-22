@@ -68,7 +68,7 @@ func loginHandler(auth *usecase.AuthUsecase, secure bool) http.HandlerFunc {
 		token, user, expiresAt, err := auth.Login(r.Context(), request.Username, request.Password, clientIP(r), r.UserAgent())
 		if err != nil {
 			if usecase.IsInvalidCredentials(err) {
-				writeError(w, r, http.StatusUnauthorized, "INVALID_CREDENTIALS", "Identifiant ou mot de passe invalide.")
+				writeError(w, r, http.StatusUnauthorized, "INVALID_CREDENTIALS", "The username or password is invalid.")
 				return
 			}
 			writeError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "The authentication request could not be completed.")

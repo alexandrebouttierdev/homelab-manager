@@ -26,6 +26,7 @@ import { cn } from '../../lib/cn'
 import { formatUptime } from '../../lib/format'
 import { Logo } from '../ui/Logo'
 import { StatusDot } from '../ui/StatusDot'
+import { APP_VERSION } from '../../lib/version'
 
 type NavItem = {
   label: string
@@ -194,7 +195,7 @@ export function AppSidebar({ open, onClose }: AppSidebarProps) {
           <p className="mt-1 font-mono text-[10px] text-text-muted">
             Uptime {host.data ? formatUptime(host.data.uptimeSeconds) : '—'}
           </p>
-          <p className="mt-2 font-mono text-[10px] uppercase tracking-wider text-text-muted/70">Version v2.0 · stable</p>
+          <p className="mt-2 font-mono text-[10px] uppercase tracking-wider text-text-muted/70">Version {APP_VERSION}</p>
         </div>
       </aside>
     </>

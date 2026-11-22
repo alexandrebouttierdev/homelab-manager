@@ -1,6 +1,6 @@
 # Architecture technique — Homelab Manager
 
-Version 2.0 — 21 novembre 2026
+Version 2.1 — 22 novembre 2026
 
 ## 1. Vue logique
 
@@ -73,10 +73,11 @@ En cas d'indisponibilité du démon, conserver le dernier inventaire connu comme
 
 ## 6. Planification, persistance et ressources
 
-- Les cycles système, découverte Docker, stats Docker et rétention ont des fréquences/configurations indépendantes et bornées.
+- Les cycles système, découverte Docker, stats Docker et rétention (horaire) ont des fréquences indépendantes et bornées, chacun dans une goroutine détenue par `MonitoringUsecase.Run`, arrêtée par annulation de contexte avant la fermeture de la base.
 - La collecte démarre au lancement du Manager, non à la première requête.
 - Une panne ponctuelle d'un sous-système n'empêche pas l'autre collecteur de fonctionner.
-- Les insertions de métriques sont groupées ; les requêtes historiques ont des bornes temporelles et un plafond de résultats.
+- Les insertions de métriques sont groupées ; les requêtes historiques ont des bornes temporelles et un plafond de résultats ; les vues courantes lisent le dernier cycle complet.
+- L'état des collecteurs est tenu en mémoire par le usecase (`starting`, `ok`, `stale`, `unavailable`) et n'est pas persisté.
 - La purge est paginée/par lots afin de limiter la durée de chaque écriture SQLite : la connexion unique est partagée avec les collecteurs et l'API.
 - Toute goroutine a un propriétaire, une stratégie d'arrêt et des timeouts.
 

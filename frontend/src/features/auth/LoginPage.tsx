@@ -3,12 +3,13 @@ import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { Eye, EyeOff, KeyRound, LockKeyhole, LogIn, Moon, Server, ShieldCheck, Sun, UserRound } from 'lucide-react'
 import { useState } from 'react'
 import { useForm } from 'react-hook-form'
-import { useNavigate } from 'react-router-dom'
+import { useLocation, useNavigate } from 'react-router-dom'
 import { Logo } from '../../components/ui/Logo'
 import { StatusDot } from '../../components/ui/StatusDot'
 import { ApiError, login } from '../../lib/api/auth'
 import { useTheme } from '../../lib/theme'
 import { loginSchema, type LoginValues } from '../../schemas/login'
+import { APP_VERSION } from '../../lib/version'
 
 const usernameStorageKey = 'homelab-manager-username'
 
@@ -19,6 +20,8 @@ function readRememberedUsername(): string {
 
 export function LoginPage() {
   const navigate = useNavigate()
+  const location = useLocation()
+  const notice = (location.state as { notice?: unknown } | null)?.notice
   const queryClient = useQueryClient()
   const { theme, toggleTheme } = useTheme()
   const rememberedUsername = readRememberedUsername()
@@ -141,6 +144,11 @@ export function LoginPage() {
               Se souvenir de mon identifiant
             </label>
 
+            {typeof notice === 'string' && !errorMessage && (
+              <div className="rounded-md border border-success/30 bg-success/10 px-3 py-2 text-xs text-success" role="status">
+                {notice}
+              </div>
+            )}
             {errorMessage && (
               <div className="rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger" role="alert">
                 {errorMessage}
@@ -180,7 +188,7 @@ export function LoginPage() {
         <span className="flex items-center gap-2">
           <span>{typeof window !== 'undefined' && window.location.protocol === 'https:' ? 'TLS actif' : 'HTTP local'}</span>
           <span className="text-line-strong">•</span>
-          <span>v2.0</span>
+          <span>v{APP_VERSION}</span>
         </span>
       </footer>
     </main>

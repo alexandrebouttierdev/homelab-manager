@@ -19,7 +19,6 @@ import (
 	"github.com/shirou/gopsutil/v4/mem"
 	netstat "github.com/shirou/gopsutil/v4/net"
 	"github.com/shirou/gopsutil/v4/sensors"
-	"golang.org/x/sys/unix"
 )
 
 type Snapshot struct {
@@ -27,19 +26,39 @@ type Snapshot struct {
 	Samples []domain.MetricSample
 }
 
+// Collector reads local Linux interfaces. Rates and CPU usage are computed
+// from the counter deltas between two successive Collect calls, so the first
+// cycle after start produces no rate or CPU percentage.
 type Collector struct {
 	now          func() time.Time
 	mu           sync.Mutex
 	previousAt   time.Time
 	previousNet  map[string]netstat.IOCountersStat
 	previousDisk map[string]disk.IOCountersStat
+	previousCPU  map[string]cpu.TimesStat
 }
 
 func New() *Collector {
 	return &Collector{
 		now: time.Now, previousNet: make(map[string]netstat.IOCountersStat),
 		previousDisk: make(map[string]disk.IOCountersStat),
+		previousCPU:  make(map[string]cpu.TimesStat),
 	}
+}
+
+// cpuUsagePercent applies 100 × (Δtotal − Δidle) / Δtotal, where idle includes
+// iowait. Guest time is already accounted in user/nice by the kernel and is
+// therefore not added to the total.
+func cpuUsagePercent(previous, current cpu.TimesStat) (float64, bool) {
+	total := func(t cpu.TimesStat) float64 {
+		return t.User + t.Nice + t.System + t.Idle + t.Iowait + t.Irq + t.Softirq + t.Steal
+	}
+	deltaTotal := total(current) - total(previous)
+	deltaIdle := (current.Idle + current.Iowait) - (previous.Idle + previous.Iowait)
+	if deltaTotal <= 0 || deltaIdle < 0 || deltaIdle > deltaTotal {
+		return 0, false
+	}
+	return 100 * (deltaTotal - deltaIdle) / deltaTotal, true
 }
 
 func (c *Collector) Collect(ctx context.Context) (domain.HostInfo, []domain.MetricSample, error) {
@@ -75,13 +94,13 @@ func (c *Collector) Collect(ctx context.Context) (domain.HostInfo, []domain.Metr
 	if cores, err := cpu.InfoWithContext(ctx); err == nil && len(cores) > 0 {
 		appendSample("cpu.cores", float64(len(cores)), "count", nil)
 	}
-	if percentages, err := cpu.PercentWithContext(ctx, time.Second, false); err == nil && len(percentages) > 0 {
-		appendSample("cpu.percent", percentages[0], "percent", map[string]string{"core": "all"})
+	cpuTimes := make([]cpu.TimesStat, 0, 64)
+	if total, err := cpu.TimesWithContext(ctx, false); err == nil && len(total) == 1 {
+		total[0].CPU = "cpu-total"
+		cpuTimes = append(cpuTimes, total[0])
 	}
-	if percentages, err := cpu.PercentWithContext(ctx, time.Second, true); err == nil {
-		for i, value := range percentages {
-			appendSample("cpu.percent", value, "percent", map[string]string{"core": fmt.Sprintf("%d", i)})
-		}
+	if perCore, err := cpu.TimesWithContext(ctx, true); err == nil {
+		cpuTimes = append(cpuTimes, perCore...)
 	}
 	if average, err := load.AvgWithContext(ctx); err == nil {
 		appendSample("cpu.load1", average.Load1, "processes", nil)
@@ -106,11 +125,8 @@ func (c *Collector) Collect(ctx context.Context) (domain.HostInfo, []domain.Metr
 			if err != nil || usage.Total == 0 {
 				continue
 			}
-			var filesystem unix.Statfs_t
-			if err := unix.Statfs(partition.Mountpoint, &filesystem); err != nil || filesystem.Bsize <= 0 {
-				continue
-			}
-			available := uint64(filesystem.Bavail) * uint64(filesystem.Bsize)
+			// usage.Free is f_bavail × f_bsize: space available to the service user.
+			available := usage.Free
 			if available > usage.Total {
 				available = usage.Total
 			}
@@ -165,8 +181,32 @@ func (c *Collector) Collect(ctx context.Context) (domain.HostInfo, []domain.Metr
 	if err := ctx.Err(); err != nil {
 		return domain.HostInfo{}, nil, err
 	}
+	c.appendCPUUsage(cpuTimes, appendSample)
 	c.appendCounterRates(now, networkCounters, diskCounters, appendSample)
 	return snapshot.Host, snapshot.Samples, nil
+}
+
+func (c *Collector) appendCPUUsage(times []cpu.TimesStat, appendSample func(string, float64, string, map[string]string)) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	current := make(map[string]cpu.TimesStat, len(times))
+	for _, sample := range times {
+		current[sample.CPU] = sample
+		previous, exists := c.previousCPU[sample.CPU]
+		if !exists {
+			continue
+		}
+		value, ok := cpuUsagePercent(previous, sample)
+		if !ok {
+			continue
+		}
+		core := "all"
+		if sample.CPU != "cpu-total" {
+			core = strings.TrimPrefix(sample.CPU, "cpu")
+		}
+		appendSample("cpu.percent", value, "percent", map[string]string{"core": core})
+	}
+	c.previousCPU = current
 }
 
 func (c *Collector) appendCounterRates(

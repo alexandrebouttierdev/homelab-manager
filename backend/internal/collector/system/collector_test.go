@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/shirou/gopsutil/v4/cpu"
 	"github.com/shirou/gopsutil/v4/disk"
 	netstat "github.com/shirou/gopsutil/v4/net"
 )
@@ -51,5 +52,43 @@ func TestAppendCounterRatesCalculatesAndSkipsResets(t *testing.T) {
 	}
 	if _, ok := values["network.tx_bytes_per_second"]; ok {
 		t.Fatal("counter reset should not create a transmit rate")
+	}
+}
+
+func TestCPUUsagePercentCountsIowaitAsIdle(t *testing.T) {
+	previous := cpu.TimesStat{User: 100, System: 50, Idle: 800, Iowait: 50}
+	current := cpu.TimesStat{User: 130, System: 60, Idle: 850, Iowait: 60}
+	// Δtotal = 30+10+50+10 = 100, Δidle = 50+10 = 60 → 40 %.
+	got, ok := cpuUsagePercent(previous, current)
+	if !ok || got != 40 {
+		t.Fatalf("cpuUsagePercent = (%v, %v), want (40, true)", got, ok)
+	}
+	if _, ok := cpuUsagePercent(current, current); ok {
+		t.Fatal("a zero interval must not produce a CPU percentage")
+	}
+	if _, ok := cpuUsagePercent(current, previous); ok {
+		t.Fatal("decreasing counters must not produce a CPU percentage")
+	}
+}
+
+func TestAppendCPUUsageNeedsTwoCycles(t *testing.T) {
+	collector := New()
+	values := make(map[string]float64)
+	record := func(name string, value float64, _ string, labels map[string]string) {
+		values[name+"/"+labels["core"]] = value
+	}
+	collector.appendCPUUsage([]cpu.TimesStat{
+		{CPU: "cpu-total", User: 10, Idle: 90},
+		{CPU: "cpu0", User: 5, Idle: 45},
+	}, record)
+	if len(values) != 0 {
+		t.Fatalf("first cycle produced %v, want no CPU sample", values)
+	}
+	collector.appendCPUUsage([]cpu.TimesStat{
+		{CPU: "cpu-total", User: 30, Idle: 170},
+		{CPU: "cpu0", User: 15, Idle: 85},
+	}, record)
+	if values["cpu.percent/all"] != 20 || values["cpu.percent/0"] != 20 {
+		t.Fatalf("second cycle = %v, want 20 %% for all and core 0", values)
 	}
 }

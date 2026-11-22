@@ -249,21 +249,6 @@ func (r *MonitoringRepository) SaveContainerMetrics(ctx context.Context, samples
 	return nil
 }
 
-func (r *MonitoringRepository) CreateEvent(ctx context.Context, event domain.MonitorEvent) error {
-	create := r.client.Event.Create().
-		SetID(event.ID).SetType(event.Type).
-		SetSeverity(entevent.Severity(event.Severity)).
-		SetMessage(event.Message).SetOccurredAt(event.OccurredAt)
-	if event.ContainerID != nil {
-		create.SetContainerID(*event.ContainerID)
-	}
-	if event.Metadata != nil {
-		create.SetMetadata(event.Metadata)
-	}
-	_, err := create.Save(ctx)
-	return err
-}
-
 func (r *MonitoringRepository) ListContainers(ctx context.Context, includeRemoved bool, limit int) ([]domain.Container, error) {
 	query := r.client.Container.Query()
 	if !includeRemoved {
@@ -380,6 +365,67 @@ func (r *MonitoringRepository) ListEvents(ctx context.Context, containerID *stri
 			event.ContainerID = &id
 		}
 		result = append(result, event)
+	}
+	return result, nil
+}
+
+// maxSnapshotSamples bounds one cycle; a host produces about a hundred.
+const maxSnapshotSamples = 5000
+
+func (r *MonitoringRepository) LatestMetrics(ctx context.Context, containerID *string, since time.Time) ([]domain.MetricSample, error) {
+	if containerID == nil {
+		latest, err := r.client.SystemMetricSample.Query().
+			Where(entsystemmetricsample.RecordedAtGTE(since)).
+			Order(entsystemmetricsample.ByRecordedAt(entsql.OrderDesc())).
+			First(ctx)
+		if ent.IsNotFound(err) {
+			return []domain.MetricSample{}, nil
+		}
+		if err != nil {
+			return nil, err
+		}
+		records, err := r.client.SystemMetricSample.Query().
+			Where(entsystemmetricsample.RecordedAt(latest.RecordedAt)).
+			Order(entsystemmetricsample.ByName()).Limit(maxSnapshotSamples).All(ctx)
+		if err != nil {
+			return nil, err
+		}
+		result := make([]domain.MetricSample, 0, len(records))
+		for _, record := range records {
+			result = append(result, domain.MetricSample{
+				ID: record.ID, Name: record.Name, Value: record.Value, Unit: record.Unit,
+				Labels: record.Labels, RecordedAt: record.RecordedAt,
+			})
+		}
+		return result, nil
+	}
+	container, err := r.GetContainer(ctx, *containerID)
+	if err != nil {
+		return nil, err
+	}
+	latest, err := r.client.ContainerMetricSample.Query().
+		Where(entcontainermetricsample.ContainerID(container.ID), entcontainermetricsample.RecordedAtGTE(since)).
+		Order(entcontainermetricsample.ByRecordedAt(entsql.OrderDesc())).
+		First(ctx)
+	if ent.IsNotFound(err) {
+		return []domain.MetricSample{}, nil
+	}
+	if err != nil {
+		return nil, err
+	}
+	records, err := r.client.ContainerMetricSample.Query().
+		Where(entcontainermetricsample.ContainerID(container.ID), entcontainermetricsample.RecordedAt(latest.RecordedAt)).
+		Order(entcontainermetricsample.ByName()).Limit(maxSnapshotSamples).All(ctx)
+	if err != nil {
+		return nil, err
+	}
+	result := make([]domain.MetricSample, 0, len(records))
+	for _, record := range records {
+		id := container.ID
+		result = append(result, domain.MetricSample{
+			ID: record.ID, ContainerID: &id, Name: record.Name, Value: record.Value,
+			Unit: record.Unit, Labels: record.Labels, RecordedAt: record.RecordedAt,
+		})
 	}
 	return result, nil
 }

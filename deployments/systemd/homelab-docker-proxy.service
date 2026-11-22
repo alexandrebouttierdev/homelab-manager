@@ -6,7 +6,7 @@ After=homelab-docker-proxy.socket
 [Service]
 Type=simple
 User=homelab-docker-proxy
-Group=homelab-manager
+Group=homelab-docker-proxy
 SupplementaryGroups=docker
 ExecStart=/usr/local/bin/homelab-docker-proxy
 Environment=HOMELAB_DOCKER_ENGINE_SOCKET=/var/run/docker.sock

@@ -12,6 +12,7 @@ import (
 
 	"homelab-manager/backend/internal/usecase"
 
+	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
 )
 
@@ -56,7 +57,7 @@ func TestStaticHandlerServesSPAAndDoesNotMaskUnknownAPI(t *testing.T) {
 		body       string
 	}{
 		{"/containers", http.StatusOK, "application"},
-		{"/api/v1/unknown", http.StatusNotFound, "404 page not found"},
+		{"/api/v1/unknown", http.StatusNotFound, `"code":"NOT_FOUND"`},
 	} {
 		recorder := httptest.NewRecorder()
 		router.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, test.path, nil))
@@ -118,5 +119,59 @@ func TestTimeRangeRejectsUnimplementedAggregationAndCursors(t *testing.T) {
 				t.Fatal("expected unsupported query option to be rejected")
 			}
 		})
+	}
+}
+
+func TestAPIMethodNotAllowedUsesErrorFormat(t *testing.T) {
+	router := NewRouter(zap.NewNop(), usecase.NewHealthUsecase(time.Now()), nil, nil, false, "")
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, httptest.NewRequest(http.MethodDelete, "/api/v1/health", nil))
+	if recorder.Code != http.StatusMethodNotAllowed || !strings.Contains(recorder.Body.String(), `"code":"METHOD_NOT_ALLOWED"`) {
+		t.Fatalf("got %d %q, want 405 METHOD_NOT_ALLOWED", recorder.Code, recorder.Body.String())
+	}
+}
+
+func TestLoginRejectsCrossOrigin(t *testing.T) {
+	router := NewRouter(zap.NewNop(), usecase.NewHealthUsecase(time.Now()), nil, nil, false, "")
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login",
+		strings.NewReader(`{"username":"admin","password":"admin"}`))
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("Origin", "https://evil.example")
+	router.ServeHTTP(recorder, request)
+	if recorder.Code != http.StatusForbidden {
+		t.Fatalf("got status %d, want %d", recorder.Code, http.StatusForbidden)
+	}
+}
+
+func TestMetricHistoryValidatesPathParameters(t *testing.T) {
+	router := chi.NewRouter()
+	// A nil usecase proves validation happens before any data access.
+	router.Get("/containers/{containerID}/metrics/{metricName}", metricHistoryHandler(nil, true))
+	router.Get("/containers/{containerID}", getContainerHandler(nil))
+	query := "?from=2026-11-22T10:00:00Z&to=2026-11-22T11:00:00Z"
+	for _, path := range []string{
+		"/containers/not-an-id/metrics/cpu.percent" + query,
+		"/containers/" + strings.Repeat("a", 65) + "/metrics/cpu.percent" + query,
+		"/containers/aaaaaaaaaaaa/metrics/CPU" + query,
+		"/containers/aaaaaaaaaaaa/metrics/cpu" + query,
+		"/containers/aaaaaaaaaaaa/metrics/" + strings.Repeat("a.", 40) + "x" + query,
+		"/containers/../json",
+	} {
+		recorder := httptest.NewRecorder()
+		router.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, path, nil))
+		if recorder.Code != http.StatusBadRequest && recorder.Code != http.StatusNotFound {
+			t.Errorf("%s returned %d, want a rejection", path, recorder.Code)
+		}
+	}
+	for _, valid := range []string{"cpu.percent", "network.rx_bytes_per_second", "temperature.celsius"} {
+		if !metricNamePattern.MatchString(valid) {
+			t.Errorf("%q should be a valid metric name", valid)
+		}
+	}
+	for _, valid := range []string{"9369be23-5ad3-467d-b954-470b622a1442", "aaaaaaaaaaaa", strings.Repeat("f", 64)} {
+		if !containerIDPattern.MatchString(valid) {
+			t.Errorf("%q should be a valid container ID", valid)
+		}
 	}
 }

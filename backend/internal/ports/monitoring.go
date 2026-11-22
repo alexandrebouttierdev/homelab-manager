@@ -21,11 +21,14 @@ type MonitoringRepository interface {
 	GetHost(context.Context) (domain.HostInfo, error)
 	SaveSystemMetrics(context.Context, []domain.MetricSample) error
 	ReconcileContainers(context.Context, []domain.Container, time.Time) ([]domain.MonitorEvent, error)
-	CreateEvent(context.Context, domain.MonitorEvent) error
 	SaveContainerMetrics(context.Context, []domain.MetricSample) error
 	ListContainers(context.Context, bool, int) ([]domain.Container, error)
 	GetContainer(context.Context, string) (domain.Container, error)
 	ListMetrics(context.Context, *string, string, time.Time, time.Time, int) ([]domain.MetricSample, error)
+	// LatestMetrics returns every sample of the most recent collection cycle
+	// recorded at or after since (one timestamp per cycle), for the host when
+	// containerID is nil, otherwise for that container.
+	LatestMetrics(ctx context.Context, containerID *string, since time.Time) ([]domain.MetricSample, error)
 	ListEvents(context.Context, *string, time.Time, time.Time, int) ([]domain.MonitorEvent, error)
 	DeleteMetricsBefore(context.Context, time.Time, int) (int, error)
 	DeleteEventsBefore(context.Context, time.Time, int) (int, error)

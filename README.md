@@ -2,7 +2,7 @@
 
 Homelab Manager supervise une seule machine Linux : celle qui héberge le Manager. Le Backend Go collecte les métriques locales et découvre les conteneurs Docker ; un fichier SQLite local conserve les mesures et événements ; l'interface React est servie sur la même origine que l'API.
 
-La spécification produit v2.0 est dans [docs/PRODUCT_SPEC.md](docs/PRODUCT_SPEC.md). Les règles de contribution sont dans [CLAUDE.md](CLAUDE.md).
+La spécification produit v2.1 est dans [docs/PRODUCT_SPEC.md](docs/PRODUCT_SPEC.md). Les règles de contribution sont dans [CLAUDE.md](CLAUDE.md).
 
 ## Architecture
 
@@ -15,11 +15,12 @@ Aucun Agent distant, enrôlement, protocole Manager-Agent, commande distante ou 
 
 ## État fonctionnel et limites connues
 
-Le code v2.0 est en place : authentification locale, collecteurs système/Docker, API protégée, historique SQLite, événements de changement de conteneur, interface dashboard/hôte/containers/images/volumes/réseaux Docker/stockage/métriques/réseau/événements/paramètres, proxy Docker Unix filtré et unités systemd. L'interface utilise Tailwind CSS et des composants React internes ; les écrans sans support Backend restent explicitement marqués « à venir ».
+Le code v2.1 est en place : authentification locale, collecteurs système/Docker, API protégée, historique SQLite, événements de changement de conteneur, interface dashboard/hôte/containers/images/volumes/réseaux Docker/stockage/métriques/réseau/événements/paramètres, proxy Docker Unix filtré et unités systemd. L'interface utilise Tailwind CSS et des composants React internes ; les écrans sans support Backend restent explicitement marqués « à venir ».
 
 Les limites actuelles sont explicites :
 
-- Les historiques renvoient des échantillons bruts (maximum 2 000 points par requête). Agrégation par pas et curseurs ne sont pas encore implémentés ; les paramètres correspondants sont rejetés.
+- Les historiques renvoient des échantillons bruts (maximum 2 000 points par requête, les plus récents). Au-delà d'environ une heure par série, les graphiques ne couvrent que la fin de la plage. L'agrégation est spécifiée ([API § 9](docs/API_CONTRACTS.md)) mais pas implémentée.
+- À l'intervalle par défaut (10 s), la base croît d'environ 300 Mo par jour jusqu'à la rétention (≈ 9 Go pour 30 jours) : voir [Collecte § 4](docs/METRICS_COLLECTION.md) pour réduire ce volume.
 - Les listes sont bornées et ne fournissent pas encore de pagination.
 - SQLite n'accepte qu'un écrivain à la fois ; le Manager sérialise ses accès sur une connexion unique, ce qui convient au volume d'une seule machine.
 - L'installation système (comptes, permissions et groupes) doit être réalisée par l'administrateur avant d'activer les unités systemd.
@@ -107,7 +108,17 @@ go -C backend build -o bin/homelab-manager ./cmd/manager
 go -C backend build -o bin/homelab-docker-proxy ./cmd/docker-proxy
 ```
 
-Installer les binaires sous `/usr/local/bin`, le contenu de `frontend/dist` sous `/opt/homelab-manager/frontend/dist`, et fournir `/etc/homelab-manager/manager.env` en mode `0600`. Créer les comptes système `homelab-manager` et `homelab-docker-proxy` ainsi que le groupe `homelab-manager` ; ajouter uniquement le compte proxy au groupe Docker. Le Manager doit appartenir au groupe `homelab-manager` pour accéder au socket proxy.
+Installer les binaires sous `/usr/local/bin`, le contenu de `frontend/dist` sous `/opt/homelab-manager/frontend/dist`, et la configuration sous `/etc/homelab-manager/` : `manager.yaml` (copie de [deployments/config/manager.yaml](deployments/config/manager.yaml)) et, pour les secrets, `manager.env` en mode `0600`. Les variables d'environnement l'emportent sur le YAML. Le Manager cherche `manager.yaml` dans `/etc/homelab-manager`, puis `./deployments/config`, puis le répertoire courant.
+
+Comptes système :
+
+```bash
+sudo adduser --system --group --no-create-home homelab-manager
+sudo adduser --system --group --no-create-home homelab-docker-proxy
+sudo usermod -aG docker homelab-docker-proxy   # seul compte ayant accès à Docker
+```
+
+Le socket du proxy appartient au groupe `homelab-manager` (mode `0660`) : le Manager y accède par son groupe principal, le proxy n'a aucun droit sur les fichiers du Manager.
 
 Installer et activer les unités `homelab-docker-proxy.socket` et `homelab-manager.service`. Le socket proxy écoute seulement sur Unix, autorise les routes GET nécessaires, filtre `Env` et `Labels`, borne la taille des réponses à 8 MiB et la concurrence à 16 requêtes. Vérifier les permissions effectives avant le démarrage.
 

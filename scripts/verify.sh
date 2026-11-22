@@ -1,7 +1,12 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-find backend -name '*.go' -print0 | xargs -0 gofmt -w
+unformatted=$(gofmt -l backend)
+if [[ -n "$unformatted" ]]; then
+  echo "Fichiers Go non formatés (lancer gofmt -w) :" >&2
+  echo "$unformatted" >&2
+  exit 1
+fi
 go -C backend test ./...
 go -C backend test -race ./...
 go -C backend vet ./...

@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"errors"
+	"sync"
 	"time"
 
 	"homelab-manager/backend/internal/domain"
@@ -17,6 +18,11 @@ type AuthUsecase struct {
 	sessions ports.SessionRepository
 	hasher   ports.PasswordHasher
 	now      func() time.Time
+
+	// dummyHash is verified when the username is unknown, so that a missing
+	// account costs the same Argon2id work as a wrong password.
+	dummyOnce sync.Once
+	dummyHash string
 }
 
 func NewAuthUsecase(users ports.UserRepository, sessions ports.SessionRepository, hasher ports.PasswordHasher) *AuthUsecase {
@@ -25,6 +31,10 @@ func NewAuthUsecase(users ports.UserRepository, sessions ports.SessionRepository
 
 func (u *AuthUsecase) Login(ctx context.Context, username, password, ip, userAgent string) (string, domain.User, time.Time, error) {
 	user, storedHash, err := u.users.FindByUsername(ctx, username)
+	if errors.Is(err, domain.ErrInvalidCredentials) {
+		u.verifyDummy(password)
+		return "", domain.User{}, time.Time{}, domain.ErrInvalidCredentials
+	}
 	if err != nil {
 		return "", domain.User{}, time.Time{}, err
 	}
@@ -93,6 +103,18 @@ func (u *AuthUsecase) ChangePassword(ctx context.Context, token, currentPassword
 		return err
 	}
 	return u.sessions.RevokeAllForUser(ctx, user.ID)
+}
+
+func (u *AuthUsecase) verifyDummy(password string) {
+	u.dummyOnce.Do(func() {
+		hash, err := u.hasher.Hash("homelab-manager-unknown-user")
+		if err == nil {
+			u.dummyHash = hash
+		}
+	})
+	if u.dummyHash != "" {
+		_, _ = u.hasher.Verify(password, u.dummyHash)
+	}
 }
 
 func randomToken() (string, error) {

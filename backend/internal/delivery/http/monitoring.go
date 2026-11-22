@@ -3,6 +3,7 @@ package httpdelivery
 import (
 	"errors"
 	"net/http"
+	"regexp"
 	"strconv"
 	"time"
 
@@ -11,6 +12,23 @@ import (
 
 	"github.com/go-chi/chi/v5"
 )
+
+var (
+	// metricNamePattern matches the stable dotted metric names (cpu.percent).
+	metricNamePattern = regexp.MustCompile(`^[a-z][a-z0-9_]*(\.[a-z0-9_]+)+$`)
+	// containerIDPattern accepts a Manager UUID or a Docker hexadecimal ID.
+	containerIDPattern = regexp.MustCompile(`^([0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}|[0-9a-f]{12,64})$`)
+)
+
+const maxMetricNameLength = 64
+
+type settingsDTO struct {
+	SystemCollectIntervalSeconds   int                               `json:"systemCollectIntervalSeconds"`
+	DockerCollectIntervalSeconds   int                               `json:"dockerCollectIntervalSeconds"`
+	DockerDiscoveryIntervalSeconds int                               `json:"dockerDiscoveryIntervalSeconds"`
+	MetricsRetentionDays           int                               `json:"metricsRetentionDays"`
+	Collectors                     map[string]domain.CollectorStatus `json:"collectors"`
+}
 
 type hostDTO struct {
 	Hostname      string     `json:"hostname"`
@@ -136,8 +154,34 @@ func hostHandler(monitoring *usecase.MonitoringUsecase) http.HandlerFunc {
 
 func settingsHandler(monitoring *usecase.MonitoringUsecase) http.HandlerFunc {
 	return func(w http.ResponseWriter, _ *http.Request) {
-		writeJSON(w, http.StatusOK, monitoring.Settings())
+		settings := monitoring.Settings()
+		writeJSON(w, http.StatusOK, settingsDTO{
+			SystemCollectIntervalSeconds:   settings.SystemCollectIntervalSeconds,
+			DockerCollectIntervalSeconds:   settings.DockerCollectIntervalSeconds,
+			DockerDiscoveryIntervalSeconds: settings.DockerDiscoveryIntervalSeconds,
+			MetricsRetentionDays:           settings.MetricsRetentionDays,
+			Collectors:                     map[string]domain.CollectorStatus{"system": settings.System, "docker": settings.Docker},
+		})
 	}
+}
+
+// containerIDParam validates the {containerID} path parameter.
+func containerIDParam(w http.ResponseWriter, r *http.Request) (string, bool) {
+	value := chi.URLParam(r, "containerID")
+	if !containerIDPattern.MatchString(value) {
+		writeError(w, r, http.StatusBadRequest, "VALIDATION_ERROR", "containerID must be a Manager UUID or a Docker ID.")
+		return "", false
+	}
+	return value, true
+}
+
+func metricNameParam(w http.ResponseWriter, r *http.Request) (string, bool) {
+	value := chi.URLParam(r, "metricName")
+	if len(value) > maxMetricNameLength || !metricNamePattern.MatchString(value) {
+		writeError(w, r, http.StatusBadRequest, "VALIDATION_ERROR", "metricName is invalid.")
+		return "", false
+	}
+	return value, true
 }
 
 func listContainersHandler(monitoring *usecase.MonitoringUsecase) http.HandlerFunc {
@@ -169,7 +213,11 @@ func listContainersHandler(monitoring *usecase.MonitoringUsecase) http.HandlerFu
 
 func getContainerHandler(monitoring *usecase.MonitoringUsecase) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		container, err := monitoring.Container(r.Context(), chi.URLParam(r, "containerID"))
+		containerID, ok := containerIDParam(w, r)
+		if !ok {
+			return
+		}
+		container, err := monitoring.Container(r.Context(), containerID)
 		if errors.Is(err, domain.ErrContainerNotFound) {
 			writeError(w, r, http.StatusNotFound, "NOT_FOUND", "Container not found.")
 			return
@@ -186,11 +234,17 @@ func currentMetricsHandler(monitoring *usecase.MonitoringUsecase, container bool
 	return func(w http.ResponseWriter, r *http.Request) {
 		var id *string
 		if container {
-			value := chi.URLParam(r, "containerID")
+			value, ok := containerIDParam(w, r)
+			if !ok {
+				return
+			}
 			id = &value
 		}
-		now := time.Now().UTC()
-		samples, err := monitoring.Metrics(r.Context(), id, "", now.Add(-5*time.Minute), now, 500)
+		samples, err := monitoring.CurrentMetrics(r.Context(), id)
+		if errors.Is(err, domain.ErrContainerNotFound) {
+			writeError(w, r, http.StatusNotFound, "NOT_FOUND", "Container not found.")
+			return
+		}
 		if err != nil {
 			writeError(w, r, http.StatusInternalServerError, "METRICS_UNAVAILABLE", "Could not load current metrics.")
 			return
@@ -216,10 +270,17 @@ func metricHistoryHandler(monitoring *usecase.MonitoringUsecase, container bool)
 		}
 		var id *string
 		if container {
-			value := chi.URLParam(r, "containerID")
+			value, ok := containerIDParam(w, r)
+			if !ok {
+				return
+			}
 			id = &value
 		}
-		samples, err := monitoring.Metrics(r.Context(), id, chi.URLParam(r, "metricName"), from, to, limit)
+		metricName, ok := metricNameParam(w, r)
+		if !ok {
+			return
+		}
+		samples, err := monitoring.Metrics(r.Context(), id, metricName, from, to, limit)
 		if errors.Is(err, domain.ErrContainerNotFound) {
 			writeError(w, r, http.StatusNotFound, "NOT_FOUND", "Container not found.")
 			return
@@ -247,7 +308,10 @@ func listEventsHandler(monitoring *usecase.MonitoringUsecase, container bool) ht
 		}
 		var id *string
 		if container {
-			value := chi.URLParam(r, "containerID")
+			value, ok := containerIDParam(w, r)
+			if !ok {
+				return
+			}
 			id = &value
 		}
 		events, err := monitoring.Events(r.Context(), id, from, to, limit)
@@ -278,13 +342,18 @@ func listEventsHandler(monitoring *usecase.MonitoringUsecase, container bool) ht
 
 func hostTemperaturesHandler(monitoring *usecase.MonitoringUsecase) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		now := time.Now().UTC()
-		samples, err := monitoring.Metrics(r.Context(), nil, "temperature.celsius", now.Add(-5*time.Minute), now, 500)
+		samples, err := monitoring.CurrentMetrics(r.Context(), nil)
 		if err != nil {
 			writeError(w, r, http.StatusInternalServerError, "METRICS_UNAVAILABLE", "Could not load temperatures.")
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"samples": metricResponses(samples)})
+		temperatures := make([]domain.MetricSample, 0)
+		for _, sample := range samples {
+			if sample.Name == "temperature.celsius" {
+				temperatures = append(temperatures, sample)
+			}
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"samples": metricResponses(temperatures)})
 	}
 }
 

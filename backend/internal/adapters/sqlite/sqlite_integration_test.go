@@ -5,6 +5,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strconv"
 	"sync"
 	"testing"
 	"time"
@@ -309,4 +310,68 @@ func openTestDatabase(t *testing.T, ctx context.Context) *ent.Client {
 		}
 	})
 	return database.Client()
+}
+
+// The current view must contain the whole latest cycle, however many series
+// the host has, and nothing from older cycles.
+func TestLatestMetricsReturnsTheWholeLatestCycle(t *testing.T) {
+	ctx := context.Background()
+	repository := NewMonitoringRepository(openTestDatabase(t, ctx))
+	now := time.Now().UTC().Truncate(time.Second)
+
+	const seriesPerCycle = 250 // more than the former 100-sample dashboard cap
+	for cycle := range 3 {
+		recordedAt := now.Add(time.Duration(cycle-2) * 10 * time.Second)
+		samples := make([]domain.MetricSample, 0, seriesPerCycle)
+		for series := range seriesPerCycle {
+			samples = append(samples, domain.MetricSample{
+				ID: uuid.New(), Name: "network.rx_bytes", Value: float64(cycle), Unit: "bytes",
+				Labels: map[string]string{"interface": "veth" + strconv.Itoa(series)}, RecordedAt: recordedAt,
+			})
+		}
+		if err := repository.SaveSystemMetrics(ctx, samples); err != nil {
+			t.Fatalf("save cycle %d: %v", cycle, err)
+		}
+	}
+	latest, err := repository.LatestMetrics(ctx, nil, now.Add(-time.Minute))
+	if err != nil {
+		t.Fatalf("latest metrics: %v", err)
+	}
+	if len(latest) != seriesPerCycle {
+		t.Fatalf("latest cycle has %d samples, want %d", len(latest), seriesPerCycle)
+	}
+	for _, sample := range latest {
+		if sample.Value != 2 || !sample.RecordedAt.Equal(now) {
+			t.Fatalf("sample from an older cycle returned: %+v", sample)
+		}
+	}
+	if empty, err := repository.LatestMetrics(ctx, nil, now.Add(time.Minute)); err != nil || len(empty) != 0 {
+		t.Fatalf("no cycle after since = (%v, %v), want empty", empty, err)
+	}
+
+	dockerID := "abcdef012345"
+	if _, err := repository.ReconcileContainers(ctx, []domain.Container{{
+		DockerID: dockerID, Name: "web", Image: "nginx", State: "running", CreatedAt: now,
+	}}, now); err != nil {
+		t.Fatalf("reconcile: %v", err)
+	}
+	container, err := repository.GetContainer(ctx, dockerID)
+	if err != nil {
+		t.Fatalf("get container: %v", err)
+	}
+	if err := repository.SaveContainerMetrics(ctx, []domain.MetricSample{
+		{ID: uuid.New(), ContainerID: &container.ID, Name: "cpu.percent", Value: 1, Unit: "percent", RecordedAt: now.Add(-15 * time.Second)},
+		{ID: uuid.New(), ContainerID: &container.ID, Name: "cpu.percent", Value: 2, Unit: "percent", RecordedAt: now},
+		{ID: uuid.New(), ContainerID: &container.ID, Name: "restart.count", Value: 0, Unit: "count", RecordedAt: now},
+	}); err != nil {
+		t.Fatalf("save container metrics: %v", err)
+	}
+	containerLatest, err := repository.LatestMetrics(ctx, &dockerID, now.Add(-time.Minute))
+	if err != nil || len(containerLatest) != 2 {
+		t.Fatalf("container latest = (%v, %v), want cpu.percent and restart.count of the last cycle", containerLatest, err)
+	}
+	missing := "ffffffffffff"
+	if _, err := repository.LatestMetrics(ctx, &missing, now.Add(-time.Minute)); !errors.Is(err, domain.ErrContainerNotFound) {
+		t.Fatalf("unknown container error = %v, want ErrContainerNotFound", err)
+	}
 }

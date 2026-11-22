@@ -1,6 +1,6 @@
 # Spécification produit — Homelab Manager
 
-Version 2.0 — 21 novembre 2026
+Version 2.1 — 22 novembre 2026
 
 ## 1. Objectif et périmètre
 
@@ -71,8 +71,27 @@ L'accès Docker est une capacité privilégiée de l'hôte. La solution cible es
 - Empreinte mémoire faible, adaptée à un homelab.
 - Interfaces responsive avec thèmes sombre et clair.
 
-## 6. État de l'implémentation v2.0
+## 6. État de l'implémentation v2.1
 
-Les fondations décrites sont présentes dans le dépôt : module Backend unique, authentification locale, collecte système/Docker, API REST protégée, persistance Ent/SQLite, proxy Docker Unix filtré, interface Web et unités systemd. Le passage de PostgreSQL à SQLite ne migre pas les données existantes ; la base repart vide.
+Présent dans le dépôt : module Backend unique, authentification locale (compte initial `admin` / `admin` à changer), collecte système/Docker, API REST protégée, persistance Ent/SQLite, proxy Docker Unix filtré, interface Web et unités systemd. Le contrat exact de chaque route est API_CONTRACTS.md ; le calcul de chaque métrique est METRICS_COLLECTION.md.
 
-Les limites actuellement connues sont l'absence de pagination par curseur et d'agrégation des historiques, la liste des conteneurs/événements plafonnée sans pagination. Les fonctionnalités non présentes ne doivent pas être présentées comme opérationnelles.
+Limites connues, à ne pas présenter comme fonctionnelles :
+
+- **Historiques bruts uniquement** : au-delà d'environ une heure par série, la réponse est tronquée aux 2 000 points les plus récents. Les graphiques sur 24 h ou plus ne couvrent donc que la fin de la plage tant que l'agrégation (API_CONTRACTS.md § 9.1) n'est pas livrée.
+- Listes de conteneurs et d'événements plafonnées sans pagination (§ 9.2).
+- Images, volumes et réseaux Docker sont déduits de l'inventaire des conteneurs : une image, un volume ou un réseau inutilisé n'apparaît pas.
+- Aucune notification ni alerte, aucun journal de conteneur.
+- Le passage de PostgreSQL à SQLite ne migre pas les données existantes.
+
+## 7. Décisions produit ouvertes
+
+Ces points doivent être tranchés avant d'être implémentés ; tant qu'ils ne le sont pas, le comportement actuel s'applique.
+
+1. **Volume de stockage.** À l'intervalle par défaut, la base atteint environ 9 Go pour 30 jours (METRICS_COLLECTION.md § 4). Options : abaisser les valeurs par défaut (ex. intervalle 30 s, rétention 7 jours → ≈ 0,7 Go), ou conserver les données brutes peu de temps et des agrégats horaires longtemps (nouvelles tables, migration `002`).
+2. **Entrées « à venir » de la navigation.** L'interface affiche des entrées désactivées (services système, journaux système, alertes, applications, sauvegardes, tâches planifiées, utilisateurs) qui ne figurent pas dans cette spécification. Les spécifier ou les retirer.
+3. **Ordre de réalisation proposé** : agrégation des historiques (§ 9.1 de l'API), puis décision 1, puis pagination.
+
+## 8. Historique
+
+- 2.1 — 22 novembre 2026 : stockage SQLite embarqué, compte initial `admin` / `admin`, contrats API exacts, état `stale`, vues courantes sur le dernier cycle complet, purge horaire.
+- 2.0 — 21 novembre 2026 : périmètre mono-machine, abandon de l'Agent distant.

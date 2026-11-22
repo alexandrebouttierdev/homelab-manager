@@ -1,6 +1,6 @@
 # Stratégie de tests — Homelab Manager
 
-Version 2.0 — 21 novembre 2026
+Version 2.1 — 22 novembre 2026
 
 ## Backend Go
 
@@ -62,6 +62,12 @@ npm run build
 - Authentification, contrôle d'origine, sessions révoquées et accès proxy strictement local.
 - Démarrage/arrêt natif Debian 13 via systemd et vérification des permissions des sockets.
 
-Les tests doivent valider la cible mono-machine ; aucun test Agent distant, enrôlement ou protocole Manager-Agent ne fait partie de la spécification v2.0.
+### Couverture actuelle
 
-L'intégration SQLite vérifie la réouverture sans réappliquer les migrations, les pragmas effectifs (WAL, clés étrangères, `busy_timeout`), le mode `0600` du fichier, l'authentification/persistance des sessions, l'hôte, les métriques, la réconciliation des conteneurs, les événements, la purge, l'ordre chronologique des plages quel que soit le fuseau des dates reçues, et les écritures/lectures concurrentes. Les tests unitaires vérifient également les formules Docker, les deltas système, la liste blanche du proxy et les routes HTTP de base.
+Les sections précédentes fixent les exigences. Aujourd'hui couverts automatiquement : formules CPU (deltas `/proc/stat`), débits réseau/disque et remises à zéro, formules CPU/mémoire Docker, découverte Docker avec conteneur disparu (API simulée), liste blanche du proxy, usecases (indépendance des collecteurs, arrêt, état `stale`, horodatage de `restart.count`, purge complète d'un arriéré, anti-énumération à la connexion), routes HTTP (santé, SPA, 404/405 JSON, contrôle d'origine, validation des paramètres), intégration SQLite (voir plus bas), configuration, client REST et schémas Zod du Frontend, pages de connexion et dashboard.
+
+Non couverts automatiquement, à vérifier manuellement avant une version : parcours transverses ci-dessus, démarrage systemd réel et permissions des sockets, accessibilité clavier et affichage mobile.
+
+Les tests doivent valider la cible mono-machine ; aucun test Agent distant, enrôlement ou protocole Manager-Agent ne fait partie de la spécification.
+
+L'intégration SQLite vérifie la réouverture sans réappliquer les migrations, les pragmas effectifs (WAL, clés étrangères, `busy_timeout`), le mode `0600` du fichier, l'authentification/persistance des sessions, l'hôte, les métriques, la réconciliation des conteneurs, les événements, la purge, le dernier cycle complet (`LatestMetrics`), l'ordre chronologique des plages quel que soit le fuseau des dates reçues, et les écritures/lectures concurrentes. Les tests unitaires vérifient également les formules Docker, les deltas système, la liste blanche du proxy et les routes HTTP de base.

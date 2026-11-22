@@ -9,6 +9,31 @@ export class ApiError extends Error {
   }
 }
 
+/**
+ * French messages for the stable API error codes. The API returns English
+ * technical messages; the interface shows these instead.
+ */
+export const errorMessages: Record<string, string> = {
+  VALIDATION_ERROR: 'La requête envoyée au Manager est invalide.',
+  AUTH_UNAVAILABLE: "Authentification indisponible : la base de données du Manager n'est pas accessible.",
+  INVALID_CREDENTIALS: 'Identifiant ou mot de passe incorrect.',
+  SESSION_NOT_FOUND: 'Session expirée. Reconnectez-vous.',
+  CROSS_ORIGIN_REQUEST: 'Requête refusée : origine non autorisée.',
+  RATE_LIMITED: 'Trop de tentatives de connexion. Réessayez dans une minute.',
+  NOT_FOUND: 'Élément introuvable.',
+  METHOD_NOT_ALLOWED: 'Opération non autorisée.',
+  METRICS_UNAVAILABLE: 'Métriques momentanément indisponibles.',
+  EVENTS_UNAVAILABLE: 'Événements momentanément indisponibles.',
+  LOGOUT_FAILED: 'La déconnexion a échoué.',
+  PASSWORD_CHANGE_FAILED: "Le mot de passe n'a pas pu être modifié.",
+  INTERNAL_ERROR: 'Erreur interne du Manager.',
+}
+
+/** True when the error means the session is missing, expired or revoked. */
+export function isUnauthenticated(error: unknown): boolean {
+  return error instanceof ApiError && error.status === 401 && error.code === 'SESSION_NOT_FOUND'
+}
+
 type ErrorBody = {
   error?: {
     code?: string
@@ -34,10 +59,11 @@ export async function requestJSON<T>(path: string, init?: RequestInit): Promise<
 
   if (!response.ok) {
     const body = await response.json().catch(() => null) as ErrorBody | null
+    const code = body?.error?.code
     throw new ApiError(
       response.status,
-      body?.error?.message ?? 'Une erreur est survenue.',
-      body?.error?.code,
+      (code && errorMessages[code]) ?? 'Une erreur est survenue.',
+      code,
     )
   }
 

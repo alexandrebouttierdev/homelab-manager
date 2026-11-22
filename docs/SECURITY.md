@@ -1,13 +1,16 @@
 # Exigences de sécurité — Homelab Manager
 
-Version 2.0 — 21 novembre 2026
+Version 2.1 — 22 novembre 2026
 
 ## Authentification locale et HTTP
 
 - Authentification locale par identifiant et mot de passe ; hash Argon2id recommandé.
 - Premier démarrage sans `HOMELAB_ADMIN_PASSWORD` : compte par défaut `admin` / `admin`, signalé par un avertissement dans les journaux. Ce mot de passe faible doit être changé dans Paramètres immédiatement ; un nouveau mot de passe fait au moins 12 caractères. La connexion n'impose pas de longueur minimale (seulement 1 à 1 024 octets), les règles de robustesse s'appliquent à la définition du mot de passe.
 - Cookies `HttpOnly`, `Secure` sous HTTPS, `SameSite` approprié, expiration et révocation de sessions.
-- Protection CSRF des mutations authentifiées par cookie, limitation des tentatives et erreurs publiques non bavardes.
+- Protection CSRF : cookie `SameSite=Lax` et contrôle `Origin`/`Sec-Fetch-Site` sur la connexion et toutes les routes authentifiées (détail dans API_CONTRACTS.md § 3).
+- Connexion : 10 tentatives par minute et par IP, réponse identique et coût Argon2id équivalent que le compte existe ou non (pas d'énumération des comptes).
+- Changement de mot de passe : révocation de toutes les sessions de l'utilisateur, y compris la courante.
+- Erreurs publiques non bavardes : codes stables, messages génériques, `requestId` pour corréler avec les journaux.
 - Validation serveur stricte, limite de taille des requêtes, timeouts, headers de sécurité et contrôle d'origine.
 - Ne jamais journaliser mots de passe, cookies, tokens ou secrets.
 - Le Content Security Policy n'autorise les styles inline que pour l'affichage ECharts ; les scripts inline restent interdits.
@@ -24,9 +27,9 @@ Le socket Docker rootful permet généralement un contrôle équivalent à root 
 
 ### Décision cible
 
-Pour une installation domestique privilégiant la sécurité, utiliser un proxy local minimal, distinct du processus Manager, qui seul accède au socket Docker. Il doit appliquer une liste blanche exacte de méthodes et routes de consultation nécessaires à la liste/inspection/statistiques/événements ; refuser les autres chemins, paramètres de tunnel, méthodes mutatrices et accès aux fonctionnalités exec, archive, création, suppression, démarrage ou arrêt. Le proxy n'écoute que sur un socket Unix avec permissions restrictives, jamais sur une interface réseau.
+Pour une installation domestique privilégiant la sécurité, utiliser un proxy local minimal, distinct du processus Manager, qui seul accède au socket Docker. Il doit appliquer une liste blanche exacte de méthodes et routes de consultation nécessaires à la liste, l'inspection et les statistiques ; refuser les autres chemins, paramètres de tunnel, méthodes mutatrices et accès aux fonctionnalités exec, archive, création, suppression, démarrage ou arrêt. Le proxy n'écoute que sur un socket Unix avec permissions restrictives, jamais sur une interface réseau.
 
-Le proxy fourni n'autorise que `GET /v1.41/containers/json?all=1`, l'inspection d'un ID hexadécimal et `stats?stream=false`. Il filtre récursivement les champs `Env` et `Labels`, limite les réponses à 8 MiB, les appels à 10 secondes et la concurrence à 16 requêtes. Il est lancé par socket activation systemd sur un socket Unix ; son unité utilise le compte dédié `homelab-docker-proxy`, seul membre attendu du groupe Docker. Vérifier les permissions effectives avant le déploiement.
+Le proxy fourni n'autorise que `GET /v1.41/containers/json?all=1`, l'inspection d'un ID hexadécimal et `stats?stream=false`. Il filtre récursivement les champs `Env` et `Labels`, limite les réponses à 8 MiB, les appels à 10 secondes et la concurrence à 16 requêtes. Il est lancé par socket activation systemd sur `/run/homelab-docker-proxy/docker.sock` (groupe `homelab-manager`, mode `0660`) ; son unité utilise le compte et le groupe dédiés `homelab-docker-proxy`, seul membre attendu du groupe `docker`. Le Manager n'accède qu'à ce socket, par son appartenance au groupe `homelab-manager` ; le proxy n'a aucun accès aux fichiers du Manager. Vérifier les permissions effectives avant le déploiement.
 
 Le proxy ne propose pas de flux d'événements Docker ; les changements d'état sont détectés par réconciliation périodique de l'inventaire.
 

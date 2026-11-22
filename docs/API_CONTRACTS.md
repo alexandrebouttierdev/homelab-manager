@@ -1,87 +1,83 @@
 # Contrats API — Homelab Manager
 
-Version 2.0 — 21 novembre 2026
+Version 2.1 — 22 novembre 2026
 
-L'API v2.0 est implémentée pour les routes de consultation et l'authentification ci-dessous. Les historiques sont bruts ; l'agrégation et la pagination par curseur restent non disponibles.
+Ce document est le contrat exact de l'API implémentée. Toute différence entre ce document et le code est un défaut : corriger l'un ou l'autre dans la même modification. Les éléments non encore implémentés sont regroupés en fin de document (§ 9) et ne doivent pas être présentés comme disponibles.
 
 ## 1. Principes communs
 
-- API REST JSON UTF-8 sous `/api/v1`, same-origin en production.
-- DTO explicites ; ne jamais exposer les entités Ent ni les réponses brutes Docker.
-- UUID côté Manager ; ID Docker opaque uniquement comme identifiant externe de conteneur.
-- Horodatages RFC 3339 en UTC.
-- Authentification par session cookie ; mutations protégées contre CSRF et origines externes.
-- Historique borné par `from`, `to` et `limit`.
-- Une donnée inconnue/indisponible est `null` ou absente selon le DTO, jamais remplacée par zéro.
-- Les noms de machine et IDs de conteneur ne représentent qu'un seul hôte local.
+- API REST JSON UTF-8 sous `/api/v1`, servie sur la même origine que l'interface.
+- DTO explicites définis dans `internal/delivery/http` ; jamais d'entité Ent ni de réponse Docker brute.
+- Identifiants : UUID générés par le Manager ; l'ID Docker (hexadécimal) n'est qu'un identifiant externe de conteneur.
+- Horodatages émis en RFC 3339 UTC (`2026-11-21T20:58:00Z`, fraction de seconde possible).
+- Une valeur inconnue est `null` ou absente selon le DTO, jamais remplacée par zéro. Zéro est une mesure réelle.
+- Corps de requête limité à 1 MiB, JSON strict : champ inconnu ou second document JSON → `400 VALIDATION_ERROR`.
+- Toutes les routes sauf `/health`, `/api/v1/health`, `/api/v1/auth/login` et `/api/v1/auth/session` exigent une session.
+- Les messages d'erreur de l'API sont techniques et en anglais ; l'interface affiche ses propres messages, en français, à partir du `code`.
 
 ## 2. Routes
 
-### Santé et authentification
-- `GET /health` — disponibilité du processus HTTP.
-- `GET /api/v1/health` — santé du Manager et statut des dépendances/collecteurs sans secret.
-- `POST /api/v1/auth/login`
-- `POST /api/v1/auth/logout`
-- `GET /api/v1/auth/session`
-- `POST /api/v1/auth/password`
+| Méthode et chemin | Session | Réponse |
+|---|---|---|
+| `GET /health` | non | Processus HTTP vivant (§ 4.1) |
+| `GET /api/v1/health` | non | Santé détaillée (§ 4.1) |
+| `POST /api/v1/auth/login` | non | Ouvre une session (§ 3) |
+| `GET /api/v1/auth/session` | cookie | Utilisateur courant (§ 3) |
+| `POST /api/v1/auth/logout` | oui | Révoque la session |
+| `POST /api/v1/auth/password` | oui | Change le mot de passe |
+| `GET /api/v1/dashboard` | oui | Synthèse (§ 4.2) |
+| `GET /api/v1/host` | oui | Identité de l'hôte (§ 4.3) |
+| `GET /api/v1/host/metrics/current` | oui | Dernier cycle hôte (§ 5.2) |
+| `GET /api/v1/host/metrics/{metricName}` | oui | Historique brut (§ 5.3) |
+| `GET /api/v1/host/temperatures` | oui | Températures du dernier cycle (§ 5.2) |
+| `GET /api/v1/containers` | oui | Inventaire (§ 6.1) |
+| `GET /api/v1/containers/{containerID}` | oui | Détail (§ 6.1) |
+| `GET /api/v1/containers/{containerID}/metrics/current` | oui | Dernier cycle du conteneur (§ 5.2) |
+| `GET /api/v1/containers/{containerID}/metrics/{metricName}` | oui | Historique brut (§ 5.3) |
+| `GET /api/v1/containers/{containerID}/events` | oui | Événements du conteneur (§ 6.2) |
+| `GET /api/v1/events` | oui | Tous les événements (§ 6.2) |
+| `GET /api/v1/settings` | oui | Paramètres effectifs (§ 4.4) |
 
-### Dashboard et hôte
-- `GET /api/v1/dashboard`
-- `GET /api/v1/host`
-- `GET /api/v1/host/metrics/current`
-- `GET /api/v1/host/metrics/{metricName}`
-- `GET /api/v1/host/temperatures`
+Toutes les routes de supervision sont en lecture seule. Une route inconnue sous `/api` répond `404 NOT_FOUND`, une méthode non prévue `405 METHOD_NOT_ALLOWED`, toujours au format d'erreur du § 8. Il n'existe aucune route d'Agent, d'hôte distant, de journaux, ni d'action Docker (création, suppression, démarrage, arrêt, restart, exec).
 
-Métriques hôte supportées selon disponibilité : CPU global/par cœur/charge, mémoire/swap, systèmes de fichiers, activité bloc, interfaces réseau et températures exposées localement.
+### Paramètres de chemin
 
-### Docker
-- `GET /api/v1/containers`
-- `GET /api/v1/containers/{containerID}`
-- `GET /api/v1/containers/{containerID}/metrics/current`
-- `GET /api/v1/containers/{containerID}/metrics/{metricName}`
-- `GET /api/v1/containers/{containerID}/events`
+- `containerID` : UUID Manager (`8-4-4-4-12` hexadécimal minuscule) ou ID Docker de 12 à 64 caractères hexadécimaux minuscules. Sinon `400 VALIDATION_ERROR` ; inconnu → `404 NOT_FOUND`.
+- `metricName` : 64 caractères au plus, motif `^[a-z][a-z0-9_]*(\.[a-z0-9_]+)+$` (ex. `cpu.percent`). Sinon `400 VALIDATION_ERROR`. Un nom valide mais jamais collecté renvoie une liste vide.
 
-Les listes comprennent les conteneurs arrêtés si Docker les retourne. Les routes sont en lecture seule. Pas de logs dans le périmètre initial, ni de création/suppression/démarrage/arrêt/restart/exec.
+## 3. Authentification et sessions
 
-### Événements
-- `GET /api/v1/events` — changements d'état détectés lors de la réconciliation des conteneurs.
+**Connexion** — `POST /api/v1/auth/login` avec `{ "username": "...", "password": "..." }`.
 
-### Paramètres effectifs
-- `GET /api/v1/settings` — expose les valeurs non secrètes actives (fréquences, rétention, statut Docker et capacités de collecte). Les valeurs sont configurées par fichier ou variables d'environnement, pas modifiées par l'API.
+- `username` : espaces de début et fin retirés, 1 à 255 octets. `password` : 1 à 1 024 octets. Aucune longueur minimale à la connexion (le compte par défaut est `admin` / `admin`).
+- Succès `200` : `{ "user": { "id": "uuid", "username": "admin" } }` et cookie de session.
+- Échec : `401 INVALID_CREDENTIALS`, identique que l'utilisateur existe ou non ; le temps de réponse est équivalent (une vérification Argon2id est faite dans les deux cas).
+- Limitation : 10 tentatives par minute et par adresse IP source, au-delà `429 RATE_LIMITED` (fenêtre fixe d'une minute, au plus 10 000 adresses suivies).
+- Contrôle d'origine identique aux mutations (ci-dessous).
 
-Il n'y a pas de route Agent, d'opération distante, de flux WebSocket Manager-Agent, ni de route de gestion de plusieurs hôtes.
+**Cookie** — nom `homelab_session`, `HttpOnly`, `SameSite=Lax`, `Path=/`, `Secure` si TLS est activé ou `HOMELAB_SESSION_SECURE=true`. Durée de vie fixe de 12 heures, sans prolongation. Seul le SHA-256 du jeton (32 octets aléatoires) est stocké.
 
-## 3. Filtres temporels et pagination
+**Session** — `GET /api/v1/auth/session` : `200 { "user": { "id", "username" } }`, sinon `401 SESSION_NOT_FOUND`.
 
-Pour les historiques et événements :
+**Déconnexion** — `POST /api/v1/auth/logout` : révoque la session, efface le cookie, `200 { "loggedOut": true }`.
 
-- `from` et `to` : bornes RFC 3339 UTC requises ; intervalle semi-ouvert `[from, to)`.
-- `from` doit précéder `to` ; l'intervalle ne peut dépasser 365 jours. Les échantillons antérieurs à la rétention configurée sont supprimés.
-- `step` omis ou `raw` uniquement. Les valeurs `1m`, `5m` et `1h` sont rejetées jusqu'à l'implémentation des agrégations.
-- `limit` facultatif, défaut 500, maximum 2000.
-- `cursor` n'est pas encore supporté et toute valeur fournie est rejetée.
-- Les routes de liste conteneurs et événements sont actuellement plafonnées à 500 résultats sans curseur.
+**Changement de mot de passe** — `POST /api/v1/auth/password` avec `{ "currentPassword": "...", "newPassword": "..." }`.
 
-Le serveur rejette les filtres invalides au lieu de choisir silencieusement des valeurs. Les échantillons sont renvoyés dans l'ordre chronologique ; les événements sont renvoyés du plus récent au plus ancien. Voir [DATA_MODEL.md](./DATA_MODEL.md).
+- `newPassword` : 12 à 1 024 octets ; `currentPassword` : 1 024 octets au plus. Sinon `400 VALIDATION_ERROR`.
+- Mot de passe actuel faux : `401 INVALID_CREDENTIALS`.
+- Succès `200 { "changed": true }`. **Toutes les sessions de l'utilisateur sont révoquées, y compris la session courante** : l'interface renvoie vers la connexion.
 
-## 4. DTO principaux
+**Contrôle d'origine (CSRF)** — appliqué à la connexion et à toutes les routes authentifiées : si l'en-tête `Origin` est présent, son hôte doit être égal à l'en-tête `Host` ; une requête `Sec-Fetch-Site: cross-site` est refusée. Refus : `403 CROSS_ORIGIN_REQUEST`. Combiné à `SameSite=Lax`, il protège les mutations par cookie.
 
-### Hôte
+**Base indisponible** — si la base SQLite n'a pas pu être ouverte au démarrage, toutes les routes qui exigent une session et la connexion répondent `503 AUTH_UNAVAILABLE`.
 
-```json
-{
-  "hostname": "nas",
-  "os": { "distribution": "Debian GNU/Linux", "version": "13" },
-  "kernelVersion": "6.x",
-  "bootTime": "2026-11-20T08:00:00Z",
-  "uptimeSeconds": 129600,
-  "collector": { "status": "ok", "lastSuccessAt": "2026-11-21T20:58:00Z" }
-}
-```
+## 4. Santé, synthèse, hôte et paramètres
 
-`distribution`, `version`, `kernelVersion`, `bootTime` ou uptime peuvent être vides/nuls si la source locale n'est pas disponible. L'uptime est calculé depuis l'heure de démarrage.
+### 4.1 Santé
 
-### Santé et paramètres
+`GET /health` : `200 { "status": "ok", "service": "homelab-manager", "timestamp": "...", "uptime": "12h0m0s" }` tant que le processus répond.
+
+`GET /api/v1/health` :
 
 ```json
 {
@@ -97,63 +93,31 @@ Le serveur rejette les filtres invalides au lieu de choisir silencieusement des 
 }
 ```
 
-Le endpoint santé retourne HTTP 200 lorsque le processus répond, même si une dépendance est dégradée ; le champ `status` rend cet état explicite. `GET /api/v1/settings` retourne les fréquences et rétention effectives ainsi que le statut des collecteurs, sans secret, chemin de socket ni identifiant sensible. Les réglages se modifient dans la configuration locale puis nécessitent le redémarrage du service.
+- Toujours HTTP 200. `status` vaut `ok` seulement si `database`, `collectors.system.status` et `collectors.docker.status` valent tous `ok`, sinon `degraded`.
+- `uptime` : durée Go arrondie à la seconde depuis le démarrage du processus.
+- Aucun secret, chemin de fichier ou de socket.
 
-### Échantillon de métrique
+**États d'un collecteur** (`status`), communs à toute l'API :
 
-```json
-{
-  "name": "cpu.percent",
-  "value": 21.4,
-  "unit": "percent",
-  "labels": { "core": "all" },
-  "recordedAt": "2026-11-21T20:58:00Z"
-}
-```
+| Valeur | Signification |
+|---|---|
+| `starting` | Aucun cycle terminé depuis le démarrage |
+| `ok` | Dernier cycle réussi, il y a moins de 3 intervalles |
+| `stale` | Dernier succès plus ancien que 3 intervalles (système : 3 × `system_collect_interval_seconds` ; Docker : 3 × `docker_discovery_interval_seconds`) |
+| `unavailable` | Dernier cycle en échec, ou base indisponible |
 
-Un historique retourne `{ "samples": [...], "nextCursor": null, "resolution": "raw" }`.
+`lastSuccessAt` est l'heure du dernier succès, conservée lorsqu'un cycle échoue ; `null` si aucun succès. `database` prend les valeurs `starting`, `ok`, `unavailable` : il reflète le résultat de la dernière écriture des collecteurs ou de la purge.
 
-### Conteneur
+### 4.2 Synthèse
 
-```json
-{
-  "id": "manager-uuid",
-  "dockerId": "sha256:...",
-  "name": "web",
-  "image": "nginx:stable",
-  "state": "running",
-  "status": "Up 3 hours",
-  "createdAt": "2026-11-21T17:00:00Z",
-  "startedAt": "2026-11-21T17:01:00Z",
-  "uptimeSeconds": 10620,
-  "restartCount": 0,
-  "ports": [],
-  "networks": [],
-  "mounts": [],
-  "lastObservedAt": "2026-11-21T20:58:00Z"
-}
-```
-
-Les champs sensibles de l'inspection Docker, notamment les variables d'environnement, ne sont jamais renvoyés. Valeurs indisponibles sont nulles ou absentes.
-
-### Dashboard
-
-Le dashboard retourne l'identité et la fraîcheur de l'hôte, métriques système récentes, nombre total et nombre par état de conteneur, ainsi qu'un résumé de disponibilité des collecteurs. Les valeurs sont cohérentes avec les endpoints `host` et `containers` et portent leur horodatage.
+`GET /api/v1/dashboard` :
 
 ```json
 {
-  "host": {
-    "hostname": "nas",
-    "os": { "distribution": "Debian GNU/Linux", "version": "13" },
-    "kernelVersion": "6.x",
-    "bootTime": "2026-11-20T08:00:00Z",
-    "uptimeSeconds": 129600,
-    "collector": { "status": "ok", "lastSuccessAt": "2026-11-21T20:58:00Z" }
-  },
+  "host": { "...": "DTO hôte du § 4.3" },
   "containers": { "total": 4, "running": 3, "stopped": 1, "other": 0 },
   "metrics": [
-    { "name": "cpu.percent", "value": 21.4, "unit": "percent", "recordedAt": "2026-11-21T20:58:00Z" },
-    { "name": "memory.used", "value": 8589934592, "unit": "bytes", "recordedAt": "2026-11-21T20:58:00Z" }
+    { "name": "cpu.percent", "value": 21.4, "unit": "percent", "labels": { "core": "all" }, "recordedAt": "2026-11-21T20:58:00Z" }
   ],
   "collectors": {
     "system": { "status": "ok", "lastSuccessAt": "2026-11-21T20:58:00Z" },
@@ -162,48 +126,220 @@ Le dashboard retourne l'identité et la fraîcheur de l'hôte, métriques systè
 }
 ```
 
-### Conteneurs et événements
+- `containers` porte sur les conteneurs non supprimés : `running` = état `running` ; `stopped` = `exited` ou `created` ; `other` = tous les autres états (`paused`, `restarting`, `dead`, …).
+- `metrics` contient **tous** les échantillons du dernier cycle système, s'il date de moins de 5 minutes, sinon `[]`. C'est le même contenu que `GET /api/v1/host/metrics/current`.
 
-`GET /api/v1/containers` retourne `{ "containers": [...], "nextCursor": null }` avec un maximum de 500 résultats ; `includeRemoved=true` inclut les entrées supprimées. Le détail retourne le DTO conteneur présenté plus haut. Une lecture de métriques courantes retourne `{ "samples": [...], "lastSuccessAt": "...", "status": "ok" }`. Les événements utilisent :
+### 4.3 Hôte
+
+```json
+{
+  "hostname": "nas",
+  "os": { "distribution": "debian", "version": "13" },
+  "kernelVersion": "6.12.0",
+  "bootTime": "2026-11-20T08:00:00Z",
+  "uptimeSeconds": 129600,
+  "collector": { "status": "ok", "lastSuccessAt": "2026-11-21T20:58:00Z" }
+}
+```
+
+`distribution`, `version`, `kernelVersion` valent `""` si la source locale ne les fournit pas ; `bootTime` et `uptimeSeconds` valent `null`. `uptimeSeconds` est recalculé à chaque requête depuis `bootTime`. `distribution` est l'identifiant de plateforme lu localement (ex. `debian`, `fedora`).
+
+### 4.4 Paramètres effectifs
+
+`GET /api/v1/settings` :
+
+```json
+{
+  "systemCollectIntervalSeconds": 10,
+  "dockerCollectIntervalSeconds": 15,
+  "dockerDiscoveryIntervalSeconds": 30,
+  "metricsRetentionDays": 30,
+  "collectors": {
+    "system": { "status": "ok", "lastSuccessAt": "..." },
+    "docker": { "status": "ok", "lastSuccessAt": "..." }
+  }
+}
+```
+
+Lecture seule. Les valeurs viennent du fichier de configuration ou des variables d'environnement (README, « Configuration ») et ne changent qu'au redémarrage du service.
+
+## 5. Métriques
+
+### 5.1 Échantillon
+
+```json
+{ "name": "cpu.percent", "value": 21.4, "unit": "percent", "labels": { "core": "all" }, "recordedAt": "2026-11-21T20:58:00Z" }
+```
+
+`labels` vaut `null` pour une série sans label. Une série est identifiée par `name` + `labels`. Tous les échantillons d'un même cycle portent le même `recordedAt` : un par cycle système, un par conteneur et par cycle de statistiques.
+
+### 5.2 Valeurs courantes
+
+`GET /api/v1/host/metrics/current` et `GET /api/v1/containers/{containerID}/metrics/current` :
+
+```json
+{ "samples": [ ... ], "status": "ok", "lastSuccessAt": "2026-11-21T20:58:00Z" }
+```
+
+- `samples` contient tous les échantillons du dernier cycle de l'hôte (ou du conteneur) enregistré depuis moins de 5 minutes, sinon `[]`. Au plus 5 000 échantillons.
+- `status` et `lastSuccessAt` sont ceux du collecteur système (hôte) ou de la découverte Docker (conteneur), selon le § 4.1.
+- Un conteneur arrêté n'a pas de statistiques : son dernier cycle ne contient que `restart.count`.
+
+`GET /api/v1/host/temperatures` : `{ "samples": [...] }`, limité aux échantillons `temperature.celsius` du dernier cycle hôte.
+
+### 5.3 Historique brut
+
+`GET …/metrics/{metricName}?from=…&to=…[&limit=…][&step=raw]` → `{ "samples": [...], "nextCursor": null, "resolution": "raw" }`.
+
+- `from`, `to` : obligatoires, RFC 3339 avec n'importe quel décalage (normalisé en UTC). Intervalle semi-ouvert `[from, to)`. `from` doit précéder `to`, écart de 365 jours au plus.
+- `limit` : entier de 1 à 2 000, 500 par défaut.
+- `step` : absent ou `raw` uniquement. Toute autre valeur → `400 VALIDATION_ERROR` (agrégation non implémentée, § 9).
+- `cursor` : toute valeur non vide → `400 VALIDATION_ERROR` (pagination non implémentée).
+- Tout autre paramètre, ou paramètre répété → `400 VALIDATION_ERROR`.
+- Toutes les séries du nom demandé sont renvoyées (toutes valeurs de labels confondues). **Si l'intervalle contient plus de `limit` échantillons, seuls les `limit` plus récents sont renvoyés**, dans l'ordre chronologique croissant. Le client doit donc dimensionner son intervalle : une série de l'hôte produit 360 points par heure à l'intervalle par défaut, et `cpu.percent` compte une série par cœur plus `core=all`.
+
+### 5.4 Catalogue des métriques hôte
+
+Une métrique absente signifie que la source n'est pas disponible ou que le calcul n'est pas défini pour ce cycle (voir METRICS_COLLECTION.md).
+
+| Nom | Unité | Labels | Remarque |
+|---|---|---|---|
+| `cpu.cores` | `count` | — | Cœurs logiques |
+| `cpu.percent` | `percent` | `core` : `all` ou index `0`… | Absent au premier cycle |
+| `cpu.load1`, `cpu.load5`, `cpu.load15` | `processes` | — | `/proc/loadavg` |
+| `memory.total`, `memory.used`, `memory.available` | `bytes` | — | `used = total − available` |
+| `memory.cached` | `bytes` | — | `Cached + Buffers` |
+| `swap.total`, `swap.used` | `bytes` | — | |
+| `filesystem.total`, `filesystem.used`, `filesystem.available` | `bytes` | `mountpoint` | Partitions physiques montées |
+| `filesystem.percent` | `percent` | `mountpoint` | |
+| `disk.read_bytes`, `disk.write_bytes` | `bytes` | `device` | Compteurs cumulés |
+| `disk.read_iops`, `disk.write_iops` | `iops` | `device` | Absent au premier cycle |
+| `disk.read_latency_ms`, `disk.write_latency_ms` | `milliseconds` | `device` | Absent si aucune E/S dans l'intervalle |
+| `network.rx_bytes`, `network.tx_bytes` | `bytes` | `interface` | Compteurs cumulés |
+| `network.rx_packets`, `network.tx_packets` | `packets` | `interface` | |
+| `network.errors`, `network.drops` | `count` | `interface` | Somme entrée + sortie |
+| `network.rx_bytes_per_second`, `network.tx_bytes_per_second` | `bytes_per_second` | `interface` | Absent au premier cycle ou après remise à zéro |
+| `network.interface` | `present` (valeur `1`) | `name`, `address`, `mac` | Échantillon d'inventaire : une ligne par adresse IP |
+| `temperature.celsius` | `celsius` | `sensor` | Capteurs exposés par le noyau |
+
+### 5.5 Catalogue des métriques conteneur
+
+| Nom | Unité | Labels | Remarque |
+|---|---|---|---|
+| `cpu.percent` | `percent` | — | Peut dépasser 100 % (plusieurs cœurs) |
+| `memory.usage_bytes` | `bytes` | — | Usage moins le cache inactif |
+| `memory.limit_bytes`, `memory.available_bytes`, `memory.percent` | `bytes` / `percent` | — | Uniquement si une limite est connue |
+| `network.rx_bytes`, `network.tx_bytes` | `bytes` | `interface` | |
+| `network.rx_packets`, `network.tx_packets` | `packets` | `interface` | |
+| `network.errors`, `network.drops` | `count` | `interface` | |
+| `network.rx_bytes_per_second`, `network.tx_bytes_per_second` | `bytes_per_second` | `interface` | À partir du deuxième cycle |
+| `block.read_bytes`, `block.write_bytes` | `bytes` | `device` (`majeur:mineur`) | Si Docker les fournit |
+| `process.count` | `count` | — | Si Docker le fournit |
+| `restart.count` | `count` | — | Émis aussi pour les conteneurs arrêtés |
+
+## 6. Docker
+
+### 6.1 Conteneurs
+
+`GET /api/v1/containers[?includeRemoved=true|false]` → `{ "containers": [...], "nextCursor": null }`.
+
+- Tri par nom, 500 conteneurs au plus. `includeRemoved=true` inclut les conteneurs disparus (`state = "removed"`). Tout autre paramètre → `400 VALIDATION_ERROR`.
+
+DTO conteneur (liste et détail) :
+
+```json
+{
+  "id": "manager-uuid",
+  "dockerId": "4f1c…",
+  "name": "web",
+  "image": "nginx:stable",
+  "state": "running",
+  "status": "Up 3 hours",
+  "createdAt": "2026-11-21T17:00:00Z",
+  "startedAt": "2026-11-21T17:01:00Z",
+  "uptimeSeconds": 10620,
+  "restartCount": 0,
+  "restartPolicy": "unless-stopped",
+  "ports": [{ "privatePort": 80, "publicPort": 8080, "ip": "0.0.0.0", "type": "tcp" }],
+  "networks": ["bridge"],
+  "mounts": [{ "type": "bind", "source": "/srv/web", "destination": "/usr/share/nginx/html", "rw": false }],
+  "lastObservedAt": "2026-11-21T20:58:00Z"
+}
+```
+
+- `state` : état Docker (`running`, `exited`, `created`, `paused`, `restarting`, `dead`) ou `removed` lorsque le conteneur a disparu de Docker.
+- `removedAt` n'est présent que pour un conteneur supprimé. `uptimeSeconds` vaut `null` si le conteneur n'est pas `running`.
+- `ports[].publicPort` et `ports[].ip` sont absents si le port n'est pas publié. `mounts[].source` est un chemin de l'hôte : il est visible par l'administrateur, seul utilisateur de l'interface.
+- Les variables d'environnement et les labels Docker ne sont jamais renvoyés : le proxy les supprime avant le Manager.
+
+### 6.2 Événements
+
+`GET /api/v1/events` et `GET /api/v1/containers/{containerID}/events`, avec `from`, `to`, `limit` comme au § 5.3 (`step` et `cursor` sont rejetés de la même façon) → `{ "events": [...], "nextCursor": null }`, du plus récent au plus ancien.
 
 ```json
 {
   "id": "uuid",
   "containerId": "manager-uuid",
-  "type": "container.started",
+  "type": "container.state_changed",
   "severity": "info",
-  "message": "Container started",
+  "message": "Container state or restart count changed",
+  "metadata": { "previousState": "running", "state": "exited" },
   "occurredAt": "2026-11-21T20:58:00Z"
 }
 ```
 
-Les événements émis actuellement concernent les conteneurs ; les événements hôte/collecteur ne sont pas encore persistés. Ils sont ordonnés du plus récent au plus ancien. La réponse inclut actuellement `nextCursor: null` ; une pagination future devra définir un curseur stable.
+Types émis par la réconciliation Docker, et uniquement ceux-ci :
 
-Les noms de métriques sont stables et les valeurs ont une unité explicite :
+| `type` | `severity` | Déclencheur | `metadata` |
+|---|---|---|---|
+| `container.discovered` | `info` | Conteneur vu pour la première fois | absent |
+| `container.state_changed` | `info` | État modifié, compteur de redémarrages inchangé ou en baisse | `previousState`, `state` |
+| `container.restarted` | `info` | Compteur de redémarrages en hausse | `previousState`, `state` |
+| `container.removed` | `warning` | Conteneur absent de la liste Docker | absent |
 
-- Hôte : `cpu.percent`, `cpu.load1`, `cpu.load5`, `cpu.load15`, `memory.total`, `memory.used`, `memory.available`, `memory.cached`, `swap.total`, `swap.used`, `filesystem.total`, `filesystem.used`, `filesystem.available`, `filesystem.percent`, `disk.read_bytes`, `disk.write_bytes`, `disk.read_iops`, `disk.write_iops`, `disk.read_latency_ms`, `disk.write_latency_ms`, `network.rx_bytes`, `network.tx_bytes`, `network.rx_bytes_per_second`, `network.tx_bytes_per_second`, `network.rx_packets`, `network.tx_packets`, `network.errors`, `network.drops`, `temperature.celsius`.
-- Conteneur : `cpu.percent`, `memory.usage_bytes`, `memory.limit_bytes`, `memory.available_bytes`, `memory.percent`, `network.rx_bytes`, `network.tx_bytes`, `network.rx_bytes_per_second`, `network.tx_bytes_per_second`, `network.rx_packets`, `network.tx_packets`, `network.errors`, `network.drops`, `block.read_bytes`, `block.write_bytes`, `process.count`, `restart.count`.
+`severity` accepte `info`, `warning`, `error`, `critical` ; seuls `info` et `warning` sont émis actuellement. Aucun événement d'hôte ou de collecteur n'est persisté.
 
-Les labels distinguent cœur, mountpoint, device, interface, capteur ou identifiant de conteneur selon la série. Métriques indisponibles pour une source/cgroup sont omises, avec état de fraîcheur explicite.
+## 7. Versionnement
 
-## 5. Authentification et erreurs
+Les routes sont versionnées sous `/api/v1`. Un changement incompatible (champ supprimé ou renommé, sémantique modifiée) exige `/api/v2`. Ajouter un champ ou une valeur de `type` d'événement est compatible.
 
-La connexion accepte `{ "username": "...", "password": "..." }`, crée une session cookie HTTP-only et retourne les informations publiques de l'utilisateur. La lecture de session retourne `{ "user": { "id": "...", "username": "..." } }`. La déconnexion révoque la session.
-
-Format uniforme :
+## 8. Erreurs
 
 ```json
-{
-  "error": {
-    "code": "VALIDATION_ERROR",
-    "message": "The request is invalid.",
-    "requestId": "stable-request-id"
-  }
-}
+{ "error": { "code": "VALIDATION_ERROR", "message": "from must precede to", "requestId": "host/abc-000001" } }
 ```
 
-Codes utilisés : `VALIDATION_ERROR`, `AUTH_UNAVAILABLE`, `INVALID_CREDENTIALS`, `SESSION_NOT_FOUND`, `CROSS_ORIGIN_REQUEST`, `RATE_LIMITED`, `NOT_FOUND`, `METRICS_UNAVAILABLE`, `EVENTS_UNAVAILABLE`, `INTERNAL_ERROR`. Aucun stack trace, chemin local, secret ou payload Docker brut dans la réponse.
+| Code | HTTP | Cas |
+|---|---|---|
+| `VALIDATION_ERROR` | 400 | Corps, paramètre de requête ou de chemin invalide |
+| `INVALID_CREDENTIALS` | 401 | Identifiants ou mot de passe actuel incorrects |
+| `SESSION_NOT_FOUND` | 401 | Session absente, expirée ou révoquée |
+| `CROSS_ORIGIN_REQUEST` | 403 | Contrôle d'origine refusé |
+| `NOT_FOUND` | 404 | Route ou conteneur inconnu |
+| `METHOD_NOT_ALLOWED` | 405 | Méthode non prévue sur la route |
+| `RATE_LIMITED` | 429 | Trop de tentatives de connexion |
+| `AUTH_UNAVAILABLE` | 503 | Base indisponible au démarrage |
+| `METRICS_UNAVAILABLE` | 500 | Lecture des métriques en échec |
+| `EVENTS_UNAVAILABLE` | 500 | Lecture des événements en échec |
+| `LOGOUT_FAILED` | 500 | Révocation de session en échec |
+| `PASSWORD_CHANGE_FAILED` | 500 | Écriture du nouveau mot de passe en échec |
+| `INTERNAL_ERROR` | 500 | Autre erreur serveur |
 
-## 6. Versionnement
+Aucune trace de pile, chemin local, secret ou réponse Docker brute dans les erreurs. `requestId` correspond au champ `request_id` des journaux du Manager.
 
-Les routes sont versionnées sous `/api/v1`. Les changements incompatibles nécessitent un nouveau préfixe. Cette spécification cible une API mono-machine et ne décrit aucun protocole de collecte distant.
+## 9. Évolutions spécifiées, non implémentées
+
+Ces contrats sont arrêtés pour guider l'implémentation ; tant qu'ils ne sont pas livrés, les paramètres correspondants restent rejetés.
+
+### 9.1 Agrégation et filtre de série (priorité 1)
+
+Motif : sans agrégation, un historique de 24 h d'une seule série de l'hôte compte 8 640 points, au-delà du plafond de 2 000. Les graphiques couvrant plus d'environ une heure ne montrent donc aujourd'hui que la fin de la plage.
+
+- `step` ∈ `raw`, `1m`, `5m`, `1h`. Les intervalles d'agrégation sont alignés sur l'époque Unix en UTC. Pour chaque série (`name` + `labels`) et chaque intervalle non vide, la réponse contient un échantillon : `value` = moyenne, plus `min`, `max` et `count` ; `recordedAt` = début de l'intervalle. `resolution` reprend la valeur de `step`.
+- Paramètre `label`, répétable, au format `clé:valeur` (ex. `label=core:all`) : ne garde que les séries qui portent tous ces labels.
+- `limit` borne le nombre total d'échantillons renvoyés (2 000 au plus) ; en cas de dépassement, `400 VALIDATION_ERROR` invite à choisir un `step` plus grand, au lieu de tronquer.
+- Pas recommandés à l'interface : ≤ 1 h → `raw` ; ≤ 6 h → `1m` ; ≤ 24 h → `5m` ; au-delà → `1h`.
+
+### 9.2 Pagination par curseur (priorité 2)
+
+Pour `GET /api/v1/containers` et les événements : `cursor` opaque (base64url de `(clé de tri, id)`), `nextCursor` non nul tant qu'il reste des résultats. L'ordre doit être stable à égalité d'horodatage (départage par `id`).

@@ -30,6 +30,8 @@ func LoadConfig() (Config, error) {
 	v := viper.New()
 	v.SetConfigName("manager")
 	v.SetConfigType("yaml")
+	// First match wins: system configuration, then a repository checkout.
+	v.AddConfigPath("/etc/homelab-manager")
 	v.AddConfigPath("./deployments/config")
 	v.AddConfigPath(".")
 	v.SetEnvPrefix("HOMELAB")

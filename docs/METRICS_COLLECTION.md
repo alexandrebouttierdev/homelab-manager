@@ -54,7 +54,7 @@ utilisé = capacité totale - capacité disponible
 utilisation (%) = 100 × utilisé / capacité totale
 ```
 
-L'espace disponible est `f_bavail × f_bsize` (espace accessible aux comptes non privilégiés), ce qui exclut la réserve root : `filesystem.percent` correspond à ce que voit `df`. Seules les partitions physiques montées sont collectées ; un point de montage illisible est ignoré. Lire `/proc/diskstats` pour les compteurs bloc lorsque présents :
+L'espace disponible est `f_bavail × f_bsize` (espace accessible aux comptes non privilégiés), ce qui exclut la réserve root : `filesystem.percent` correspond à ce que voit `df`. Seules les partitions physiques montées sont collectées ; un point de montage illisible est ignoré. Chaque échantillon porte `mountpoint` et `device` : les sous-volumes btrfs et les montages *bind* exposent le même volume sous plusieurs points de montage, et toute somme (capacité totale, espace utilisé) doit compter chaque `device` une seule fois. L'espace « utilisé » vaut `total − disponible` : sur btrfs, il inclut les métadonnées et dépasse légèrement la colonne « Utilisé » de `df`. Lire `/proc/diskstats` pour les compteurs bloc lorsque présents :
 
 ```text
 read_iops = Δlectures terminées / Δtemps (secondes)

@@ -3,6 +3,8 @@ import { latestGrouped, latestSamples } from './metrics'
 
 export type FilesystemEntry = {
   mountpoint: string
+  /** Block device of the volume; several mountpoints may share it. */
+  device: string | null
   total: number
   used: number
   available: number
@@ -10,7 +12,10 @@ export type FilesystemEntry = {
 }
 
 export type FilesystemSummary = {
+  /** One entry per mountpoint. */
   entries: FilesystemEntry[]
+  /** Distinct volumes: totals below count each of them once. */
+  volumes: number
   total: number
   used: number
   available: number
@@ -26,6 +31,7 @@ export function filesystemSummary(samples: MetricSample[]): FilesystemSummary {
   const entries = Array.from(new Set([...totals.keys(), ...used.keys()]))
     .map((mountpoint) => ({
       mountpoint,
+      device: totals.get(mountpoint)?.labels?.device ?? null,
       total: totals.get(mountpoint)?.value ?? 0,
       used: used.get(mountpoint)?.value ?? 0,
       available: available.get(mountpoint)?.value ?? 0,
@@ -34,12 +40,22 @@ export function filesystemSummary(samples: MetricSample[]): FilesystemSummary {
     .filter((entry) => entry.total > 0)
     .sort((left, right) => right.total - left.total)
 
-  const total = entries.reduce((sum, entry) => sum + entry.total, 0)
-  const usedTotal = entries.reduce((sum, entry) => sum + entry.used, 0)
-  const availableTotal = entries.reduce((sum, entry) => sum + entry.available, 0)
+  // btrfs subvolumes and bind mounts expose the same volume under several
+  // mountpoints. Samples collected before the device label existed fall back
+  // to the (total, available) pair, identical for such mountpoints.
+  const volumes = new Map<string, FilesystemEntry>()
+  for (const entry of entries) {
+    const key = entry.device ?? `${entry.total}:${entry.available}`
+    if (!volumes.has(key)) volumes.set(key, entry)
+  }
+  const distinct = Array.from(volumes.values())
+  const total = distinct.reduce((sum, entry) => sum + entry.total, 0)
+  const usedTotal = distinct.reduce((sum, entry) => sum + entry.used, 0)
+  const availableTotal = distinct.reduce((sum, entry) => sum + entry.available, 0)
 
   return {
     entries,
+    volumes: distinct.length,
     total,
     used: usedTotal,
     available: availableTotal,

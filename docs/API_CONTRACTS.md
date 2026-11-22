@@ -233,8 +233,8 @@ Une métrique absente signifie que la source n'est pas disponible ou que le calc
 | `memory.total`, `memory.used`, `memory.available` | `bytes` | — | `used = total − available` |
 | `memory.cached` | `bytes` | — | `Cached + Buffers` |
 | `swap.total`, `swap.used` | `bytes` | — | |
-| `filesystem.total`, `filesystem.used`, `filesystem.available` | `bytes` | `mountpoint` | Partitions physiques montées |
-| `filesystem.percent` | `percent` | `mountpoint` | |
+| `filesystem.total`, `filesystem.used`, `filesystem.available` | `bytes` | `mountpoint`, `device` | Partitions physiques montées. Plusieurs points de montage peuvent partager un même `device` (sous-volumes btrfs, montages *bind*) : un total ne compte chaque `device` qu'une fois |
+| `filesystem.percent` | `percent` | `mountpoint`, `device` | |
 | `disk.read_bytes`, `disk.write_bytes` | `bytes` | `device` | Compteurs cumulés |
 | `disk.read_iops`, `disk.write_iops` | `iops` | `device` | Absent au premier cycle |
 | `disk.read_latency_ms`, `disk.write_latency_ms` | `milliseconds` | `device` | Absent si aucune E/S dans l'intervalle |

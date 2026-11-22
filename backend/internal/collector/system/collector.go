@@ -131,7 +131,10 @@ func (c *Collector) Collect(ctx context.Context) (domain.HostInfo, []domain.Metr
 				available = usage.Total
 			}
 			used := usage.Total - available
-			labels := map[string]string{"mountpoint": partition.Mountpoint}
+			// device identifies the volume: several mountpoints (btrfs
+			// subvolumes, bind mounts) can share one, and totals must count
+			// it once.
+			labels := map[string]string{"mountpoint": partition.Mountpoint, "device": partition.Device}
 			appendSample("filesystem.total", float64(usage.Total), "bytes", labels)
 			appendSample("filesystem.used", float64(used), "bytes", labels)
 			appendSample("filesystem.available", float64(available), "bytes", labels)

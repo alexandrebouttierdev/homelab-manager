@@ -82,12 +82,17 @@ export type MetricStep = 'raw' | '1m' | '5m' | '1h'
 const metricSteps: MetricStep[] = ['raw', '1m', '5m', '1h']
 const historyLimit = 2000
 
+// A range computed as "now - 1 h" is a few milliseconds longer than one hour
+// by the time the request is built: the thresholds tolerate one minute so
+// that equal ranges always get the same step.
+const stepTolerance = 60 * 1000
+
 /** Resolution recommended for a time range (docs/API_CONTRACTS.md § 5.3). */
 export function stepForRange(milliseconds: number): MetricStep {
   const hour = 60 * 60 * 1000
-  if (milliseconds <= hour) return 'raw'
-  if (milliseconds <= 6 * hour) return '1m'
-  if (milliseconds <= 24 * hour) return '5m'
+  if (milliseconds <= hour + stepTolerance) return 'raw'
+  if (milliseconds <= 6 * hour + stepTolerance) return '1m'
+  if (milliseconds <= 24 * hour + stepTolerance) return '5m'
   return '1h'
 }
 

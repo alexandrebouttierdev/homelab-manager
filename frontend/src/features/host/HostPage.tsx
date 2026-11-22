@@ -21,7 +21,6 @@ import { LoadingState } from '../../components/ui/LoadingState'
 import { MetricCard } from '../../components/ui/MetricCard'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { ProgressBar } from '../../components/ui/ProgressBar'
-import { StatusDot } from '../../components/ui/StatusDot'
 import {
   getCurrentHostMetrics,
   getHost,
@@ -39,6 +38,8 @@ import {
 import { filesystemSummary } from '../../lib/host'
 import { latestGrouped, latestOne, latestSamples } from '../../lib/metrics'
 import { useRefreshInterval } from '../../lib/refresh'
+import { CollectorRow } from '../../components/ui/CollectorRow'
+import { collectorStatusLabel, collectorStatusTone } from '../../lib/collectors'
 
 function metricLabel(name: string): string {
   return name.replaceAll('.', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase())
@@ -94,8 +95,8 @@ export function HostPage() {
         title="Machine"
         breadcrumb={[{ label: 'Système' }, { label: 'Machine' }]}
         badge={
-          <Badge tone={host.data?.collector.status === 'ok' ? 'success' : 'warning'} dot>
-            {host.data?.collector.status === 'ok' ? 'Collecte active' : 'Collecte dégradée'}
+          <Badge tone={collectorStatusTone(host.data?.collector.status ?? '')} dot>
+            {host.data ? collectorStatusLabel(host.data.collector.status) : 'Collecte'}
           </Badge>
         }
         description={
@@ -422,29 +423,6 @@ function Info({ label, value, mono = false }: { label: string; value: string; mo
       >
         {value}
       </dd>
-    </div>
-  )
-}
-
-function CollectorRow({
-  name,
-  status,
-  lastSuccessAt,
-}: {
-  name: string
-  status?: string
-  lastSuccessAt?: string | null
-}) {
-  return (
-    <div className="flex items-center justify-between gap-3 rounded-md border border-line/70 bg-surface/50 px-3 py-2.5">
-      <div className="flex items-center gap-2">
-        <StatusDot tone={status === 'ok' ? 'success' : 'warning'} pulse={status === 'ok'} />
-        <span className="text-xs font-medium text-text-primary">{name}</span>
-      </div>
-      <div className="text-right font-mono text-[10px] text-text-muted">
-        <span className="block uppercase tracking-wider">{status ?? 'inconnu'}</span>
-        <span>{lastSuccessAt ? formatRelativeTime(lastSuccessAt) : 'jamais'}</span>
-      </div>
     </div>
   )
 }

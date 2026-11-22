@@ -38,6 +38,7 @@ import {
   getHostMetrics,
   listContainers,
   listEvents,
+  stepForRange,
 } from '../../lib/api/monitoring'
 import {
   containerStateLabel,
@@ -60,14 +61,26 @@ import { latestOne, memoryPercentSeries, series } from '../../lib/metrics'
 import { useRefreshInterval } from '../../lib/refresh'
 import { useChartTheme } from '../../lib/theme'
 import { eventSeverityLabel, eventTone, eventTypeLabel } from '../../lib/events'
+import { CollectorRow } from '../../components/ui/CollectorRow'
+import { collectorStatusLabel } from '../../lib/collectors'
 
 const oneHourAgo = () => new Date(Date.now() - 60 * 60 * 1000)
 
+/** Occupancy colour: warning above 80 %, danger above 90 %. */
+function usageTone(percent: number | null): 'success' | 'warning' | 'danger' {
+  if (percent == null || percent <= 80) return 'success'
+  return percent > 90 ? 'danger' : 'warning'
+}
+
+// Both series must share the same range and step: memoryPercentSeries pairs
+// them by timestamp.
 async function getMemoryHistory() {
-  const from = oneHourAgo()
+  const to = new Date()
+  const from = new Date(to.getTime() - 60 * 60 * 1000)
+  const step = stepForRange(to.getTime() - from.getTime())
   const [used, total] = await Promise.all([
-    getHostMetrics('memory.used', from),
-    getHostMetrics('memory.total', from),
+    getHostMetrics('memory.used', from, { to, step }),
+    getHostMetrics('memory.total', from, { to, step }),
   ])
   return memoryPercentSeries(used, total)
 }
@@ -209,15 +222,30 @@ export function DashboardPage() {
     }
   }, [chartTheme, cpuHistory.data, memoryHistory.data])
 
-  const systemOk = dashboard.data?.collectors.system.status === 'ok'
-  const dockerOk = dashboard.data?.collectors.docker.status === 'ok'
-  const overallTone = systemOk && dockerOk ? 'success' : systemOk || dockerOk ? 'warning' : 'danger'
+  const systemStatus = dashboard.data?.collectors.system.status
+  const dockerStatus = dashboard.data?.collectors.docker.status
+  const systemOk = systemStatus === 'ok'
+  const dockerOk = dockerStatus === 'ok'
+  const starting =
+    !systemOk || !dockerOk
+      ? [systemStatus, dockerStatus].every((status) => status === 'ok' || status === 'starting')
+      : false
+  const overallTone =
+    systemOk && dockerOk
+      ? 'success'
+      : starting
+        ? 'info'
+        : systemOk || dockerOk
+          ? 'warning'
+          : 'danger'
   const overallLabel =
     systemOk && dockerOk
       ? 'Statut général : optimal'
-      : systemOk || dockerOk
-        ? 'Statut général : dégradé'
-        : 'Statut général : indisponible'
+      : starting
+        ? 'Statut général : démarrage'
+        : systemOk || dockerOk
+          ? 'Statut général : dégradé'
+          : 'Statut général : indisponible'
 
   const containerList = containers.data ?? []
   const runningContainers = containerList.filter((container) => isRunning(container.state))
@@ -238,24 +266,22 @@ export function DashboardPage() {
     tone: 'warning' | 'danger' | 'info'
     to?: string
   }> = []
-  if (dashboard.data && !systemOk) {
+  // A collector that is still starting is not an anomaly yet.
+  for (const [key, name] of [
+    ['system', 'Collecte système'],
+    ['docker', 'Collecte Docker'],
+  ] as const) {
+    const collector = dashboard.data?.collectors[key]
+    if (!collector || collector.status === 'ok' || collector.status === 'starting') continue
     attentionItems.push({
-      key: 'system',
-      title: 'Collecte système dégradée',
-      detail: dashboard.data.collectors.system.lastSuccessAt
-        ? `Dernière réussite ${formatRelativeTime(dashboard.data.collectors.system.lastSuccessAt)}.`
-        : 'Aucune collecte système réussie.',
-      tone: 'warning',
-    })
-  }
-  if (dashboard.data && !dockerOk) {
-    attentionItems.push({
-      key: 'docker',
-      title: 'Docker indisponible',
-      detail: dashboard.data.collectors.docker.lastSuccessAt
-        ? `Dernière réussite ${formatRelativeTime(dashboard.data.collectors.docker.lastSuccessAt)}.`
-        : 'Le démon Docker local ne répond pas.',
-      tone: 'warning',
+      key,
+      title: `${name} : ${collectorStatusLabel(collector.status).toLowerCase()}`,
+      detail: collector.lastSuccessAt
+        ? `Dernier succès ${formatRelativeTime(collector.lastSuccessAt)}.`
+        : key === 'docker'
+          ? 'Le démon Docker local ne répond pas.'
+          : 'Aucune collecte système réussie.',
+      tone: collector.status === 'unavailable' ? 'danger' : 'warning',
     })
   }
   for (const container of problemContainers.slice(0, 2)) {
@@ -401,13 +427,17 @@ export function DashboardPage() {
             <MetricCard
               label="Stockage système & média"
               title={
-                filesystems.entries.length > 0
-                  ? `${filesystems.entries.length} système(s) de fichiers`
+                filesystems.volumes > 0
+                  ? `${filesystems.volumes} volume(s) · ${filesystems.entries.length} montage(s)`
                   : 'Stockage'
               }
               value={formatBytes(filesystems.used)}
               unit={filesystems.total > 0 ? `/ ${formatBytes(filesystems.total)}` : undefined}
-              badge={<Badge tone="success">{formatPercent(filesystems.percent)}</Badge>}
+              badge={
+                <Badge tone={usageTone(filesystems.percent)}>
+                  {formatPercent(filesystems.percent)}
+                </Badge>
+              }
               hint={
                 filesystems.total > 0
                   ? `${formatBytes(filesystems.total - filesystems.used)} libres`
@@ -421,10 +451,7 @@ export function DashboardPage() {
                       <span className="truncate">{entry.mountpoint}</span>
                       <span>{formatPercent(entry.percent)}</span>
                     </div>
-                    <ProgressBar
-                      value={entry.percent}
-                      tone={entry.percent != null && entry.percent > 90 ? 'warning' : 'success'}
-                    />
+                    <ProgressBar value={entry.percent} tone={usageTone(entry.percent)} />
                   </div>
                 ))}
                 {filesystems.entries.length === 0 && (
@@ -477,7 +504,7 @@ export function DashboardPage() {
           <div className="grid items-start gap-4 xl:grid-cols-3">
             <Card className="xl:col-span-2">
               <CardHeader
-                title="Charge télématique (CPU & RAM)"
+                title="Charge CPU et mémoire"
                 subtitle="60 dernières minutes · échantillons bruts"
                 icon={<Activity className="h-3.5 w-3.5" />}
                 actions={
@@ -522,10 +549,16 @@ export function DashboardPage() {
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-mono text-xs text-text-primary">{iface.name}</span>
-                      <span className="font-mono text-[10px] text-text-muted">
-                        {iface.errors + iface.drops > 0
-                          ? `${formatNumber(iface.errors + iface.drops)} erreur(s)`
-                          : 'Aucune erreur'}
+                      <span
+                        className={
+                          iface.errors > 0
+                            ? 'font-mono text-[10px] text-warning'
+                            : 'font-mono text-[10px] text-text-muted'
+                        }
+                        title="Compteurs cumulés depuis le démarrage de la machine"
+                      >
+                        {formatNumber(iface.errors)} erreur(s) · {formatNumber(iface.drops)}{' '}
+                        perte(s)
                       </span>
                     </div>
                     <div className="mt-2 grid grid-cols-2 gap-2 font-mono text-[10px]">
@@ -564,7 +597,7 @@ export function DashboardPage() {
                       to="/containers"
                       className="ml-1 inline-flex items-center gap-1 text-[11px] text-text-secondary transition-colors hover:text-text-primary"
                     >
-                      Gérer <ChevronRight className="h-3 w-3" />
+                      Voir tout <ChevronRight className="h-3 w-3" />
                     </Link>
                   </div>
                 }
@@ -768,31 +801,16 @@ export function DashboardPage() {
                 }
               />
               <CardBody className="space-y-3">
-                {dashboard.data &&
-                  Object.entries(dashboard.data.collectors).map(([name, collector]) => (
-                    <div
-                      key={name}
-                      className="flex items-center justify-between gap-3 rounded-md border border-line/70 bg-surface/50 px-3 py-2.5"
-                    >
-                      <div className="flex items-center gap-2">
-                        <StatusDot
-                          tone={collector.status === 'ok' ? 'success' : 'warning'}
-                          pulse={collector.status === 'ok'}
-                        />
-                        <span className="text-xs font-medium text-text-primary">
-                          {name === 'system' ? 'Système' : 'Docker'}
-                        </span>
-                      </div>
-                      <div className="text-right font-mono text-[10px] text-text-muted">
-                        <span className="block uppercase tracking-wider">{collector.status}</span>
-                        <span>
-                          {collector.lastSuccessAt
-                            ? formatRelativeTime(collector.lastSuccessAt)
-                            : 'jamais'}
-                        </span>
-                      </div>
-                    </div>
-                  ))}
+                <CollectorRow
+                  name="Système"
+                  status={dashboard.data?.collectors.system.status}
+                  lastSuccessAt={dashboard.data?.collectors.system.lastSuccessAt}
+                />
+                <CollectorRow
+                  name="Docker"
+                  status={dashboard.data?.collectors.docker.status}
+                  lastSuccessAt={dashboard.data?.collectors.docker.lastSuccessAt}
+                />
                 <div className="rounded-md border border-line/70 bg-surface/50 px-3 py-2.5">
                   <p className="font-mono text-[10px] uppercase tracking-wider text-text-muted">
                     Hôte
@@ -819,7 +837,7 @@ export function DashboardPage() {
             Données collectées localement et conservées dans SQLite.
             <span className="text-line-strong">•</span>
             <HardDrive className="h-3 w-3" aria-hidden="true" />
-            {filesystems.entries.length} système(s) de fichiers
+            {filesystems.volumes} volume(s) de stockage
             <span className="text-line-strong">•</span>
             <MemoryStick className="h-3 w-3" aria-hidden="true" />
             {formatPercent(memoryPercent)} de mémoire utilisée

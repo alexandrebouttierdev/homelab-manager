@@ -21,15 +21,14 @@ import { Card, CardBody, CardFooter, CardHeader } from '../../components/ui/Card
 import { ErrorState } from '../../components/ui/ErrorState'
 import { LoadingState } from '../../components/ui/LoadingState'
 import { PageHeader } from '../../components/ui/PageHeader'
-import { StatusDot } from '../../components/ui/StatusDot'
 import { ApiError, changePassword, getSession, logout } from '../../lib/api/auth'
 import { getSettings } from '../../lib/api/monitoring'
 import { cn } from '../../lib/cn'
-import { formatRelativeTime } from '../../lib/format'
 import { useTheme, type Theme } from '../../lib/theme'
 import { passwordSchema, type PasswordValues } from '../../schemas/password'
 import { APP_VERSION } from '../../lib/version'
 import { RetentionForm } from './RetentionForm'
+import { CollectorRow } from '../../components/ui/CollectorRow'
 
 export function SettingsPage() {
   const queryClient = useQueryClient()
@@ -380,29 +379,6 @@ function SettingCard({
         {label}
       </div>
       <p className="mt-1.5 font-mono text-lg font-semibold text-text-primary">{value}</p>
-    </div>
-  )
-}
-
-function CollectorRow({
-  name,
-  status,
-  lastSuccessAt,
-}: {
-  name: string
-  status: string
-  lastSuccessAt: string | null
-}) {
-  return (
-    <div className="flex items-center justify-between gap-3 rounded-md border border-line/70 bg-surface/50 px-3 py-2.5">
-      <div className="flex items-center gap-2">
-        <StatusDot tone={status === 'ok' ? 'success' : 'warning'} pulse={status === 'ok'} />
-        <span className="text-xs font-medium text-text-primary">{name}</span>
-      </div>
-      <div className="text-right font-mono text-[10px] text-text-muted">
-        <span className="block uppercase tracking-wider">{status}</span>
-        <span>{lastSuccessAt ? formatRelativeTime(lastSuccessAt) : 'jamais'}</span>
-      </div>
     </div>
   )
 }

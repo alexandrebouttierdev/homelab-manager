@@ -13,3 +13,8 @@ backend/bin/
 backend/homelab-manager
 backend/manager
 backend/docker-proxy
+
+# Local SQLite databases
+*.db
+*.db-wal
+*.db-shm

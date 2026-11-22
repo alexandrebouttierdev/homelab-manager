@@ -13,7 +13,9 @@ type UserRepository interface {
 	FindByUsername(ctx context.Context, username string) (domain.User, string, error)
 	FindByID(ctx context.Context, userID uuid.UUID) (domain.User, error)
 	UpdatePasswordHash(ctx context.Context, userID uuid.UUID, passwordHash string) error
-	EnsureAdmin(ctx context.Context, username, passwordHash string) error
+	// EnsureAdmin creates the administrator when absent and reports whether it
+	// did; an existing account (and its current password) is never modified.
+	EnsureAdmin(ctx context.Context, username, passwordHash string) (bool, error)
 }
 
 type SessionRepository interface {

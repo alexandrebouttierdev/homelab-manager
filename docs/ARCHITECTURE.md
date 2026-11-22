@@ -15,11 +15,11 @@ Backend Go
   |-- Collecteur système Linux
   |-- Service de planification et rétention
   |-- Adaptateur Docker : API locale via proxy en liste blanche
-  |-- Adaptateur Ent / PostgreSQL
+  |-- Adaptateur Ent / SQLite
           |
           +---- Unix socket local ---- Docker Engine
           |
-          +---- PostgreSQL local dédié
+          +---- Fichier SQLite local (/var/lib/homelab-manager)
 ```
 
 Le périmètre est un hôte Linux unique : celui qui exécute le Manager. Aucun collecteur, transport ou modèle n'est conçu pour un hôte distant.
@@ -30,7 +30,7 @@ Le périmètre est un hôte Linux unique : celui qui exécute le Manager. Aucun 
 |---|---|
 | Langage Backend | Go |
 | API HTTP | Chi v5 et `net/http` |
-| ORM / persistance | Ent / PostgreSQL dédié |
+| ORM / persistance | Ent / SQLite embarqué (`modernc.org/sqlite`, Go pur) |
 | Configuration | Viper |
 | Logs | Zap |
 | Collecte système | Interfaces Linux locales (`/proc`, `/sys`) et bibliothèques Go adaptées |
@@ -42,14 +42,14 @@ Le périmètre est un hôte Linux unique : celui qui exécute le Manager. Aucun 
 | Graphiques | Apache ECharts |
 | Tests | `testing`, `httptest`, Vitest et React Testing Library |
 
-Chi reste exclusivement dans Delivery/HTTP. Ent reste dans les adaptateurs de persistance. Le domaine ne dépend ni de Chi, ni d'Ent, ni de Docker, ni de PostgreSQL, ni de React.
+Chi reste exclusivement dans Delivery/HTTP. Ent reste dans les adaptateurs de persistance. Le domaine ne dépend ni de Chi, ni d'Ent, ni de Docker, ni de SQLite, ni de React.
 
 ## 3. Architecture hexagonale
 
 - `domain/` : objets et règles métier pour l'hôte, les conteneurs, les mesures et événements.
 - `usecase/` : orchestration des lectures, collectes, historiques et paramètres.
 - `ports/` : interfaces minimales pour les collecteurs, repositories et horloge si nécessaire.
-- `adapters/` : Linux, API Docker, PostgreSQL/Ent et système de fichiers.
+- `adapters/` : Linux, API Docker, SQLite/Ent et système de fichiers.
 - `delivery/http/` : handlers Chi, DTO, middleware et validation HTTP.
 - `cmd/manager/` : composition des dépendances et cycle de vie du processus.
 
@@ -77,7 +77,7 @@ En cas d'indisponibilité du démon, conserver le dernier inventaire connu comme
 - La collecte démarre au lancement du Manager, non à la première requête.
 - Une panne ponctuelle d'un sous-système n'empêche pas l'autre collecteur de fonctionner.
 - Les insertions de métriques sont groupées ; les requêtes historiques ont des bornes temporelles et un plafond de résultats.
-- La purge est paginée/par lots afin de limiter les verrous et le travail PostgreSQL.
+- La purge est paginée/par lots afin de limiter la durée de chaque écriture SQLite : la connexion unique est partagée avec les collecteurs et l'API.
 - Toute goroutine a un propriétaire, une stratégie d'arrêt et des timeouts.
 
 Les périodes et formules sont définies dans [METRICS_COLLECTION.md](./METRICS_COLLECTION.md). Le modèle de persistance est décrit dans [DATA_MODEL.md](./DATA_MODEL.md).
@@ -86,11 +86,11 @@ Les périodes et formules sont définies dans [METRICS_COLLECTION.md](./METRICS_
 
 Le Frontend consomme exclusivement l'API REST de même origine. REST est aussi la source de vérité pour le rafraîchissement périodique des métriques ; aucun WebSocket applicatif n'est requis. TanStack Query gère rafraîchissement, chargement, erreur et fraîcheur.
 
-Les routes, DTO et limites sont décrits dans [API_CONTRACTS.md](./API_CONTRACTS.md). Le navigateur ne reçoit ni identifiants Docker ni accès à PostgreSQL.
+Les routes, DTO et limites sont décrits dans [API_CONTRACTS.md](./API_CONTRACTS.md). Le navigateur ne reçoit ni identifiants Docker ni accès à la base SQLite.
 
 ## 8. Déploiement Debian
 
-Le Manager est un service natif Debian 13, avec un utilisateur système dédié sans appartenance directe au groupe `docker`, un fichier de configuration protégé, un accès au proxy Docker local et une connexion PostgreSQL locale. Le Frontend compilé est servi par le Manager ou par un serveur local de même origine. Production ne requiert pas Docker Compose.
+Le Manager est un service natif Debian 13, avec un utilisateur système dédié sans appartenance directe au groupe `docker`, un fichier de configuration protégé, un accès au proxy Docker local et un répertoire d'état `/var/lib/homelab-manager` contenant la base SQLite. Le Frontend compilé est servi par le Manager ou par un serveur local de même origine. Production ne requiert ni Docker Compose ni serveur de base de données.
 
 L'arborescence cible ne comprend qu'un module Backend Go et le Frontend :
 

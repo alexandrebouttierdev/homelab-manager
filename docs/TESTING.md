@@ -19,7 +19,7 @@ Version 2.0 — 21 novembre 2026
 
 ### Usecases, persistance et HTTP
 - Tester planification, indépendance des collecteurs, transitions et rétention avec horloge contrôlée et ports simulés.
-- Tests PostgreSQL réels pour migrations, index, transactions, purge et requêtes temporelles ; pas de SQLite substitut.
+- Tests SQLite réels (fichier temporaire, mêmes pragmas que la production) pour migrations, transactions, purge, requêtes temporelles et accès concurrents.
 - `httptest` pour routes Chi, DTO, auth, limites, erreur, bornes temporelles et contrôle d'accès.
 - Tester annulation et arrêt ordonné de chaque goroutine de collecte.
 
@@ -31,14 +31,11 @@ go test ./...
 go test -race ./...
 ```
 
-Les tests PostgreSQL opt-in utilisent `HOMELAB_TEST_DATABASE_URL`. Le nom de la base doit se terminer par `_test` ; chaque exécution crée un schéma temporaire dédié, applique les migrations et le supprime ensuite. Exemple :
+Les tests d'intégration SQLite (`internal/adapters/sqlite`) s'exécutent avec `go test ./...` sans configuration : chaque test ouvre une base neuve dans `t.TempDir()` via le même `Open` que le Manager. Pour les lancer seuls :
 
 ```bash
-HOMELAB_TEST_DATABASE_URL='postgres://homelab_test:password@127.0.0.1:5432/homelab_manager_test?sslmode=disable' \
-  go test ./internal/adapters/postgres -run TestPostgresIntegration -count=1
+go test ./internal/adapters/sqlite -count=1 -v
 ```
-
-Le compte PostgreSQL doit pouvoir créer et supprimer un schéma dans cette base. Ne jamais fournir l'URL d'une base de développement ou de production ; les tests refusent les noms qui ne se terminent pas par `_test`.
 
 ## Frontend React
 
@@ -67,4 +64,4 @@ npm run build
 
 Les tests doivent valider la cible mono-machine ; aucun test Agent distant, enrôlement ou protocole Manager-Agent ne fait partie de la spécification v2.0.
 
-L'intégration PostgreSQL n'est pas activée par défaut : configurer une instance de test dédiée pour l'exécuter. Elle vérifie l'application répétée des migrations, l'authentification/persistance des sessions, l'hôte, les métriques, la réconciliation des conteneurs, les événements et la purge. Les tests unitaires vérifient également les formules Docker, les deltas système, la liste blanche du proxy et les routes HTTP de base.
+L'intégration SQLite vérifie la réouverture sans réappliquer les migrations, les pragmas effectifs (WAL, clés étrangères, `busy_timeout`), le mode `0600` du fichier, l'authentification/persistance des sessions, l'hôte, les métriques, la réconciliation des conteneurs, les événements, la purge, l'ordre chronologique des plages quel que soit le fuseau des dates reçues, et les écritures/lectures concurrentes. Les tests unitaires vérifient également les formules Docker, les deltas système, la liste blanche du proxy et les routes HTTP de base.

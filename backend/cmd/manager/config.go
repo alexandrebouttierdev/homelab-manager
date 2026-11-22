@@ -11,7 +11,7 @@ import (
 
 type Config struct {
 	HTTPAddress                    string
-	DatabaseURL                    string
+	DatabasePath                   string
 	StartedAt                      time.Time
 	AdminUsername                  string
 	AdminPassword                  string
@@ -36,7 +36,7 @@ func LoadConfig() (Config, error) {
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_"))
 	v.AutomaticEnv()
 	v.SetDefault("http_address", ":8080")
-	v.SetDefault("database_url", "")
+	v.SetDefault("database_path", "./data/homelab-manager.db")
 	v.SetDefault("admin_username", "admin")
 	v.SetDefault("admin_password", "")
 	v.SetDefault("session_secure", false)
@@ -56,14 +56,9 @@ func LoadConfig() (Config, error) {
 		}
 	}
 
-	databaseURL := v.GetString("database_url")
-	if databaseURL == "" {
-		databaseURL = "postgres://homelab_manager:change-me@127.0.0.1:5432/homelab_manager?sslmode=disable"
-	}
-
 	config := Config{
 		HTTPAddress:                    v.GetString("http_address"),
-		DatabaseURL:                    databaseURL,
+		DatabasePath:                   v.GetString("database_path"),
 		StartedAt:                      time.Now().UTC(),
 		AdminUsername:                  v.GetString("admin_username"),
 		AdminPassword:                  v.GetString("admin_password"),
@@ -86,9 +81,29 @@ func LoadConfig() (Config, error) {
 	return config, nil
 }
 
+// defaultAdminPassword is used only to create the administrator on a fresh
+// database when HOMELAB_ADMIN_PASSWORD is empty. It must be changed from the
+// Settings page; an existing account is never reset to it.
+const defaultAdminPassword = "admin"
+
+// BootstrapAdminPassword returns the password used to create the initial
+// administrator and whether it is the built-in default.
+func (c Config) BootstrapAdminPassword() (string, bool) {
+	if c.AdminPassword == "" {
+		return defaultAdminPassword, true
+	}
+	return c.AdminPassword, false
+}
+
 func (c Config) Validate() error {
 	if c.HTTPAddress == "" {
 		return fmt.Errorf("HTTP address is required")
+	}
+	if c.AdminUsername == "" {
+		return fmt.Errorf("administrator username is required")
+	}
+	if c.DatabasePath == "" {
+		return fmt.Errorf("database path is required")
 	}
 	if c.AdminPassword != "" && (len(c.AdminPassword) < 12 || len(c.AdminPassword) > 1024) {
 		return fmt.Errorf("administrator password must be between 12 and 1024 bytes")

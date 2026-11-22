@@ -11,7 +11,7 @@ import (
 
 	argon2adapter "homelab-manager/backend/internal/adapters/argon2"
 	"homelab-manager/backend/internal/adapters/dockerengine"
-	"homelab-manager/backend/internal/adapters/postgres"
+	"homelab-manager/backend/internal/adapters/sqlite"
 	systemcollector "homelab-manager/backend/internal/collector/system"
 	httpdelivery "homelab-manager/backend/internal/delivery/http"
 	"homelab-manager/backend/internal/usecase"
@@ -33,16 +33,10 @@ func main() {
 	}
 	defer logger.Sync() //nolint:errcheck
 
-	databaseErr := postgres.CheckConnection(context.Background(), config.DatabaseURL)
-	databaseAvailable := databaseErr == nil
-	if databaseAvailable {
-		migrationCtx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
-		databaseErr = postgres.ApplyMigrations(migrationCtx, config.DatabaseURL)
-		cancel()
-		databaseAvailable = databaseErr == nil
-	}
+	database, databaseErr := sqlite.Open(context.Background(), config.DatabasePath)
 	if databaseErr != nil {
-		logger.Warn("PostgreSQL is unavailable or migrations failed; the HTTP health service can still start", zap.Error(databaseErr))
+		logger.Warn("SQLite database is unavailable or migrations failed; the HTTP health service can still start",
+			zap.String("path", config.DatabasePath), zap.Error(databaseErr))
 	}
 
 	healthUsecase := usecase.NewHealthUsecase(config.StartedAt)
@@ -53,26 +47,24 @@ func main() {
 	var schedulerDone chan struct{}
 	schedulerCtx, cancelScheduler := context.WithCancel(context.Background())
 	defer cancelScheduler()
-	if !databaseAvailable {
-		authUsecase = nil
-	} else if client, err := postgres.Open(config.DatabaseURL); err != nil {
-		logger.Warn("PostgreSQL Ent client unavailable", zap.Error(err))
-	} else {
-		clientCloser = client
-		authRepository := postgres.NewAuthRepository(client)
+	if database != nil {
+		clientCloser = database
+		client := database.Client()
+		authRepository := sqlite.NewAuthRepository(client)
 		hasher := argon2adapter.New()
-		if config.AdminPassword != "" {
-			hash, err := hasher.Hash(config.AdminPassword)
-			if err != nil {
-				logger.Error("Could not hash initial administrator password", zap.Error(err))
-			} else if err := authRepository.EnsureAdmin(context.Background(), config.AdminUsername, hash); err != nil {
-				logger.Error("Could not bootstrap administrator", zap.Error(err))
-			}
-		} else {
-			logger.Warn("HOMELAB_ADMIN_PASSWORD is empty; administrator bootstrap was skipped")
+		bootstrapPassword, isDefault := config.BootstrapAdminPassword()
+		if hash, err := hasher.Hash(bootstrapPassword); err != nil {
+			logger.Error("Could not hash initial administrator password", zap.Error(err))
+		} else if created, err := authRepository.EnsureAdmin(context.Background(), config.AdminUsername, hash); err != nil {
+			logger.Error("Could not bootstrap administrator", zap.Error(err))
+		} else if created && isDefault {
+			logger.Warn("Administrator created with the default password; change it from the Settings page",
+				zap.String("username", config.AdminUsername))
+		} else if created {
+			logger.Info("Administrator created", zap.String("username", config.AdminUsername))
 		}
 		authUsecase = usecase.NewAuthUsecase(authRepository, authRepository, hasher)
-		monitoringRepository := postgres.NewMonitoringRepository(client)
+		monitoringRepository := sqlite.NewMonitoringRepository(client)
 		dockerClient := dockerengine.NewClient(config.DockerProxySocket)
 		dockerClientCloser = dockerClient
 		monitoringUsecase = usecase.NewMonitoringUsecase(

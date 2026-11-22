@@ -1,4 +1,4 @@
-package postgres
+package sqlite
 
 import (
 	"context"
@@ -44,13 +44,15 @@ func (r *AuthRepository) UpdatePasswordHash(ctx context.Context, userID uuid.UUI
 	return err
 }
 
-func (r *AuthRepository) EnsureAdmin(ctx context.Context, username, passwordHash string) error {
+func (r *AuthRepository) EnsureAdmin(ctx context.Context, username, passwordHash string) (bool, error) {
 	exists, err := r.client.User.Query().Where(user.Username(username)).Exist(ctx)
 	if err != nil || exists {
-		return err
+		return false, err
 	}
-	_, err = r.client.User.Create().SetUsername(username).SetPasswordHash(passwordHash).Save(ctx)
-	return err
+	if _, err := r.client.User.Create().SetUsername(username).SetPasswordHash(passwordHash).Save(ctx); err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 func (r *AuthRepository) Create(ctx context.Context, userID uuid.UUID, tokenHash, ip, userAgent string, expiresAt time.Time) (domain.Session, error) {

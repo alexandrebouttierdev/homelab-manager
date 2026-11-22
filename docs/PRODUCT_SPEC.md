@@ -6,18 +6,18 @@ Version 2.0 — 21 novembre 2026
 
 Homelab Manager est une application auto-hébergée de supervision d'une seule machine Linux : la machine sur laquelle le Manager est installé. Cette limite est définitive ; le produit n'est pas destiné à superviser des hôtes supplémentaires.
 
-Le Backend Go collecte directement les données système et découvre les conteneurs Docker locaux. L'application conserve les historiques dans PostgreSQL et les présente dans une interface web locale. Le fonctionnement normal ne dépend d'aucun compte cloud ou service SaaS.
+Le Backend Go collecte directement les données système et découvre les conteneurs Docker locaux. L'application conserve les historiques dans un fichier SQLite local et les présente dans une interface web locale. Le fonctionnement normal ne dépend d'aucun compte cloud ou service SaaS.
 
 ## 2. Déploiement cible
 
 - Debian 13, installation native et services gérés par systemd.
-- Backend Go, API REST Chi v5, Ent et PostgreSQL dédié.
+- Backend Go, API REST Chi v5, Ent et SQLite embarqué (fichier unique, aucun serveur de base de données).
 - Collecte système exécutée localement par le Backend.
 - Découverte et statistiques Docker via l'API du démon local, au travers d'un adaptateur restreint.
 - Frontend React/TypeScript/Vite avec Tailwind CSS, servi sur la même origine que l'API en production.
-- PostgreSQL local au Manager ; aucun accès direct depuis le navigateur.
+- Base SQLite locale au Manager ; aucun accès direct depuis le navigateur.
 
-Docker Compose peut servir au développement ou aux tests, mais ne constitue pas un mode de déploiement de production requis.
+L'installation doit rester légère : un binaire, un fichier de base et le proxy Docker, sans Docker Compose ni service de base de données séparé.
 
 ## 3. Fonctionnalités
 
@@ -64,14 +64,15 @@ L'accès Docker est une capacité privilégiée de l'hôte. La solution cible es
 
 - Collecte indépendante des requêtes HTTP et de la connexion d'un utilisateur.
 - Tâches d'arrière-plan bornées, annulables à l'arrêt et sans goroutine orpheline.
-- Résilience aux indisponibilités temporaires de Docker, PostgreSQL et des capteurs.
+- Résilience aux indisponibilités temporaires de Docker, du stockage et des capteurs.
 - Conservation limitée des séries brutes, purge par lots et limites de requêtes.
 - Historique consultable sans chargement non borné en mémoire.
-- Migrations PostgreSQL versionnées et sauvegarde/restauration documentées.
+- Migrations SQLite versionnées et sauvegarde/restauration documentées.
+- Empreinte mémoire faible, adaptée à un homelab.
 - Interfaces responsive avec thèmes sombre et clair.
 
 ## 6. État de l'implémentation v2.0
 
-Les fondations décrites sont présentes dans le dépôt : module Backend unique, authentification locale, collecte système/Docker, API REST protégée, persistance Ent/PostgreSQL, proxy Docker Unix filtré, interface Web et unités systemd. La migration `002_single_host.sql` retire les tables métier multi-Agents ; sauvegarder la base avant mise à niveau.
+Les fondations décrites sont présentes dans le dépôt : module Backend unique, authentification locale, collecte système/Docker, API REST protégée, persistance Ent/SQLite, proxy Docker Unix filtré, interface Web et unités systemd. Le passage de PostgreSQL à SQLite ne migre pas les données existantes ; la base repart vide.
 
-Les limites actuellement connues sont l'absence de pagination par curseur et d'agrégation des historiques, la liste des conteneurs/événements plafonnée sans pagination, et l'absence de tests d'intégration PostgreSQL exécutés sans base dédiée. Les fonctionnalités non présentes ne doivent pas être présentées comme opérationnelles.
+Les limites actuellement connues sont l'absence de pagination par curseur et d'agrégation des historiques, la liste des conteneurs/événements plafonnée sans pagination. Les fonctionnalités non présentes ne doivent pas être présentées comme opérationnelles.

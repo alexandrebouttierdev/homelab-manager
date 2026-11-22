@@ -61,7 +61,7 @@ func loginHandler(auth *usecase.AuthUsecase, secure bool) http.HandlerFunc {
 			return
 		}
 		request.Username = strings.TrimSpace(request.Username)
-		if len(request.Username) < 1 || len(request.Username) > 255 || len(request.Password) < 8 || len(request.Password) > 1024 {
+		if len(request.Username) < 1 || len(request.Username) > 255 || len(request.Password) < 1 || len(request.Password) > 1024 {
 			writeError(w, r, http.StatusBadRequest, "VALIDATION_ERROR", "The credentials are invalid.")
 			return
 		}

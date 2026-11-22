@@ -31,7 +31,7 @@ describe('LoginPage', () => {
     await user.click(screen.getByRole('button', { name: 'Se connecter' }))
 
     expect(await screen.findByText('Identifiant requis')).toBeInTheDocument()
-    expect(screen.getByText('Au moins 8 caractères')).toBeInTheDocument()
+    expect(screen.getByText('Mot de passe requis')).toBeInTheDocument()
   })
 
   it('renders the local supervision context', () => {

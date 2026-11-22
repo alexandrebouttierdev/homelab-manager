@@ -24,8 +24,8 @@ func (m *mockUserRepository) FindByID(context.Context, uuid.UUID) (domain.User, 
 func (m *mockUserRepository) UpdatePasswordHash(context.Context, uuid.UUID, string) error {
 	return nil
 }
-func (m *mockUserRepository) EnsureAdmin(context.Context, string, string) error {
-	return nil
+func (m *mockUserRepository) EnsureAdmin(context.Context, string, string) (bool, error) {
+	return false, nil
 }
 
 type mockSessionRepository struct{}

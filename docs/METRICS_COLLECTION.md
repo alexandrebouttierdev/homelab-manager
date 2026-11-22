@@ -8,7 +8,7 @@ Le Backend démarre en arrière-plan des collecteurs locaux indépendants : syst
 
 Les fréquences sont configurables avec les limites cibles suivantes : système 5–300 secondes (défaut 10), stats Docker 5–300 secondes (défaut 15), découverte complète 10–600 secondes (défaut 30), rétention 1–365 jours (défaut 30). La purge s'exécute quotidiennement par petits lots ; ces intervalles sont indépendants.
 
-Une collecte système échouée ne bloque pas Docker, et inversement. Les écritures PostgreSQL se font par lots avec timeouts. En cas d'indisponibilité, log structuré, statut stale et nouvelle tentative temporisée ; ne pas accumuler une file mémoire non bornée.
+Une collecte système échouée ne bloque pas Docker, et inversement. Les écritures SQLite se font par lots avec timeouts. En cas d'indisponibilité, log structuré, statut stale et nouvelle tentative temporisée ; ne pas accumuler une file mémoire non bornée.
 
 ## 2. Métriques système Linux
 
@@ -112,6 +112,6 @@ Les bytes de lecture/écriture viennent des entrées read/write de `blkio_stats.
 
 ## 4. Historique, fraîcheur et rétention
 
-Échantillons horodatés UTC, écrits par lots dans PostgreSQL. Valeur par défaut : conserver 30 jours de données brutes et d'événements, configurable entre 1 et 365 jours. Purger quotidiennement en petits lots sur index temporel. Les endpoints imposent bornes temporelles et plafonds de points ; les historiques agrégés et curseurs ne sont pas encore disponibles.
+Échantillons horodatés UTC, écrits par lots dans SQLite. Valeur par défaut : conserver 30 jours de données brutes et d'événements, configurable entre 1 et 365 jours. Purger quotidiennement en petits lots sur index temporel. Les endpoints imposent bornes temporelles et plafonds de points ; les historiques agrégés et curseurs ne sont pas encore disponibles.
 
 `lastSuccessAt`, statut `ok/stale/unavailable` et âge de la mesure doivent accompagner les vues courantes. Une valeur zéro signifie une mesure réelle égale à zéro, pas une donnée inconnue.

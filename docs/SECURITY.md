@@ -5,6 +5,7 @@ Version 2.0 — 21 novembre 2026
 ## Authentification locale et HTTP
 
 - Authentification locale par identifiant et mot de passe ; hash Argon2id recommandé.
+- Premier démarrage sans `HOMELAB_ADMIN_PASSWORD` : compte par défaut `admin` / `admin`, signalé par un avertissement dans les journaux. Ce mot de passe faible doit être changé dans Paramètres immédiatement ; un nouveau mot de passe fait au moins 12 caractères. La connexion n'impose pas de longueur minimale (seulement 1 à 1 024 octets), les règles de robustesse s'appliquent à la définition du mot de passe.
 - Cookies `HttpOnly`, `Secure` sous HTTPS, `SameSite` approprié, expiration et révocation de sessions.
 - Protection CSRF des mutations authentifiées par cookie, limitation des tentatives et erreurs publiques non bavardes.
 - Validation serveur stricte, limite de taille des requêtes, timeouts, headers de sécurité et contrôle d'origine.
@@ -38,13 +39,13 @@ Un mode direct sur socket rootful ne peut être retenu qu'en décision explicite
 - Pas de fonctions de création, suppression, démarrage, arrêt ou exec de conteneurs dans le périmètre.
 - Limiter et filtrer labels, noms, chemins, métadonnées et journaux ; ne pas exposer les variables d'environnement.
 - Rétention bornée des métriques et événements, avec purge par lots.
-- Gestion séparée des erreurs Docker/PostgreSQL ; ne pas exposer chemin local, secrets ou détails internes.
+- Gestion séparée des erreurs Docker/SQLite ; ne pas exposer chemin local, secrets ou détails internes.
 
 ## Système et déploiement
 
 - Service systemd Manager sous utilisateur dédié sans groupe `docker` lorsqu'un proxy est utilisé.
 - Proxy Docker isolé, socket Unix protégé et non monté/exposé au Frontend.
-- PostgreSQL local, base et rôle dédiés, privilèges minimaux.
+- Base SQLite dans `/var/lib/homelab-manager` (répertoire `0700` via `StateDirectory`, `UMask=0077`), fichier `0600` détenu par `homelab-manager` ; les fichiers `-wal`/`-shm` héritent de ce mode. Elle contient les hachages de mots de passe et de jetons de session : ne pas l'exposer, et protéger les sauvegardes comme la base.
 - TLS en cas d'accès depuis le réseau local non fiable ; configuration de terminaison documentée.
 - Configuration et secrets lisibles seulement par les comptes système nécessaires.
-- Arrêt systemd propre : annuler et attendre les collecteurs avant de fermer PostgreSQL.
+- Arrêt systemd propre : annuler et attendre les collecteurs avant de fermer la base SQLite.

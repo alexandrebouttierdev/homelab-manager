@@ -257,7 +257,7 @@ export function SettingsPage() {
       <Card>
         <CardHeader title="À propos" subtitle="Homelab Manager · architecture mono-hôte" icon={<Database className="h-3.5 w-3.5" />} />
         <CardBody className="grid gap-3 text-xs text-text-secondary sm:grid-cols-2">
-          <p>Backend Go, API REST Chi, PostgreSQL et collecte locale des métriques système et Docker.</p>
+          <p>Backend Go, API REST Chi, SQLite et collecte locale des métriques système et Docker.</p>
           <p>Frontend React, TypeScript strict, Tailwind CSS et ECharts. Aucune dépendance cloud n'est requise pour le fonctionnement normal.</p>
           <p>Le Manager n'expose ni socket Docker, ni commande arbitraire, ni administration des conteneurs au navigateur.</p>
           <p>Les fonctionnalités non implémentées sont explicitement signalées comme indisponibles dans la navigation.</p>

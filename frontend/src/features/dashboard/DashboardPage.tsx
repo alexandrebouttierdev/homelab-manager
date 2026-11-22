@@ -645,7 +645,7 @@ export function DashboardPage() {
 
           <p className="flex flex-wrap items-center gap-2 font-mono text-[10px] text-text-muted">
             <Database className="h-3 w-3" aria-hidden="true" />
-            Données collectées localement et conservées dans PostgreSQL.
+            Données collectées localement et conservées dans SQLite.
             <span className="text-line-strong">•</span>
             <HardDrive className="h-3 w-3" aria-hidden="true" />
             {filesystems.entries.length} système(s) de fichiers

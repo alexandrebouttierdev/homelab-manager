@@ -18,6 +18,7 @@ export function RetentionForm({ settings }: { settings: MonitoringSettings }) {
     saved,
     estimate,
     customised,
+    readOnly,
   } = useRetentionForm(settings)
 
   return (
@@ -33,58 +34,61 @@ export function RetentionForm({ settings }: { settings: MonitoringSettings }) {
       />
       <CardBody>
         <form className="space-y-3" onSubmit={onSubmit} noValidate>
-          <div>
-            <label
-              htmlFor="metricsRetentionDays"
-              className="mb-1.5 block font-mono text-[10px] uppercase tracking-wider text-text-secondary"
-            >
-              Conserver pendant (jours)
-            </label>
-            <input
-              id="metricsRetentionDays"
-              type="number"
-              min={1}
-              max={365}
-              step={1}
-              className="h-9 w-32 rounded-md border border-line bg-surface px-3 text-sm text-text-primary outline-none focus:border-accent"
-              aria-invalid={Boolean(errors.metricsRetentionDays)}
-              {...register('metricsRetentionDays', { valueAsNumber: true })}
-            />
-            {errors.metricsRetentionDays && (
-              <p className="mt-1 text-xs text-danger">{errors.metricsRetentionDays.message}</p>
+          <fieldset disabled={readOnly} className="space-y-3">
+            <div>
+              <label
+                htmlFor="metricsRetentionDays"
+                className="mb-1.5 block font-mono text-[10px] uppercase tracking-wider text-text-secondary"
+              >
+                Conserver pendant (jours)
+              </label>
+              <input
+                id="metricsRetentionDays"
+                type="number"
+                min={1}
+                max={365}
+                step={1}
+                className="h-9 w-32 rounded-md border border-line bg-surface px-3 text-sm text-text-primary outline-none focus:border-accent"
+                aria-invalid={Boolean(errors.metricsRetentionDays)}
+                {...register('metricsRetentionDays', { valueAsNumber: true })}
+              />
+              {errors.metricsRetentionDays && (
+                <p className="mt-1 text-xs text-danger">{errors.metricsRetentionDays.message}</p>
+              )}
+            </div>
+            {estimate !== null && (
+              <p className="text-xs text-text-secondary">
+                Taille estimée de la base : ≈ {numberFormat.format(estimate)} Go avec une collecte
+                toutes les {settings.systemCollectIntervalSeconds} s.
+              </p>
             )}
-          </div>
-          {estimate !== null && (
-            <p className="text-xs text-text-secondary">
-              Taille estimée de la base : ≈ {numberFormat.format(estimate)} Go avec une collecte
-              toutes les {settings.systemCollectIntervalSeconds} s.
-            </p>
-          )}
-          {errorMessage && (
-            <div
-              className="rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger"
-              role="alert"
+            {errorMessage && (
+              <div
+                className="rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger"
+                role="alert"
+              >
+                {errorMessage}
+              </div>
+            )}
+            {saved && (
+              <div
+                className="rounded-md border border-success/30 bg-success/10 px-3 py-2 text-xs text-success"
+                role="status"
+              >
+                Rétention enregistrée. Les données plus anciennes sont purgées immédiatement.
+              </div>
+            )}
+            <Button
+              type="submit"
+              variant="primary"
+              loading={isPending}
+              disabled={!isDirty}
+              icon={<Save className="h-4 w-4" />}
             >
-              {errorMessage}
-            </div>
-          )}
-          {saved && (
-            <div
-              className="rounded-md border border-success/30 bg-success/10 px-3 py-2 text-xs text-success"
-              role="status"
-            >
-              Rétention enregistrée. Les données plus anciennes sont purgées immédiatement.
-            </div>
-          )}
-          <Button
-            type="submit"
-            variant="primary"
-            loading={isPending}
-            disabled={!isDirty}
-            icon={<Save className="h-4 w-4" />}
-          >
-            Enregistrer
-          </Button>
+              Enregistrer
+            </Button>
+            {readOnly && <p className="text-xs text-text-muted">Réservé aux administrateurs.</p>}
+          </fieldset>
         </form>
       </CardBody>
       <CardFooter className="font-mono text-[10px] text-text-muted">

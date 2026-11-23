@@ -1,6 +1,6 @@
 # Spécification des modules d'administration — Homelab Manager
 
-Version 3.0 (brouillon) — 22 novembre 2026 — **non implémenté**
+Version 3.0 (brouillon) — 22 novembre 2026 — **partiellement implémenté** : comptes multiples et rôles (§§ 3.1–3.2, phase 1A, 23 novembre 2026).
 
 Ce document spécifie les modules annoncés « à venir » dans la navigation : utilisateurs et accès, journaux système, services système, alertes et notifications, sauvegardes, tâches planifiées, ainsi que le redémarrage et l'extinction de la machine (§ 8 bis, ajouté le 23 novembre 2026). Il s'appuie sur les maquettes de `maquette/` et en fixe le périmètre réel : une maquette montre une intention visuelle, ce document fait foi. Tant qu'un module n'est pas livré, il reste désactivé dans l'interface et ses routes n'existent pas.
 
@@ -231,7 +231,7 @@ Ajouté le 23 novembre 2026 à la demande du propriétaire du projet : redémarr
 
 | Phase | Contenu | Prérequis |
 |---|---|---|
-| 1 | Module U : rôles, comptes multiples, TOTP, codes de secours, sessions, audit consultable, verrouillage | — |
+| 1 | Module U : rôles, comptes multiples, TOTP, codes de secours, sessions, audit consultable, verrouillage. **1A livrée** (rôles, comptes) ; reste : TOTP, codes de secours, sessions, audit consultable, verrouillage | — |
 | 1 bis | Module M : redémarrer et éteindre la machine | Rôles (phase 1, premier incrément), polkit |
 | 2 | Module J (lecture du journal) | Groupe `systemd-journal` |
 | 3 | Module S en lecture, événements `service.failed` | D-Bus |

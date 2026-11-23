@@ -20,6 +20,7 @@ import {
 } from 'lucide-react'
 import { NavLink } from 'react-router-dom'
 import { useHost } from '../../hooks/useHost'
+import { useSession } from '../../hooks/useSession'
 import { cn } from '../../lib/cn'
 import { formatUptime } from '../../lib/format'
 import { Logo } from '../ui/Logo'
@@ -60,7 +61,6 @@ const soonItems: SoonItem[] = [
   { label: 'Alertes', icon: Bell },
   { label: 'Sauvegardes', icon: DatabaseBackup },
   { label: 'Tâches Cron', icon: CalendarClock },
-  { label: 'Utilisateurs & accès', icon: Users },
 ]
 
 function navLinkClass({ isActive }: { isActive: boolean }) {
@@ -114,6 +114,7 @@ type AppSidebarProps = {
 
 export function AppSidebar({ open, onClose }: AppSidebarProps) {
   const { host, online, osLabel } = useHost()
+  const { canManageUsers } = useSession()
 
   return (
     <>
@@ -164,6 +165,12 @@ export function AppSidebar({ open, onClose }: AppSidebarProps) {
               <Settings className="h-4 w-4 shrink-0 text-text-muted" aria-hidden="true" />
               <span>Configuration</span>
             </NavLink>
+            {canManageUsers && (
+              <NavLink to="/users" className={navLinkClass} onClick={onClose}>
+                <Users className="h-4 w-4 shrink-0 text-text-muted" aria-hidden="true" />
+                <span>Utilisateurs & accès</span>
+              </NavLink>
+            )}
           </div>
 
           <div>

@@ -39,7 +39,7 @@ export function SettingsPage() {
         title="Paramètres"
         breadcrumb={[{ label: 'Paramètres' }, { label: 'Configuration' }]}
         badge={<Badge tone="neutral">v{APP_VERSION}</Badge>}
-        description="Configuration effective du Manager, apparence de l'interface et sécurité du compte administrateur local."
+        description="Configuration effective du Manager, apparence de l'interface et sécurité du compte."
       />
 
       {error && (
@@ -150,7 +150,7 @@ export function SettingsPage() {
 
             <Card>
               <CardHeader
-                title="Compte administrateur"
+                title="Compte"
                 subtitle="Session locale"
                 icon={<UserRound className="h-3.5 w-3.5" />}
               />
@@ -162,9 +162,11 @@ export function SettingsPage() {
                     </span>
                     <div>
                       <p className="text-xs font-medium text-text-primary">
-                        {session.user?.username ?? 'administrateur'}
+                        {session.user?.displayName ?? 'compte'}
                       </p>
-                      <p className="font-mono text-[10px] text-text-muted">Session authentifiée</p>
+                      <p className="font-mono text-[10px] text-text-muted">
+                        {session.roleLabel ?? 'Session authentifiée'}
+                      </p>
                     </div>
                   </div>
                   <Badge tone="success" dot>

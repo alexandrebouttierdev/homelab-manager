@@ -39,6 +39,20 @@ func (_c *SecurityPolicyCreate) SetAllowedNetworks(v []string) *SecurityPolicyCr
 	return _c
 }
 
+// SetRequireAdminSecondFactor sets the "require_admin_second_factor" field.
+func (_c *SecurityPolicyCreate) SetRequireAdminSecondFactor(v bool) *SecurityPolicyCreate {
+	_c.mutation.SetRequireAdminSecondFactor(v)
+	return _c
+}
+
+// SetNillableRequireAdminSecondFactor sets the "require_admin_second_factor" field if the given value is not nil.
+func (_c *SecurityPolicyCreate) SetNillableRequireAdminSecondFactor(v *bool) *SecurityPolicyCreate {
+	if v != nil {
+		_c.SetRequireAdminSecondFactor(*v)
+	}
+	return _c
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_c *SecurityPolicyCreate) SetUpdatedAt(v time.Time) *SecurityPolicyCreate {
 	_c.mutation.SetUpdatedAt(v)
@@ -102,6 +116,10 @@ func (_c *SecurityPolicyCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *SecurityPolicyCreate) defaults() {
+	if _, ok := _c.mutation.RequireAdminSecondFactor(); !ok {
+		v := securitypolicy.DefaultRequireAdminSecondFactor
+		_c.mutation.SetRequireAdminSecondFactor(v)
+	}
 	if _, ok := _c.mutation.UpdatedAt(); !ok {
 		v := securitypolicy.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
@@ -127,6 +145,9 @@ func (_c *SecurityPolicyCreate) check() error {
 	}
 	if _, ok := _c.mutation.AllowedNetworks(); !ok {
 		return &ValidationError{Name: "allowed_networks", err: errors.New(`ent: missing required field "SecurityPolicy.allowed_networks"`)}
+	}
+	if _, ok := _c.mutation.RequireAdminSecondFactor(); !ok {
+		return &ValidationError{Name: "require_admin_second_factor", err: errors.New(`ent: missing required field "SecurityPolicy.require_admin_second_factor"`)}
 	}
 	if _, ok := _c.mutation.UpdatedAt(); !ok {
 		return &ValidationError{Name: "updated_at", err: errors.New(`ent: missing required field "SecurityPolicy.updated_at"`)}
@@ -177,6 +198,10 @@ func (_c *SecurityPolicyCreate) createSpec() (*SecurityPolicy, *sqlgraph.CreateS
 	if value, ok := _c.mutation.AllowedNetworks(); ok {
 		_spec.SetField(securitypolicy.FieldAllowedNetworks, field.TypeJSON, value)
 		_node.AllowedNetworks = value
+	}
+	if value, ok := _c.mutation.RequireAdminSecondFactor(); ok {
+		_spec.SetField(securitypolicy.FieldRequireAdminSecondFactor, field.TypeBool, value)
+		_node.RequireAdminSecondFactor = value
 	}
 	if value, ok := _c.mutation.UpdatedAt(); ok {
 		_spec.SetField(securitypolicy.FieldUpdatedAt, field.TypeTime, value)

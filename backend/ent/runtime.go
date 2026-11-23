@@ -10,10 +10,12 @@ import (
 	"homelab-manager/backend/ent/event"
 	"homelab-manager/backend/ent/hostinfo"
 	"homelab-manager/backend/ent/loginfailure"
+	"homelab-manager/backend/ent/recoverycode"
 	"homelab-manager/backend/ent/schema"
 	"homelab-manager/backend/ent/securitypolicy"
 	"homelab-manager/backend/ent/session"
 	"homelab-manager/backend/ent/systemmetricsample"
+	"homelab-manager/backend/ent/totpsecret"
 	"homelab-manager/backend/ent/user"
 	"time"
 
@@ -164,14 +166,28 @@ func init() {
 	loginfailureDescConsecutiveFailures := loginfailureFields[1].Descriptor()
 	// loginfailure.DefaultConsecutiveFailures holds the default value on creation for the consecutive_failures field.
 	loginfailure.DefaultConsecutiveFailures = loginfailureDescConsecutiveFailures.Default.(int)
+	recoverycodeFields := schema.RecoveryCode{}.Fields()
+	_ = recoverycodeFields
+	// recoverycodeDescCreatedAt is the schema descriptor for created_at field.
+	recoverycodeDescCreatedAt := recoverycodeFields[4].Descriptor()
+	// recoverycode.DefaultCreatedAt holds the default value on creation for the created_at field.
+	recoverycode.DefaultCreatedAt = recoverycodeDescCreatedAt.Default.(func() time.Time)
+	// recoverycodeDescID is the schema descriptor for id field.
+	recoverycodeDescID := recoverycodeFields[0].Descriptor()
+	// recoverycode.DefaultID holds the default value on creation for the id field.
+	recoverycode.DefaultID = recoverycodeDescID.Default.(func() uuid.UUID)
 	securitypolicyFields := schema.SecurityPolicy{}.Fields()
 	_ = securitypolicyFields
 	// securitypolicyDescSingletonKey is the schema descriptor for singleton_key field.
 	securitypolicyDescSingletonKey := securitypolicyFields[1].Descriptor()
 	// securitypolicy.SingletonKeyValidator is a validator for the "singleton_key" field. It is called by the builders before save.
 	securitypolicy.SingletonKeyValidator = securitypolicyDescSingletonKey.Validators[0].(func(string) error)
+	// securitypolicyDescRequireAdminSecondFactor is the schema descriptor for require_admin_second_factor field.
+	securitypolicyDescRequireAdminSecondFactor := securitypolicyFields[4].Descriptor()
+	// securitypolicy.DefaultRequireAdminSecondFactor holds the default value on creation for the require_admin_second_factor field.
+	securitypolicy.DefaultRequireAdminSecondFactor = securitypolicyDescRequireAdminSecondFactor.Default.(bool)
 	// securitypolicyDescUpdatedAt is the schema descriptor for updated_at field.
-	securitypolicyDescUpdatedAt := securitypolicyFields[4].Descriptor()
+	securitypolicyDescUpdatedAt := securitypolicyFields[5].Descriptor()
 	// securitypolicy.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	securitypolicy.DefaultUpdatedAt = securitypolicyDescUpdatedAt.Default.(func() time.Time)
 	// securitypolicy.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -208,6 +224,16 @@ func init() {
 	systemmetricsampleDescID := systemmetricsampleFields[0].Descriptor()
 	// systemmetricsample.DefaultID holds the default value on creation for the id field.
 	systemmetricsample.DefaultID = systemmetricsampleDescID.Default.(func() uuid.UUID)
+	totpsecretFields := schema.TotpSecret{}.Fields()
+	_ = totpsecretFields
+	// totpsecretDescLastUsedStep is the schema descriptor for last_used_step field.
+	totpsecretDescLastUsedStep := totpsecretFields[3].Descriptor()
+	// totpsecret.DefaultLastUsedStep holds the default value on creation for the last_used_step field.
+	totpsecret.DefaultLastUsedStep = totpsecretDescLastUsedStep.Default.(int64)
+	// totpsecretDescCreatedAt is the schema descriptor for created_at field.
+	totpsecretDescCreatedAt := totpsecretFields[4].Descriptor()
+	// totpsecret.DefaultCreatedAt holds the default value on creation for the created_at field.
+	totpsecret.DefaultCreatedAt = totpsecretDescCreatedAt.Default.(func() time.Time)
 	userFields := schema.User{}.Fields()
 	_ = userFields
 	// userDescUsername is the schema descriptor for username field.

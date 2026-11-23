@@ -18,7 +18,13 @@ Modèle logique d'Ent et SQLite. Il décrit un hôte unique et ses conteneurs lo
 - `last_seen_at` est écrit au plus une fois par minute et par session ; une session inactive au-delà de la politique est révoquée à sa requête suivante.
 
 ### SecurityPolicy
-- Ligne singleton (`security_policies`, `singleton_key = 'local'`) : `idle_timeout_minutes` (contrainte `CHECK` 5–720, défaut 60) et `allowed_networks` (tableau JSON de préfixes CIDR ; vide = toutes les adresses). Absente, la politique par défaut s'applique. Chaque modification écrit sa ligne d'audit dans la même transaction.
+- Ligne singleton (`security_policies`, `singleton_key = 'local'`) : `idle_timeout_minutes` (contrainte `CHECK` 5–720, défaut 60), `require_admin_second_factor` (défaut faux) et `allowed_networks` (tableau JSON de préfixes CIDR ; vide = toutes les adresses). Absente, la politique par défaut s'applique. Chaque modification écrit sa ligne d'audit dans la même transaction.
+
+### TotpSecret
+- Une ligne par compte (`totp_secrets`, `id` = UUID du compte, `ON DELETE CASCADE`) : secret TOTP scellé par le coffre (AES-256-GCM, données associées liées au compte, format `v1.<base64url>`), `confirmed_at` (NULL tant que le premier code n'a pas été vérifié), `last_used_step` (anti-rejeu : un pas n'est accepté que s'il est plus récent, mis à jour en une seule requête), `created_at`.
+
+### RecoveryCode
+- `recovery_codes` : UUID, compte (`ON DELETE CASCADE`), SHA-256 du code normalisé (unique), `used_at` (usage unique), `created_at`. Remplacés en bloc à la confirmation du TOTP et à la régénération ; supprimés avec le TOTP.
 
 ### LoginFailure
 - Une ligne par compte (`login_failures`, `id` = UUID du compte, `ON DELETE CASCADE`) : échecs consécutifs, dernier échec, fin de verrouillage. Supprimée à la connexion réussie.
@@ -84,4 +90,4 @@ Le stockage est un fichier SQLite unique ; aucune base de séries temporelles ni
 - Horodatages UTC et migrations versionnées/reproductibles.
 - Les modèles Ent restent confinés aux adaptateurs ; DTO et domaine sont indépendants.
 - Les valeurs volatiles de stats ne sont pas dupliquées comme état courant dans `Container` si le dernier échantillon peut servir de source.
-- `001_initial.sql` crée le schéma SQLite initial, `002_app_settings.sql` la table `app_settings`, `003_user_accounts.sql` les colonnes de rôle et d'état des comptes, `004_sessions_security.sql` l'activité des sessions, la politique de sécurité, les échecs de connexion et l'index `audit_logs (created_at DESC)` ; les migrations suivantes s'ajoutent sous un nouveau numéro, sans modifier les fichiers déjà livrés. Les anciennes migrations PostgreSQL ont été retirées et leurs données ne sont pas reprises.
+- `001_initial.sql` crée le schéma SQLite initial, `002_app_settings.sql` la table `app_settings`, `003_user_accounts.sql` les colonnes de rôle et d'état des comptes, `004_sessions_security.sql` l'activité des sessions, la politique de sécurité, les échecs de connexion et l'index `audit_logs (created_at DESC)`, `005_second_factor.sql` les secrets TOTP, les codes de secours et l'obligation du second facteur ; les migrations suivantes s'ajoutent sous un nouveau numéro, sans modifier les fichiers déjà livrés. Les anciennes migrations PostgreSQL ont été retirées et leurs données ne sont pas reprises.

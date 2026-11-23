@@ -65,6 +65,11 @@ func IdleTimeoutMinutes(v int) predicate.SecurityPolicy {
 	return predicate.SecurityPolicy(sql.FieldEQ(FieldIdleTimeoutMinutes, v))
 }
 
+// RequireAdminSecondFactor applies equality check predicate on the "require_admin_second_factor" field. It's identical to RequireAdminSecondFactorEQ.
+func RequireAdminSecondFactor(v bool) predicate.SecurityPolicy {
+	return predicate.SecurityPolicy(sql.FieldEQ(FieldRequireAdminSecondFactor, v))
+}
+
 // UpdatedAt applies equality check predicate on the "updated_at" field. It's identical to UpdatedAtEQ.
 func UpdatedAt(v time.Time) predicate.SecurityPolicy {
 	return predicate.SecurityPolicy(sql.FieldEQ(FieldUpdatedAt, v))
@@ -173,6 +178,16 @@ func IdleTimeoutMinutesLT(v int) predicate.SecurityPolicy {
 // IdleTimeoutMinutesLTE applies the LTE predicate on the "idle_timeout_minutes" field.
 func IdleTimeoutMinutesLTE(v int) predicate.SecurityPolicy {
 	return predicate.SecurityPolicy(sql.FieldLTE(FieldIdleTimeoutMinutes, v))
+}
+
+// RequireAdminSecondFactorEQ applies the EQ predicate on the "require_admin_second_factor" field.
+func RequireAdminSecondFactorEQ(v bool) predicate.SecurityPolicy {
+	return predicate.SecurityPolicy(sql.FieldEQ(FieldRequireAdminSecondFactor, v))
+}
+
+// RequireAdminSecondFactorNEQ applies the NEQ predicate on the "require_admin_second_factor" field.
+func RequireAdminSecondFactorNEQ(v bool) predicate.SecurityPolicy {
+	return predicate.SecurityPolicy(sql.FieldNEQ(FieldRequireAdminSecondFactor, v))
 }
 
 // UpdatedAtEQ applies the EQ predicate on the "updated_at" field.

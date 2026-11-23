@@ -26,12 +26,16 @@ type Tx struct {
 	HostInfo *HostInfoClient
 	// LoginFailure is the client for interacting with the LoginFailure builders.
 	LoginFailure *LoginFailureClient
+	// RecoveryCode is the client for interacting with the RecoveryCode builders.
+	RecoveryCode *RecoveryCodeClient
 	// SecurityPolicy is the client for interacting with the SecurityPolicy builders.
 	SecurityPolicy *SecurityPolicyClient
 	// Session is the client for interacting with the Session builders.
 	Session *SessionClient
 	// SystemMetricSample is the client for interacting with the SystemMetricSample builders.
 	SystemMetricSample *SystemMetricSampleClient
+	// TotpSecret is the client for interacting with the TotpSecret builders.
+	TotpSecret *TotpSecretClient
 	// User is the client for interacting with the User builders.
 	User *UserClient
 
@@ -172,9 +176,11 @@ func (tx *Tx) init() {
 	tx.Event = NewEventClient(tx.config)
 	tx.HostInfo = NewHostInfoClient(tx.config)
 	tx.LoginFailure = NewLoginFailureClient(tx.config)
+	tx.RecoveryCode = NewRecoveryCodeClient(tx.config)
 	tx.SecurityPolicy = NewSecurityPolicyClient(tx.config)
 	tx.Session = NewSessionClient(tx.config)
 	tx.SystemMetricSample = NewSystemMetricSampleClient(tx.config)
+	tx.TotpSecret = NewTotpSecretClient(tx.config)
 	tx.User = NewUserClient(tx.config)
 }
 

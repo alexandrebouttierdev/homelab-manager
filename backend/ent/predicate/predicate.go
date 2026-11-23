@@ -27,6 +27,9 @@ type HostInfo func(*sql.Selector)
 // LoginFailure is the predicate function for loginfailure builders.
 type LoginFailure func(*sql.Selector)
 
+// RecoveryCode is the predicate function for recoverycode builders.
+type RecoveryCode func(*sql.Selector)
+
 // SecurityPolicy is the predicate function for securitypolicy builders.
 type SecurityPolicy func(*sql.Selector)
 
@@ -35,6 +38,9 @@ type Session func(*sql.Selector)
 
 // SystemMetricSample is the predicate function for systemmetricsample builders.
 type SystemMetricSample func(*sql.Selector)
+
+// TotpSecret is the predicate function for totpsecret builders.
+type TotpSecret func(*sql.Selector)
 
 // User is the predicate function for user builders.
 type User func(*sql.Selector)

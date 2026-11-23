@@ -20,6 +20,8 @@ const (
 	FieldIdleTimeoutMinutes = "idle_timeout_minutes"
 	// FieldAllowedNetworks holds the string denoting the allowed_networks field in the database.
 	FieldAllowedNetworks = "allowed_networks"
+	// FieldRequireAdminSecondFactor holds the string denoting the require_admin_second_factor field in the database.
+	FieldRequireAdminSecondFactor = "require_admin_second_factor"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
 	FieldUpdatedAt = "updated_at"
 	// Table holds the table name of the securitypolicy in the database.
@@ -32,6 +34,7 @@ var Columns = []string{
 	FieldSingletonKey,
 	FieldIdleTimeoutMinutes,
 	FieldAllowedNetworks,
+	FieldRequireAdminSecondFactor,
 	FieldUpdatedAt,
 }
 
@@ -48,6 +51,8 @@ func ValidColumn(column string) bool {
 var (
 	// SingletonKeyValidator is a validator for the "singleton_key" field. It is called by the builders before save.
 	SingletonKeyValidator func(string) error
+	// DefaultRequireAdminSecondFactor holds the default value on creation for the "require_admin_second_factor" field.
+	DefaultRequireAdminSecondFactor bool
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
 	DefaultUpdatedAt func() time.Time
 	// UpdateDefaultUpdatedAt holds the default value on update for the "updated_at" field.
@@ -72,6 +77,11 @@ func BySingletonKey(opts ...sql.OrderTermOption) OrderOption {
 // ByIdleTimeoutMinutes orders the results by the idle_timeout_minutes field.
 func ByIdleTimeoutMinutes(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldIdleTimeoutMinutes, opts...).ToFunc()
+}
+
+// ByRequireAdminSecondFactor orders the results by the require_admin_second_factor field.
+func ByRequireAdminSecondFactor(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRequireAdminSecondFactor, opts...).ToFunc()
 }
 
 // ByUpdatedAt orders the results by the updated_at field.

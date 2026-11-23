@@ -76,6 +76,20 @@ func (_u *SecurityPolicyUpdate) AppendAllowedNetworks(v []string) *SecurityPolic
 	return _u
 }
 
+// SetRequireAdminSecondFactor sets the "require_admin_second_factor" field.
+func (_u *SecurityPolicyUpdate) SetRequireAdminSecondFactor(v bool) *SecurityPolicyUpdate {
+	_u.mutation.SetRequireAdminSecondFactor(v)
+	return _u
+}
+
+// SetNillableRequireAdminSecondFactor sets the "require_admin_second_factor" field if the given value is not nil.
+func (_u *SecurityPolicyUpdate) SetNillableRequireAdminSecondFactor(v *bool) *SecurityPolicyUpdate {
+	if v != nil {
+		_u.SetRequireAdminSecondFactor(*v)
+	}
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *SecurityPolicyUpdate) SetUpdatedAt(v time.Time) *SecurityPolicyUpdate {
 	_u.mutation.SetUpdatedAt(v)
@@ -162,6 +176,9 @@ func (_u *SecurityPolicyUpdate) sqlSave(ctx context.Context) (_node int, err err
 			sqljson.Append(u, securitypolicy.FieldAllowedNetworks, value)
 		})
 	}
+	if value, ok := _u.mutation.RequireAdminSecondFactor(); ok {
+		_spec.SetField(securitypolicy.FieldRequireAdminSecondFactor, field.TypeBool, value)
+	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(securitypolicy.FieldUpdatedAt, field.TypeTime, value)
 	}
@@ -229,6 +246,20 @@ func (_u *SecurityPolicyUpdateOne) SetAllowedNetworks(v []string) *SecurityPolic
 // AppendAllowedNetworks appends value to the "allowed_networks" field.
 func (_u *SecurityPolicyUpdateOne) AppendAllowedNetworks(v []string) *SecurityPolicyUpdateOne {
 	_u.mutation.AppendAllowedNetworks(v)
+	return _u
+}
+
+// SetRequireAdminSecondFactor sets the "require_admin_second_factor" field.
+func (_u *SecurityPolicyUpdateOne) SetRequireAdminSecondFactor(v bool) *SecurityPolicyUpdateOne {
+	_u.mutation.SetRequireAdminSecondFactor(v)
+	return _u
+}
+
+// SetNillableRequireAdminSecondFactor sets the "require_admin_second_factor" field if the given value is not nil.
+func (_u *SecurityPolicyUpdateOne) SetNillableRequireAdminSecondFactor(v *bool) *SecurityPolicyUpdateOne {
+	if v != nil {
+		_u.SetRequireAdminSecondFactor(*v)
+	}
 	return _u
 }
 
@@ -347,6 +378,9 @@ func (_u *SecurityPolicyUpdateOne) sqlSave(ctx context.Context) (_node *Security
 		_spec.AddModifier(func(u *sql.UpdateBuilder) {
 			sqljson.Append(u, securitypolicy.FieldAllowedNetworks, value)
 		})
+	}
+	if value, ok := _u.mutation.RequireAdminSecondFactor(); ok {
+		_spec.SetField(securitypolicy.FieldRequireAdminSecondFactor, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(securitypolicy.FieldUpdatedAt, field.TypeTime, value)

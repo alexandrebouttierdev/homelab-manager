@@ -18,9 +18,11 @@ import (
 	"homelab-manager/backend/ent/event"
 	"homelab-manager/backend/ent/hostinfo"
 	"homelab-manager/backend/ent/loginfailure"
+	"homelab-manager/backend/ent/recoverycode"
 	"homelab-manager/backend/ent/securitypolicy"
 	"homelab-manager/backend/ent/session"
 	"homelab-manager/backend/ent/systemmetricsample"
+	"homelab-manager/backend/ent/totpsecret"
 	"homelab-manager/backend/ent/user"
 
 	"entgo.io/ent"
@@ -49,12 +51,16 @@ type Client struct {
 	HostInfo *HostInfoClient
 	// LoginFailure is the client for interacting with the LoginFailure builders.
 	LoginFailure *LoginFailureClient
+	// RecoveryCode is the client for interacting with the RecoveryCode builders.
+	RecoveryCode *RecoveryCodeClient
 	// SecurityPolicy is the client for interacting with the SecurityPolicy builders.
 	SecurityPolicy *SecurityPolicyClient
 	// Session is the client for interacting with the Session builders.
 	Session *SessionClient
 	// SystemMetricSample is the client for interacting with the SystemMetricSample builders.
 	SystemMetricSample *SystemMetricSampleClient
+	// TotpSecret is the client for interacting with the TotpSecret builders.
+	TotpSecret *TotpSecretClient
 	// User is the client for interacting with the User builders.
 	User *UserClient
 }
@@ -75,9 +81,11 @@ func (c *Client) init() {
 	c.Event = NewEventClient(c.config)
 	c.HostInfo = NewHostInfoClient(c.config)
 	c.LoginFailure = NewLoginFailureClient(c.config)
+	c.RecoveryCode = NewRecoveryCodeClient(c.config)
 	c.SecurityPolicy = NewSecurityPolicyClient(c.config)
 	c.Session = NewSessionClient(c.config)
 	c.SystemMetricSample = NewSystemMetricSampleClient(c.config)
+	c.TotpSecret = NewTotpSecretClient(c.config)
 	c.User = NewUserClient(c.config)
 }
 
@@ -178,9 +186,11 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		Event:                 NewEventClient(cfg),
 		HostInfo:              NewHostInfoClient(cfg),
 		LoginFailure:          NewLoginFailureClient(cfg),
+		RecoveryCode:          NewRecoveryCodeClient(cfg),
 		SecurityPolicy:        NewSecurityPolicyClient(cfg),
 		Session:               NewSessionClient(cfg),
 		SystemMetricSample:    NewSystemMetricSampleClient(cfg),
+		TotpSecret:            NewTotpSecretClient(cfg),
 		User:                  NewUserClient(cfg),
 	}, nil
 }
@@ -208,9 +218,11 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		Event:                 NewEventClient(cfg),
 		HostInfo:              NewHostInfoClient(cfg),
 		LoginFailure:          NewLoginFailureClient(cfg),
+		RecoveryCode:          NewRecoveryCodeClient(cfg),
 		SecurityPolicy:        NewSecurityPolicyClient(cfg),
 		Session:               NewSessionClient(cfg),
 		SystemMetricSample:    NewSystemMetricSampleClient(cfg),
+		TotpSecret:            NewTotpSecretClient(cfg),
 		User:                  NewUserClient(cfg),
 	}, nil
 }
@@ -242,8 +254,8 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.AppSetting, c.AuditLog, c.Container, c.ContainerMetricSample, c.Event,
-		c.HostInfo, c.LoginFailure, c.SecurityPolicy, c.Session, c.SystemMetricSample,
-		c.User,
+		c.HostInfo, c.LoginFailure, c.RecoveryCode, c.SecurityPolicy, c.Session,
+		c.SystemMetricSample, c.TotpSecret, c.User,
 	} {
 		n.Use(hooks...)
 	}
@@ -254,8 +266,8 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.AppSetting, c.AuditLog, c.Container, c.ContainerMetricSample, c.Event,
-		c.HostInfo, c.LoginFailure, c.SecurityPolicy, c.Session, c.SystemMetricSample,
-		c.User,
+		c.HostInfo, c.LoginFailure, c.RecoveryCode, c.SecurityPolicy, c.Session,
+		c.SystemMetricSample, c.TotpSecret, c.User,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -278,12 +290,16 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.HostInfo.mutate(ctx, m)
 	case *LoginFailureMutation:
 		return c.LoginFailure.mutate(ctx, m)
+	case *RecoveryCodeMutation:
+		return c.RecoveryCode.mutate(ctx, m)
 	case *SecurityPolicyMutation:
 		return c.SecurityPolicy.mutate(ctx, m)
 	case *SessionMutation:
 		return c.Session.mutate(ctx, m)
 	case *SystemMetricSampleMutation:
 		return c.SystemMetricSample.mutate(ctx, m)
+	case *TotpSecretMutation:
+		return c.TotpSecret.mutate(ctx, m)
 	case *UserMutation:
 		return c.User.mutate(ctx, m)
 	default:
@@ -1286,6 +1302,139 @@ func (c *LoginFailureClient) mutate(ctx context.Context, m *LoginFailureMutation
 	}
 }
 
+// RecoveryCodeClient is a client for the RecoveryCode schema.
+type RecoveryCodeClient struct {
+	config
+}
+
+// NewRecoveryCodeClient returns a client for the RecoveryCode from the given config.
+func NewRecoveryCodeClient(c config) *RecoveryCodeClient {
+	return &RecoveryCodeClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `recoverycode.Hooks(f(g(h())))`.
+func (c *RecoveryCodeClient) Use(hooks ...Hook) {
+	c.hooks.RecoveryCode = append(c.hooks.RecoveryCode, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `recoverycode.Intercept(f(g(h())))`.
+func (c *RecoveryCodeClient) Intercept(interceptors ...Interceptor) {
+	c.inters.RecoveryCode = append(c.inters.RecoveryCode, interceptors...)
+}
+
+// Create returns a builder for creating a RecoveryCode entity.
+func (c *RecoveryCodeClient) Create() *RecoveryCodeCreate {
+	mutation := newRecoveryCodeMutation(c.config, OpCreate)
+	return &RecoveryCodeCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of RecoveryCode entities.
+func (c *RecoveryCodeClient) CreateBulk(builders ...*RecoveryCodeCreate) *RecoveryCodeCreateBulk {
+	return &RecoveryCodeCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *RecoveryCodeClient) MapCreateBulk(slice any, setFunc func(*RecoveryCodeCreate, int)) *RecoveryCodeCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &RecoveryCodeCreateBulk{err: fmt.Errorf("calling to RecoveryCodeClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*RecoveryCodeCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &RecoveryCodeCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for RecoveryCode.
+func (c *RecoveryCodeClient) Update() *RecoveryCodeUpdate {
+	mutation := newRecoveryCodeMutation(c.config, OpUpdate)
+	return &RecoveryCodeUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *RecoveryCodeClient) UpdateOne(_m *RecoveryCode) *RecoveryCodeUpdateOne {
+	mutation := newRecoveryCodeMutation(c.config, OpUpdateOne, withRecoveryCode(_m))
+	return &RecoveryCodeUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *RecoveryCodeClient) UpdateOneID(id uuid.UUID) *RecoveryCodeUpdateOne {
+	mutation := newRecoveryCodeMutation(c.config, OpUpdateOne, withRecoveryCodeID(id))
+	return &RecoveryCodeUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for RecoveryCode.
+func (c *RecoveryCodeClient) Delete() *RecoveryCodeDelete {
+	mutation := newRecoveryCodeMutation(c.config, OpDelete)
+	return &RecoveryCodeDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *RecoveryCodeClient) DeleteOne(_m *RecoveryCode) *RecoveryCodeDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *RecoveryCodeClient) DeleteOneID(id uuid.UUID) *RecoveryCodeDeleteOne {
+	builder := c.Delete().Where(recoverycode.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &RecoveryCodeDeleteOne{builder}
+}
+
+// Query returns a query builder for RecoveryCode.
+func (c *RecoveryCodeClient) Query() *RecoveryCodeQuery {
+	return &RecoveryCodeQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeRecoveryCode},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a RecoveryCode entity by its id.
+func (c *RecoveryCodeClient) Get(ctx context.Context, id uuid.UUID) (*RecoveryCode, error) {
+	return c.Query().Where(recoverycode.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *RecoveryCodeClient) GetX(ctx context.Context, id uuid.UUID) *RecoveryCode {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *RecoveryCodeClient) Hooks() []Hook {
+	return c.hooks.RecoveryCode
+}
+
+// Interceptors returns the client interceptors.
+func (c *RecoveryCodeClient) Interceptors() []Interceptor {
+	return c.inters.RecoveryCode
+}
+
+func (c *RecoveryCodeClient) mutate(ctx context.Context, m *RecoveryCodeMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&RecoveryCodeCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&RecoveryCodeUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&RecoveryCodeUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&RecoveryCodeDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown RecoveryCode mutation op: %q", m.Op())
+	}
+}
+
 // SecurityPolicyClient is a client for the SecurityPolicy schema.
 type SecurityPolicyClient struct {
 	config
@@ -1701,6 +1850,139 @@ func (c *SystemMetricSampleClient) mutate(ctx context.Context, m *SystemMetricSa
 	}
 }
 
+// TotpSecretClient is a client for the TotpSecret schema.
+type TotpSecretClient struct {
+	config
+}
+
+// NewTotpSecretClient returns a client for the TotpSecret from the given config.
+func NewTotpSecretClient(c config) *TotpSecretClient {
+	return &TotpSecretClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `totpsecret.Hooks(f(g(h())))`.
+func (c *TotpSecretClient) Use(hooks ...Hook) {
+	c.hooks.TotpSecret = append(c.hooks.TotpSecret, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `totpsecret.Intercept(f(g(h())))`.
+func (c *TotpSecretClient) Intercept(interceptors ...Interceptor) {
+	c.inters.TotpSecret = append(c.inters.TotpSecret, interceptors...)
+}
+
+// Create returns a builder for creating a TotpSecret entity.
+func (c *TotpSecretClient) Create() *TotpSecretCreate {
+	mutation := newTotpSecretMutation(c.config, OpCreate)
+	return &TotpSecretCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of TotpSecret entities.
+func (c *TotpSecretClient) CreateBulk(builders ...*TotpSecretCreate) *TotpSecretCreateBulk {
+	return &TotpSecretCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *TotpSecretClient) MapCreateBulk(slice any, setFunc func(*TotpSecretCreate, int)) *TotpSecretCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &TotpSecretCreateBulk{err: fmt.Errorf("calling to TotpSecretClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*TotpSecretCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &TotpSecretCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for TotpSecret.
+func (c *TotpSecretClient) Update() *TotpSecretUpdate {
+	mutation := newTotpSecretMutation(c.config, OpUpdate)
+	return &TotpSecretUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *TotpSecretClient) UpdateOne(_m *TotpSecret) *TotpSecretUpdateOne {
+	mutation := newTotpSecretMutation(c.config, OpUpdateOne, withTotpSecret(_m))
+	return &TotpSecretUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *TotpSecretClient) UpdateOneID(id uuid.UUID) *TotpSecretUpdateOne {
+	mutation := newTotpSecretMutation(c.config, OpUpdateOne, withTotpSecretID(id))
+	return &TotpSecretUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for TotpSecret.
+func (c *TotpSecretClient) Delete() *TotpSecretDelete {
+	mutation := newTotpSecretMutation(c.config, OpDelete)
+	return &TotpSecretDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *TotpSecretClient) DeleteOne(_m *TotpSecret) *TotpSecretDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *TotpSecretClient) DeleteOneID(id uuid.UUID) *TotpSecretDeleteOne {
+	builder := c.Delete().Where(totpsecret.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &TotpSecretDeleteOne{builder}
+}
+
+// Query returns a query builder for TotpSecret.
+func (c *TotpSecretClient) Query() *TotpSecretQuery {
+	return &TotpSecretQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeTotpSecret},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a TotpSecret entity by its id.
+func (c *TotpSecretClient) Get(ctx context.Context, id uuid.UUID) (*TotpSecret, error) {
+	return c.Query().Where(totpsecret.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *TotpSecretClient) GetX(ctx context.Context, id uuid.UUID) *TotpSecret {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *TotpSecretClient) Hooks() []Hook {
+	return c.hooks.TotpSecret
+}
+
+// Interceptors returns the client interceptors.
+func (c *TotpSecretClient) Interceptors() []Interceptor {
+	return c.inters.TotpSecret
+}
+
+func (c *TotpSecretClient) mutate(ctx context.Context, m *TotpSecretMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&TotpSecretCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&TotpSecretUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&TotpSecretUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&TotpSecretDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown TotpSecret mutation op: %q", m.Op())
+	}
+}
+
 // UserClient is a client for the User schema.
 type UserClient struct {
 	config
@@ -1854,11 +2136,12 @@ func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error)
 type (
 	hooks struct {
 		AppSetting, AuditLog, Container, ContainerMetricSample, Event, HostInfo,
-		LoginFailure, SecurityPolicy, Session, SystemMetricSample, User []ent.Hook
+		LoginFailure, RecoveryCode, SecurityPolicy, Session, SystemMetricSample,
+		TotpSecret, User []ent.Hook
 	}
 	inters struct {
 		AppSetting, AuditLog, Container, ContainerMetricSample, Event, HostInfo,
-		LoginFailure, SecurityPolicy, Session, SystemMetricSample,
-		User []ent.Interceptor
+		LoginFailure, RecoveryCode, SecurityPolicy, Session, SystemMetricSample,
+		TotpSecret, User []ent.Interceptor
 	}
 )

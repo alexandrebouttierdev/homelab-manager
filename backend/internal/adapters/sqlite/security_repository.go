@@ -42,7 +42,12 @@ func (r *SecurityRepository) SecurityPolicy(ctx context.Context) (domain.Securit
 	if err != nil {
 		return domain.SecurityPolicy{}, fmt.Errorf("read security policy: %w", err)
 	}
-	return domain.NewSecurityPolicy(record.IdleTimeoutMinutes, record.AllowedNetworks)
+	policy, err := domain.NewSecurityPolicy(record.IdleTimeoutMinutes, record.AllowedNetworks)
+	if err != nil {
+		return domain.SecurityPolicy{}, fmt.Errorf("stored security policy: %w", err)
+	}
+	policy.RequireAdminSecondFactor = record.RequireAdminSecondFactor
+	return policy, nil
 }
 
 // SetSecurityPolicy stores the policy and its audit entry atomically.
@@ -53,10 +58,12 @@ func (r *SecurityRepository) SetSecurityPolicy(ctx context.Context, policy domai
 		switch {
 		case ent.IsNotFound(err):
 			err = tx.SecurityPolicy.Create().SetSingletonKey(settingsSingletonKey).
-				SetIdleTimeoutMinutes(policy.IdleTimeoutMinutes).SetAllowedNetworks(networks).Exec(ctx)
+				SetIdleTimeoutMinutes(policy.IdleTimeoutMinutes).SetAllowedNetworks(networks).
+				SetRequireAdminSecondFactor(policy.RequireAdminSecondFactor).Exec(ctx)
 		case err == nil:
 			err = tx.SecurityPolicy.UpdateOneID(record.ID).
-				SetIdleTimeoutMinutes(policy.IdleTimeoutMinutes).SetAllowedNetworks(networks).Exec(ctx)
+				SetIdleTimeoutMinutes(policy.IdleTimeoutMinutes).SetAllowedNetworks(networks).
+				SetRequireAdminSecondFactor(policy.RequireAdminSecondFactor).Exec(ctx)
 		}
 		if err != nil {
 			return fmt.Errorf("write security policy: %w", err)

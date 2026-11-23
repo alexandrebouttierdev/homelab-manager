@@ -92,6 +92,18 @@ func (f LoginFailureFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.LoginFailureMutation", m)
 }
 
+// The RecoveryCodeFunc type is an adapter to allow the use of ordinary
+// function as RecoveryCode mutator.
+type RecoveryCodeFunc func(context.Context, *ent.RecoveryCodeMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f RecoveryCodeFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.RecoveryCodeMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.RecoveryCodeMutation", m)
+}
+
 // The SecurityPolicyFunc type is an adapter to allow the use of ordinary
 // function as SecurityPolicy mutator.
 type SecurityPolicyFunc func(context.Context, *ent.SecurityPolicyMutation) (ent.Value, error)
@@ -126,6 +138,18 @@ func (f SystemMetricSampleFunc) Mutate(ctx context.Context, m ent.Mutation) (ent
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SystemMetricSampleMutation", m)
+}
+
+// The TotpSecretFunc type is an adapter to allow the use of ordinary
+// function as TotpSecret mutator.
+type TotpSecretFunc func(context.Context, *ent.TotpSecretMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f TotpSecretFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.TotpSecretMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.TotpSecretMutation", m)
 }
 
 // The UserFunc type is an adapter to allow the use of ordinary

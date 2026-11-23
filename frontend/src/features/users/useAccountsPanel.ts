@@ -17,8 +17,8 @@ import { accountSchema, type AccountValues } from '../../schemas/account'
 
 export const accountsQueryKey = ['accounts'] as const
 
-/** Logic and view model of UsersPage (administrators only). */
-export function useUsersPage() {
+/** Logic and view model of the accounts tab of UsersPage (administrators only). */
+export function useAccountsPanel() {
   const queryClient = useQueryClient()
   const { user } = useSession()
   const accounts = useQuery({ queryKey: accountsQueryKey, queryFn: listAccounts })

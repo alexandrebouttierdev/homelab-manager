@@ -60,3 +60,7 @@ export function toAuditRow(entry: AuditEntry): AuditRow {
     requestId: entry.requestId ?? '—',
   }
 }
+
+export function isAuditPeriod(value: string): value is AuditPeriod {
+  return auditPeriodOptions.some((option) => option.value === value)
+}

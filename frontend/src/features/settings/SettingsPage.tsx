@@ -25,6 +25,7 @@ import { CollectorRow } from '../../components/ui/CollectorRow'
 import { useSession, useSignOut } from '../../hooks/useSession'
 import { useChangePassword } from './useChangePassword'
 import { useSettings } from './useSettings'
+import { MySessionsCard } from './MySessionsCard'
 
 export function SettingsPage() {
   const { theme, setTheme } = useTheme()
@@ -194,6 +195,8 @@ export function SettingsPage() {
               </CardBody>
             </Card>
           </div>
+
+          <MySessionsCard />
 
           <Card>
             <CardHeader

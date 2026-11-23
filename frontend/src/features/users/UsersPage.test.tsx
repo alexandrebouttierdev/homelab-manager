@@ -1,8 +1,15 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, waitFor } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { describe, expect, it, vi } from 'vitest'
+import {
+  getSecurityPolicy,
+  listAudit,
+  listSessions,
+  revokeSession,
+  updateSecurityPolicy,
+} from '../../lib/api/security'
 import { deleteAccount, listAccounts, type Account } from '../../lib/api/users'
 import { UsersPage } from './UsersPage'
 
@@ -13,7 +20,18 @@ vi.mock('../../lib/api/users', () => ({
   deleteAccount: vi.fn(),
 }))
 
+vi.mock('../../lib/api/security', () => ({
+  listSessions: vi.fn(),
+  revokeSession: vi.fn(),
+  revokeOtherSessions: vi.fn(),
+  getSecurityPolicy: vi.fn(),
+  updateSecurityPolicy: vi.fn(),
+  listAudit: vi.fn(),
+  auditExportUrl: (_filter: unknown, format: string) => `/api/v1/audit/export?format=${format}`,
+}))
+
 vi.mock('../../hooks/useSession', () => ({
+  sessionQueryKey: ['session'],
   useSession: () => ({
     user: {
       id: 'admin-id',
@@ -95,5 +113,94 @@ describe('UsersPage', () => {
       await screen.findByText('Minuscules, chiffres, « . », « _ » ou « - », 64 au plus'),
     ).toBeInTheDocument()
     expect(screen.getByText('Au moins 12 caractères')).toBeInTheDocument()
+  })
+
+  it('lists the audit log with export links', async () => {
+    vi.mocked(listAccounts).mockResolvedValue([admin])
+    vi.mocked(listAudit).mockResolvedValue([
+      {
+        id: 'e1',
+        actor: 'alice',
+        targetType: 'route',
+        targetId: 'GET /api/v1/users',
+        action: 'access',
+        outcome: 'denied',
+        requestId: null,
+        createdAt: '2026-11-23T09:00:00Z',
+      },
+    ])
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: "Journal d'audit" }))
+    const table = await screen.findByRole('table')
+    expect(within(table).getByText('Refusé')).toBeInTheDocument()
+    expect(within(table).getByText('route · GET /api/v1/users')).toBeInTheDocument()
+    expect(screen.getByRole('link', { name: 'Exporter en CSV' })).toHaveAttribute(
+      'href',
+      '/api/v1/audit/export?format=csv',
+    )
+  })
+
+  it('validates the networks of the security policy', async () => {
+    vi.mocked(listAccounts).mockResolvedValue([admin])
+    vi.mocked(getSecurityPolicy).mockResolvedValue({
+      idleTimeoutMinutes: 60,
+      allowedNetworks: [],
+      currentAddress: '192.0.2.1',
+    })
+    vi.mocked(updateSecurityPolicy).mockResolvedValue({
+      idleTimeoutMinutes: 60,
+      allowedNetworks: ['10.0.0.0/8'],
+      currentAddress: '192.0.2.1',
+    })
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: 'Politique' }))
+    expect(await screen.findByText('192.0.2.1')).toBeInTheDocument()
+    const networks = screen.getByLabelText(/Réseaux autorisés/)
+    await user.type(networks, '10.0.0.1')
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }))
+    expect(
+      await screen.findByText('Notation CIDR attendue, par exemple 192.168.1.0/24'),
+    ).toBeInTheDocument()
+    expect(updateSecurityPolicy).not.toHaveBeenCalled()
+
+    await user.clear(networks)
+    await user.type(networks, '10.0.0.0/8')
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }))
+    await waitFor(() =>
+      expect(updateSecurityPolicy).toHaveBeenCalledWith({
+        idleTimeoutMinutes: 60,
+        allowedNetworks: ['10.0.0.0/8'],
+      }),
+    )
+  })
+
+  it('revokes a session of another account', async () => {
+    vi.mocked(listAccounts).mockResolvedValue([admin])
+    vi.mocked(revokeSession).mockResolvedValue({ revoked: true })
+    vi.mocked(listSessions).mockResolvedValue([
+      {
+        id: 'bob-session',
+        userId: 'bob-id',
+        username: 'bob',
+        ipAddress: '192.0.2.9',
+        userAgent: 'curl/8.5.0',
+        authMethod: 'password',
+        createdAt: '2026-11-23T08:00:00Z',
+        lastSeenAt: '2026-11-23T09:00:00Z',
+        expiresAt: '2026-11-23T20:00:00Z',
+        current: false,
+      },
+    ])
+    const user = userEvent.setup()
+    renderPage()
+
+    await user.click(screen.getByRole('button', { name: 'Sessions' }))
+    await user.click(await screen.findByRole('button', { name: 'Révoquer la session curl de bob' }))
+    await waitFor(() => expect(revokeSession).toHaveBeenCalledWith('bob-session'))
+    expect(listSessions).toHaveBeenCalledWith(true)
   })
 })

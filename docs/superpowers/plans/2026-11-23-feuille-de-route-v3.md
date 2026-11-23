@@ -62,7 +62,7 @@ Ordre de réalisation : 1A → M → 1B → 1C → 2 → 3 → 4 → 5 → 6 →
 
 - Demandé le 23 novembre 2026 ; spécifié dans `SPEC_ADMINISTRATION.md` § 8 bis (ajout du même jour).
 - `systemd-logind` par D-Bus (`Reboot`, `PowerOff`), règle polkit fournie n'accordant que `reboot` et `power-off` (et `-multiple-sessions`), jamais `-ignore-inhibit` ; réglage `power_actions_enabled` à `false` par défaut.
-- Rôle `admin` (décision D-7), confirmation par saisie du nom de la machine vérifiée par le serveur, audit écrit **avant** la demande, une seule demande acceptée.
+- Rôle `admin` uniquement (décision D-7, tranchée), pas d'arrêt programmé ni annulable (décision D-8, tranchée), confirmation par saisie du nom de la machine vérifiée par le serveur, audit écrit **avant** la demande, une seule demande acceptée.
 - Introduit le port `AuditRecorder` (audit hors transaction métier), réutilisé ensuite par 1B.
 - Dépendance `github.com/godbus/dbus/v5` v5.2.4 (publiée le 13 octobre 2026).
 - Interface : carte « Alimentation » de la page Machine, visible des administrateurs.
@@ -145,7 +145,7 @@ Ordre de réalisation : 1A → M → 1B → 1C → 2 → 3 → 4 → 5 → 6 →
 
 ## 5. Décisions à trancher
 
-Ouvertes dans la spécification (`SPEC_ADMINISTRATION.md` § 10) : D-1 (édition Cron), D-2 (restauration en place), D-3 (pré-traitements de sauvegarde), D-4 (portées d'action des jetons), D-5 (actions et journaux Docker), D-6 (préférences système), et D-7 (rôle des actions d'alimentation) et D-8 (arrêt programmé) ajoutées avec le module M. Aucune ne bloque 1A–3 ; D-7 est tranchée provisoirement (`admin` seul).
+Ouvertes dans la spécification (`SPEC_ADMINISTRATION.md` § 10) : D-1 (édition Cron), D-2 (restauration en place), D-3 (pré-traitements de sauvegarde), D-4 (portées d'action des jetons), D-5 (actions et journaux Docker), D-6 (préférences système). Aucune ne bloque 1A–3. D-7 et D-8, ajoutées avec le module M, sont tranchées le 23 novembre 2026 : actions d'alimentation réservées à `admin`, sans arrêt programmé ni annulable.
 
 Questions nouvelles relevées en préparant ce plan, à trancher avant l'incrément indiqué :
 

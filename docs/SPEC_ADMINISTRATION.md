@@ -219,13 +219,13 @@ Ajouté le 23 novembre 2026 à la demande du propriétaire du projet : redémarr
 
 - **Actions** : `reboot` (Redémarrer) et `poweroff` (Éteindre), demandées à `systemd-logind` par D-Bus (`org.freedesktop.login1.Manager.Reboot` / `PowerOff`, sans authentification interactive). Aucune commande (`shutdown`, `systemctl`, `reboot`) n'est exécutée.
 - **Double activation, désactivée par défaut** : le réglage de service `power_actions_enabled` (`HOMELAB_POWER_ACTIONS_ENABLED`, défaut `false`) **et** la règle polkit fournie `deployments/polkit/50-homelab-manager-power.rules`, installée par l'administrateur. Sans l'un ou l'autre, aucune action n'aboutit.
-- **Rôle** `admin` uniquement [D-7].
+- **Rôle** `admin` uniquement (décision D-7, tranchée le 23 novembre 2026).
 - **Confirmation** : saisir le nom exact de la machine, vérifié par le serveur contre le nom d'hôte courant ; avertissement explicite des conséquences (services et conteneurs arrêtés ; après extinction, Homelab Manager ne peut pas rallumer la machine).
 - **Inhibitions respectées** : les actions `-ignore-inhibit` ne sont pas accordées ; une sauvegarde ou un autre programme qui tient un verrou d'inhibition bloque la demande, refusée avec un message explicite.
 - **Audit avant l'action** : une ligne (`host`, nom d'hôte, `reboot` ou `poweroff`, `requested`) est écrite avant la demande à logind ; sans écriture possible, rien n'est demandé. Un refus ajoute une ligne `failure`.
 - **Une seule demande** : après une demande acceptée, les suivantes sont refusées (`409 ACTION_IN_PROGRESS`) jusqu'à l'arrêt du Manager.
 - **Arrêt propre** : logind arrête les services, dont le Manager, qui attend ses collecteurs puis ferme la base ; Docker arrête les conteneurs selon sa configuration. Au redémarrage, systemd relance le Manager ; l'interface signale l'indisponibilité pendant l'intervalle.
-- **Exclus** : arrêt programmé ou annulable [D-8], veille, hibernation, redémarrage vers le firmware, `kexec`, réveil par le réseau (Wake-on-LAN).
+- **Exclus** : arrêt programmé ou annulable (décision D-8, tranchée le 23 novembre 2026), veille, hibernation, redémarrage vers le firmware, `kexec`, réveil par le réseau (Wake-on-LAN).
 
 ## 9. Ordre de réalisation
 
@@ -251,5 +251,8 @@ Chaque phase livre son contrat dans API_CONTRACTS.md, ses tables dans DATA_MODEL
 - **[D-4] Portées d'action pour les jetons d'API** (ex. redémarrer une unité depuis Home Assistant).
 - **[D-5] Actions Docker** (démarrer, arrêter, redémarrer un conteneur) et **journaux de conteneur** (maquettes `d_tails_conteneur_*`, `journaux_docker_*`). La lecture des journaux est compatible avec les règles via une route en lecture seule du proxy ; les actions exigent d'élargir le proxy et une décision explicite. `exec` et la suppression restent exclus par les règles 1 et 3.
 - **[D-6] Préférences système** (maquette `param_tres_syst_me_*` : nom d'hôte, fuseau, langue). Modifient la machine ; hors de ce lot.
-- **[D-7] Rôle des actions d'alimentation.** Retenu : `admin` seul, car elles interrompent tous les services. Alternative : les ouvrir aux `operator`, comme les actions sur les services (§ 5.2).
-- **[D-8] Arrêt programmé et annulable** (`ScheduleShutdown` de logind, délai avec compte à rebours et bouton « Annuler »). Non retenu dans le premier lot : la confirmation par le nom de la machine suffit à éviter une erreur de manipulation.
+
+### Décisions tranchées
+
+- **[D-7] Rôle des actions d'alimentation** — tranchée le 23 novembre 2026 par le propriétaire du projet : `admin` uniquement, car elles interrompent tous les services. Les `operator` n'y ont pas accès, contrairement aux actions sur les services (§ 5.2).
+- **[D-8] Arrêt programmé et annulable** (`ScheduleShutdown` de logind, compte à rebours, bouton « Annuler ») — tranchée le 23 novembre 2026 : non retenu. La demande est transmise immédiatement après la confirmation par le nom de la machine.

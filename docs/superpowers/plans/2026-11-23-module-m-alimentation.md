@@ -15,7 +15,7 @@
 - Aucune commande exécutée (`shutdown`, `systemctl`, `reboot`) : uniquement l'API D-Bus de `systemd-logind`, avec `interactive = false`.
 - Le Manager ne tourne jamais en root. polkit n'accorde que `org.freedesktop.login1.reboot`, `org.freedesktop.login1.reboot-multiple-sessions`, `org.freedesktop.login1.power-off`, `org.freedesktop.login1.power-off-multiple-sessions`, au seul utilisateur `homelab-manager`. Jamais les actions `-ignore-inhibit`.
 - `power_actions_enabled` (`HOMELAB_POWER_ACTIONS_ENABLED`) vaut `false` par défaut.
-- Rôle `admin` seul (D-7). Confirmation : nom d'hôte exact (espaces de bord ignorés), 253 octets au plus, vérifié par le serveur.
+- Rôle `admin` seul (D-7, tranchée). Aucun arrêt programmé, différé ni annulable (D-8, tranchée) : pas de `ScheduleShutdown`, pas de compte à rebours. Confirmation : nom d'hôte exact (espaces de bord ignorés), 253 octets au plus, vérifié par le serveur.
 - Audit `host` / nom d'hôte / `reboot` ou `poweroff` / `requested` écrit avant la demande ; sans audit, aucune demande. Échec : ligne `failure` supplémentaire.
 - Après une demande acceptée, toute nouvelle demande reçoit `409 ACTION_IN_PROGRESS`.
 - Dépendance nouvelle : `github.com/godbus/dbus/v5` **v5.2.4** (publiée le 13 octobre 2026, plus de deux semaines). Justification dans le commit : client D-Bus Go pur, déjà dépendance de `go-systemd` prévu en phase 3 ; le paquet `login1` de `go-systemd` ignore l'erreur de `Reboot`/`PowerOff`, inutilisable ici.

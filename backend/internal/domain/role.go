@@ -18,6 +18,8 @@ const (
 	PermManageSettings Permission = "settings:manage"
 	// PermManageUsers covers the accounts of other users.
 	PermManageUsers Permission = "users:manage"
+	// PermManagePower covers rebooting and powering off the machine.
+	PermManagePower Permission = "machine:power"
 )
 
 // rolePermissions is the single source of the role policy. Operators gain
@@ -25,7 +27,7 @@ const (
 var rolePermissions = map[Role]map[Permission]bool{
 	RoleViewer:   {},
 	RoleOperator: {},
-	RoleAdmin:    {PermManageSettings: true, PermManageUsers: true},
+	RoleAdmin:    {PermManageSettings: true, PermManageUsers: true, PermManagePower: true},
 }
 
 // Valid reports whether r is one of the defined roles.

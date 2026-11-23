@@ -140,3 +140,52 @@ func TestMigration003PromotesExistingAccountsToAdministrators(t *testing.T) {
 		t.Fatalf("upgraded account = %+v, want an active admin", user)
 	}
 }
+
+func TestResetPasswordForcesAChangeAndUnlocks(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	database := openTestDatabase(t, ctx)
+	auth := NewAuthRepository(database.Client())
+	accounts := NewAccountRepository(database.Client())
+	security := NewSecurityRepository(database.Client())
+	audit := domain.AuditEntry{Actor: "admin", TargetType: "user", Action: "create", Outcome: domain.AuditSuccess}
+	alice, err := accounts.CreateUser(ctx, domain.NewUser{Username: "alice", DisplayName: "Alice", Role: domain.RoleViewer}, "initial-hash", audit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if err := auth.UpdatePasswordHash(ctx, alice.ID, "own-hash"); err != nil {
+		t.Fatal(err)
+	}
+	until := time.Now().Add(domain.LockoutDuration)
+	if err := security.SaveLoginFailures(ctx, alice.ID, domain.LoginFailures{LockedUntil: &until}, time.Now()); err != nil {
+		t.Fatal(err)
+	}
+
+	audit.Action = "reset_password"
+	reset, err := accounts.ResetPassword(ctx, alice.ID, "reset-hash", audit)
+	if err != nil || !reset.MustChangePassword {
+		t.Fatalf("ResetPassword = (%+v, %v), want a forced change", reset, err)
+	}
+	if _, hash, err := auth.FindByUsername(ctx, "alice"); err != nil || hash != "reset-hash" {
+		t.Fatalf("stored hash = (%q, %v)", hash, err)
+	}
+	if failures, err := security.LoginFailures(ctx, alice.ID); err != nil || failures.LockedUntil != nil {
+		t.Fatalf("failures after a reset = (%+v, %v), want unlocked", failures, err)
+	}
+	if count, err := database.Client().AuditLog.Query().Where(auditlog.Action("reset_password"), auditlog.TargetID(alice.ID.String())).Count(ctx); err != nil || count != 1 {
+		t.Fatalf("reset audit rows = (%d, %v), want 1", count, err)
+	}
+	if _, err := accounts.ResetPassword(ctx, uuid.New(), "hash", audit); !errors.Is(err, domain.ErrUserNotFound) {
+		t.Fatalf("reset of an unknown account = %v, want ErrUserNotFound", err)
+	}
+
+	if err := auth.UpdatePasswordHash(ctx, alice.ID, "own-hash-2"); err != nil {
+		t.Fatal(err)
+	}
+	if err := auth.RequirePasswordChange(ctx, alice.ID); err != nil {
+		t.Fatal(err)
+	}
+	if user, err := accounts.GetUser(ctx, alice.ID); err != nil || !user.MustChangePassword {
+		t.Fatalf("RequirePasswordChange = (%+v, %v)", user, err)
+	}
+}

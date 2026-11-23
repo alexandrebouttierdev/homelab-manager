@@ -34,6 +34,9 @@ func (m *mockUserRepository) UpdatePasswordHash(context.Context, uuid.UUID, stri
 func (m *mockUserRepository) EnsureAdmin(context.Context, string, string) (bool, error) {
 	return false, nil
 }
+func (m *mockUserRepository) RequirePasswordChange(context.Context, uuid.UUID) error {
+	return nil
+}
 func (m *mockUserRepository) RecordLogin(_ context.Context, _ uuid.UUID, ip string, at time.Time) error {
 	m.loginIP, m.loginAt = ip, at
 	return nil
@@ -177,5 +180,58 @@ func TestSessionRejectsADisabledAccount(t *testing.T) {
 	_, _, err := NewAuthUsecase(users, sessions, &mockHasher{}).Session(context.Background(), "token")
 	if !errors.Is(err, domain.ErrSessionNotFound) {
 		t.Fatalf("Session error = %v, want ErrSessionNotFound", err)
+	}
+}
+
+// bootstrapUsers is a ports.UserRepository for the administrator bootstrap.
+type bootstrapUsers struct {
+	mockUserRepository
+	exists  bool
+	created bool
+	forced  bool
+}
+
+func (b *bootstrapUsers) EnsureAdmin(_ context.Context, _ string, passwordHash string) (bool, error) {
+	if b.exists {
+		return false, nil
+	}
+	b.exists, b.created, b.hash = true, true, passwordHash
+	return true, nil
+}
+func (b *bootstrapUsers) RequirePasswordChange(context.Context, uuid.UUID) error {
+	b.forced = true
+	return nil
+}
+
+func TestEnsureAdministratorForcesTheDefaultPasswordToChange(t *testing.T) {
+	cases := []struct {
+		name       string
+		existing   string // stored hash of an existing account, "" for a fresh database
+		isDefault  bool
+		wantForced bool
+	}{
+		{"fresh database, default password", "", true, true},
+		{"fresh database, configured password", "", false, false},
+		{"existing account still on the default", "hash:admin", true, true},
+		{"existing account with its own password", "hash:own-password", true, false},
+	}
+	for _, c := range cases {
+		t.Run(c.name, func(t *testing.T) {
+			users := &bootstrapUsers{mockUserRepository: mockUserRepository{user: domain.User{ID: uuid.New(), Username: "admin", Role: domain.RoleAdmin}}}
+			if c.existing != "" {
+				users.exists, users.hash = true, c.existing
+			}
+			password := "admin"
+			if !c.isDefault {
+				password = "configured-password-1"
+			}
+			created, forced, err := NewAuthUsecase(users, &mockSessionRepository{}, &checkingHasher{}).EnsureAdministrator(context.Background(), "admin", password, c.isDefault)
+			if err != nil {
+				t.Fatal(err)
+			}
+			if created != (c.existing == "") || forced != c.wantForced || users.forced != c.wantForced {
+				t.Fatalf("EnsureAdministrator = (created %v, forced %v), stored forced %v", created, forced, users.forced)
+			}
+		})
 	}
 }

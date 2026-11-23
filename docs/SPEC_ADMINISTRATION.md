@@ -78,6 +78,8 @@ Uniquement les comptes de Homelab Manager (règle 2).
 - Plusieurs comptes ; identifiant unique (`^[a-z0-9._-]{1,64}$`), nom affiché, rôle, état actif ou désactivé, date de dernière connexion et adresse IP source.
 - Le compte initial `admin` reste le premier administrateur. Il est impossible de supprimer ou de rétrograder le dernier administrateur actif.
 - Création par un administrateur, avec un mot de passe initial de 12 caractères au moins à changer à la première connexion. Suppression : révoque ses sessions et ses jetons, conserve ses lignes d'audit.
+- **Réinitialisation par un administrateur** (décision Q-1, 23 novembre 2026) : un administrateur fixe un nouveau mot de passe initial (12 caractères au moins) pour un autre compte ; le titulaire doit le changer à sa connexion suivante, ses sessions sont révoquées et un verrouillage en cours est levé. Action auditée. Un administrateur change son propre mot de passe par la procédure normale, pas par une réinitialisation.
+- **Mot de passe par défaut** (décision Q-2, 23 novembre 2026) : un compte `admin` créé avec le mot de passe intégré `admin` (aucun `HOMELAB_ADMIN_PASSWORD`) doit changer de mot de passe à sa première connexion. Au démarrage, si le compte existant accepte encore ce mot de passe par défaut, le même changement est imposé.
 
 ### 3.2 Rôles
 

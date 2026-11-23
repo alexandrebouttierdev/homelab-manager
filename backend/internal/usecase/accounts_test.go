@@ -92,6 +92,19 @@ func (f *fakeAccounts) DeleteUser(_ context.Context, id uuid.UUID, audit domain.
 	return nil
 }
 
+func (f *fakeAccounts) ResetPassword(_ context.Context, id uuid.UUID, passwordHash string, audit domain.AuditEntry) (domain.User, error) {
+	user, ok := f.users[id]
+	if !ok {
+		return domain.User{}, domain.ErrUserNotFound
+	}
+	user.MustChangePassword = true
+	f.users[id] = user
+	f.hashes[id] = passwordHash
+	audit.TargetID = id.String()
+	f.audits = append(f.audits, audit)
+	return user, nil
+}
+
 // revokingSessions records the accounts whose sessions were revoked.
 type revokingSessions struct {
 	mockSessionRepository
@@ -212,5 +225,38 @@ func TestUpdateAndDeleteReportUnknownAccounts(t *testing.T) {
 	}
 	if err := usecase.Delete(context.Background(), testAdmin, uuid.New(), ""); !errors.Is(err, domain.ErrUserNotFound) {
 		t.Fatalf("Delete error = %v, want ErrUserNotFound", err)
+	}
+}
+
+func TestResetPasswordForcesAChangeAndRevokesSessions(t *testing.T) {
+	viewer := domain.User{ID: uuid.New(), Username: "viewer", Role: domain.RoleViewer}
+	accounts := newFakeAccounts(testAdmin, viewer)
+	sessions := &revokingSessions{}
+	usecase := NewAccountUsecase(accounts, sessions, &mockHasher{})
+	ctx := context.Background()
+
+	reset, err := usecase.ResetPassword(ctx, testAdmin, viewer.ID, "reset-password-1", "req-7")
+	if err != nil || !reset.MustChangePassword {
+		t.Fatalf("ResetPassword = (%+v, %v)", reset, err)
+	}
+	if accounts.hashes[viewer.ID] != "hash:reset-password-1" {
+		t.Fatal("the new password is stored hashed")
+	}
+	if len(sessions.revoked) != 1 || sessions.revoked[0] != viewer.ID {
+		t.Fatalf("revoked = %v, want the account's sessions", sessions.revoked)
+	}
+	want := domain.AuditEntry{Actor: "admin", TargetType: "user", TargetID: viewer.ID.String(), Action: "reset_password", RequestID: "req-7", Outcome: "success"}
+	if accounts.audits[len(accounts.audits)-1] != want {
+		t.Fatalf("audit = %+v, want %+v", accounts.audits, want)
+	}
+
+	if _, err := usecase.ResetPassword(ctx, testAdmin, testAdmin.ID, "reset-password-1", ""); !errors.Is(err, domain.ErrOwnPasswordReset) {
+		t.Fatalf("own reset = %v, want ErrOwnPasswordReset", err)
+	}
+	if _, err := usecase.ResetPassword(ctx, testAdmin, viewer.ID, "short", ""); !domain.IsValidationError(err) {
+		t.Fatalf("short password = %v, want a validation error", err)
+	}
+	if _, err := usecase.ResetPassword(ctx, testAdmin, uuid.New(), "reset-password-1", ""); !errors.Is(err, domain.ErrUserNotFound) {
+		t.Fatalf("unknown account = %v, want ErrUserNotFound", err)
 	}
 }

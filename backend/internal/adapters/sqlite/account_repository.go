@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"homelab-manager/backend/ent"
+	"homelab-manager/backend/ent/loginfailure"
 	"homelab-manager/backend/ent/session"
 	"homelab-manager/backend/ent/user"
 	"homelab-manager/backend/internal/domain"
@@ -109,6 +110,31 @@ func (r *AccountRepository) UpdateUser(ctx context.Context, id uuid.UUID, change
 		}
 		if err != nil {
 			return fmt.Errorf("update user: %w", err)
+		}
+		updated = record
+		audit.TargetID = id.String()
+		return writeAudit(ctx, tx, audit)
+	})
+	if err != nil {
+		return domain.User{}, err
+	}
+	return toDomainUser(updated), nil
+}
+
+// ResetPassword stores a new initial password, forces its change at the
+// next login and lifts a lockout, with its audit entry, in one transaction.
+func (r *AccountRepository) ResetPassword(ctx context.Context, id uuid.UUID, passwordHash string, audit domain.AuditEntry) (domain.User, error) {
+	var updated *ent.User
+	err := withTx(ctx, r.client, func(tx *ent.Tx) error {
+		record, err := tx.User.UpdateOneID(id).SetPasswordHash(passwordHash).SetMustChangePassword(true).Save(ctx)
+		if ent.IsNotFound(err) {
+			return domain.ErrUserNotFound
+		}
+		if err != nil {
+			return fmt.Errorf("reset password: %w", err)
+		}
+		if _, err := tx.LoginFailure.Delete().Where(loginfailure.ID(id)).Exec(ctx); err != nil {
+			return fmt.Errorf("clear login failures: %w", err)
 		}
 		updated = record
 		audit.TargetID = id.String()

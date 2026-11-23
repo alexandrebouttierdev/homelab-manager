@@ -153,8 +153,8 @@ Questions nouvelles relevées en préparant ce plan, à trancher avant l'incrém
 
 | Id | Question | Proposition | Avant |
 |---|---|---|---|
-| Q-1 | Un administrateur peut-il réinitialiser le mot de passe d'un autre compte ? La spécification ne le prévoit pas. | Non en 1A : supprimer puis recréer le compte. Ajouter une réinitialisation (nouveau mot de passe initial, à changer) en 1B si le besoin est confirmé. | 1B |
-| Q-2 | Le compte `admin` créé avec le mot de passe par défaut `admin` doit-il être forcé à changer de mot de passe ? | Oui : `must_change_password = 1` lorsque `HOMELAB_ADMIN_PASSWORD` est vide. Non retenu en 1A pour ne pas changer le comportement documenté sans décision. | 1B |
+| Q-1 | Un administrateur peut-il réinitialiser le mot de passe d'un autre compte ? | **Tranchée (oui)** le 23 novembre 2026 : nouveau mot de passe initial à changer, sessions révoquées, verrouillage levé ; livrée après 1B. | — |
+| Q-2 | Le compte `admin` créé avec le mot de passe par défaut `admin` doit-il être forcé à changer de mot de passe ? | **Tranchée (oui)** le 23 novembre 2026 : changement imposé à la création, et au démarrage si le compte accepte encore `admin` ; livrée après 1B. | — |
 | Q-3 | Les refus d'autorisation (`403 FORBIDDEN`) et les refus métier (`LAST_ADMIN`) sont-ils audités ? | Oui, avec `outcome = denied`, à partir de 1B (port `AuditRecorder`). En 1A, ils sont journalisés par zap avec le `request_id`. | 1B |
 | Q-4 | Lever les limites v2.1 (pagination par curseur, images/volumes/réseaux inutilisés) ? La seconde exige d'ajouter au proxy des routes GET `images/json`, `volumes`, `networks`. | À planifier après la phase 3, si le besoin est confirmé. | Option |
 

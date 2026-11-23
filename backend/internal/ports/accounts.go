@@ -20,6 +20,9 @@ type AccountRepository interface {
 	// the account must change its password at first login.
 	CreateUser(ctx context.Context, user domain.NewUser, passwordHash string, audit domain.AuditEntry) (domain.User, error)
 	UpdateUser(ctx context.Context, id uuid.UUID, change domain.UserChange, audit domain.AuditEntry) (domain.User, error)
+	// ResetPassword stores a new initial password that must be changed at
+	// the next login, and lifts a lockout of the account.
+	ResetPassword(ctx context.Context, id uuid.UUID, passwordHash string, audit domain.AuditEntry) (domain.User, error)
 	// DeleteUser also deletes the sessions of the account.
 	DeleteUser(ctx context.Context, id uuid.UUID, audit domain.AuditEntry) error
 }

@@ -154,6 +154,7 @@ func (u usersByName) FindByID(_ context.Context, id uuid.UUID) (domain.User, err
 }
 func (u usersByName) UpdatePasswordHash(context.Context, uuid.UUID, string) error     { return nil }
 func (u usersByName) EnsureAdmin(context.Context, string, string) (bool, error)       { return false, nil }
+func (u usersByName) RequirePasswordChange(context.Context, uuid.UUID) error          { return nil }
 func (u usersByName) RecordLogin(context.Context, uuid.UUID, string, time.Time) error { return nil }
 
 var (

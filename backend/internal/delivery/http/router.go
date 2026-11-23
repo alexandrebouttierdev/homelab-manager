@@ -96,6 +96,7 @@ func NewRouter(logger *zap.Logger, services Services, sessionSecure bool, webRoo
 					users.Post("/", createUserHandler(accounts))
 					users.Patch("/{userID}", updateUserHandler(accounts))
 					users.Delete("/{userID}", deleteUserHandler(accounts))
+					users.Post("/{userID}/password", resetPasswordHandler(accounts))
 				})
 				active.Get("/auth/sessions", listSessionsHandler(auth, deny))
 				active.Delete("/auth/sessions/{sessionID}", revokeSessionHandler(auth, sessionSecure))

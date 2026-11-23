@@ -104,6 +104,42 @@ func (u *AuthUsecase) Login(ctx context.Context, username, password, ip, userAge
 	return token, user, session.ExpiresAt, nil
 }
 
+// EnsureAdministrator creates the initial administrator when absent. With
+// the built-in default password (isDefault), the account must change it at
+// its next login, including an existing account that still accepts it
+// (SPEC_ADMINISTRATION.md § 3.1, decision Q-2). forced reports that change.
+func (u *AuthUsecase) EnsureAdministrator(ctx context.Context, username, password string, isDefault bool) (created, forced bool, err error) {
+	hash, err := u.hasher.Hash(password)
+	if err != nil {
+		return false, false, fmt.Errorf("hash administrator password: %w", err)
+	}
+	created, err = u.users.EnsureAdmin(ctx, username, hash)
+	if err != nil || !isDefault {
+		return created, false, err
+	}
+	user, storedHash, err := u.users.FindByUsername(ctx, username)
+	if err != nil {
+		return created, false, err
+	}
+	if user.MustChangePassword {
+		return created, false, nil
+	}
+	if !created {
+		// One Argon2id verification at startup: is the default still valid?
+		valid, err := u.hasher.Verify(password, storedHash)
+		if err != nil {
+			return false, false, fmt.Errorf("verify administrator password: %w", err)
+		}
+		if !valid {
+			return false, false, nil
+		}
+	}
+	if err := u.users.RequirePasswordChange(ctx, user.ID); err != nil {
+		return created, false, fmt.Errorf("require password change: %w", err)
+	}
+	return created, true, nil
+}
+
 func (u *AuthUsecase) Logout(ctx context.Context, token string) error {
 	if token == "" {
 		return domain.ErrSessionNotFound

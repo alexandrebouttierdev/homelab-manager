@@ -57,14 +57,13 @@ func main() {
 		client := database.Client()
 		authRepository := sqlite.NewAuthRepository(client)
 		hasher := argon2adapter.New()
+		auth := usecase.NewAuthUsecase(authRepository, authRepository, hasher)
 		bootstrapPassword, isDefault := config.BootstrapAdminPassword()
-		if hash, err := hasher.Hash(bootstrapPassword); err != nil {
-			logger.Error("Could not hash initial administrator password", zap.Error(err))
-		} else if created, err := authRepository.EnsureAdmin(context.Background(), config.AdminUsername, hash); err != nil {
+		if created, forced, err := auth.EnsureAdministrator(context.Background(), config.AdminUsername, bootstrapPassword, isDefault); err != nil {
 			logger.Error("Could not bootstrap administrator", zap.Error(err))
-		} else if created && isDefault {
-			logger.Warn("Administrator created with the default password; change it from the Settings page",
-				zap.String("username", config.AdminUsername))
+		} else if forced {
+			logger.Warn("Administrator uses the default password; it must be changed at the next login",
+				zap.String("username", config.AdminUsername), zap.Bool("created", created))
 		} else if created {
 			logger.Info("Administrator created", zap.String("username", config.AdminUsername))
 		}
@@ -78,8 +77,7 @@ func main() {
 		} else {
 			securityUsecase = security
 			auditUsecase = usecase.NewAuditUsecase(auditRepository, auditRepository)
-			authUsecase = usecase.NewAuthUsecase(authRepository, authRepository, hasher).
-				WithSecurity(securityRepository, auditRepository, security)
+			authUsecase = auth.WithSecurity(securityRepository, auditRepository, security)
 			accountUsecase = usecase.NewAccountUsecase(sqlite.NewAccountRepository(client), authRepository, hasher).
 				WithAudit(auditRepository)
 			powerUsecase = usecase.NewPowerUsecase(logindadapter.New(), auditRepository, os.Hostname, config.PowerActionsEnabled)

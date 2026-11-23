@@ -136,6 +136,35 @@ func updateUserHandler(accounts *usecase.AccountUsecase) http.HandlerFunc {
 	}
 }
 
+type resetPasswordRequest struct {
+	Password string `json:"password"`
+}
+
+func resetPasswordHandler(accounts *usecase.AccountUsecase) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, ok := userIDParam(w, r)
+		if !ok {
+			return
+		}
+		var request resetPasswordRequest
+		if err := decodeJSON(r, &request); err != nil || domain.ValidateNewPassword(request.Password) != nil {
+			writeError(w, r, http.StatusBadRequest, "VALIDATION_ERROR", "password must be 12 to 1024 bytes.")
+			return
+		}
+		actor, ok := sessionUser(r)
+		if !ok {
+			writeError(w, r, http.StatusUnauthorized, "SESSION_NOT_FOUND", "Authentication is required.")
+			return
+		}
+		reset, err := accounts.ResetPassword(r.Context(), actor, id, request.Password, middleware.GetReqID(r.Context()))
+		if err != nil {
+			writeAccountError(w, r, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{"user": toUserDTO(reset)})
+	}
+}
+
 func deleteUserHandler(accounts *usecase.AccountUsecase) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		id, ok := userIDParam(w, r)
@@ -168,6 +197,8 @@ func writeAccountError(w http.ResponseWriter, r *http.Request, err error) {
 		writeError(w, r, http.StatusNotFound, "NOT_FOUND", "The account does not exist.")
 	case errors.Is(err, domain.ErrUsernameTaken):
 		writeError(w, r, http.StatusConflict, "USERNAME_TAKEN", "The username is already used.")
+	case errors.Is(err, domain.ErrOwnPasswordReset):
+		writeError(w, r, http.StatusConflict, "OWN_PASSWORD_RESET", "Change your own password instead of resetting it.")
 	case errors.Is(err, domain.ErrLastAdmin):
 		writeError(w, r, http.StatusConflict, "LAST_ADMIN", "The last active administrator must remain.")
 	default:

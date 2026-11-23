@@ -14,6 +14,7 @@ var (
 	ErrUserNotFound       = errors.New("user not found")
 	ErrUsernameTaken      = errors.New("username already taken")
 	ErrLastAdmin          = errors.New("the last active administrator cannot be removed, demoted or disabled")
+	ErrOwnPasswordReset   = errors.New("administrators change their own password instead of resetting it")
 )
 
 // User is a Manager account. Accounts are never Linux accounts.

@@ -16,6 +16,9 @@ type UserRepository interface {
 	// EnsureAdmin creates the administrator when absent and reports whether it
 	// did; an existing account (and its current password) is never modified.
 	EnsureAdmin(ctx context.Context, username, passwordHash string) (bool, error)
+	// RequirePasswordChange makes the account choose a new password at
+	// its next login.
+	RequirePasswordChange(ctx context.Context, userID uuid.UUID) error
 	// RecordLogin stores the time and source address of a successful login.
 	RecordLogin(ctx context.Context, userID uuid.UUID, ip string, at time.Time) error
 }

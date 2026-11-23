@@ -97,6 +97,32 @@ func (u *AccountUsecase) Update(ctx context.Context, actor domain.User, id uuid.
 	return updated, nil
 }
 
+// ResetPassword gives another account a new initial password to change at
+// its next login, revokes its sessions and lifts its lockout. Administrators
+// change their own password through the normal password change.
+func (u *AccountUsecase) ResetPassword(ctx context.Context, actor domain.User, id uuid.UUID, password, requestID string) (domain.User, error) {
+	if err := domain.ValidateNewPassword(password); err != nil {
+		return domain.User{}, err
+	}
+	if id == actor.ID {
+		return domain.User{}, domain.ErrOwnPasswordReset
+	}
+	hash, err := u.hasher.Hash(password)
+	if err != nil {
+		return domain.User{}, fmt.Errorf("hash password: %w", err)
+	}
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	reset, err := u.accounts.ResetPassword(ctx, id, hash, auditEntry(actor, "reset_password", requestID))
+	if err != nil {
+		return domain.User{}, err
+	}
+	if err := u.sessions.RevokeAllForUser(ctx, id); err != nil {
+		return domain.User{}, fmt.Errorf("revoke sessions: %w", err)
+	}
+	return reset, nil
+}
+
 // Delete removes an account and its sessions, keeping its audit entries.
 func (u *AccountUsecase) Delete(ctx context.Context, actor domain.User, id uuid.UUID, requestID string) error {
 	u.mu.Lock()

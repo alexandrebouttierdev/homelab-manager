@@ -49,6 +49,7 @@ Ce document est le contrat exact de l'API implémentée. Toute différence entre
 | `POST /api/v1/users` | admin | Crée un compte (§ 3.1) |
 | `PATCH /api/v1/users/{userID}` | admin | Modifie un compte (§ 3.1) |
 | `DELETE /api/v1/users/{userID}` | admin | Supprime un compte (§ 3.1) |
+| `POST /api/v1/users/{userID}/password` | admin | Réinitialise le mot de passe d'un compte (§ 3.1) |
 | `GET /api/v1/machine/power` | admin | Actions d'alimentation disponibles (§ 4.5) |
 | `POST /api/v1/machine/power/{action}` | admin | Redémarre ou éteint la machine (§ 4.5) |
 
@@ -109,6 +110,8 @@ Comptes de Homelab Manager uniquement : aucun compte Linux n'est lu ni modifié.
 - `POST /api/v1/users` avec `{ "username", "displayName", "role", "password" }` : `username` selon `^[a-z0-9._-]{1,64}$` ; `displayName` 128 octets au plus, sans caractère de contrôle, espaces de bord retirés, identifiant par défaut ; `role` ∈ `viewer`, `operator`, `admin` ; `password` 12 à 1 024 octets. Succès `201 { "user": Compte }`. Identifiant déjà pris : `409 USERNAME_TAKEN`.
 - `PATCH /api/v1/users/{userID}` avec au moins un champ parmi `{ "displayName", "role", "disabled" }` : succès `200 { "user": Compte }`. Désactiver un compte révoque ses sessions.
 - `DELETE /api/v1/users/{userID}` : `200 { "deleted": true }`. Les sessions du compte sont supprimées ; ses lignes d'audit sont conservées.
+- `POST /api/v1/users/{userID}/password` avec `{ "password": "..." }` (12 à 1 024 octets) : `200 { "user": Compte }` avec `mustChangePassword: true`. Le titulaire devra changer ce mot de passe à sa connexion suivante ; ses sessions sont révoquées et un verrouillage en cours est levé. Audité (`user`, UUID, `reset_password`). Sur son propre compte : `409 OWN_PASSWORD_RESET` (utiliser `POST /api/v1/auth/password`).
+- Compte initial : créé sans `HOMELAB_ADMIN_PASSWORD`, `admin` / `admin` a `mustChangePassword: true` ; au démarrage, un compte existant qui accepte encore ce mot de passe reçoit la même obligation.
 - Le dernier administrateur actif ne peut être ni rétrogradé, ni désactivé, ni supprimé : `409 LAST_ADMIN`.
 - Chaque modification réussie écrit une ligne d'audit (`user`, UUID du compte, `create` / `update` / `delete`) dans la même transaction.
 
@@ -438,6 +441,7 @@ Les routes sont versionnées sous `/api/v1`. Un changement incompatible (champ s
 | `PASSWORD_CHANGE_REQUIRED` | 403 | Mot de passe initial à changer d'abord |
 | `USERNAME_TAKEN` | 409 | Identifiant de compte déjà utilisé |
 | `LAST_ADMIN` | 409 | Dernier administrateur actif à conserver |
+| `OWN_PASSWORD_RESET` | 409 | Réinitialisation de son propre mot de passe |
 | `USERS_UNAVAILABLE` | 500 | Lecture des comptes en échec |
 | `ACCOUNT_UPDATE_FAILED` | 500 | Écriture d'un compte en échec |
 | `HOSTNAME_MISMATCH` | 400 | Confirmation différente du nom de la machine |

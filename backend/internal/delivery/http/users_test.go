@@ -265,3 +265,48 @@ func errorCode(t *testing.T, recorder *httptest.ResponseRecorder) string {
 	decodeBody(t, recorder, &body)
 	return body.Error.Code
 }
+
+func TestAdministratorResetsAPassword(t *testing.T) {
+	resetLoginRateLimit(t)
+	router, _ := newTestRouter(t, nil)
+	admin := signIn(t, router, "admin", "admin-password-1")
+	created := call(router, http.MethodPost, "/api/v1/users", `{"username":"alice","displayName":"Alice","role":"viewer","password":"initial-password-1"}`, admin)
+	var body struct {
+		User userDTO `json:"user"`
+	}
+	decodeBody(t, created, &body)
+	aliceID := body.User.ID.String()
+	alice := signIn(t, router, "alice", "initial-password-1")
+	if response := call(router, http.MethodPost, "/api/v1/auth/password", `{"currentPassword":"initial-password-1","newPassword":"alice-own-password"}`, alice); response.Code != http.StatusOK {
+		t.Fatalf("alice password = %d", response.Code)
+	}
+	alice = signIn(t, router, "alice", "alice-own-password")
+
+	if response := call(router, http.MethodPost, "/api/v1/users/"+aliceID+"/password", `{"password":"short"}`, admin); response.Code != http.StatusBadRequest {
+		t.Fatalf("short password = %d, want 400", response.Code)
+	}
+	reset := call(router, http.MethodPost, "/api/v1/users/"+aliceID+"/password", `{"password":"reset-password-1"}`, admin)
+	decodeBody(t, reset, &body)
+	if reset.Code != http.StatusOK || !body.User.MustChangePassword {
+		t.Fatalf("reset = %d %s", reset.Code, reset.Body)
+	}
+	if response := call(router, http.MethodGet, "/api/v1/auth/session", "", alice); response.Code != http.StatusUnauthorized {
+		t.Fatalf("alice session after a reset = %d, want 401", response.Code)
+	}
+	if response := call(router, http.MethodPost, "/api/v1/auth/login", `{"username":"alice","password":"alice-own-password"}`, nil); response.Code != http.StatusUnauthorized {
+		t.Fatalf("old password after a reset = %d, want 401", response.Code)
+	}
+	alice = signIn(t, router, "alice", "reset-password-1")
+	if response := call(router, http.MethodGet, "/api/v1/settings", "", alice); errorCode(t, response) != "PASSWORD_CHANGE_REQUIRED" {
+		t.Fatalf("after a reset = %d %s, want PASSWORD_CHANGE_REQUIRED", response.Code, response.Body)
+	}
+
+	var list struct {
+		Users []userDTO `json:"users"`
+	}
+	decodeBody(t, call(router, http.MethodGet, "/api/v1/users", "", admin), &list)
+	adminID := list.Users[0].ID.String()
+	if response := call(router, http.MethodPost, "/api/v1/users/"+adminID+"/password", `{"password":"reset-password-1"}`, admin); response.Code != http.StatusConflict || errorCode(t, response) != "OWN_PASSWORD_RESET" {
+		t.Fatalf("own reset = %d %s, want 409 OWN_PASSWORD_RESET", response.Code, response.Body)
+	}
+}

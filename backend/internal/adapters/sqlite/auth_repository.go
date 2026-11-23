@@ -50,6 +50,12 @@ func (r *AuthRepository) UpdatePasswordHash(ctx context.Context, userID uuid.UUI
 	return r.client.User.UpdateOneID(userID).SetPasswordHash(passwordHash).SetMustChangePassword(false).Exec(ctx)
 }
 
+// RequirePasswordChange makes the account choose a new password at its
+// next login.
+func (r *AuthRepository) RequirePasswordChange(ctx context.Context, userID uuid.UUID) error {
+	return r.client.User.UpdateOneID(userID).SetMustChangePassword(true).Exec(ctx)
+}
+
 // RecordLogin stores the time and source address of a successful login.
 func (r *AuthRepository) RecordLogin(ctx context.Context, userID uuid.UUID, ip string, at time.Time) error {
 	return r.client.User.UpdateOneID(userID).SetLastLoginAt(at.UTC()).SetLastLoginIP(ip).Exec(ctx)

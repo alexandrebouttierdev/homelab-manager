@@ -150,7 +150,7 @@ Prérequis : Go `1.26.10` ou plus récent, Node.js 22 et npm. Docker Engine est 
    scripts/dev.sh
    ```
 
-   Vite écoute sur `http://127.0.0.1:5173` et transmet `/api` au Manager sur le port 8080. La base SQLite est créée au premier démarrage (`backend/data/homelab-manager.db` en développement) et les migrations versionnées sont appliquées automatiquement. Le script crée aussi une clé de coffre de développement, `backend/data/secrets.key` (non versionnée), pour essayer la double authentification.
+   Vite écoute sur `http://127.0.0.1:5173` et transmet `/api` au Manager sur le port 8080 (si ce port est pris, lancer le Manager ailleurs avec `HOMELAB_HTTP_ADDRESS` et Vite avec `HOMELAB_DEV_API_TARGET=http://127.0.0.1:<port>`). La base SQLite est créée au premier démarrage (`backend/data/homelab-manager.db` en développement) et les migrations versionnées sont appliquées automatiquement. Le script crée aussi une clé de coffre de développement, `backend/data/secrets.key` (non versionnée), pour essayer la double authentification.
 
 Pour lancer les processus séparément :
 

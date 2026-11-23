@@ -135,7 +135,7 @@ Chaque release publie, pour Linux `amd64` et `arm64`, une archive contenant les 
 
 ## Développement
 
-Prérequis : Go `1.26.10` ou plus récent, Node.js 22 et npm. Docker Engine est optionnel : sans lui, la collecte Docker est simplement indisponible. Les tests d'intégration du journal système lancent le vrai `journalctl` sur des fichiers fabriqués par `systemd-journal-remote` (`sudo apt install systemd-journal-remote`) ; sans lui, ils sont ignorés.
+Prérequis : Go `1.26.10` ou plus récent, Node.js 22 et npm. Docker Engine est optionnel : sans lui, la collecte Docker est simplement indisponible. Les tests d'intégration du journal système lancent le vrai `journalctl` sur des fichiers fabriqués par `systemd-journal-remote` (`sudo apt install systemd-journal-remote`) ; sans lui, ils sont ignorés. Ceux des services système lancent un faux systemd sur un bus D-Bus privé par `dbus-daemon` (`sudo apt install dbus`, ou `brew install dbus` sur macOS) ; sans lui, ils sont ignorés.
 
 1. Copier [.env.example](.env.example) vers `.env`. Laisser `HOMELAB_ADMIN_PASSWORD` vide pour se connecter avec `admin` / `admin` (changement imposé à la première connexion), ou y définir un secret fort.
 2. Installer les paquets de l'interface :

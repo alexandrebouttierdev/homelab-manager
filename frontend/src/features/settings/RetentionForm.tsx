@@ -34,7 +34,7 @@ export function RetentionForm({ settings }: { settings: MonitoringSettings }) {
       />
       <CardBody>
         <form className="space-y-3" onSubmit={onSubmit} noValidate>
-          <fieldset disabled={readOnly} className="space-y-3">
+          <fieldset disabled={readOnly} className="min-w-0 space-y-3">
             <div>
               <label
                 htmlFor="metricsRetentionDays"

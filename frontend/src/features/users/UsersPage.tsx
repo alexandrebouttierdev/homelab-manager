@@ -67,7 +67,8 @@ export function UsersPage() {
               <TH>Rôle</TH>
               <TH>État</TH>
               <TH>Dernière connexion</TH>
-              <TH>
+              {/* relative: keeps the visually hidden label inside the scrolling table */}
+              <TH className="relative">
                 <span className="sr-only">Actions</span>
               </TH>
             </TR>

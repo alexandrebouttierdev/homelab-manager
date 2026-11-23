@@ -91,6 +91,16 @@ func UserAgent(v string) predicate.Session {
 	return predicate.Session(sql.FieldEQ(FieldUserAgent, v))
 }
 
+// LastSeenAt applies equality check predicate on the "last_seen_at" field. It's identical to LastSeenAtEQ.
+func LastSeenAt(v time.Time) predicate.Session {
+	return predicate.Session(sql.FieldEQ(FieldLastSeenAt, v))
+}
+
+// AuthMethod applies equality check predicate on the "auth_method" field. It's identical to AuthMethodEQ.
+func AuthMethod(v string) predicate.Session {
+	return predicate.Session(sql.FieldEQ(FieldAuthMethod, v))
+}
+
 // UserIDEQ applies the EQ predicate on the "user_id" field.
 func UserIDEQ(v uuid.UUID) predicate.Session {
 	return predicate.Session(sql.FieldEQ(FieldUserID, v))
@@ -454,6 +464,121 @@ func UserAgentEqualFold(v string) predicate.Session {
 // UserAgentContainsFold applies the ContainsFold predicate on the "user_agent" field.
 func UserAgentContainsFold(v string) predicate.Session {
 	return predicate.Session(sql.FieldContainsFold(FieldUserAgent, v))
+}
+
+// LastSeenAtEQ applies the EQ predicate on the "last_seen_at" field.
+func LastSeenAtEQ(v time.Time) predicate.Session {
+	return predicate.Session(sql.FieldEQ(FieldLastSeenAt, v))
+}
+
+// LastSeenAtNEQ applies the NEQ predicate on the "last_seen_at" field.
+func LastSeenAtNEQ(v time.Time) predicate.Session {
+	return predicate.Session(sql.FieldNEQ(FieldLastSeenAt, v))
+}
+
+// LastSeenAtIn applies the In predicate on the "last_seen_at" field.
+func LastSeenAtIn(vs ...time.Time) predicate.Session {
+	return predicate.Session(sql.FieldIn(FieldLastSeenAt, vs...))
+}
+
+// LastSeenAtNotIn applies the NotIn predicate on the "last_seen_at" field.
+func LastSeenAtNotIn(vs ...time.Time) predicate.Session {
+	return predicate.Session(sql.FieldNotIn(FieldLastSeenAt, vs...))
+}
+
+// LastSeenAtGT applies the GT predicate on the "last_seen_at" field.
+func LastSeenAtGT(v time.Time) predicate.Session {
+	return predicate.Session(sql.FieldGT(FieldLastSeenAt, v))
+}
+
+// LastSeenAtGTE applies the GTE predicate on the "last_seen_at" field.
+func LastSeenAtGTE(v time.Time) predicate.Session {
+	return predicate.Session(sql.FieldGTE(FieldLastSeenAt, v))
+}
+
+// LastSeenAtLT applies the LT predicate on the "last_seen_at" field.
+func LastSeenAtLT(v time.Time) predicate.Session {
+	return predicate.Session(sql.FieldLT(FieldLastSeenAt, v))
+}
+
+// LastSeenAtLTE applies the LTE predicate on the "last_seen_at" field.
+func LastSeenAtLTE(v time.Time) predicate.Session {
+	return predicate.Session(sql.FieldLTE(FieldLastSeenAt, v))
+}
+
+// LastSeenAtIsNil applies the IsNil predicate on the "last_seen_at" field.
+func LastSeenAtIsNil() predicate.Session {
+	return predicate.Session(sql.FieldIsNull(FieldLastSeenAt))
+}
+
+// LastSeenAtNotNil applies the NotNil predicate on the "last_seen_at" field.
+func LastSeenAtNotNil() predicate.Session {
+	return predicate.Session(sql.FieldNotNull(FieldLastSeenAt))
+}
+
+// AuthMethodEQ applies the EQ predicate on the "auth_method" field.
+func AuthMethodEQ(v string) predicate.Session {
+	return predicate.Session(sql.FieldEQ(FieldAuthMethod, v))
+}
+
+// AuthMethodNEQ applies the NEQ predicate on the "auth_method" field.
+func AuthMethodNEQ(v string) predicate.Session {
+	return predicate.Session(sql.FieldNEQ(FieldAuthMethod, v))
+}
+
+// AuthMethodIn applies the In predicate on the "auth_method" field.
+func AuthMethodIn(vs ...string) predicate.Session {
+	return predicate.Session(sql.FieldIn(FieldAuthMethod, vs...))
+}
+
+// AuthMethodNotIn applies the NotIn predicate on the "auth_method" field.
+func AuthMethodNotIn(vs ...string) predicate.Session {
+	return predicate.Session(sql.FieldNotIn(FieldAuthMethod, vs...))
+}
+
+// AuthMethodGT applies the GT predicate on the "auth_method" field.
+func AuthMethodGT(v string) predicate.Session {
+	return predicate.Session(sql.FieldGT(FieldAuthMethod, v))
+}
+
+// AuthMethodGTE applies the GTE predicate on the "auth_method" field.
+func AuthMethodGTE(v string) predicate.Session {
+	return predicate.Session(sql.FieldGTE(FieldAuthMethod, v))
+}
+
+// AuthMethodLT applies the LT predicate on the "auth_method" field.
+func AuthMethodLT(v string) predicate.Session {
+	return predicate.Session(sql.FieldLT(FieldAuthMethod, v))
+}
+
+// AuthMethodLTE applies the LTE predicate on the "auth_method" field.
+func AuthMethodLTE(v string) predicate.Session {
+	return predicate.Session(sql.FieldLTE(FieldAuthMethod, v))
+}
+
+// AuthMethodContains applies the Contains predicate on the "auth_method" field.
+func AuthMethodContains(v string) predicate.Session {
+	return predicate.Session(sql.FieldContains(FieldAuthMethod, v))
+}
+
+// AuthMethodHasPrefix applies the HasPrefix predicate on the "auth_method" field.
+func AuthMethodHasPrefix(v string) predicate.Session {
+	return predicate.Session(sql.FieldHasPrefix(FieldAuthMethod, v))
+}
+
+// AuthMethodHasSuffix applies the HasSuffix predicate on the "auth_method" field.
+func AuthMethodHasSuffix(v string) predicate.Session {
+	return predicate.Session(sql.FieldHasSuffix(FieldAuthMethod, v))
+}
+
+// AuthMethodEqualFold applies the EqualFold predicate on the "auth_method" field.
+func AuthMethodEqualFold(v string) predicate.Session {
+	return predicate.Session(sql.FieldEqualFold(FieldAuthMethod, v))
+}
+
+// AuthMethodContainsFold applies the ContainsFold predicate on the "auth_method" field.
+func AuthMethodContainsFold(v string) predicate.Session {
+	return predicate.Session(sql.FieldContainsFold(FieldAuthMethod, v))
 }
 
 // HasUser applies the HasEdge predicate on the "user" edge.

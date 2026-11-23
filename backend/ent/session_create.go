@@ -96,6 +96,34 @@ func (_c *SessionCreate) SetNillableUserAgent(v *string) *SessionCreate {
 	return _c
 }
 
+// SetLastSeenAt sets the "last_seen_at" field.
+func (_c *SessionCreate) SetLastSeenAt(v time.Time) *SessionCreate {
+	_c.mutation.SetLastSeenAt(v)
+	return _c
+}
+
+// SetNillableLastSeenAt sets the "last_seen_at" field if the given value is not nil.
+func (_c *SessionCreate) SetNillableLastSeenAt(v *time.Time) *SessionCreate {
+	if v != nil {
+		_c.SetLastSeenAt(*v)
+	}
+	return _c
+}
+
+// SetAuthMethod sets the "auth_method" field.
+func (_c *SessionCreate) SetAuthMethod(v string) *SessionCreate {
+	_c.mutation.SetAuthMethod(v)
+	return _c
+}
+
+// SetNillableAuthMethod sets the "auth_method" field if the given value is not nil.
+func (_c *SessionCreate) SetNillableAuthMethod(v *string) *SessionCreate {
+	if v != nil {
+		_c.SetAuthMethod(*v)
+	}
+	return _c
+}
+
 // SetID sets the "id" field.
 func (_c *SessionCreate) SetID(v uuid.UUID) *SessionCreate {
 	_c.mutation.SetID(v)
@@ -154,6 +182,10 @@ func (_c *SessionCreate) defaults() {
 		v := session.DefaultCreatedAt()
 		_c.mutation.SetCreatedAt(v)
 	}
+	if _, ok := _c.mutation.AuthMethod(); !ok {
+		v := session.DefaultAuthMethod
+		_c.mutation.SetAuthMethod(v)
+	}
 	if _, ok := _c.mutation.ID(); !ok {
 		v := session.DefaultID()
 		_c.mutation.SetID(v)
@@ -173,6 +205,9 @@ func (_c *SessionCreate) check() error {
 	}
 	if _, ok := _c.mutation.CreatedAt(); !ok {
 		return &ValidationError{Name: "created_at", err: errors.New(`ent: missing required field "Session.created_at"`)}
+	}
+	if _, ok := _c.mutation.AuthMethod(); !ok {
+		return &ValidationError{Name: "auth_method", err: errors.New(`ent: missing required field "Session.auth_method"`)}
 	}
 	if len(_c.mutation.UserIDs()) == 0 {
 		return &ValidationError{Name: "user", err: errors.New(`ent: missing required edge "Session.user"`)}
@@ -235,6 +270,14 @@ func (_c *SessionCreate) createSpec() (*Session, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.UserAgent(); ok {
 		_spec.SetField(session.FieldUserAgent, field.TypeString, value)
 		_node.UserAgent = value
+	}
+	if value, ok := _c.mutation.LastSeenAt(); ok {
+		_spec.SetField(session.FieldLastSeenAt, field.TypeTime, value)
+		_node.LastSeenAt = value
+	}
+	if value, ok := _c.mutation.AuthMethod(); ok {
+		_spec.SetField(session.FieldAuthMethod, field.TypeString, value)
+		_node.AuthMethod = value
 	}
 	if nodes := _c.mutation.UserIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{

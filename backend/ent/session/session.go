@@ -29,6 +29,10 @@ const (
 	FieldIPAddress = "ip_address"
 	// FieldUserAgent holds the string denoting the user_agent field in the database.
 	FieldUserAgent = "user_agent"
+	// FieldLastSeenAt holds the string denoting the last_seen_at field in the database.
+	FieldLastSeenAt = "last_seen_at"
+	// FieldAuthMethod holds the string denoting the auth_method field in the database.
+	FieldAuthMethod = "auth_method"
 	// EdgeUser holds the string denoting the user edge name in mutations.
 	EdgeUser = "user"
 	// Table holds the table name of the session in the database.
@@ -52,6 +56,8 @@ var Columns = []string{
 	FieldRevokedAt,
 	FieldIPAddress,
 	FieldUserAgent,
+	FieldLastSeenAt,
+	FieldAuthMethod,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -67,6 +73,8 @@ func ValidColumn(column string) bool {
 var (
 	// DefaultCreatedAt holds the default value on creation for the "created_at" field.
 	DefaultCreatedAt func() time.Time
+	// DefaultAuthMethod holds the default value on creation for the "auth_method" field.
+	DefaultAuthMethod string
 	// DefaultID holds the default value on creation for the "id" field.
 	DefaultID func() uuid.UUID
 )
@@ -112,6 +120,16 @@ func ByIPAddress(opts ...sql.OrderTermOption) OrderOption {
 // ByUserAgent orders the results by the user_agent field.
 func ByUserAgent(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUserAgent, opts...).ToFunc()
+}
+
+// ByLastSeenAt orders the results by the last_seen_at field.
+func ByLastSeenAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLastSeenAt, opts...).ToFunc()
+}
+
+// ByAuthMethod orders the results by the auth_method field.
+func ByAuthMethod(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAuthMethod, opts...).ToFunc()
 }
 
 // ByUserField orders the results by user field.

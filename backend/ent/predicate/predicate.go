@@ -24,6 +24,12 @@ type Event func(*sql.Selector)
 // HostInfo is the predicate function for hostinfo builders.
 type HostInfo func(*sql.Selector)
 
+// LoginFailure is the predicate function for loginfailure builders.
+type LoginFailure func(*sql.Selector)
+
+// SecurityPolicy is the predicate function for securitypolicy builders.
+type SecurityPolicy func(*sql.Selector)
+
 // Session is the predicate function for session builders.
 type Session func(*sql.Selector)
 

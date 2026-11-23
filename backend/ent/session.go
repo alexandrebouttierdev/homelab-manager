@@ -33,6 +33,10 @@ type Session struct {
 	IPAddress string `json:"ip_address,omitempty"`
 	// UserAgent holds the value of the "user_agent" field.
 	UserAgent string `json:"user_agent,omitempty"`
+	// LastSeenAt holds the value of the "last_seen_at" field.
+	LastSeenAt time.Time `json:"last_seen_at,omitempty"`
+	// AuthMethod holds the value of the "auth_method" field.
+	AuthMethod string `json:"auth_method,omitempty"`
 	// Edges holds the relations/edges for other nodes in the graph.
 	// The values are being populated by the SessionQuery when eager-loading is set.
 	Edges        SessionEdges `json:"edges"`
@@ -64,9 +68,9 @@ func (*Session) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case session.FieldTokenHash, session.FieldIPAddress, session.FieldUserAgent:
+		case session.FieldTokenHash, session.FieldIPAddress, session.FieldUserAgent, session.FieldAuthMethod:
 			values[i] = new(sql.NullString)
-		case session.FieldExpiresAt, session.FieldCreatedAt, session.FieldRevokedAt:
+		case session.FieldExpiresAt, session.FieldCreatedAt, session.FieldRevokedAt, session.FieldLastSeenAt:
 			values[i] = new(sql.NullTime)
 		case session.FieldID, session.FieldUserID:
 			values[i] = new(uuid.UUID)
@@ -134,6 +138,18 @@ func (_m *Session) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.UserAgent = value.String
 			}
+		case session.FieldLastSeenAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field last_seen_at", values[i])
+			} else if value.Valid {
+				_m.LastSeenAt = value.Time
+			}
+		case session.FieldAuthMethod:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field auth_method", values[i])
+			} else if value.Valid {
+				_m.AuthMethod = value.String
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -196,6 +212,12 @@ func (_m *Session) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("user_agent=")
 	builder.WriteString(_m.UserAgent)
+	builder.WriteString(", ")
+	builder.WriteString("last_seen_at=")
+	builder.WriteString(_m.LastSeenAt.Format(time.ANSIC))
+	builder.WriteString(", ")
+	builder.WriteString("auth_method=")
+	builder.WriteString(_m.AuthMethod)
 	builder.WriteByte(')')
 	return builder.String()
 }

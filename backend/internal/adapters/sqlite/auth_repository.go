@@ -2,9 +2,11 @@ package sqlite
 
 import (
 	"context"
+	"fmt"
 	"time"
 
 	"homelab-manager/backend/ent"
+	"homelab-manager/backend/ent/predicate"
 	"homelab-manager/backend/ent/session"
 	"homelab-manager/backend/ent/user"
 	"homelab-manager/backend/internal/domain"
@@ -71,31 +73,106 @@ func (r *AuthRepository) Create(ctx context.Context, userID uuid.UUID, tokenHash
 		SetExpiresAt(expiresAt).
 		SetIPAddress(ip).
 		SetUserAgent(userAgent).
+		SetLastSeenAt(time.Now().UTC()).
 		Save(ctx)
 	if err != nil {
 		return domain.Session{}, err
 	}
-	return domain.Session{ID: record.ID, UserID: userID, ExpiresAt: record.ExpiresAt}, nil
+	owner, err := r.client.User.Get(ctx, userID)
+	if err != nil {
+		return domain.Session{}, err
+	}
+	record.Edges.User = owner
+	return toDomainSession(record), nil
 }
 
 func (r *AuthRepository) FindActiveByTokenHash(ctx context.Context, tokenHash string) (domain.Session, error) {
+	return r.findActive(ctx, session.TokenHash(tokenHash))
+}
+
+// FindActiveByID returns domain.ErrSessionNotFound for a revoked or expired
+// session.
+func (r *AuthRepository) FindActiveByID(ctx context.Context, id uuid.UUID) (domain.Session, error) {
+	return r.findActive(ctx, session.ID(id))
+}
+
+func (r *AuthRepository) findActive(ctx context.Context, match predicate.Session) (domain.Session, error) {
 	record, err := r.client.Session.Query().
-		Where(
-			session.TokenHash(tokenHash),
-			session.RevokedAtIsNil(),
-			session.ExpiresAtGT(time.Now().UTC()),
-		).
+		Where(match, session.RevokedAtIsNil(), session.ExpiresAtGT(time.Now().UTC())).
 		WithUser().
 		Only(ctx)
+	if ent.IsNotFound(err) {
+		return domain.Session{}, domain.ErrSessionNotFound
+	}
 	if err != nil {
-		if ent.IsNotFound(err) {
-			return domain.Session{}, domain.ErrSessionNotFound
-		}
 		return domain.Session{}, err
 	}
-	return domain.Session{
-		ID: record.ID, UserID: record.Edges.User.ID, ExpiresAt: record.ExpiresAt,
-	}, nil
+	return toDomainSession(record), nil
+}
+
+// ListActive returns at most limit active sessions, most recently seen
+// first; a nil userID lists the sessions of every account.
+func (r *AuthRepository) ListActive(ctx context.Context, userID *uuid.UUID, now time.Time, limit int) ([]domain.Session, error) {
+	query := r.client.Session.Query().
+		Where(session.RevokedAtIsNil(), session.ExpiresAtGT(now.UTC())).
+		WithUser().
+		Order(ent.Desc(session.FieldLastSeenAt), ent.Desc(session.FieldID)).
+		Limit(limit)
+	if userID != nil {
+		query.Where(session.UserID(*userID))
+	}
+	records, err := query.All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list sessions: %w", err)
+	}
+	sessions := make([]domain.Session, 0, len(records))
+	for _, record := range records {
+		sessions = append(sessions, toDomainSession(record))
+	}
+	return sessions, nil
+}
+
+// Touch records the last activity of a session.
+func (r *AuthRepository) Touch(ctx context.Context, id uuid.UUID, at time.Time) error {
+	return r.client.Session.UpdateOneID(id).SetLastSeenAt(at.UTC()).Exec(ctx)
+}
+
+// RevokeByID returns domain.ErrSessionNotFound when the session is not
+// active.
+func (r *AuthRepository) RevokeByID(ctx context.Context, id uuid.UUID) error {
+	count, err := r.client.Session.Update().
+		Where(session.ID(id), session.RevokedAtIsNil()).
+		SetRevokedAt(time.Now().UTC()).Save(ctx)
+	if err != nil {
+		return err
+	}
+	if count == 0 {
+		return domain.ErrSessionNotFound
+	}
+	return nil
+}
+
+// RevokeAllForUserExcept revokes the other sessions of an account and
+// reports how many it revoked.
+func (r *AuthRepository) RevokeAllForUserExcept(ctx context.Context, userID, keep uuid.UUID) (int, error) {
+	return r.client.Session.Update().
+		Where(session.UserID(userID), session.IDNEQ(keep), session.RevokedAtIsNil()).
+		SetRevokedAt(time.Now().UTC()).Save(ctx)
+}
+
+func toDomainSession(record *ent.Session) domain.Session {
+	result := domain.Session{
+		ID: record.ID, UserID: record.UserID, IPAddress: record.IPAddress,
+		UserAgent: record.UserAgent, AuthMethod: record.AuthMethod,
+		CreatedAt: record.CreatedAt, LastSeenAt: record.LastSeenAt, ExpiresAt: record.ExpiresAt,
+	}
+	if record.Edges.User != nil {
+		result.Username = record.Edges.User.Username
+	}
+	if result.LastSeenAt.IsZero() {
+		result.LastSeenAt = record.CreatedAt
+	}
+	return result
 }
 
 func (r *AuthRepository) RevokeByTokenHash(ctx context.Context, tokenHash string) error {

@@ -13,8 +13,15 @@ Modèle logique d'Ent et SQLite. Il décrit un hôte unique et ses conteneurs lo
 - Suppression : les sessions du compte sont supprimées dans la même transaction ; les lignes d'audit, qui désignent l'acteur par son identifiant texte, sont conservées.
 
 ### Session
-- UUID, référence utilisateur, hash du secret de session, expiration, révocation, timestamps.
+- UUID, référence utilisateur, hash du secret de session, expiration, révocation, adresse IP, navigateur (`user_agent`), méthode d'authentification (`auth_method`, aujourd'hui `password`), `last_seen_at`, timestamps.
 - Ne persister que le hash du cookie de session.
+- `last_seen_at` est écrit au plus une fois par minute et par session ; une session inactive au-delà de la politique est révoquée à sa requête suivante.
+
+### SecurityPolicy
+- Ligne singleton (`security_policies`, `singleton_key = 'local'`) : `idle_timeout_minutes` (contrainte `CHECK` 5–720, défaut 60) et `allowed_networks` (tableau JSON de préfixes CIDR ; vide = toutes les adresses). Absente, la politique par défaut s'applique. Chaque modification écrit sa ligne d'audit dans la même transaction.
+
+### LoginFailure
+- Une ligne par compte (`login_failures`, `id` = UUID du compte, `ON DELETE CASCADE`) : échecs consécutifs, dernier échec, fin de verrouillage. Supprimée à la connexion réussie.
 
 ### Host
 - Ligne singleton de configuration/identité locale ; UUID stable, hostname, distribution, version, noyau, date de démarrage et timestamps de collecte.
@@ -77,4 +84,4 @@ Le stockage est un fichier SQLite unique ; aucune base de séries temporelles ni
 - Horodatages UTC et migrations versionnées/reproductibles.
 - Les modèles Ent restent confinés aux adaptateurs ; DTO et domaine sont indépendants.
 - Les valeurs volatiles de stats ne sont pas dupliquées comme état courant dans `Container` si le dernier échantillon peut servir de source.
-- `001_initial.sql` crée le schéma SQLite initial, `002_app_settings.sql` la table `app_settings`, `003_user_accounts.sql` les colonnes de rôle et d'état des comptes ; les migrations suivantes s'ajoutent sous un nouveau numéro, sans modifier les fichiers déjà livrés. Les anciennes migrations PostgreSQL ont été retirées et leurs données ne sont pas reprises.
+- `001_initial.sql` crée le schéma SQLite initial, `002_app_settings.sql` la table `app_settings`, `003_user_accounts.sql` les colonnes de rôle et d'état des comptes, `004_sessions_security.sql` l'activité des sessions, la politique de sécurité, les échecs de connexion et l'index `audit_logs (created_at DESC)` ; les migrations suivantes s'ajoutent sous un nouveau numéro, sans modifier les fichiers déjà livrés. Les anciennes migrations PostgreSQL ont été retirées et leurs données ne sont pas reprises.

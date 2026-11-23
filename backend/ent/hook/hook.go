@@ -80,6 +80,30 @@ func (f HostInfoFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, er
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.HostInfoMutation", m)
 }
 
+// The LoginFailureFunc type is an adapter to allow the use of ordinary
+// function as LoginFailure mutator.
+type LoginFailureFunc func(context.Context, *ent.LoginFailureMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f LoginFailureFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.LoginFailureMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.LoginFailureMutation", m)
+}
+
+// The SecurityPolicyFunc type is an adapter to allow the use of ordinary
+// function as SecurityPolicy mutator.
+type SecurityPolicyFunc func(context.Context, *ent.SecurityPolicyMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f SecurityPolicyFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.SecurityPolicyMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SecurityPolicyMutation", m)
+}
+
 // The SessionFunc type is an adapter to allow the use of ordinary
 // function as Session mutator.
 type SessionFunc func(context.Context, *ent.SessionMutation) (ent.Value, error)

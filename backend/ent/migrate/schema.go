@@ -129,6 +129,33 @@ var (
 		Columns:    HostInfosColumns,
 		PrimaryKey: []*schema.Column{HostInfosColumns[0]},
 	}
+	// LoginFailuresColumns holds the columns for the "login_failures" table.
+	LoginFailuresColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "consecutive_failures", Type: field.TypeInt, Default: 0},
+		{Name: "last_failure_at", Type: field.TypeTime},
+		{Name: "locked_until", Type: field.TypeTime, Nullable: true},
+	}
+	// LoginFailuresTable holds the schema information for the "login_failures" table.
+	LoginFailuresTable = &schema.Table{
+		Name:       "login_failures",
+		Columns:    LoginFailuresColumns,
+		PrimaryKey: []*schema.Column{LoginFailuresColumns[0]},
+	}
+	// SecurityPoliciesColumns holds the columns for the "security_policies" table.
+	SecurityPoliciesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "singleton_key", Type: field.TypeString, Unique: true},
+		{Name: "idle_timeout_minutes", Type: field.TypeInt},
+		{Name: "allowed_networks", Type: field.TypeJSON},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// SecurityPoliciesTable holds the schema information for the "security_policies" table.
+	SecurityPoliciesTable = &schema.Table{
+		Name:       "security_policies",
+		Columns:    SecurityPoliciesColumns,
+		PrimaryKey: []*schema.Column{SecurityPoliciesColumns[0]},
+	}
 	// SessionsColumns holds the columns for the "sessions" table.
 	SessionsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -138,6 +165,8 @@ var (
 		{Name: "revoked_at", Type: field.TypeTime, Nullable: true},
 		{Name: "ip_address", Type: field.TypeString, Nullable: true},
 		{Name: "user_agent", Type: field.TypeString, Nullable: true},
+		{Name: "last_seen_at", Type: field.TypeTime, Nullable: true},
+		{Name: "auth_method", Type: field.TypeString, Default: "password"},
 		{Name: "user_id", Type: field.TypeUUID},
 	}
 	// SessionsTable holds the schema information for the "sessions" table.
@@ -148,7 +177,7 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "sessions_users_sessions",
-				Columns:    []*schema.Column{SessionsColumns[7]},
+				Columns:    []*schema.Column{SessionsColumns[9]},
 				RefColumns: []*schema.Column{UsersColumns[0]},
 				OnDelete:   schema.NoAction,
 			},
@@ -197,6 +226,8 @@ var (
 		ContainerMetricSamplesTable,
 		EventsTable,
 		HostInfosTable,
+		LoginFailuresTable,
+		SecurityPoliciesTable,
 		SessionsTable,
 		SystemMetricSamplesTable,
 		UsersTable,

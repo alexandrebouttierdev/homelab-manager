@@ -37,13 +37,18 @@ Ce document est le contrat exact de l'API implémentée. Toute différence entre
 | `GET /api/v1/containers/{containerID}/events` | oui | Événements du conteneur (§ 6.2) |
 | `GET /api/v1/events` | oui | Tous les événements (§ 6.2) |
 | `GET /api/v1/settings` | oui | Paramètres effectifs (§ 4.4) |
-| `PUT /api/v1/settings/retention` | oui | Modifie la rétention (§ 4.4) |
+| `PUT /api/v1/settings/retention` | admin | Modifie la rétention (§ 4.4) |
+| `GET /api/v1/users` | admin | Comptes (§ 3.1) |
+| `POST /api/v1/users` | admin | Crée un compte (§ 3.1) |
+| `PATCH /api/v1/users/{userID}` | admin | Modifie un compte (§ 3.1) |
+| `DELETE /api/v1/users/{userID}` | admin | Supprime un compte (§ 3.1) |
 
-Toutes les routes de supervision sont en lecture seule ; les seules écritures sont l'authentification et `PUT /api/v1/settings/retention`. Une route inconnue sous `/api` répond `404 NOT_FOUND`, une méthode non prévue `405 METHOD_NOT_ALLOWED`, toujours au format d'erreur du § 8. Il n'existe aucune route d'Agent, d'hôte distant, de journaux, ni d'action Docker (création, suppression, démarrage, arrêt, restart, exec).
+Toutes les routes de supervision sont en lecture seule ; les seules écritures sont l'authentification, `PUT /api/v1/settings/retention` et la gestion des comptes. La colonne « Session » indique `admin` pour les routes réservées au rôle administrateur (§ 3.1). Une route inconnue sous `/api` répond `404 NOT_FOUND`, une méthode non prévue `405 METHOD_NOT_ALLOWED`, toujours au format d'erreur du § 8. Il n'existe aucune route d'Agent, d'hôte distant, de journaux, ni d'action Docker (création, suppression, démarrage, arrêt, restart, exec).
 
 ### Paramètres de chemin
 
 - `containerID` : UUID Manager (`8-4-4-4-12` hexadécimal minuscule) ou ID Docker de 12 à 64 caractères hexadécimaux minuscules. Sinon `400 VALIDATION_ERROR` ; inconnu → `404 NOT_FOUND`.
+- `userID` : UUID Manager en minuscules (`8-4-4-4-12`). Sinon `400 VALIDATION_ERROR` ; inconnu → `404 NOT_FOUND`.
 - `metricName` : 64 caractères au plus, motif `^[a-z][a-z0-9_]*(\.[a-z0-9_]+)+$` (ex. `cpu.percent`). Sinon `400 VALIDATION_ERROR`. Un nom valide mais jamais collecté renvoie une liste vide.
 
 ## 3. Authentification et sessions
@@ -51,14 +56,14 @@ Toutes les routes de supervision sont en lecture seule ; les seules écritures s
 **Connexion** — `POST /api/v1/auth/login` avec `{ "username": "...", "password": "..." }`.
 
 - `username` : espaces de début et fin retirés, 1 à 255 octets. `password` : 1 à 1 024 octets. Aucune longueur minimale à la connexion (le compte par défaut est `admin` / `admin`).
-- Succès `200` : `{ "user": { "id": "uuid", "username": "admin" } }` et cookie de session.
+- Succès `200` : `{ "user": { "id": "uuid", "username": "admin", "displayName": "admin", "role": "admin", "mustChangePassword": false } }` et cookie de session. Un compte désactivé reçoit `401 INVALID_CREDENTIALS`, comme un mot de passe faux.
 - Échec : `401 INVALID_CREDENTIALS`, identique que l'utilisateur existe ou non ; le temps de réponse est équivalent (une vérification Argon2id est faite dans les deux cas).
 - Limitation : 10 tentatives par minute et par adresse IP source, au-delà `429 RATE_LIMITED` (fenêtre fixe d'une minute, au plus 10 000 adresses suivies).
 - Contrôle d'origine identique aux mutations (ci-dessous).
 
 **Cookie** — nom `homelab_session`, `HttpOnly`, `SameSite=Lax`, `Path=/`, `Secure` si TLS est activé ou `HOMELAB_SESSION_SECURE=true`. Durée de vie fixe de 12 heures, sans prolongation. Seul le SHA-256 du jeton (32 octets aléatoires) est stocké.
 
-**Session** — `GET /api/v1/auth/session` : `200 { "user": { "id", "username" } }`, sinon `401 SESSION_NOT_FOUND`.
+**Session** — `GET /api/v1/auth/session` : `200 { "user": … }` (même objet que la connexion), sinon `401 SESSION_NOT_FOUND`, y compris pour un compte désactivé ou supprimé.
 
 **Déconnexion** — `POST /api/v1/auth/logout` : révoque la session, efface le cookie, `200 { "loggedOut": true }`.
 
@@ -71,6 +76,31 @@ Toutes les routes de supervision sont en lecture seule ; les seules écritures s
 **Contrôle d'origine (CSRF)** — appliqué à la connexion et à toutes les routes authentifiées : si l'en-tête `Origin` est présent, son hôte doit être égal à l'en-tête `Host` ; une requête `Sec-Fetch-Site: cross-site` est refusée. Refus : `403 CROSS_ORIGIN_REQUEST`. Combiné à `SameSite=Lax`, il protège les mutations par cookie.
 
 **Base indisponible** — si la base SQLite n'a pas pu être ouverte au démarrage, toutes les routes qui exigent une session et la connexion répondent `503 AUTH_UNAVAILABLE`.
+
+### 3.1 Comptes et rôles
+
+Comptes de Homelab Manager uniquement : aucun compte Linux n'est lu ni modifié.
+
+**Rôles** — `viewer` : consultation et son propre mot de passe. `operator` : idem pour l'instant (actions sur les services et sauvegardes dans les phases suivantes). `admin` : idem, plus `PUT /api/v1/settings/retention` et les routes `/api/v1/users`. Un rôle insuffisant reçoit `403 FORBIDDEN`.
+
+**Mot de passe initial** — un compte créé par un administrateur a `mustChangePassword: true`. Tant qu'il ne l'a pas changé (`POST /api/v1/auth/password`), toutes les routes authentifiées sauf `/auth/session`, `/auth/logout` et `/auth/password` répondent `403 PASSWORD_CHANGE_REQUIRED`.
+
+**Compte** :
+
+```json
+{
+  "id": "uuid", "username": "alice", "displayName": "Alice", "role": "viewer",
+  "disabled": false, "mustChangePassword": true,
+  "lastLoginAt": null, "lastLoginIp": null, "createdAt": "2026-11-23T10:00:00Z"
+}
+```
+
+- `GET /api/v1/users` : `200 { "users": [Compte] }`, triés par identifiant, 500 au plus.
+- `POST /api/v1/users` avec `{ "username", "displayName", "role", "password" }` : `username` selon `^[a-z0-9._-]{1,64}$` ; `displayName` 128 octets au plus, sans caractère de contrôle, espaces de bord retirés, identifiant par défaut ; `role` ∈ `viewer`, `operator`, `admin` ; `password` 12 à 1 024 octets. Succès `201 { "user": Compte }`. Identifiant déjà pris : `409 USERNAME_TAKEN`.
+- `PATCH /api/v1/users/{userID}` avec au moins un champ parmi `{ "displayName", "role", "disabled" }` : succès `200 { "user": Compte }`. Désactiver un compte révoque ses sessions.
+- `DELETE /api/v1/users/{userID}` : `200 { "deleted": true }`. Les sessions du compte sont supprimées ; ses lignes d'audit sont conservées.
+- Le dernier administrateur actif ne peut être ni rétrogradé, ni désactivé, ni supprimé : `409 LAST_ADMIN`.
+- Chaque modification réussie écrit une ligne d'audit (`user`, UUID du compte, `create` / `update` / `delete`) dans la même transaction.
 
 ## 4. Santé, synthèse, hôte et paramètres
 
@@ -339,7 +369,7 @@ Les routes sont versionnées sous `/api/v1`. Un changement incompatible (champ s
 | `SESSION_NOT_FOUND` | 401 | Session absente, expirée ou révoquée |
 | `CROSS_ORIGIN_REQUEST` | 403 | Contrôle d'origine refusé |
 | `TOO_MANY_POINTS` | 400 | Historique agrégé dépassant `limit` |
-| `NOT_FOUND` | 404 | Route ou conteneur inconnu |
+| `NOT_FOUND` | 404 | Route, conteneur ou compte inconnu |
 | `METHOD_NOT_ALLOWED` | 405 | Méthode non prévue sur la route |
 | `RATE_LIMITED` | 429 | Trop de tentatives de connexion |
 | `AUTH_UNAVAILABLE` | 503 | Base indisponible au démarrage |
@@ -348,6 +378,12 @@ Les routes sont versionnées sous `/api/v1`. Un changement incompatible (champ s
 | `LOGOUT_FAILED` | 500 | Révocation de session en échec |
 | `PASSWORD_CHANGE_FAILED` | 500 | Écriture du nouveau mot de passe en échec |
 | `SETTINGS_UPDATE_FAILED` | 500 | Écriture des paramètres en échec |
+| `FORBIDDEN` | 403 | Rôle insuffisant pour la route |
+| `PASSWORD_CHANGE_REQUIRED` | 403 | Mot de passe initial à changer d'abord |
+| `USERNAME_TAKEN` | 409 | Identifiant de compte déjà utilisé |
+| `LAST_ADMIN` | 409 | Dernier administrateur actif à conserver |
+| `USERS_UNAVAILABLE` | 500 | Lecture des comptes en échec |
+| `ACCOUNT_UPDATE_FAILED` | 500 | Écriture d'un compte en échec |
 | `INTERNAL_ERROR` | 500 | Autre erreur serveur |
 
 Aucune trace de pile, chemin local, secret ou réponse Docker brute dans les erreurs. `requestId` correspond au champ `request_id` des journaux du Manager.

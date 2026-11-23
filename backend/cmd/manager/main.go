@@ -41,6 +41,7 @@ func main() {
 
 	healthUsecase := usecase.NewHealthUsecase(config.StartedAt)
 	var authUsecase *usecase.AuthUsecase
+	var accountUsecase *usecase.AccountUsecase
 	var monitoringUsecase *usecase.MonitoringUsecase
 	var clientCloser interface{ Close() error }
 	var dockerClientCloser interface{ CloseIdleConnections() }
@@ -64,6 +65,7 @@ func main() {
 			logger.Info("Administrator created", zap.String("username", config.AdminUsername))
 		}
 		authUsecase = usecase.NewAuthUsecase(authRepository, authRepository, hasher)
+		accountUsecase = usecase.NewAccountUsecase(sqlite.NewAccountRepository(client), authRepository, hasher)
 		monitoringRepository := sqlite.NewMonitoringRepository(database)
 		dockerClient := dockerengine.NewClient(config.DockerProxySocket)
 		dockerClientCloser = dockerClient
@@ -85,7 +87,7 @@ func main() {
 			monitoringUsecase.Run(schedulerCtx)
 		}()
 	}
-	router := httpdelivery.NewRouter(logger, healthUsecase, authUsecase, monitoringUsecase, config.SessionSecure, config.WebRoot)
+	router := httpdelivery.NewRouter(logger, healthUsecase, authUsecase, monitoringUsecase, accountUsecase, config.SessionSecure, config.WebRoot)
 
 	server := &http.Server{
 		Addr:              config.HTTPAddress,

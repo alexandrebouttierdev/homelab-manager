@@ -84,9 +84,7 @@ func loginHandler(auth *usecase.AuthUsecase, secure bool) http.HandlerFunc {
 			return
 		}
 		http.SetCookie(w, sessionCookie(sessionCookieName, token, expiresAt, secure))
-		writeJSON(w, http.StatusOK, map[string]any{
-			"user": map[string]any{"id": user.ID, "username": user.Username},
-		})
+		writeJSON(w, http.StatusOK, map[string]any{"user": toSessionUserDTO(user)})
 	}
 }
 
@@ -126,9 +124,7 @@ func sessionHandler(auth *usecase.AuthUsecase) http.HandlerFunc {
 			writeError(w, r, http.StatusUnauthorized, "SESSION_NOT_FOUND", "No active session.")
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{
-			"user": map[string]any{"id": user.ID, "username": user.Username},
-		})
+		writeJSON(w, http.StatusOK, map[string]any{"user": toSessionUserDTO(user)})
 	}
 }
 

@@ -10,7 +10,10 @@ Version 2.1 — 22 novembre 2026
 - Protection CSRF : cookie `SameSite=Lax` et contrôle `Origin`/`Sec-Fetch-Site` sur la connexion et toutes les routes authentifiées (détail dans API_CONTRACTS.md § 3).
 - Connexion : 10 tentatives par minute et par IP, réponse identique et coût Argon2id équivalent que le compte existe ou non (pas d'énumération des comptes).
 - Changement de mot de passe : révocation de toutes les sessions de l'utilisateur, y compris la courante.
-- Journal d'audit : toute modification faite depuis l'interface (aujourd'hui la rétention) est tracée avec l'acteur et le `requestId`.
+- Comptes multiples, propres à Homelab Manager (aucun compte Linux) : rôles `viewer`, `operator`, `admin` vérifiés côté serveur par un middleware unique à partir de la politique du domaine ; l'interface masque les actions non permises sans que ce soit une protection.
+- Un compte créé par un administrateur reçoit un mot de passe initial (12 octets au moins) qu'il doit changer avant toute autre route. Un compte désactivé ne peut plus se connecter et ses sessions sont révoquées ; une session existante est de toute façon refusée dès la désactivation. Le dernier administrateur actif ne peut être ni rétrogradé, ni désactivé, ni supprimé.
+- Chaque requête est journalisée avec son statut et son `requestId` : les refus `403` sont ainsi traçables. L'audit des refus dans `audit_logs` arrive avec la phase 1B.
+- Journal d'audit : toute modification faite depuis l'interface (rétention, comptes) est tracée avec l'acteur et le `requestId`.
 - Modules d'administration v3 : interdits (aucun terminal, shell ni SSH ; comptes propres au Manager ; aucune exécution de code arbitraire) et modèle de privilèges (D-Bus, polkit en liste blanche, unités systemd dédiées) dans SPEC_ADMINISTRATION.md §§ 1–2. Le redémarrage et l'extinction de la machine (§ 8 bis) passent par `systemd-logind` et une règle polkit dédiée, sans les actions `-ignore-inhibit`, et restent désactivés par défaut.
 - Erreurs publiques non bavardes : codes stables, messages génériques, `requestId` pour corréler avec les journaux.
 - Validation serveur stricte, limite de taille des requêtes, timeouts, headers de sécurité et contrôle d'origine.

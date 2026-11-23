@@ -49,7 +49,7 @@ L'installation doit rester légère : un binaire, un fichier de base et le proxy
 
 ### Modules d'administration (v3, spécifiés, non implémentés)
 
-Utilisateurs et accès, journaux système, services système, alertes et notifications, sauvegardes restic, tâches planifiées : voir [SPEC_ADMINISTRATION.md](./SPEC_ADMINISTRATION.md), qui fixe aussi les interdits (aucun terminal, shell ni SSH ; utilisateurs propres au Manager ; aucune exécution de code arbitraire) et le modèle de privilèges. Les applications PaaS restent gérées par Coolify et sont reportées à une version ultérieure.
+Utilisateurs et accès, journaux système, services système, alertes et notifications, sauvegardes restic, tâches planifiées, redémarrage et extinction de la machine (module M, désactivé par défaut) : voir [SPEC_ADMINISTRATION.md](./SPEC_ADMINISTRATION.md), qui fixe aussi les interdits (aucun terminal, shell ni SSH ; utilisateurs propres au Manager ; aucune exécution de code arbitraire) et le modèle de privilèges. Les applications PaaS restent gérées par Coolify et sont reportées à une version ultérieure.
 
 ## 4. Sécurité et limites
 

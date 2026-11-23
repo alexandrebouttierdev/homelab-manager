@@ -2,7 +2,7 @@
 
 Date : 23 novembre 2026. Référence : `docs/SPEC_ADMINISTRATION.md` (v3.0 brouillon), `docs/PRODUCT_SPEC.md` (v2.1), `AGENTS.md`.
 
-Ce document découpe tout le travail restant en incréments livrables. Chaque incrément a ensuite son plan détaillé (TDD, tâche par tâche) dans `docs/superpowers/plans/`. Seul le premier est rédigé aujourd'hui : [phase 1A — rôles et comptes multiples](./2026-11-23-phase-1a-roles-comptes.md). Les suivants seront détaillés un par un, au démarrage de chaque phase, à partir du code alors en place.
+Ce document découpe tout le travail restant en incréments livrables. Chaque incrément a ensuite son plan détaillé (TDD, tâche par tâche) dans `docs/superpowers/plans/`. Deux sont rédigés : [phase 1A — rôles et comptes multiples](./2026-11-23-phase-1a-roles-comptes.md) et [module M — redémarrer et éteindre la machine](./2026-11-23-module-m-alimentation.md). Les suivants seront détaillés un par un, au démarrage de chaque phase, à partir du code alors en place.
 
 ## 1. Point de départ
 
@@ -30,6 +30,7 @@ Chaque incrément, quel qu'il soit :
 | Incrément | Contenu | Prérequis | Migration | Taille |
 |---|---|---|---|---|
 | **1A** | Rôles, comptes multiples, mot de passe initial à changer, autorisation serveur | — | `003_user_accounts.sql` | M |
+| **M** | Redémarrer et éteindre la machine (logind + polkit), désactivé par défaut | 1A | — | S |
 | **1B** | Sessions (liste, révocation, inactivité), verrouillage de compte, politique de sécurité, journal d'audit consultable et exportable | 1A | `004_sessions_security.sql` | M |
 | **1C** | Coffre de secrets (AES-256-GCM, `systemd-creds`), TOTP, codes de secours, connexion en deux étapes, 2FA obligatoire pour les administrateurs | 1B | `005_second_factor.sql` | L |
 | **2** | Journaux système (lecture `journalctl`) | 1A, groupe `systemd-journal` | — | M |
@@ -43,7 +44,7 @@ Chaque incrément, quel qu'il soit :
 
 Le coffre de secrets (§ 2.5 de la spécification) est avancé en **1C** et non en phase 4 : les secrets TOTP doivent être chiffrés (§ 3.6), ce qui en fait le premier consommateur.
 
-Ordre de réalisation : 1A → 1B → 1C → 2 → 3 → 4 → 5 → 6 → 7 → 8. Les phases 2 et 3 sont indépendantes de 1B et 1C et peuvent être avancées si le second facteur n'est pas prioritaire ; 7 peut suivre 2 et 3 sans attendre 4–6.
+Ordre de réalisation : 1A → M → 1B → 1C → 2 → 3 → 4 → 5 → 6 → 7 → 8. Les phases 2 et 3 sont indépendantes de 1B et 1C et peuvent être avancées si le second facteur n'est pas prioritaire ; 7 peut suivre 2 et 3 sans attendre 4–6.
 
 ## 4. Détail des incréments
 
@@ -57,6 +58,17 @@ Ordre de réalisation : 1A → 1B → 1C → 2 → 3 → 4 → 5 → 6 → 7 →
 - Interface : page « Utilisateurs & accès » (administrateurs), écran de changement de mot de passe imposé, paramètres en lecture seule pour les autres rôles.
 - Plan : [2026-11-23-phase-1a-roles-comptes.md](./2026-11-23-phase-1a-roles-comptes.md).
 
+### M — Redémarrer et éteindre la machine (plan détaillé rédigé)
+
+- Demandé le 23 novembre 2026 ; spécifié dans `SPEC_ADMINISTRATION.md` § 8 bis (ajout du même jour).
+- `systemd-logind` par D-Bus (`Reboot`, `PowerOff`), règle polkit fournie n'accordant que `reboot` et `power-off` (et `-multiple-sessions`), jamais `-ignore-inhibit` ; réglage `power_actions_enabled` à `false` par défaut.
+- Rôle `admin` (décision D-7), confirmation par saisie du nom de la machine vérifiée par le serveur, audit écrit **avant** la demande, une seule demande acceptée.
+- Introduit le port `AuditRecorder` (audit hors transaction métier), réutilisé ensuite par 1B.
+- Dépendance `github.com/godbus/dbus/v5` v5.2.4 (publiée le 13 octobre 2026).
+- Interface : carte « Alimentation » de la page Machine, visible des administrateurs.
+- À tester sur une machine virtuelle Debian 13 jetable, jamais sur la machine de développement.
+- Plan : [2026-11-23-module-m-alimentation.md](./2026-11-23-module-m-alimentation.md).
+
 ### 1B — Sessions, verrouillage, politique, audit
 
 - Migration : `sessions.last_seen_at`, `sessions.auth_method` ; tables `security_policy` (singleton), `login_failures`.
@@ -64,7 +76,7 @@ Ordre de réalisation : 1A → 1B → 1C → 2 → 3 → 4 → 5 → 6 → 7 →
 - Inactivité : expiration après N minutes (défaut 60) en plus des 12 h fixes.
 - Verrouillage : 5 échecs consécutifs → compte verrouillé 15 min, en plus de la limite par IP ; réponse toujours `401 INVALID_CREDENTIALS` (pas d'énumération) avec coût Argon2id constant.
 - Réseaux autorisés (CIDR) : refus de toute modification qui exclurait l'adresse de l'administrateur courant.
-- Audit : port `AuditRecorder` pour tracer aussi les refus (`outcome = denied`), route de consultation filtrable (acteur, cible, action, période) et export CSV/JSON borné ; index `audit_logs (created_at DESC)`.
+- Audit : réutiliser le port `AuditRecorder` (introduit par M) pour tracer aussi les refus (`outcome = denied`), route de consultation filtrable (acteur, cible, action, période) et export CSV/JSON borné ; index `audit_logs (created_at DESC)`.
 - Interface : onglets Sessions, Politique et Journal d'audit dans « Utilisateurs & accès ».
 - Risques : charge d'écriture de `last_seen_at`, horloge injectable pour les fenêtres de verrouillage.
 
@@ -133,7 +145,7 @@ Ordre de réalisation : 1A → 1B → 1C → 2 → 3 → 4 → 5 → 6 → 7 →
 
 ## 5. Décisions à trancher
 
-Ouvertes dans la spécification (`SPEC_ADMINISTRATION.md` § 10) : D-1 (édition Cron), D-2 (restauration en place), D-3 (pré-traitements de sauvegarde), D-4 (portées d'action des jetons), D-5 (actions et journaux Docker), D-6 (préférences système). Aucune ne bloque 1A–3.
+Ouvertes dans la spécification (`SPEC_ADMINISTRATION.md` § 10) : D-1 (édition Cron), D-2 (restauration en place), D-3 (pré-traitements de sauvegarde), D-4 (portées d'action des jetons), D-5 (actions et journaux Docker), D-6 (préférences système), et D-7 (rôle des actions d'alimentation) et D-8 (arrêt programmé) ajoutées avec le module M. Aucune ne bloque 1A–3 ; D-7 est tranchée provisoirement (`admin` seul).
 
 Questions nouvelles relevées en préparant ce plan, à trancher avant l'incrément indiqué :
 

@@ -41,3 +41,15 @@
 5. **HTTP et contrat** : routes, DTO, `API_CONTRACTS.md` (§ 4.7, événements § 6.2), `DATA_MODEL.md`, `SECURITY.md`.
 6. **Interface** : page, navigation, événements de service dans la page Événements.
 7. **État** : README, spécifications, tests ; parcours réel dans Chromium avec le binaire et un faux systemd sur un bus système privé (`DBUS_SYSTEM_BUS_ADDRESS`).
+
+## Bilan (23 novembre 2026)
+
+Livrée en sept commits (domaine, adaptateur, persistance, usecase, HTTP, interface, état). Constats :
+
+- **macOS** : godbus n'y lit pas `DBUS_SYSTEM_BUS_ADDRESS` mais `DBUS_LAUNCHD_SESSION_BUS_SOCKET` (un chemin de socket). Sans effet en production (Linux) ; pour un essai local contre un faux systemd, définir les deux.
+- **Chemin du socket de test** : `t.TempDir()` dépasse la limite de `sun_path` sous macOS (104 octets) ; les tests de l'adaptateur se replient alors sur un répertoire court de `/tmp`.
+- **Valeurs absentes dans l'interface** : sans collecte réussie, les compteurs sont masqués plutôt qu'affichés à 0 ; un temps CPU inférieur à une seconde s'affiche en millisecondes pour ne pas ressembler à un zéro.
+- **Noms échappés** : une unité dont le nom contient `\` (`systemd-fsck@dev-disk-by\x2duuid-….service`) figure dans l'inventaire, mais son détail est refusé par le motif du § 2.2 de la spécification.
+- **Inventaire tronqué** : au-delà de 2 000 unités, une unité non retenue qui était enregistrée en échec est oubliée sans événement, comme une unité disparue ; les unités en échec, retenues en premier, ne sont pas concernées.
+- **Non vérifié** : le parcours contre un vrai systemd (Debian 13), les droits D-Bus effectifs sous l'unité durcie et l'extrait du journal d'une unité (pas de `journalctl` sur macOS ; couvert par les tests).
+

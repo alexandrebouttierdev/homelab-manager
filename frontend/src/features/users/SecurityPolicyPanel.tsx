@@ -68,6 +68,20 @@ export function SecurityPolicyPanel() {
                 qui l'exclut est refusée. Derrière un proxy inverse, c'est l'adresse du proxy.
               </p>
             </div>
+            <label className="flex cursor-pointer items-start gap-2 text-sm text-text-primary">
+              <input
+                type="checkbox"
+                className="mt-1 h-3.5 w-3.5 accent-accent"
+                {...policy.register('requireAdminSecondFactor')}
+              />
+              <span>
+                Exiger la double authentification des administrateurs
+                <span className="block text-xs text-text-muted">
+                  Un administrateur sans second facteur ne pourra que l'activer. Activez d'abord le
+                  vôtre dans Paramètres.
+                </span>
+              </span>
+            </label>
             {policy.errorMessage && (
               <p className="text-xs text-danger" role="alert">
                 {policy.errorMessage}

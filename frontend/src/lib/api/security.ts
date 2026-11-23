@@ -18,6 +18,8 @@ export type SessionInfo = {
 export type SecurityPolicy = {
   idleTimeoutMinutes: number
   allowedNetworks: string[]
+  /** Administrators without a second factor are limited to its enrollment. */
+  requireAdminSecondFactor: boolean
   /** Address of this browser as seen by the Manager. */
   currentAddress: string
 }

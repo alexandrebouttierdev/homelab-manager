@@ -50,3 +50,25 @@ describe('toSessionRow', () => {
     expect(toSessionRow({ ...session, ipAddress: '' }).ipAddress).toBe('—')
   })
 })
+
+describe('authentication methods', () => {
+  it('names the second factor used', () => {
+    const base = {
+      id: 's',
+      userId: 'u',
+      username: 'alice',
+      ipAddress: '',
+      userAgent: '',
+      createdAt: '2026-11-23T08:00:00Z',
+      lastSeenAt: '2026-11-23T09:00:00Z',
+      expiresAt: '2026-11-23T20:00:00Z',
+      current: false,
+    }
+    expect(toSessionRow({ ...base, authMethod: 'password+totp' }).authMethod).toBe(
+      'Mot de passe + application',
+    )
+    expect(toSessionRow({ ...base, authMethod: 'password+recovery' }).authMethod).toBe(
+      'Mot de passe + code de secours',
+    )
+  })
+})

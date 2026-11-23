@@ -1,11 +1,18 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, useWatch } from 'react-hook-form'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { sessionQueryKey } from '../../hooks/useSession'
-import { login } from '../../lib/api/auth'
+import {
+  ApiError,
+  completeSecondFactor,
+  login,
+  needsSecondFactor,
+  type SessionUser,
+} from '../../lib/api/auth'
 import { loginSchema, type LoginValues } from '../../schemas/login'
+import { secondFactorLoginSchema, type SecondFactorLoginValues } from '../../schemas/secondFactor'
 
 const usernameStorageKey = 'homelab-manager-username'
 
@@ -39,17 +46,52 @@ export function useLogin() {
     defaultValues: { username: rememberedUsername, password: '' },
   })
 
+  const [challenged, setChallenged] = useState(false)
+  const [expiredMessage, setExpiredMessage] = useState<string | null>(null)
+  const codeForm = useForm<SecondFactorLoginValues>({
+    resolver: zodResolver(secondFactorLoginSchema),
+    defaultValues: { method: 'totp', code: '' },
+  })
+  const method = useWatch({ control: codeForm.control, name: 'method' })
+
+  const signedIn = (user: SessionUser) => {
+    queryClient.setQueryData(sessionQueryKey, { user })
+    navigate('/')
+  }
+
   const mutation = useMutation({
     mutationFn: (values: LoginValues) => login(values.username, values.password),
+    onMutate: () => setExpiredMessage(null),
     onSuccess: (result, values) => {
       rememberUsername(remember ? values.username : null)
-      queryClient.setQueryData(sessionQueryKey, result)
-      navigate('/')
+      if (needsSecondFactor(result)) {
+        codeForm.reset({ method: 'totp', code: '' })
+        setChallenged(true)
+        return
+      }
+      signedIn(result.user)
     },
   })
+  const second = useMutation({
+    mutationFn: (values: SecondFactorLoginValues) =>
+      completeSecondFactor(values.method, values.code),
+    onSuccess: (result) => signedIn(result.user),
+    onError: (error) => {
+      // The pending login is gone: back to the password, with the reason.
+      if (error instanceof ApiError && error.code === 'LOGIN_CHALLENGE_EXPIRED') {
+        setChallenged(false)
+        setExpiredMessage(error.message)
+        second.reset()
+      }
+    },
+  })
+  const switchMethod = (next: SecondFactorLoginValues['method']) => {
+    codeForm.reset({ method: next, code: '' })
+    second.reset()
+  }
 
   const state = location.state as { notice?: unknown } | null
-  const errorMessage = mutation.error?.message ?? null
+  const errorMessage = mutation.error?.message ?? expiredMessage
 
   return {
     register: form.register,
@@ -61,5 +103,22 @@ export function useLogin() {
     errorMessage,
     /** Message passed by the previous page (e.g. after a password change). */
     notice: typeof state?.notice === 'string' && !errorMessage ? state.notice : null,
+    /** Second step, once the password is accepted for an account with a second factor. */
+    secondFactor: challenged
+      ? {
+          method,
+          useRecoveryCode: () => switchMethod('recovery'),
+          useApp: () => switchMethod('totp'),
+          registerCode: codeForm.register,
+          codeError: codeForm.formState.errors.code?.message ?? null,
+          onSubmit: codeForm.handleSubmit((values) => second.mutate(values)),
+          isPending: second.isPending,
+          errorMessage: second.error?.message ?? null,
+          restart: () => {
+            setChallenged(false)
+            second.reset()
+          },
+        }
+      : null,
   }
 }

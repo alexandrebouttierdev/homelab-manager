@@ -1,6 +1,7 @@
 import { createBrowserRouter } from 'react-router-dom'
 import { LoginPage } from '../features/auth/LoginPage'
 import { ForcedPasswordChangePage } from '../features/auth/ForcedPasswordChangePage'
+import { SecondFactorSetupPage } from '../features/auth/SecondFactorSetupPage'
 import { DashboardPage } from '../features/dashboard/DashboardPage'
 import { HostPage } from '../features/host/HostPage'
 import { ContainersPage } from '../features/containers/ContainersPage'
@@ -20,6 +21,7 @@ import { AppLayout } from './AppLayout'
 export const router = createBrowserRouter([
   { path: '/login', element: <LoginPage /> },
   { path: '/password-change', element: <ForcedPasswordChangePage /> },
+  { path: '/second-factor-setup', element: <SecondFactorSetupPage /> },
   {
     element: (
       <RequireAuth>

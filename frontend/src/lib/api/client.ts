@@ -51,6 +51,16 @@ export const errorMessages: Record<string, string> = {
   SECURITY_POLICY_UPDATE_FAILED: "La politique de sécurité n'a pas pu être enregistrée.",
   AUDIT_UNAVAILABLE: "Journal d'audit momentanément indisponible.",
   OWN_PASSWORD_RESET: 'Changez votre propre mot de passe dans Paramètres.',
+  INVALID_SECOND_FACTOR: 'Code incorrect.',
+  LOGIN_CHALLENGE_EXPIRED: 'Délai dépassé : reconnectez-vous avec votre mot de passe.',
+  SECOND_FACTOR_REQUIRED: 'Activez la double authentification pour continuer.',
+  SECOND_FACTOR_UNAVAILABLE:
+    'Double authentification par application indisponible : la clé du coffre est absente. Utilisez un code de secours.',
+  SECOND_FACTOR_ALREADY_ENABLED: 'La double authentification est déjà activée.',
+  SECOND_FACTOR_NOT_ENABLED: "La double authentification n'est pas activée.",
+  NO_PENDING_ENROLLMENT: "Recommencez l'activation de la double authentification.",
+  SECOND_FACTOR_NOT_ENROLLED: "Activez d'abord votre propre double authentification.",
+  SECOND_FACTOR_UPDATE_FAILED: "La double authentification n'a pas pu être modifiée.",
   INTERNAL_ERROR: 'Erreur interne du Manager.',
 }
 

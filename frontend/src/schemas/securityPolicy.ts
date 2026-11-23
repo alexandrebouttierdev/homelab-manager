@@ -25,6 +25,7 @@ export const securityPolicySchema = z.object({
       (text) => networksFromText(text).every((network) => cidrPattern.test(network)),
       'Notation CIDR attendue, par exemple 192.168.1.0/24',
     ),
+  requireAdminSecondFactor: z.boolean(),
 })
 
 export type SecurityPolicyValues = z.infer<typeof securityPolicySchema>

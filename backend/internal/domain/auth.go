@@ -25,9 +25,12 @@ type User struct {
 	Role               Role
 	Disabled           bool
 	MustChangePassword bool
-	LastLoginAt        *time.Time
-	LastLoginIP        string
-	CreatedAt          time.Time
+	// MustEnrollSecondFactor is set when the policy requires a second
+	// factor from administrators and this one has none.
+	MustEnrollSecondFactor bool
+	LastLoginAt            *time.Time
+	LastLoginIP            string
+	CreatedAt              time.Time
 }
 
 // SessionTouchInterval bounds how often the last activity of a session is

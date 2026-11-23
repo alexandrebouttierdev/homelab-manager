@@ -26,6 +26,9 @@ var (
 // SecurityPolicy holds the security settings an administrator can change.
 type SecurityPolicy struct {
 	IdleTimeoutMinutes int
+	// RequireAdminSecondFactor limits administrators without a second
+	// factor to its enrollment.
+	RequireAdminSecondFactor bool
 	// AllowedNetworks limits the addresses that may use the interface; an
 	// empty list allows every address.
 	AllowedNetworks []netip.Prefix

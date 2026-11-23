@@ -76,7 +76,7 @@ Toutes les routes de supervision sont en lecture seule ; les seules écritures s
 - Succès `200` : `{ "user": { "id": "uuid", "username": "admin", "displayName": "admin", "role": "admin", "mustChangePassword": false, "mustEnrollSecondFactor": false } }` et cookie de session. Un compte désactivé reçoit `401 INVALID_CREDENTIALS`, comme un mot de passe faux.
 - Compte avec un second facteur : `200 { "secondFactorRequired": true, "methods": ["totp", "recovery"], "expiresAt": "…" }` et cookie de défi, **sans session** ; la connexion se termine par `POST /api/v1/auth/login/second-factor` (§ 3.5). `mustEnrollSecondFactor` (§ 3.3) : la politique exige un second facteur des administrateurs et ce compte n'en a pas ; toutes les routes authentifiées sauf la session, la déconnexion, le mot de passe et `/auth/second-factor*` répondent alors `403 SECOND_FACTOR_REQUIRED`.
 - Échec : `401 INVALID_CREDENTIALS`, identique que l'utilisateur existe ou non ; le temps de réponse est équivalent (une vérification Argon2id est faite dans les deux cas).
-- Limitation : 10 tentatives par minute et par adresse IP source, au-delà `429 RATE_LIMITED` (fenêtre fixe d'une minute, au plus 10 000 adresses suivies).
+- Limitation : 10 tentatives par minute et par adresse IP source, au-delà `429 RATE_LIMITED` (fenêtre fixe d'une minute, au plus 10 000 adresses suivies). Le compteur est partagé avec `POST /auth/login/second-factor` : une connexion en deux étapes compte deux tentatives.
 - Contrôle d'origine identique aux mutations (ci-dessous).
 
 **Cookie** — nom `homelab_session`, `HttpOnly`, `SameSite=Lax`, `Path=/`, `Secure` si TLS est activé ou `HOMELAB_SESSION_SECURE=true`. Durée de vie fixe de 12 heures, sans prolongation. Seul le SHA-256 du jeton (32 octets aléatoires) est stocké.

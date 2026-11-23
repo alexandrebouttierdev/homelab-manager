@@ -82,14 +82,16 @@ Ordre de réalisation : 1A → M → 1B → 1C → 2 → 3 → 4 → 5 → 6 →
 - Interface : onglets Sessions, Politique et Journal d'audit dans « Utilisateurs & accès ».
 - Risques : charge d'écriture de `last_seen_at`, horloge injectable pour les fenêtres de verrouillage.
 
-### 1C — Coffre de secrets et second facteur
+### 1C — Coffre de secrets et second facteur (livrée)
 
-- Coffre : clé maître lue depuis `$CREDENTIALS_DIRECTORY` (`LoadCredentialEncrypted=` dans l'unité systemd), AES-256-GCM, nonce aléatoire, empreinte SHA-256 tronquée pour l'affichage ; démarrage en mode dégradé explicite si la clé manque (fonctions 2FA indisponibles, supervision intacte). Documentation `systemd-creds encrypt` dans le README.
-- TOTP interne (RFC 6238, SHA-1, 6 chiffres, 30 s, ±1 période, anti-rejeu) avec vecteurs de test de la RFC ; enrôlement par QR code (bibliothèque de génération à justifier, ou SVG produit côté serveur).
-- 10 codes de secours affichés une fois, stockés hachés.
-- Connexion en deux étapes : jeton d'étape intermédiaire court (5 min), puis `POST /auth/login/second-factor`.
-- Politique « 2FA obligatoire pour les administrateurs » (défaut : désactivée tant qu'aucun facteur n'est enrôlé).
-- Tables : `totp_secrets`, `recovery_codes`, `secrets` (si le coffre est générique).
+- Plan : [2026-11-23-phase-1c-second-facteur.md](./2026-11-23-phase-1c-second-facteur.md).
+- Coffre : clé maître de 32 octets importée par systemd (`ImportCredential=homelab-manager-secrets-key`, chiffrée par `systemd-creds`) ou lue dans `secrets_key_file` ; AES-256-GCM, nonce aléatoire, UUID du compte en données associées ; mode dégradé explicite si la clé manque (TOTP indisponible, codes de secours et supervision intacts). Commande `systemd-creds encrypt` dans le README.
+- TOTP interne (RFC 6238, SHA-1, 6 chiffres, 30 s, ±1 période, anti-rejeu par `last_used_step`) avec les vecteurs de la RFC ; QR code par `rsc.io/qr` v0.2.0, matrice dessinée en SVG par l'interface.
+- 10 codes de secours affichés une fois, stockés en SHA-256, usage unique.
+- Connexion en deux étapes : défi en mémoire de 5 minutes (cookie `homelab_login`), puis `POST /auth/login/second-factor` ; les codes faux comptent dans le verrouillage.
+- Politique « second facteur obligatoire pour les administrateurs », activable seulement par un administrateur qui en a un ; les autres sont limités à l'enrôlement.
+- Tables : `totp_secrets`, `recovery_codes` (migration `005`) ; pas encore de table `secrets` générique (phases 4 et 6).
+- Parcours vérifié dans Chromium contre le binaire réel : enrôlement, QR code décodé, anti-rejeu, codes de secours, obligation pour un nouvel administrateur, mode dégradé sans clé.
 
 ### 2 — Journaux système
 
@@ -156,6 +158,7 @@ Questions nouvelles relevées en préparant ce plan, à trancher avant l'incrém
 | Q-1 | Un administrateur peut-il réinitialiser le mot de passe d'un autre compte ? | **Tranchée (oui)** le 23 novembre 2026 : nouveau mot de passe initial à changer, sessions révoquées, verrouillage levé ; livrée après 1B. | — |
 | Q-2 | Le compte `admin` créé avec le mot de passe par défaut `admin` doit-il être forcé à changer de mot de passe ? | **Tranchée (oui)** le 23 novembre 2026 : changement imposé à la création, et au démarrage si le compte accepte encore `admin` ; livrée après 1B. | — |
 | Q-3 | Les refus d'autorisation (`403 FORBIDDEN`) et les refus métier (`LAST_ADMIN`) sont-ils audités ? | Oui, avec `outcome = denied`, à partir de 1B (port `AuditRecorder`). En 1A, ils sont journalisés par zap avec le `request_id`. | 1B |
+| Q-5 | Faut-il une procédure dans l'interface pour retirer le second facteur d'un compte qui a perdu son appareil et ses codes de secours ? | Non pour l'instant : un administrateur supprime et recrée le compte ; pour le dernier administrateur, procédure SQLite documentée dans le README (non auditée). À réexaminer avec WebAuthn. | 8 |
 | Q-4 | Lever les limites v2.1 (pagination par curseur, images/volumes/réseaux inutilisés) ? La seconde exige d'ajouter au proxy des routes GET `images/json`, `volumes`, `networks`. | À planifier après la phase 3, si le besoin est confirmé. | Option |
 
 ## 6. Vérifications manuelles à chaque version

@@ -53,7 +53,7 @@ Utilisateurs et accès, journaux système, services système, alertes et notific
 
 ## 4. Sécurité et limites
 
-- Authentification locale par identifiant et mot de passe.
+- Authentification locale par identifiant et mot de passe, second facteur TOTP ou code de secours si le compte en a un.
 - Pas de communication de collecte entre machines.
 - Pas d'exécution de commandes arbitraires sur l'hôte ou dans les conteneurs.
 - Le navigateur ne reçoit jamais accès au socket Docker ou à son proxy.
@@ -80,7 +80,7 @@ Présent dans le dépôt : module Backend unique, authentification locale (compt
 Limites connues, à ne pas présenter comme fonctionnelles :
 
 - Listes de conteneurs et d'événements plafonnées sans pagination (API_CONTRACTS.md § 9.1).
-- Modules d'administration (SPEC_ADMINISTRATION.md) : sont livrés les comptes multiples et les rôles (phase 1A), les sessions, le verrouillage, la politique de sécurité et le journal d'audit consultable (phase 1B) ainsi que le redémarrage et l'extinction de la machine (module M, désactivé par défaut) ; les autres entrées de navigation restent marquées « à venir ».
+- Modules d'administration (SPEC_ADMINISTRATION.md) : sont livrés les comptes multiples et les rôles (phase 1A), les sessions, le verrouillage, la politique de sécurité et le journal d'audit consultable (phase 1B), la double authentification par application TOTP et codes de secours avec son coffre de secrets (phase 1C) ainsi que le redémarrage et l'extinction de la machine (module M, désactivé par défaut) ; les autres entrées de navigation restent marquées « à venir ».
 - Images, volumes et réseaux Docker sont déduits de l'inventaire des conteneurs : une image, un volume ou un réseau inutilisé n'apparaît pas.
 - Aucune notification ni alerte, aucun journal de conteneur.
 - Le passage de PostgreSQL à SQLite ne migre pas les données existantes.
@@ -97,7 +97,7 @@ Ouvertes : voir SPEC_ADMINISTRATION.md § 10.
 
 ## 8. Historique
 
-- 2.3 — 23 novembre 2026 : sessions consultables et révocables, expiration par inactivité, verrouillage de compte, réseaux autorisés, journal d'audit consultable et exportable, audit des refus (phase 1B).
+- 2.3 — 23 novembre 2026 : sessions consultables et révocables, expiration par inactivité, verrouillage de compte, réseaux autorisés, journal d'audit consultable et exportable, audit des refus (phase 1B) ; réinitialisation de mot de passe par un administrateur et changement imposé du mot de passe par défaut ; coffre de secrets, double authentification TOTP, codes de secours et second facteur exigible des administrateurs (phase 1C).
 - 2.2 — 23 novembre 2026 : comptes multiples, rôles `viewer` / `operator` / `admin`, mot de passe initial à changer, rétention réservée aux administrateurs (phase 1A des modules d'administration) ; redémarrage et extinction de la machine par logind et polkit, réservés aux administrateurs et désactivés par défaut (module M).
 - 2.1 — 22 novembre 2026 : stockage SQLite embarqué, compte initial `admin` / `admin`, contrats API exacts, état `stale`, vues courantes sur le dernier cycle complet, purge horaire, agrégation des historiques et filtre par label, rétention réglable (7 jours par défaut), spécification des modules d'administration v3.
 - 2.0 — 21 novembre 2026 : périmètre mono-machine, abandon de l'Agent distant.

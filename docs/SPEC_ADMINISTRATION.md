@@ -1,6 +1,6 @@
 # Spécification des modules d'administration — Homelab Manager
 
-Version 3.0 (brouillon) — 22 novembre 2026 — **partiellement implémenté** : comptes multiples et rôles (§§ 3.1–3.2, phase 1A), sessions, politique de sécurité hors second facteur et journal d'audit (§§ 3.4–3.5, phase 1B) et redémarrage et extinction de la machine (§ 8 bis, module M), le 23 novembre 2026.
+Version 3.0 (brouillon) — 22 novembre 2026 — **partiellement implémenté** : comptes multiples et rôles (§§ 3.1–3.2, phase 1A), sessions, politique de sécurité et journal d'audit (§§ 3.4–3.5, phase 1B), coffre de secrets, TOTP et codes de secours (§§ 2.5, 3.3 hors WebAuthn, phase 1C) et redémarrage et extinction de la machine (§ 8 bis, module M), le 23 novembre 2026.
 
 Ce document spécifie les modules annoncés « à venir » dans la navigation : utilisateurs et accès, journaux système, services système, alertes et notifications, sauvegardes, tâches planifiées, ainsi que le redémarrage et l'extinction de la machine (§ 8 bis, ajouté le 23 novembre 2026). Il s'appuie sur les maquettes de `maquette/` et en fixe le périmètre réel : une maquette montre une intention visuelle, ce document fait foi. Tant qu'un module n'est pas livré, il reste désactivé dans l'interface et ses routes n'existent pas.
 
@@ -67,7 +67,7 @@ Le TOTP (RFC 6238) est implémenté en interne avec `crypto/hmac` (une cinquanta
 
 ### 2.5 Secrets
 
-Les secrets que le Manager doit pouvoir réutiliser (jetons de notification, mots de passe de dépôts restic, identifiants S3) sont chiffrés en AES-256-GCM avec une clé maître. Cette clé est fournie par systemd via `LoadCredentialEncrypted=` (`systemd-creds`, liée au TPM 2.0 si présent, à défaut à la clé hôte). Les secrets ne sont jamais renvoyés par l'API après leur saisie : l'interface affiche seulement « défini » et l'empreinte SHA-256 tronquée. Les « scellements PCR[7] par variable » des maquettes ne sont pas retenus.
+Les secrets que le Manager doit pouvoir réutiliser (jetons de notification, mots de passe de dépôts restic, identifiants S3) sont chiffrés en AES-256-GCM avec une clé maître. Cette clé est fournie par systemd via `LoadCredentialEncrypted=` (`systemd-creds`, liée au TPM 2.0 si présent, à défaut à la clé hôte). Mise en œuvre (phase 1C) : `ImportCredential=`, qui lit le même fichier chiffré dans `/etc/credstore.encrypted/` sans empêcher le démarrage s'il manque ; sans clé, le Manager démarre en mode dégradé explicite (TOTP indisponible, codes de secours utilisables). Premier usage : les secrets TOTP, avec l'UUID du compte en données associées. Les secrets ne sont jamais renvoyés par l'API après leur saisie : l'interface affiche seulement « défini » et l'empreinte SHA-256 tronquée. Les « scellements PCR[7] par variable » des maquettes ne sont pas retenus.
 
 ## 3. Utilisateurs et accès (module U) — maquettes `utilisateurs_acc_s_2fa_webauthn_*`, `connexion_s_curis_e_login_*`
 
@@ -233,7 +233,7 @@ Ajouté le 23 novembre 2026 à la demande du propriétaire du projet : redémarr
 
 | Phase | Contenu | Prérequis |
 |---|---|---|
-| 1 | Module U : rôles, comptes multiples, TOTP, codes de secours, sessions, audit consultable, verrouillage. **1A et 1B livrées** (rôles, comptes, sessions, verrouillage, politique, audit) ; reste : TOTP, codes de secours, second facteur obligatoire (1C) | — |
+| 1 | Module U : rôles, comptes multiples, TOTP, codes de secours, sessions, audit consultable, verrouillage. **Livré** (1A : rôles et comptes ; 1B : sessions, verrouillage, politique, audit ; 1C : coffre de secrets, TOTP, codes de secours, second facteur obligatoire). WebAuthn suit en phase 8 | — |
 | 1 bis | Module M : redémarrer et éteindre la machine. **Livré** | Rôles (phase 1, premier incrément), polkit |
 | 2 | Module J (lecture du journal) | Groupe `systemd-journal` |
 | 3 | Module S en lecture, événements `service.failed` | D-Bus |

@@ -44,6 +44,7 @@ Homelab Manager supervise **une seule machine Linux : celle qui l'héberge**. Le
 
 - Comptes multiples, rôles `viewer`, `operator`, `admin`
 - Mot de passe initial imposé, réinitialisation par un administrateur
+- Double authentification : application TOTP, codes de secours, exigible des administrateurs
 - Sessions consultables et révocables, expiration après inactivité
 - Verrouillage après 5 échecs, réseaux autorisés (CIDR)
 - Journal d'audit filtrable, export CSV et JSON
@@ -109,7 +110,17 @@ Chaque release publie, pour Linux `amd64` et `arm64`, une archive contenant les 
 
    Les secrets éventuels (`HOMELAB_ADMIN_PASSWORD`, …) vont dans `/etc/homelab-manager/manager.env`, en mode `0600`.
 
-4. **Démarrer** :
+4. **Créer la clé du coffre de secrets** (nécessaire à la double authentification) : 32 octets aléatoires, chiffrés par `systemd-creds` avec le TPM 2.0 de la machine s'il existe, sinon avec la clé de l'hôte. L'unité les importe au démarrage (`ImportCredential=`) ; la clé n'est lisible que par le service.
+
+   ```bash
+   sudo mkdir -p /etc/credstore.encrypted
+   head -c 32 /dev/urandom | base64 | sudo systemd-creds encrypt \
+     --name=homelab-manager-secrets-key - /etc/credstore.encrypted/homelab-manager-secrets-key
+   ```
+
+   Sans cette clé, le Manager démarre quand même : la supervision fonctionne, mais la double authentification ne peut pas être activée et les codes d'application sont refusés (les codes de secours restent valables). Le journal du service l'indique au démarrage.
+
+5. **Démarrer** :
 
    ```bash
    sudo systemctl daemon-reload
@@ -117,7 +128,7 @@ Chaque release publie, pour Linux `amd64` et `arm64`, une archive contenant les 
    journalctl -u homelab-manager -n 20   # la version démarrée y est journalisée
    ```
 
-5. Ouvrir `http://<machine>:8080`. Sans `HOMELAB_ADMIN_PASSWORD`, le premier compte est `admin` / `admin` et **l'interface impose d'en choisir un autre dès la première connexion**.
+6. Ouvrir `http://<machine>:8080`. Sans `HOMELAB_ADMIN_PASSWORD`, le premier compte est `admin` / `admin` et **l'interface impose d'en choisir un autre dès la première connexion**.
 
 **Mise à jour** : sauvegarder la base (voir plus bas), arrêter `homelab-manager.service`, remplacer les binaires et `/opt/homelab-manager/frontend/dist`, puis redémarrer. Les migrations SQLite s'appliquent seules au démarrage.
 
@@ -138,7 +149,7 @@ Prérequis : Go `1.26.10` ou plus récent, Node.js 22 et npm. Docker Engine est 
    scripts/dev.sh
    ```
 
-   Vite écoute sur `http://127.0.0.1:5173` et transmet `/api` au Manager sur le port 8080. La base SQLite est créée au premier démarrage (`backend/data/homelab-manager.db` en développement) et les migrations versionnées sont appliquées automatiquement.
+   Vite écoute sur `http://127.0.0.1:5173` et transmet `/api` au Manager sur le port 8080. La base SQLite est créée au premier démarrage (`backend/data/homelab-manager.db` en développement) et les migrations versionnées sont appliquées automatiquement. Le script crée aussi une clé de coffre de développement, `backend/data/secrets.key` (non versionnée), pour essayer la double authentification.
 
 Pour lancer les processus séparément :
 
@@ -187,6 +198,7 @@ La configuration est lue dans `manager.yaml` ([deployments/config/manager.yaml](
 | `HOMELAB_DOCKER_PROXY_SOCKET` | Socket du proxy local restreint |
 | `HOMELAB_DOCKER_ENGINE_SOCKET` | Socket Engine lu par le proxy, pas par le Manager |
 | `HOMELAB_WEB_ROOT` | Répertoire `dist` servi par le Manager |
+| `HOMELAB_SECRETS_KEY_FILE` | Fichier de la clé du coffre de secrets (32 octets en base64). Vide : la clé importée par systemd, `$CREDENTIALS_DIRECTORY/homelab-manager-secrets-key`. Absente ou invalide : double authentification indisponible, le reste fonctionne |
 | `HOMELAB_POWER_ACTIONS_ENABLED` | Autorise Redémarrer / Éteindre depuis la page Machine (défaut `false`) ; exige aussi la règle polkit |
 
 Ne pas enregistrer les secrets de production dans Git. Protéger le fichier d'environnement du service.
@@ -209,6 +221,23 @@ sudo systemctl start homelab-manager
 ```
 
 Un compte verrouillé après 5 mots de passe faux se déverrouille seul au bout de 15 minutes, ou immédiatement si un administrateur réinitialise son mot de passe.
+
+### Double authentification
+
+Chaque utilisateur l'active dans « Configuration » › Double authentification : mot de passe actuel, QR code à scanner (Aegis, Google Authenticator, 1Password…), premier code, puis 10 codes de secours affichés une seule fois. La connexion demande ensuite un code après le mot de passe. Dans « Utilisateurs & accès » › Politique, un administrateur qui l'a lui-même activée peut l'exiger de tous les administrateurs : ceux qui ne l'ont pas encore ne peuvent plus que l'activer.
+
+**Appareil perdu** : se connecter avec un code de secours, puis désactiver et réactiver la double authentification (ou régénérer les codes). **Appareil et codes perdus** : un autre administrateur supprime le compte et le recrée. S'il s'agit du dernier administrateur, retirer son second facteur en base, service arrêté :
+
+```bash
+sudo systemctl stop homelab-manager
+sudo -u homelab-manager sqlite3 /var/lib/homelab-manager/homelab-manager.db <<'SQL'
+DELETE FROM recovery_codes WHERE user_id = (SELECT id FROM users WHERE username = 'admin');
+DELETE FROM totp_secrets WHERE id = (SELECT id FROM users WHERE username = 'admin');
+SQL
+sudo systemctl start homelab-manager
+```
+
+Cette intervention n'est pas tracée dans le journal d'audit. **Clé du coffre perdue ou remplacée** : les secrets TOTP existants deviennent illisibles ; chaque utilisateur se connecte avec un code de secours, puis désactive et réactive la double authentification. Sauvegarder la clé chiffrée avec la base ne suffit pas toujours : liée au TPM, elle ne se déchiffre que sur cette machine.
 
 ### Redémarrer et éteindre depuis l'interface (optionnel)
 
@@ -246,8 +275,8 @@ La première release est `v2.3.0`, alignée sur la [spécification produit](docs
 
 ## État et limites connues
 
-- **Livré** : supervision système et Docker, historique, événements, comptes et rôles, sessions, politique de sécurité, journal d'audit, redémarrage et extinction (optionnels).
-- **Spécifié, pas encore implémenté** : second facteur (TOTP, passkeys), coffre de secrets, journaux système, services systemd, alertes et notifications, sauvegardes restic, tâches planifiées. Voir [docs/SPEC_ADMINISTRATION.md](docs/SPEC_ADMINISTRATION.md) et la [feuille de route](docs/superpowers/plans/2026-11-23-feuille-de-route-v3.md).
+- **Livré** : supervision système et Docker, historique, événements, comptes et rôles, sessions, politique de sécurité, journal d'audit, double authentification (TOTP et codes de secours), redémarrage et extinction (optionnels).
+- **Spécifié, pas encore implémenté** : passkeys (WebAuthn) et jetons d'API, journaux système, services systemd, alertes et notifications, sauvegardes restic, tâches planifiées. Voir [docs/SPEC_ADMINISTRATION.md](docs/SPEC_ADMINISTRATION.md) et la [feuille de route](docs/superpowers/plans/2026-11-23-feuille-de-route-v3.md).
 - Historiques bruts ou agrégés, 2 000 points au plus par requête ; l'interface choisit le pas selon la période.
 - À l'intervalle par défaut (10 s), la base croît d'environ 300 Mo par jour jusqu'à la rétention : ≈ 2 Go pour 7 jours.
 - Listes bornées, sans pagination ; images, volumes et réseaux Docker déduits des conteneurs.

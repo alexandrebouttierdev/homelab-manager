@@ -361,7 +361,7 @@ Lecture seule des unités systemd par D-Bus (SPEC_ADMINISTRATION.md § 5.1), ouv
 }
 ```
 
-- `status` : `pending` (aucun cycle terminé depuis le démarrage), `ok`, `error` (systemd a répondu par une erreur ou le cycle a dépassé son délai), `unavailable` (pas de bus système ou pas de systemd, par exemple hors Linux). Après un échec, `units`, `counts` et `collectedAt` restent ceux du dernier cycle réussi ; `collectedAt` est `null` tant qu'aucun cycle n'a réussi.
+- `status` : `pending` (aucun cycle terminé depuis le démarrage), `ok`, `error` (systemd a répondu par une erreur ou le cycle a dépassé son délai), `unavailable` (pas de bus système ou pas de systemd, par exemple hors Linux, ou systemd installé mais non démarré : son activation par le bus échoue). Après un échec, `units`, `counts` et `collectedAt` restent ceux du dernier cycle réussi ; `collectedAt` est `null` tant qu'aucun cycle n'a réussi.
 - `counts` : `active` et `failed` comptent les `activeState` `active` et `failed` ; `activeTimers`, les timers `active`.
 - Valeurs absentes, jamais `0` : `mainPid` (pas de processus principal), `memoryBytes` et `cpuNanoseconds` (comptabilité désactivée, `UINT64_MAX` pour systemd ; services seulement), `stateChangedAt`, `nextElapse` et `lastTrigger` (horodatage 0, jamais ; ces deux derniers pour les timers seulement), `unitFileState` et `result` (non fournis) valent `null`.
 - `triggers` : unités démarrées par un timer ou un socket ; `[]` sinon.

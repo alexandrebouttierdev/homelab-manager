@@ -8,6 +8,7 @@ import (
 	"math"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"slices"
 	"strings"
 	"sync"
@@ -24,9 +25,27 @@ import (
 // characters) under sun_path: 104 bytes on macOS, 108 on Linux.
 const maxSocketDir = 80
 
+// busConfig is a session bus that activates services only from its own
+// directory: the host's activation files (systemd installs one for
+// org.freedesktop.systemd1 that runs /bin/false) must not change a test.
+const busConfig = `<!DOCTYPE busconfig PUBLIC "-//freedesktop//DTD D-Bus Bus Configuration 1.0//EN"
+ "http://www.freedesktop.org/standards/dbus/1.0/busconfig.dtd">
+<busconfig>
+  <type>session</type>
+  <listen>unix:dir=%s</listen>
+  <servicedir>%s</servicedir>
+  <policy context="default">
+    <allow send_destination="*" eavesdrop="true"/>
+    <allow eavesdrop="true"/>
+    <allow own="*"/>
+  </policy>
+</busconfig>
+`
+
 // startBus runs a private dbus-daemon for the test and returns its address.
+// activatable maps a bus name to the program the bus runs to activate it.
 // The test is skipped when dbus-daemon is missing; CI installs it.
-func startBus(t *testing.T) string {
+func startBus(t *testing.T, activatable map[string]string) string {
 	t.Helper()
 	daemon, err := exec.LookPath("dbus-daemon")
 	if err != nil {
@@ -41,7 +60,21 @@ func startBus(t *testing.T) string {
 		}
 		t.Cleanup(func() { _ = os.RemoveAll(dir) })
 	}
-	cmd := exec.Command(daemon, "--session", "--nofork", "--print-address=1", "--address=unix:dir="+dir)
+	services := filepath.Join(dir, "services")
+	if err := os.Mkdir(services, 0o700); err != nil {
+		t.Fatal(err)
+	}
+	for name, program := range activatable {
+		file := fmt.Sprintf("[D-BUS Service]\nName=%s\nExec=%s\n", name, program)
+		if err := os.WriteFile(filepath.Join(services, name+".service"), []byte(file), 0o600); err != nil {
+			t.Fatal(err)
+		}
+	}
+	config := filepath.Join(dir, "bus.conf")
+	if err := os.WriteFile(config, []byte(fmt.Sprintf(busConfig, dir, services)), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	cmd := exec.Command(daemon, "--config-file="+config, "--nofork", "--print-address=1")
 	stdout, err := cmd.StdoutPipe()
 	if err != nil {
 		t.Fatal(err)
@@ -232,7 +265,7 @@ func sampleSystemd() *fakeSystemd {
 }
 
 func TestUnitsReadsTheInventoryFailedFirst(t *testing.T) {
-	address := startBus(t)
+	address := startBus(t, nil)
 	fake := sampleSystemd()
 	serve(t, address, fake)
 
@@ -288,7 +321,7 @@ func TestUnitsReadsTheInventoryFailedFirst(t *testing.T) {
 }
 
 func TestUnitReadsTheDetail(t *testing.T) {
-	address := startBus(t)
+	address := startBus(t, nil)
 	fake := sampleSystemd()
 	serve(t, address, fake)
 
@@ -322,7 +355,7 @@ func TestUnitReadsTheDetail(t *testing.T) {
 }
 
 func TestUnitReportsAnUnknownUnit(t *testing.T) {
-	address := startBus(t)
+	address := startBus(t, nil)
 	fake := sampleSystemd()
 	serve(t, address, fake)
 	reader := New(connector(address))
@@ -335,7 +368,25 @@ func TestUnitReportsAnUnknownUnit(t *testing.T) {
 }
 
 func TestReaderReportsABusWithoutSystemd(t *testing.T) {
-	address := startBus(t)
+	address := startBus(t, nil)
+	reader := New(connector(address))
+	if _, err := reader.Units(context.Background()); !errors.Is(err, domain.ErrSystemdUnavailable) {
+		t.Fatalf("Units = %v, want ErrSystemdUnavailable", err)
+	}
+	if _, err := reader.Unit(context.Background(), "ssh.service"); !errors.Is(err, domain.ErrSystemdUnavailable) {
+		t.Fatalf("Unit = %v, want ErrSystemdUnavailable", err)
+	}
+}
+
+// Debian's systemd package installs an activation file for
+// org.freedesktop.systemd1 that runs /bin/false: on a bus where systemd is
+// not running, a call fails with Spawn.ChildExited instead of ServiceUnknown.
+func TestReaderReportsAFailedSystemdActivation(t *testing.T) {
+	program, err := exec.LookPath("false")
+	if err != nil {
+		t.Skip("false is not installed")
+	}
+	address := startBus(t, map[string]string{"org.freedesktop.systemd1": program})
 	reader := New(connector(address))
 	if _, err := reader.Units(context.Background()); !errors.Is(err, domain.ErrSystemdUnavailable) {
 		t.Fatalf("Units = %v, want ErrSystemdUnavailable", err)

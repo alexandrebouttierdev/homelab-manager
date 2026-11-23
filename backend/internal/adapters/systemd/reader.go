@@ -40,6 +40,11 @@ var unavailable = map[string]bool{
 	"org.freedesktop.DBus.Error.Disconnected":   true,
 }
 
+// spawnErrors prefixes the D-Bus errors of a failed service activation.
+// systemd installs an activation file for its own name that runs /bin/false,
+// so a bus where systemd is not running answers Spawn.ChildExited.
+const spawnErrors = "org.freedesktop.DBus.Error.Spawn."
+
 // vanished are the D-Bus errors of a unit unloaded between two calls, or
 // of a property interface the unit does not have.
 var vanished = map[string]bool{
@@ -240,17 +245,25 @@ func readUnit(ctx context.Context, conn *dbus.Conn, path dbus.ObjectPath, name s
 	return unit, props, nil
 }
 
-func isNamed(err error, names map[string]bool) bool {
+// errorName is the name of a D-Bus error, "" for any other error.
+func errorName(err error) string {
 	var dbusErr dbus.Error
 	if errors.As(err, &dbusErr) {
-		return names[dbusErr.Name]
+		return dbusErr.Name
 	}
 	var dbusErrPtr *dbus.Error
-	return errors.As(err, &dbusErrPtr) && names[dbusErrPtr.Name]
+	if errors.As(err, &dbusErrPtr) {
+		return dbusErrPtr.Name
+	}
+	return ""
+}
+
+func isNamed(err error, names map[string]bool) bool {
+	return names[errorName(err)]
 }
 
 func translate(action string, err error) error {
-	if isNamed(err, unavailable) {
+	if isNamed(err, unavailable) || strings.HasPrefix(errorName(err), spawnErrors) {
 		return fmt.Errorf("%w: %s: %v", domain.ErrSystemdUnavailable, action, err)
 	}
 	return fmt.Errorf("%s: %w", action, err)

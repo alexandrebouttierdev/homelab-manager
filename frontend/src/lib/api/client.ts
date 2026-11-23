@@ -50,6 +50,7 @@ export const errorMessages: Record<string, string> = {
   SESSION_REVOKE_FAILED: "La session n'a pas pu être révoquée.",
   SECURITY_POLICY_UPDATE_FAILED: "La politique de sécurité n'a pas pu être enregistrée.",
   AUDIT_UNAVAILABLE: "Journal d'audit momentanément indisponible.",
+  OWN_PASSWORD_RESET: 'Changez votre propre mot de passe dans Paramètres.',
   INTERNAL_ERROR: 'Erreur interne du Manager.',
 }
 

@@ -27,6 +27,51 @@ export function AccountsPanel() {
         </p>
       )}
 
+      {page.pendingReset && (
+        <Card>
+          <CardBody>
+            <form className="flex flex-wrap items-end gap-3" onSubmit={page.onReset} noValidate>
+              <Field
+                id="resetPassword"
+                label="Nouveau mot de passe initial"
+                error={page.resetErrors.password?.message}
+              >
+                <input
+                  id="resetPassword"
+                  type="password"
+                  autoComplete="new-password"
+                  className={inputClass}
+                  {...page.registerReset('password')}
+                />
+              </Field>
+              <p className="basis-full text-xs text-text-secondary sm:basis-auto">
+                « {page.pendingReset.username} » devra le changer à sa prochaine connexion ; ses
+                sessions sont révoquées.
+              </p>
+              <div className="flex gap-2">
+                <Button size="sm" onClick={page.cancelReset}>
+                  Annuler
+                </Button>
+                <Button type="submit" size="sm" variant="primary" loading={page.isResetting}>
+                  Confirmer la réinitialisation
+                </Button>
+              </div>
+            </form>
+            {page.resetError && (
+              <p className="mt-2 text-xs text-danger" role="alert">
+                {page.resetError}
+              </p>
+            )}
+          </CardBody>
+        </Card>
+      )}
+      {page.resetDone && (
+        <p className="text-xs text-success" role="status">
+          Mot de passe de {page.resetDone} réinitialisé : à changer à sa prochaine connexion.
+          Transmettez-le à son titulaire.
+        </p>
+      )}
+
       {page.pendingDeletion && (
         <Card className="border-danger/40">
           <CardBody className="flex flex-wrap items-center justify-between gap-3">
@@ -105,6 +150,16 @@ export function AccountsPanel() {
                     >
                       {row.toggleLabel}
                     </Button>
+                    {!row.isSelf && (
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        aria-label={`Réinitialiser le mot de passe de ${row.username}`}
+                        onClick={() => page.askReset(row)}
+                      >
+                        Réinitialiser
+                      </Button>
+                    )}
                     <Button
                       size="sm"
                       variant="danger"

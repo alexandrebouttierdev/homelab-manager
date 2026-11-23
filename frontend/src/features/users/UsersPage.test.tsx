@@ -10,7 +10,12 @@ import {
   revokeSession,
   updateSecurityPolicy,
 } from '../../lib/api/security'
-import { deleteAccount, listAccounts, type Account } from '../../lib/api/users'
+import {
+  deleteAccount,
+  listAccounts,
+  resetAccountPassword,
+  type Account,
+} from '../../lib/api/users'
 import { UsersPage } from './UsersPage'
 
 vi.mock('../../lib/api/users', () => ({
@@ -18,6 +23,7 @@ vi.mock('../../lib/api/users', () => ({
   createAccount: vi.fn(),
   updateAccount: vi.fn(),
   deleteAccount: vi.fn(),
+  resetAccountPassword: vi.fn(),
 }))
 
 vi.mock('../../lib/api/security', () => ({
@@ -202,5 +208,31 @@ describe('UsersPage', () => {
     await user.click(await screen.findByRole('button', { name: 'Révoquer la session curl de bob' }))
     await waitFor(() => expect(revokeSession).toHaveBeenCalledWith('bob-session'))
     expect(listSessions).toHaveBeenCalledWith(true)
+  })
+
+  it('resets the password of another account', async () => {
+    vi.mocked(listAccounts).mockResolvedValue([admin, alice])
+    vi.mocked(resetAccountPassword).mockResolvedValue({ ...alice, mustChangePassword: true })
+    const user = userEvent.setup()
+    renderPage()
+
+    await screen.findByText('alice')
+    expect(
+      screen.queryByRole('button', { name: 'Réinitialiser le mot de passe de admin' }),
+    ).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Réinitialiser le mot de passe de alice' }))
+    const input = screen.getByLabelText('Nouveau mot de passe initial')
+    await user.type(input, 'short')
+    await user.click(screen.getByRole('button', { name: 'Confirmer la réinitialisation' }))
+    expect(await screen.findAllByText('Au moins 12 caractères')).not.toHaveLength(0)
+    expect(resetAccountPassword).not.toHaveBeenCalled()
+
+    await user.clear(input)
+    await user.type(input, 'reset-password-1')
+    await user.click(screen.getByRole('button', { name: 'Confirmer la réinitialisation' }))
+    await waitFor(() =>
+      expect(resetAccountPassword).toHaveBeenCalledWith('alice-id', 'reset-password-1'),
+    )
+    expect(await screen.findByText(/Mot de passe de alice réinitialisé/)).toBeInTheDocument()
   })
 })

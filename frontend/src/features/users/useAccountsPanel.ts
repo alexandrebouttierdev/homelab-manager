@@ -9,11 +9,17 @@ import {
   createAccount,
   deleteAccount,
   listAccounts,
+  resetAccountPassword,
   updateAccount,
   type AccountChange,
 } from '../../lib/api/users'
 import { isRole, roleOptions } from '../../lib/roles'
-import { accountSchema, type AccountValues } from '../../schemas/account'
+import {
+  accountSchema,
+  passwordResetSchema,
+  type AccountValues,
+  type PasswordResetValues,
+} from '../../schemas/account'
 
 export const accountsQueryKey = ['accounts'] as const
 
@@ -47,6 +53,21 @@ export function useAccountsPanel() {
     onSettled: refresh,
   })
 
+  const [pendingReset, setPendingReset] = useState<AccountRow | null>(null)
+  const resetForm = useForm<PasswordResetValues>({
+    resolver: zodResolver(passwordResetSchema),
+    defaultValues: { password: '' },
+  })
+  const reset = useMutation({
+    mutationFn: ({ id, password }: { id: string; password: string }) =>
+      resetAccountPassword(id, password),
+    onSuccess: () => {
+      resetForm.reset()
+      setPendingReset(null)
+    },
+    onSettled: refresh,
+  })
+
   const rows = useMemo(
     () => (accounts.data ?? []).map((account) => toAccountRow(account, user?.id)),
     [accounts.data, user?.id],
@@ -76,5 +97,25 @@ export function useAccountsPanel() {
       if (pendingDeletion) remove.mutate(pendingDeletion.id)
     },
     isDeleting: remove.isPending,
+    pendingReset,
+    askReset: (row: AccountRow) => {
+      reset.reset()
+      resetForm.reset()
+      setPendingReset(row)
+    },
+    cancelReset: () => setPendingReset(null),
+    registerReset: resetForm.register,
+    resetErrors: resetForm.formState.errors,
+    onReset: resetForm.handleSubmit((values) => {
+      if (pendingReset) reset.mutate({ id: pendingReset.id, password: values.password })
+    }),
+    isResetting: reset.isPending,
+    resetError: reset.error?.message ?? null,
+    /** Username whose password was just reset. */
+    resetDone: reset.isSuccess && reset.variables ? rowName(rows, reset.variables.id) : null,
   }
+}
+
+function rowName(rows: AccountRow[], id: string): string | null {
+  return rows.find((row) => row.id === id)?.username ?? null
 }

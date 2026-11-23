@@ -12,3 +12,7 @@ export const accountSchema = z.object({
 })
 
 export type AccountValues = z.infer<typeof accountSchema>
+
+export const passwordResetSchema = accountSchema.pick({ password: true })
+
+export type PasswordResetValues = z.infer<typeof passwordResetSchema>

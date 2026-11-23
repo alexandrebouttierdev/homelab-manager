@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { createAccount, deleteAccount, listAccounts, updateAccount, type Account } from './users'
+import {
+  createAccount,
+  deleteAccount,
+  listAccounts,
+  resetAccountPassword,
+  updateAccount,
+  type Account,
+} from './users'
 
 const account: Account = {
   id: '9369be23-5ad3-467d-b954-470b622a1442',
@@ -66,5 +73,21 @@ describe('accounts API', () => {
     await expect(updateAccount(account.id, { role: 'viewer' })).rejects.toThrow(
       'Le dernier administrateur actif ne peut être ni supprimé, ni rétrogradé, ni désactivé.',
     )
+  })
+})
+
+describe('password reset API', () => {
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('posts the new initial password', async () => {
+    const fetchMock = vi
+      .fn()
+      .mockResolvedValue(new Response(JSON.stringify({ user: account }), { status: 200 }))
+    vi.stubGlobal('fetch', fetchMock)
+    await expect(resetAccountPassword(account.id, 'reset-password-1')).resolves.toEqual(account)
+    const [path, init] = fetchMock.mock.calls[0]
+    expect(path).toBe(`/api/v1/users/${account.id}/password`)
+    expect(init.method).toBe('POST')
+    expect(JSON.parse(init.body)).toEqual({ password: 'reset-password-1' })
   })
 })

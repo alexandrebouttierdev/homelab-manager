@@ -50,3 +50,11 @@ export function deleteAccount(id: string) {
     method: 'DELETE',
   })
 }
+
+/** Gives another account a new initial password, to change at its next login. */
+export function resetAccountPassword(id: string, password: string) {
+  return requestJSON<{ user: Account }>(`/api/v1/users/${encodeURIComponent(id)}/password`, {
+    method: 'POST',
+    body: JSON.stringify({ password }),
+  }).then((body) => body.user)
+}

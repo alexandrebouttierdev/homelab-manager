@@ -9,9 +9,12 @@ import (
 	"homelab-manager/backend/ent/session"
 	"homelab-manager/backend/ent/user"
 	"homelab-manager/backend/internal/domain"
+	"homelab-manager/backend/internal/ports"
 
 	"github.com/google/uuid"
 )
+
+var _ ports.AccountRepository = (*AccountRepository)(nil)
 
 // AccountRepository stores the Manager accounts managed by administrators.
 // Every change writes its audit entry in the same transaction; the

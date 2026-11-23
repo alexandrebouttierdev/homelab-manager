@@ -5,6 +5,7 @@ go 1.26.10
 require (
 	entgo.io/ent v0.14.6
 	github.com/go-chi/chi/v5 v5.5.0
+	github.com/godbus/dbus/v5 v5.2.4
 	github.com/google/uuid v1.6.0
 	github.com/shirou/gopsutil/v4 v4.26.10
 	github.com/spf13/viper v1.21.0

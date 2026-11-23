@@ -210,7 +210,7 @@ Ne pas enregistrer les secrets de production dans Git. Protéger le fichier d'en
 
 ### Proxy Docker et permissions
 
-Le socket du proxy (`/run/homelab-docker-proxy/docker.sock`) appartient au groupe `homelab-manager` (mode `0660`) : le Manager y accède par son groupe principal, le proxy n'a aucun droit sur les fichiers du Manager. Le proxy écoute seulement sur Unix, autorise les routes GET nécessaires, filtre `Env` et `Labels`, borne les réponses à 8 MiB et la concurrence à 16 requêtes. L'unité du Manager crée `/var/lib/homelab-manager` (`StateDirectory`, mode `0700`). Vérifier les permissions effectives et les journaux systemd après installation.
+Le socket du proxy (`/run/homelab-docker-proxy/docker.sock`) appartient au groupe `homelab-manager` (mode `0660`, dans un répertoire `root` en `0755` que le Manager doit pouvoir traverser) : le Manager y accède par son groupe principal, le proxy n'a aucun droit sur les fichiers du Manager. Le proxy écoute seulement sur Unix, autorise les routes GET nécessaires, filtre `Env` et `Labels`, borne les réponses à 8 MiB et la concurrence à 16 requêtes. L'unité du Manager crée `/var/lib/homelab-manager` (`StateDirectory`, mode `0700`). Vérifier les permissions effectives et les journaux systemd après installation.
 
 ### Réseaux autorisés et récupération
 

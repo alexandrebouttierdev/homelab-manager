@@ -6,6 +6,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"errors"
+	"fmt"
 	"sync"
 	"time"
 
@@ -38,8 +39,10 @@ func (u *AuthUsecase) Login(ctx context.Context, username, password, ip, userAge
 	if err != nil {
 		return "", domain.User{}, time.Time{}, err
 	}
+	// The password is verified before the state is checked, so that a
+	// disabled account costs the same Argon2id work as any other refusal.
 	valid, err := u.hasher.Verify(password, storedHash)
-	if err != nil || !valid {
+	if err != nil || !valid || user.Disabled {
 		return "", domain.User{}, time.Time{}, domain.ErrInvalidCredentials
 	}
 
@@ -47,7 +50,11 @@ func (u *AuthUsecase) Login(ctx context.Context, username, password, ip, userAge
 	if err != nil {
 		return "", domain.User{}, time.Time{}, err
 	}
-	expiresAt := u.now().UTC().Add(12 * time.Hour)
+	now := u.now().UTC()
+	if err := u.users.RecordLogin(ctx, user.ID, ip, now); err != nil {
+		return "", domain.User{}, time.Time{}, fmt.Errorf("record login: %w", err)
+	}
+	expiresAt := now.Add(12 * time.Hour)
 	tokenHash := sha256Hex(token)
 	session, err := u.sessions.Create(ctx, user.ID, tokenHash, ip, userAgent, expiresAt)
 	if err != nil {
@@ -76,8 +83,16 @@ func (u *AuthUsecase) Session(ctx context.Context, token string) (domain.User, d
 	}
 
 	user, err := u.users.FindByID(ctx, session.UserID)
+	if errors.Is(err, domain.ErrUserNotFound) {
+		return domain.User{}, domain.Session{}, domain.ErrSessionNotFound
+	}
 	if err != nil {
 		return domain.User{}, domain.Session{}, err
+	}
+	// Disabling an account revokes its sessions; this check also covers a
+	// revocation that failed after the account was disabled.
+	if user.Disabled {
+		return domain.User{}, domain.Session{}, domain.ErrSessionNotFound
 	}
 	return user, session, nil
 }

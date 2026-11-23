@@ -80,7 +80,7 @@ Présent dans le dépôt : module Backend unique, authentification locale (compt
 Limites connues, à ne pas présenter comme fonctionnelles :
 
 - Listes de conteneurs et d'événements plafonnées sans pagination (API_CONTRACTS.md § 9.1).
-- Modules d'administration (SPEC_ADMINISTRATION.md) : seuls les comptes multiples et les rôles (phase 1A) sont livrés ; les autres entrées de navigation restent marquées « à venir ».
+- Modules d'administration (SPEC_ADMINISTRATION.md) : sont livrés les comptes multiples et les rôles (phase 1A) ainsi que le redémarrage et l'extinction de la machine (module M, désactivé par défaut) ; les autres entrées de navigation restent marquées « à venir ».
 - Images, volumes et réseaux Docker sont déduits de l'inventaire des conteneurs : une image, un volume ou un réseau inutilisé n'apparaît pas.
 - Aucune notification ni alerte, aucun journal de conteneur.
 - Le passage de PostgreSQL à SQLite ne migre pas les données existantes.
@@ -97,6 +97,6 @@ Ouvertes : voir SPEC_ADMINISTRATION.md § 10.
 
 ## 8. Historique
 
-- 2.2 — 23 novembre 2026 : comptes multiples, rôles `viewer` / `operator` / `admin`, mot de passe initial à changer, rétention réservée aux administrateurs (phase 1A des modules d'administration).
+- 2.2 — 23 novembre 2026 : comptes multiples, rôles `viewer` / `operator` / `admin`, mot de passe initial à changer, rétention réservée aux administrateurs (phase 1A des modules d'administration) ; redémarrage et extinction de la machine par logind et polkit, réservés aux administrateurs et désactivés par défaut (module M).
 - 2.1 — 22 novembre 2026 : stockage SQLite embarqué, compte initial `admin` / `admin`, contrats API exacts, état `stale`, vues courantes sur le dernier cycle complet, purge horaire, agrégation des historiques et filtre par label, rétention réglable (7 jours par défaut), spécification des modules d'administration v3.
 - 2.0 — 21 novembre 2026 : périmètre mono-machine, abandon de l'Agent distant.

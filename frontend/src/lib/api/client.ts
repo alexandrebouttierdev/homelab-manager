@@ -50,6 +50,9 @@ export const errorMessages: Record<string, string> = {
   SESSION_REVOKE_FAILED: "La session n'a pas pu être révoquée.",
   SECURITY_POLICY_UPDATE_FAILED: "La politique de sécurité n'a pas pu être enregistrée.",
   AUDIT_UNAVAILABLE: "Journal d'audit momentanément indisponible.",
+  JOURNAL_UNAVAILABLE:
+    'Journal système indisponible : journalctl est introuvable sur la machine du Manager.',
+  JOURNAL_READ_FAILED: "Le journal système n'a pas pu être lu.",
   OWN_PASSWORD_RESET: 'Changez votre propre mot de passe dans Paramètres.',
   INVALID_SECOND_FACTOR: 'Code incorrect.',
   LOGIN_CHALLENGE_EXPIRED: 'Délai dépassé : reconnectez-vous avec votre mot de passe.',

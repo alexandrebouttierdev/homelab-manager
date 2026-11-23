@@ -14,6 +14,7 @@ import { MetricsPage } from '../features/metrics/MetricsPage'
 import { NetworkPage } from '../features/network/NetworkPage'
 import { SettingsPage } from '../features/settings/SettingsPage'
 import { EventsPage } from '../features/events/EventsPage'
+import { JournalPage } from '../features/journal/JournalPage'
 import { UsersPage } from '../features/users/UsersPage'
 import { RequireAuth } from './RequireAuth'
 import { AppLayout } from './AppLayout'
@@ -40,6 +41,7 @@ export const router = createBrowserRouter([
       { path: '/volumes', element: <VolumesPage /> },
       { path: '/networks', element: <NetworksPage /> },
       { path: '/events', element: <EventsPage /> },
+      { path: '/logs', element: <JournalPage /> },
       { path: '/settings', element: <SettingsPage /> },
       { path: '/users', element: <UsersPage /> },
     ],

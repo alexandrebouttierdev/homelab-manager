@@ -77,6 +77,8 @@ export function useChartTheme() {
             ram: '#7c3aed',
             net: '#059669',
             accent: '#4f5fd7',
+            danger: '#dc2626',
+            warning: '#d97706',
           }
         : {
             text: '#9299a3',
@@ -90,6 +92,8 @@ export function useChartTheme() {
             ram: '#a78bfa',
             net: '#45b881',
             accent: '#8b9cfb',
+            danger: '#f87171',
+            warning: '#fbbf24',
           },
     [theme],
   )

@@ -1,11 +1,11 @@
 import * as echarts from 'echarts/core'
 import type { EChartsOption } from 'echarts'
-import { LineChart } from 'echarts/charts'
+import { BarChart, LineChart } from 'echarts/charts'
 import { GridComponent, LegendComponent, TooltipComponent } from 'echarts/components'
 import { CanvasRenderer } from 'echarts/renderers'
 import ReactEChartsCore from 'echarts-for-react/lib/core'
 
-echarts.use([LineChart, GridComponent, LegendComponent, TooltipComponent, CanvasRenderer])
+echarts.use([BarChart, LineChart, GridComponent, LegendComponent, TooltipComponent, CanvasRenderer])
 
 interface MetricsChartProps {
   option: EChartsOption

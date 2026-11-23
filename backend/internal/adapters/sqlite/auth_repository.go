@@ -28,20 +28,29 @@ func (r *AuthRepository) FindByUsername(ctx context.Context, username string) (d
 		}
 		return domain.User{}, "", err
 	}
-	return domain.User{ID: record.ID, Username: record.Username}, record.PasswordHash, nil
+	return toDomainUser(record), record.PasswordHash, nil
 }
 
 func (r *AuthRepository) FindByID(ctx context.Context, userID uuid.UUID) (domain.User, error) {
 	record, err := r.client.User.Get(ctx, userID)
+	if ent.IsNotFound(err) {
+		return domain.User{}, domain.ErrUserNotFound
+	}
 	if err != nil {
 		return domain.User{}, err
 	}
-	return domain.User{ID: record.ID, Username: record.Username}, nil
+	return toDomainUser(record), nil
 }
 
+// UpdatePasswordHash stores a password chosen by the user, which also ends
+// the obligation to change the initial password.
 func (r *AuthRepository) UpdatePasswordHash(ctx context.Context, userID uuid.UUID, passwordHash string) error {
-	_, err := r.client.User.UpdateOneID(userID).SetPasswordHash(passwordHash).Save(ctx)
-	return err
+	return r.client.User.UpdateOneID(userID).SetPasswordHash(passwordHash).SetMustChangePassword(false).Exec(ctx)
+}
+
+// RecordLogin stores the time and source address of a successful login.
+func (r *AuthRepository) RecordLogin(ctx context.Context, userID uuid.UUID, ip string, at time.Time) error {
+	return r.client.User.UpdateOneID(userID).SetLastLoginAt(at.UTC()).SetLastLoginIP(ip).Exec(ctx)
 }
 
 func (r *AuthRepository) EnsureAdmin(ctx context.Context, username, passwordHash string) (bool, error) {
@@ -49,7 +58,7 @@ func (r *AuthRepository) EnsureAdmin(ctx context.Context, username, passwordHash
 	if err != nil || exists {
 		return false, err
 	}
-	if _, err := r.client.User.Create().SetUsername(username).SetPasswordHash(passwordHash).Save(ctx); err != nil {
+	if _, err := r.client.User.Create().SetUsername(username).SetDisplayName(username).SetRole(user.RoleAdmin).SetPasswordHash(passwordHash).Save(ctx); err != nil {
 		return false, err
 	}
 	return true, nil

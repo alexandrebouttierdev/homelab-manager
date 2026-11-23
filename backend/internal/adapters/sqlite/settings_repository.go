@@ -56,14 +56,5 @@ func setRetention(ctx context.Context, tx *ent.Tx, days int, audit domain.AuditE
 			return fmt.Errorf("update settings: %w", err)
 		}
 	}
-	create := tx.AuditLog.Create().
-		SetActor(audit.Actor).SetTargetType(audit.TargetType).SetTargetID(audit.TargetID).
-		SetAction(audit.Action).SetOutcome(audit.Outcome)
-	if audit.RequestID != "" {
-		create.SetRequestID(audit.RequestID)
-	}
-	if _, err := create.Save(ctx); err != nil {
-		return fmt.Errorf("write audit log: %w", err)
-	}
-	return nil
+	return writeAudit(ctx, tx, audit)
 }

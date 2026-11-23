@@ -174,6 +174,12 @@ var (
 		{Name: "id", Type: field.TypeUUID},
 		{Name: "username", Type: field.TypeString, Unique: true},
 		{Name: "password_hash", Type: field.TypeString},
+		{Name: "display_name", Type: field.TypeString, Default: ""},
+		{Name: "role", Type: field.TypeEnum, Enums: []string{"viewer", "operator", "admin"}, Default: "viewer"},
+		{Name: "disabled_at", Type: field.TypeTime, Nullable: true},
+		{Name: "must_change_password", Type: field.TypeBool, Default: false},
+		{Name: "last_login_at", Type: field.TypeTime, Nullable: true},
+		{Name: "last_login_ip", Type: field.TypeString, Nullable: true},
 		{Name: "created_at", Type: field.TypeTime},
 		{Name: "updated_at", Type: field.TypeTime},
 	}

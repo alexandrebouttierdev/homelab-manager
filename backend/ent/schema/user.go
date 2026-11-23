@@ -17,6 +17,12 @@ func (User) Fields() []ent.Field {
 		field.UUID("id", uuid.UUID{}).Default(uuid.New),
 		field.String("username").Unique().NotEmpty(),
 		field.String("password_hash").Sensitive(),
+		field.String("display_name").Default(""),
+		field.Enum("role").Values("viewer", "operator", "admin").Default("viewer"),
+		field.Time("disabled_at").Optional().Nillable(),
+		field.Bool("must_change_password").Default(false),
+		field.Time("last_login_at").Optional().Nillable(),
+		field.String("last_login_ip").Optional(),
 		field.Time("created_at").Default(timeNow),
 		field.Time("updated_at").Default(timeNow).UpdateDefault(timeNow),
 	}

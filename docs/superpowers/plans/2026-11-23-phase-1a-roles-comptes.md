@@ -668,7 +668,7 @@ func (User) Fields() []ent.Field {
 }
 ```
 
-Commande : `cd backend && go run entgo.io/ent/cmd/ent@v0.14.6 generate ./ent/schema && cd ..`
+Commande : `cd backend && GOTOOLCHAIN=go1.26.10 go run entgo.io/ent/cmd/ent@v0.14.6 generate ./ent/schema && cd ..`
 Attendu : fichiers `backend/ent/user*.go`, `backend/ent/user/*.go`, `backend/ent/mutation.go`, `backend/ent/migrate/schema.go`, `backend/ent/runtime.go` modifiés ; `go -C backend build ./...` réussit. Le paquet `ent/user` expose `user.Role`, `user.RoleAdmin`, `user.RoleEQ`, `user.DisabledAtIsNil`.
 
 - [ ] **Étape 5 : helpers de transaction et d'audit**

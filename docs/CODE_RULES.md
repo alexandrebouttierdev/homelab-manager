@@ -130,7 +130,7 @@ Les pages et composants (`.tsx` de `src/app`, `src/components`, `src/features`) 
 
 - `docs/API_CONTRACTS.md` est le contrat exact : toute route, paramètre, borne, DTO ou code d'erreur ajouté ou modifié l'est dans le même commit que le code.
 - Un changement de comportement met à jour le document qui le décrit (METRICS_COLLECTION.md, DATA_MODEL.md, SECURITY.md…) dans le même commit.
-- Nouvelle table ou colonne : nouvelle migration numérotée (`00N_description.sql`), jamais de modification d'une migration livrée ; schéma Ent régénéré avec `go run entgo.io/ent/cmd/ent@v0.14.6 generate ./ent/schema`.
+- Nouvelle table ou colonne : nouvelle migration numérotée (`00N_description.sql`), jamais de modification d'une migration livrée ; schéma Ent régénéré depuis `backend/` avec `GOTOOLCHAIN=go1.26.10 go run entgo.io/ent/cmd/ent@v0.14.6 generate ./ent/schema`. Fixer `GOTOOLCHAIN` est nécessaire : `go run …@v0.14.6` est lancé hors du module et prendrait sinon le Go de base de la machine, trop ancien pour le `go.mod` du projet ; en cas d'échec, restaurer `ent/runtime.go` (`git checkout`), que le générateur laisse modifié.
 
 ## 6. Dépendances
 

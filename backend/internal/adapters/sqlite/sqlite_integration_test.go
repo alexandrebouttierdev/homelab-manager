@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"homelab-manager/backend/internal/domain"
+	"homelab-manager/backend/migrations"
 
 	"github.com/google/uuid"
 )
@@ -173,9 +174,20 @@ func TestOpenReappliesMigrationsAndKeepsData(t *testing.T) {
 	if err := second.db.QueryRowContext(ctx, "PRAGMA busy_timeout").Scan(&busyTimeoutMillis); err != nil || busyTimeoutMillis != int(busyTimeout.Milliseconds()) {
 		t.Fatalf("busy_timeout = (%d, %v), want %d", busyTimeoutMillis, err, busyTimeout.Milliseconds())
 	}
+	// Every embedded migration is recorded exactly once, however many there are.
+	files, err := migrations.Files.ReadDir(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantMigrations := 0
+	for _, file := range files {
+		if filepath.Ext(file.Name()) == ".sql" {
+			wantMigrations++
+		}
+	}
 	var migrationsApplied int
-	if err := second.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM schema_migrations").Scan(&migrationsApplied); err != nil || migrationsApplied != 2 {
-		t.Fatalf("schema_migrations rows = (%d, %v), want 2", migrationsApplied, err)
+	if err := second.db.QueryRowContext(ctx, "SELECT COUNT(*) FROM schema_migrations").Scan(&migrationsApplied); err != nil || migrationsApplied != wantMigrations {
+		t.Fatalf("schema_migrations rows = (%d, %v), want %d", migrationsApplied, err, wantMigrations)
 	}
 
 	info, err := os.Stat(path)

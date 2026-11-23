@@ -12,9 +12,12 @@ import (
 	argon2adapter "homelab-manager/backend/internal/adapters/argon2"
 	"homelab-manager/backend/internal/adapters/dockerengine"
 	logindadapter "homelab-manager/backend/internal/adapters/logind"
+	"homelab-manager/backend/internal/adapters/qrcode"
+	"homelab-manager/backend/internal/adapters/secretbox"
 	"homelab-manager/backend/internal/adapters/sqlite"
 	systemcollector "homelab-manager/backend/internal/collector/system"
 	httpdelivery "homelab-manager/backend/internal/delivery/http"
+	"homelab-manager/backend/internal/ports"
 	"homelab-manager/backend/internal/usecase"
 
 	"go.uber.org/zap"
@@ -51,6 +54,7 @@ func main() {
 	var powerUsecase *usecase.PowerUsecase
 	var securityUsecase *usecase.SecurityUsecase
 	var auditUsecase *usecase.AuditUsecase
+	var secondFactorUsecase *usecase.SecondFactorUsecase
 	var monitoringUsecase *usecase.MonitoringUsecase
 	var clientCloser interface{ Close() error }
 	var dockerClientCloser interface{ CloseIdleConnections() }
@@ -74,7 +78,9 @@ func main() {
 		}
 		auditRepository := sqlite.NewAuditRepository(client)
 		securityRepository := sqlite.NewSecurityRepository(client)
-		security := usecase.NewSecurityUsecase(securityRepository)
+		factorRepository := sqlite.NewSecondFactorRepository(client)
+		box := loadSecretBox(logger, config.SecretsKeyPath(os.Getenv("CREDENTIALS_DIRECTORY")))
+		security := usecase.NewSecurityUsecase(securityRepository).WithSecondFactors(factorRepository)
 		// Without its policy the Manager cannot tell which networks may use
 		// the interface: authentication stays unavailable rather than open.
 		if err := security.Load(context.Background()); err != nil {
@@ -82,7 +88,9 @@ func main() {
 		} else {
 			securityUsecase = security
 			auditUsecase = usecase.NewAuditUsecase(auditRepository, auditRepository)
-			authUsecase = auth.WithSecurity(securityRepository, auditRepository, security)
+			authUsecase = auth.WithSecurity(securityRepository, auditRepository, security).
+				WithSecondFactor(factorRepository, box)
+			secondFactorUsecase = usecase.NewSecondFactorUsecase(authRepository, factorRepository, box, qrcode.New(), hasher)
 			accountUsecase = usecase.NewAccountUsecase(sqlite.NewAccountRepository(client), authRepository, hasher).
 				WithAudit(auditRepository)
 			powerUsecase = usecase.NewPowerUsecase(logindadapter.New(), auditRepository, os.Hostname, config.PowerActionsEnabled)
@@ -114,6 +122,7 @@ func main() {
 	router := httpdelivery.NewRouter(logger, httpdelivery.Services{
 		Health: healthUsecase, Auth: authUsecase, Monitoring: monitoringUsecase,
 		Accounts: accountUsecase, Power: powerUsecase, Security: securityUsecase, Audit: auditUsecase,
+		SecondFactors: secondFactorUsecase,
 	}, config.SessionSecure, config.WebRoot)
 
 	server := &http.Server{
@@ -165,4 +174,26 @@ func main() {
 	if dockerClientCloser != nil {
 		dockerClientCloser.CloseIdleConnections()
 	}
+}
+
+// loadSecretBox opens the secrets box with the master key. Without a key the
+// Manager keeps running: TOTP is unavailable, recovery codes still work
+// (SPEC_ADMINISTRATION.md § 2.5).
+func loadSecretBox(logger *zap.Logger, path string) ports.SecretBox {
+	if path == "" {
+		logger.Warn("No secrets key configured: TOTP is unavailable, recovery codes still work")
+		return nil
+	}
+	key, err := secretbox.LoadKeyFile(path)
+	if err != nil {
+		logger.Error("Could not load the secrets key: TOTP is unavailable", zap.String("path", path), zap.Error(err))
+		return nil
+	}
+	box, err := secretbox.New(key)
+	if err != nil {
+		logger.Error("Invalid secrets key: TOTP is unavailable", zap.Error(err))
+		return nil
+	}
+	logger.Info("Secrets key loaded")
+	return box
 }

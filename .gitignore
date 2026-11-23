@@ -14,7 +14,8 @@ backend/homelab-manager
 backend/manager
 backend/docker-proxy
 
-# Local SQLite databases
+# Local data: SQLite databases, development secrets key
+backend/data/
 *.db
 *.db-wal
 *.db-shm

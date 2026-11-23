@@ -14,6 +14,7 @@ import (
 // § 3.4). Callers of UpdatePolicy must hold domain.PermManageUsers.
 type SecurityUsecase struct {
 	repository ports.SecurityRepository
+	factors    ports.SecondFactorRepository
 
 	mu     sync.RWMutex
 	policy domain.SecurityPolicy
@@ -21,6 +22,13 @@ type SecurityUsecase struct {
 
 func NewSecurityUsecase(repository ports.SecurityRepository) *SecurityUsecase {
 	return &SecurityUsecase{repository: repository, policy: domain.DefaultSecurityPolicy()}
+}
+
+// WithSecondFactors lets the policy require a second factor from
+// administrators.
+func (u *SecurityUsecase) WithSecondFactors(factors ports.SecondFactorRepository) *SecurityUsecase {
+	u.factors = factors
+	return u
 }
 
 // Load reads the stored policy; it is called once at startup.
@@ -48,7 +56,9 @@ func (u *SecurityUsecase) AllowsAddress(address string) bool {
 
 // UpdatePolicy stores a new policy, refusing one that would exclude the
 // address of the administrator making the change.
-func (u *SecurityUsecase) UpdatePolicy(ctx context.Context, actor domain.User, currentAddress string, idleTimeoutMinutes int, networks []string, requestID string) (domain.SecurityPolicy, error) {
+// Requiring a second factor from administrators needs one on the account of
+// the administrator making the change, so that nobody is locked out.
+func (u *SecurityUsecase) UpdatePolicy(ctx context.Context, actor domain.User, currentAddress string, idleTimeoutMinutes int, networks []string, requireAdminSecondFactor bool, requestID string) (domain.SecurityPolicy, error) {
 	policy, err := domain.NewSecurityPolicy(idleTimeoutMinutes, networks)
 	if err != nil {
 		return domain.SecurityPolicy{}, err
@@ -56,6 +66,19 @@ func (u *SecurityUsecase) UpdatePolicy(ctx context.Context, actor domain.User, c
 	if !policy.Allows(currentAddress) {
 		return domain.SecurityPolicy{}, domain.ErrPolicyExcludesCurrentAddress
 	}
+	if requireAdminSecondFactor {
+		if u.factors == nil {
+			return domain.SecurityPolicy{}, domain.ErrSecondFactorUnavailable
+		}
+		enrolled, err := u.factors.HasSecondFactor(ctx, actor.ID)
+		if err != nil {
+			return domain.SecurityPolicy{}, err
+		}
+		if !enrolled {
+			return domain.SecurityPolicy{}, domain.ErrSecondFactorNotEnrolled
+		}
+	}
+	policy.RequireAdminSecondFactor = requireAdminSecondFactor
 	audit := domain.AuditEntry{
 		Actor: actor.Username, TargetType: "security_policy", TargetID: "local",
 		Action: "update", RequestID: requestID, Outcome: domain.AuditSuccess,

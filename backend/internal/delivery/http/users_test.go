@@ -12,6 +12,8 @@ import (
 	"time"
 
 	argon2adapter "homelab-manager/backend/internal/adapters/argon2"
+	"homelab-manager/backend/internal/adapters/qrcode"
+	"homelab-manager/backend/internal/adapters/secretbox"
 	"homelab-manager/backend/internal/adapters/sqlite"
 	"homelab-manager/backend/internal/domain"
 	"homelab-manager/backend/internal/ports"
@@ -194,17 +196,24 @@ func newTestRouter(t *testing.T, controller ports.PowerController) (http.Handler
 	}
 	auditRepository := sqlite.NewAuditRepository(database.Client())
 	securityRepository := sqlite.NewSecurityRepository(database.Client())
-	security := usecase.NewSecurityUsecase(securityRepository)
+	factorRepository := sqlite.NewSecondFactorRepository(database.Client())
+	box, err := secretbox.New(make([]byte, 32))
+	if err != nil {
+		t.Fatal(err)
+	}
+	security := usecase.NewSecurityUsecase(securityRepository).WithSecondFactors(factorRepository)
 	if err := security.Load(ctx); err != nil {
 		t.Fatal(err)
 	}
 	services := Services{
-		Health:   usecase.NewHealthUsecase(time.Now()),
-		Auth:     usecase.NewAuthUsecase(authRepository, authRepository, hasher).WithSecurity(securityRepository, auditRepository, security),
-		Accounts: usecase.NewAccountUsecase(sqlite.NewAccountRepository(database.Client()), authRepository, hasher).WithAudit(auditRepository),
-		Power:    usecase.NewPowerUsecase(controller, auditRepository, func() (string, error) { return "homelab", nil }, controller != nil),
-		Security: security,
-		Audit:    usecase.NewAuditUsecase(auditRepository, auditRepository),
+		Health: usecase.NewHealthUsecase(time.Now()),
+		Auth: usecase.NewAuthUsecase(authRepository, authRepository, hasher).
+			WithSecurity(securityRepository, auditRepository, security).WithSecondFactor(factorRepository, box),
+		Accounts:      usecase.NewAccountUsecase(sqlite.NewAccountRepository(database.Client()), authRepository, hasher).WithAudit(auditRepository),
+		Power:         usecase.NewPowerUsecase(controller, auditRepository, func() (string, error) { return "homelab", nil }, controller != nil),
+		Security:      security,
+		Audit:         usecase.NewAuditUsecase(auditRepository, auditRepository),
+		SecondFactors: usecase.NewSecondFactorUsecase(authRepository, factorRepository, box, qrcode.New(), hasher),
 	}
 	return NewRouter(zap.NewNop(), services, false, ""), database
 }

@@ -71,7 +71,7 @@ func TestAccountRepositoryLifecycle(t *testing.T) {
 		t.Fatalf("update of an unknown account error = %v, want ErrUserNotFound", err)
 	}
 
-	if _, err := auth.Create(ctx, alice.ID, "alice-token", "127.0.0.1", "test", time.Now().Add(time.Hour)); err != nil {
+	if _, err := auth.Create(ctx, alice.ID, "alice-token", "127.0.0.1", "test", "password", time.Now().Add(time.Hour)); err != nil {
 		t.Fatal(err)
 	}
 	audit.Action = "delete"

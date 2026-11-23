@@ -32,8 +32,8 @@ func (m *memorySessions) add(user domain.User, token string, lastSeen time.Time)
 	return *session
 }
 
-func (m *memorySessions) Create(_ context.Context, userID uuid.UUID, tokenHash, _, _ string, expiresAt time.Time) (domain.Session, error) {
-	session := &domain.Session{ID: uuid.New(), UserID: userID, LastSeenAt: time.Now(), ExpiresAt: expiresAt}
+func (m *memorySessions) Create(_ context.Context, userID uuid.UUID, tokenHash, _, _, authMethod string, expiresAt time.Time) (domain.Session, error) {
+	session := &domain.Session{ID: uuid.New(), UserID: userID, AuthMethod: authMethod, LastSeenAt: time.Now(), ExpiresAt: expiresAt}
 	m.sessions[session.ID] = session
 	m.tokens[tokenHash] = session.ID
 	return *session, nil
@@ -178,7 +178,7 @@ func TestLoginLocksTheAccountAfterFiveFailures(t *testing.T) {
 	auth, failures, audit, hasher, now := newSecureAuth(newMemorySessions(), domain.DefaultSecurityPolicy())
 	ctx := context.Background()
 	for i := 1; i <= domain.MaxConsecutiveFailures; i++ {
-		if _, _, _, err := auth.Login(ctx, "alice", "wrong", "192.0.2.1", "test"); !errors.Is(err, domain.ErrInvalidCredentials) {
+		if _, err := auth.Login(ctx, "alice", "wrong", "192.0.2.1", "test"); !errors.Is(err, domain.ErrInvalidCredentials) {
 			t.Fatalf("failure %d = %v", i, err)
 		}
 	}
@@ -191,7 +191,7 @@ func TestLoginLocksTheAccountAfterFiveFailures(t *testing.T) {
 	}
 
 	before := hasher.verified
-	if _, _, _, err := auth.Login(ctx, "alice", "right-password", "192.0.2.1", "test"); !errors.Is(err, domain.ErrInvalidCredentials) {
+	if _, err := auth.Login(ctx, "alice", "right-password", "192.0.2.1", "test"); !errors.Is(err, domain.ErrInvalidCredentials) {
 		t.Fatalf("right password while locked = %v, want ErrInvalidCredentials", err)
 	}
 	if hasher.verified != before+1 {
@@ -199,7 +199,7 @@ func TestLoginLocksTheAccountAfterFiveFailures(t *testing.T) {
 	}
 
 	*now = now.Add(domain.LockoutDuration)
-	if _, _, _, err := auth.Login(ctx, "alice", "right-password", "192.0.2.1", "test"); err != nil {
+	if _, err := auth.Login(ctx, "alice", "right-password", "192.0.2.1", "test"); err != nil {
 		t.Fatalf("login after the lockout = %v", err)
 	}
 	if _, ok := failures.failures[securityAlice.ID]; ok {
@@ -299,16 +299,16 @@ func TestSecurityPolicyUpdate(t *testing.T) {
 		t.Fatalf("Load = %v, policy %+v", err, security.Policy())
 	}
 
-	if _, err := security.UpdatePolicy(ctx, securityAdmin, "192.168.1.5", 60, []string{"10.0.0.0/8"}, ""); !errors.Is(err, domain.ErrPolicyExcludesCurrentAddress) {
+	if _, err := security.UpdatePolicy(ctx, securityAdmin, "192.168.1.5", 60, []string{"10.0.0.0/8"}, false, ""); !errors.Is(err, domain.ErrPolicyExcludesCurrentAddress) {
 		t.Fatalf("self-exclusion = %v, want ErrPolicyExcludesCurrentAddress", err)
 	}
-	if _, err := security.UpdatePolicy(ctx, securityAdmin, "10.1.2.3", 4, nil, ""); !errors.Is(err, domain.ErrInvalidSecurityPolicy) {
+	if _, err := security.UpdatePolicy(ctx, securityAdmin, "10.1.2.3", 4, nil, false, ""); !errors.Is(err, domain.ErrInvalidSecurityPolicy) {
 		t.Fatalf("invalid policy = %v, want ErrInvalidSecurityPolicy", err)
 	}
 	if len(repository.audits) != 0 {
 		t.Fatal("refused changes are not stored")
 	}
-	updated, err := security.UpdatePolicy(ctx, securityAdmin, "10.1.2.3", 45, []string{"10.0.0.0/8"}, "req-1")
+	updated, err := security.UpdatePolicy(ctx, securityAdmin, "10.1.2.3", 45, []string{"10.0.0.0/8"}, false, "req-1")
 	if err != nil || updated.IdleTimeoutMinutes != 45 {
 		t.Fatalf("UpdatePolicy = (%+v, %v)", updated, err)
 	}

@@ -70,3 +70,15 @@ func TestPowerActionsAreDisabledByDefault(t *testing.T) {
 		t.Fatalf("LoadConfig = (%v, %v), want power actions enabled", config.PowerActionsEnabled, err)
 	}
 }
+
+func TestSecretsKeyPath(t *testing.T) {
+	if got := (Config{SecretsKeyFile: "/etc/key"}).SecretsKeyPath("/run/credentials/x"); got != "/etc/key" {
+		t.Fatalf("configured file = %q", got)
+	}
+	if got := (Config{}).SecretsKeyPath("/run/credentials/homelab-manager.service"); got != "/run/credentials/homelab-manager.service/homelab-manager-secrets-key" {
+		t.Fatalf("systemd credential = %q", got)
+	}
+	if got := (Config{}).SecretsKeyPath(""); got != "" {
+		t.Fatalf("no key = %q, want empty", got)
+	}
+}

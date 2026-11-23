@@ -40,7 +40,7 @@ func TestSQLiteIntegration(t *testing.T) {
 	}
 
 	tokenHash := uuid.NewString()
-	session, err := authRepository.Create(ctx, user.ID, tokenHash, "127.0.0.1", "integration-test", time.Now().Add(time.Hour))
+	session, err := authRepository.Create(ctx, user.ID, tokenHash, "127.0.0.1", "integration-test", "password", time.Now().Add(time.Hour))
 	if err != nil {
 		t.Fatalf("create session: %v", err)
 	}

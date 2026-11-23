@@ -37,11 +37,14 @@ type Services struct {
 	Power      *usecase.PowerUsecase
 	Security   *usecase.SecurityUsecase
 	Audit      *usecase.AuditUsecase
+	// SecondFactors manages the second factor of the signed-in account.
+	SecondFactors *usecase.SecondFactorUsecase
 }
 
 func NewRouter(logger *zap.Logger, services Services, sessionSecure bool, webRoot string) http.Handler {
 	health, auth, monitoring := services.Health, services.Auth, services.Monitoring
 	accounts, power, security, audit := services.Accounts, services.Power, services.Security, services.Audit
+	factors := services.SecondFactors
 	deny := func(r *http.Request, user domain.User) {
 		if audit == nil {
 			return
@@ -69,52 +72,61 @@ func NewRouter(logger *zap.Logger, services Services, sessionSecure bool, webRoo
 			writeError(w, r, http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "The HTTP method is not allowed on this route.")
 		})
 		r.With(sameOrigin, loginRateLimit).Post("/auth/login", loginHandler(auth, sessionSecure))
+		r.With(sameOrigin, loginRateLimit).Post("/auth/login/second-factor", completeSecondFactorHandler(auth, sessionSecure))
 		r.Get("/auth/session", sessionHandler(auth))
 		r.Group(func(protected chi.Router) {
 			protected.Use(requireSession(auth))
 			protected.Use(sameOrigin)
 			protected.Post("/auth/logout", logoutHandler(auth, sessionSecure))
 			protected.Post("/auth/password", changePasswordHandler(auth, sessionSecure))
-			protected.Group(func(active chi.Router) {
-				active.Use(requirePasswordChanged)
-				active.Get("/dashboard", dashboardHandler(monitoring))
-				active.Get("/host", hostHandler(monitoring))
-				active.Get("/host/metrics/current", currentMetricsHandler(monitoring, false))
-				active.Get("/host/metrics/{metricName}", metricHistoryHandler(monitoring, false))
-				active.Get("/host/temperatures", hostTemperaturesHandler(monitoring))
-				active.Get("/containers", listContainersHandler(monitoring))
-				active.Get("/containers/{containerID}", getContainerHandler(monitoring))
-				active.Get("/containers/{containerID}/metrics/current", currentMetricsHandler(monitoring, true))
-				active.Get("/containers/{containerID}/metrics/{metricName}", metricHistoryHandler(monitoring, true))
-				active.Get("/containers/{containerID}/events", listEventsHandler(monitoring, true))
-				active.Get("/events", listEventsHandler(monitoring, false))
-				active.Get("/settings", settingsHandler(monitoring))
-				active.With(requirePermission(deny, domain.PermManageSettings)).Put("/settings/retention", updateRetentionHandler(monitoring))
-				active.Route("/users", func(users chi.Router) {
-					users.Use(requirePermission(deny, domain.PermManageUsers))
-					users.Get("/", listUsersHandler(accounts))
-					users.Post("/", createUserHandler(accounts))
-					users.Patch("/{userID}", updateUserHandler(accounts))
-					users.Delete("/{userID}", deleteUserHandler(accounts))
-					users.Post("/{userID}/password", resetPasswordHandler(accounts))
-				})
-				active.Get("/auth/sessions", listSessionsHandler(auth, deny))
-				active.Delete("/auth/sessions/{sessionID}", revokeSessionHandler(auth, sessionSecure))
-				active.Post("/auth/sessions/revoke-others", revokeOtherSessionsHandler(auth))
-				active.Route("/security/policy", func(policy chi.Router) {
-					policy.Use(requirePermission(deny, domain.PermManageUsers))
-					policy.Get("/", securityPolicyHandler(security))
-					policy.Put("/", updateSecurityPolicyHandler(security))
-				})
-				active.Route("/audit", func(log chi.Router) {
-					log.Use(requirePermission(deny, domain.PermViewAudit))
-					log.Get("/", listAuditHandler(audit))
-					log.Get("/export", exportAuditHandler(audit))
-				})
-				active.Route("/machine/power", func(machine chi.Router) {
-					machine.Use(requirePermission(deny, domain.PermManagePower))
-					machine.Get("/", powerSettingsHandler(power))
-					machine.Post("/{action}", powerActionHandler(power))
+			protected.Group(func(changed chi.Router) {
+				changed.Use(requirePasswordChanged)
+				changed.Get("/auth/second-factor", secondFactorStatusHandler(factors))
+				changed.Post("/auth/second-factor/totp", beginTOTPHandler(factors))
+				changed.Post("/auth/second-factor/totp/confirm", confirmTOTPHandler(factors))
+				changed.Post("/auth/second-factor/recovery-codes", regenerateRecoveryCodesHandler(factors))
+				changed.Post("/auth/second-factor/disable", disableSecondFactorHandler(factors))
+				changed.Group(func(active chi.Router) {
+					active.Use(requireSecondFactorEnrolled)
+					active.Get("/dashboard", dashboardHandler(monitoring))
+					active.Get("/host", hostHandler(monitoring))
+					active.Get("/host/metrics/current", currentMetricsHandler(monitoring, false))
+					active.Get("/host/metrics/{metricName}", metricHistoryHandler(monitoring, false))
+					active.Get("/host/temperatures", hostTemperaturesHandler(monitoring))
+					active.Get("/containers", listContainersHandler(monitoring))
+					active.Get("/containers/{containerID}", getContainerHandler(monitoring))
+					active.Get("/containers/{containerID}/metrics/current", currentMetricsHandler(monitoring, true))
+					active.Get("/containers/{containerID}/metrics/{metricName}", metricHistoryHandler(monitoring, true))
+					active.Get("/containers/{containerID}/events", listEventsHandler(monitoring, true))
+					active.Get("/events", listEventsHandler(monitoring, false))
+					active.Get("/settings", settingsHandler(monitoring))
+					active.With(requirePermission(deny, domain.PermManageSettings)).Put("/settings/retention", updateRetentionHandler(monitoring))
+					active.Route("/users", func(users chi.Router) {
+						users.Use(requirePermission(deny, domain.PermManageUsers))
+						users.Get("/", listUsersHandler(accounts))
+						users.Post("/", createUserHandler(accounts))
+						users.Patch("/{userID}", updateUserHandler(accounts))
+						users.Delete("/{userID}", deleteUserHandler(accounts))
+						users.Post("/{userID}/password", resetPasswordHandler(accounts))
+					})
+					active.Get("/auth/sessions", listSessionsHandler(auth, deny))
+					active.Delete("/auth/sessions/{sessionID}", revokeSessionHandler(auth, sessionSecure))
+					active.Post("/auth/sessions/revoke-others", revokeOtherSessionsHandler(auth))
+					active.Route("/security/policy", func(policy chi.Router) {
+						policy.Use(requirePermission(deny, domain.PermManageUsers))
+						policy.Get("/", securityPolicyHandler(security))
+						policy.Put("/", updateSecurityPolicyHandler(security))
+					})
+					active.Route("/audit", func(log chi.Router) {
+						log.Use(requirePermission(deny, domain.PermViewAudit))
+						log.Get("/", listAuditHandler(audit))
+						log.Get("/export", exportAuditHandler(audit))
+					})
+					active.Route("/machine/power", func(machine chi.Router) {
+						machine.Use(requirePermission(deny, domain.PermManagePower))
+						machine.Get("/", powerSettingsHandler(power))
+						machine.Post("/{action}", powerActionHandler(power))
+					})
 				})
 			})
 		})

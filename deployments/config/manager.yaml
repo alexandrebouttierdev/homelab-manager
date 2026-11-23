@@ -11,3 +11,6 @@ metrics_retention_days: 7
 # Redémarrer et éteindre la machine depuis l'interface : exige aussi la règle
 # polkit deployments/polkit/50-homelab-manager-power.rules (voir README).
 power_actions_enabled: false
+# Clé maître du coffre de secrets (TOTP). Vide : la clé importée par systemd
+# (ImportCredential=homelab-manager-secrets-key, voir README).
+secrets_key_file: ""

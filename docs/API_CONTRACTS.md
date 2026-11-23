@@ -12,7 +12,7 @@ Ce document est le contrat exact de l'API implémentée. Toute différence entre
 - Horodatages émis en RFC 3339 UTC (`2026-11-21T20:58:00Z`, fraction de seconde possible).
 - Une valeur inconnue est `null` ou absente selon le DTO, jamais remplacée par zéro. Zéro est une mesure réelle.
 - Corps de requête limité à 1 MiB, JSON strict : champ inconnu ou second document JSON → `400 VALIDATION_ERROR`.
-- Toutes les routes sauf `/health`, `/api/v1/health`, `/api/v1/auth/login` et `/api/v1/auth/session` exigent une session.
+- Toutes les routes sauf `/health`, `/api/v1/health`, `/api/v1/auth/login`, `/api/v1/auth/login/second-factor` et `/api/v1/auth/session` exigent une session.
 - Les messages d'erreur de l'API sont techniques et en anglais ; l'interface affiche ses propres messages, en français, à partir du `code`.
 
 ## 2. Routes
@@ -21,8 +21,14 @@ Ce document est le contrat exact de l'API implémentée. Toute différence entre
 |---|---|---|
 | `GET /health` | non | Processus HTTP vivant (§ 4.1) |
 | `GET /api/v1/health` | non | Santé détaillée (§ 4.1) |
-| `POST /api/v1/auth/login` | non | Ouvre une session (§ 3) |
+| `POST /api/v1/auth/login` | non | Ouvre une session, ou un défi de second facteur (§ 3) |
+| `POST /api/v1/auth/login/second-factor` | défi | Termine une connexion avec un second facteur (§ 3.5) |
 | `GET /api/v1/auth/session` | cookie | Utilisateur courant (§ 3) |
+| `GET /api/v1/auth/second-factor` | oui | État de son second facteur (§ 3.5) |
+| `POST /api/v1/auth/second-factor/totp` | oui | Commence l'enrôlement TOTP (§ 3.5) |
+| `POST /api/v1/auth/second-factor/totp/confirm` | oui | Confirme le TOTP, renvoie les codes de secours (§ 3.5) |
+| `POST /api/v1/auth/second-factor/recovery-codes` | oui | Régénère les codes de secours (§ 3.5) |
+| `POST /api/v1/auth/second-factor/disable` | oui | Désactive son second facteur (§ 3.5) |
 | `POST /api/v1/auth/logout` | oui | Révoque la session |
 | `POST /api/v1/auth/password` | oui | Change le mot de passe |
 | `GET /api/v1/auth/sessions` | oui | Ses sessions actives ; `?scope=all` : toutes (admin) (§ 3.2) |
@@ -67,7 +73,8 @@ Toutes les routes de supervision sont en lecture seule ; les seules écritures s
 **Connexion** — `POST /api/v1/auth/login` avec `{ "username": "...", "password": "..." }`.
 
 - `username` : espaces de début et fin retirés, 1 à 255 octets. `password` : 1 à 1 024 octets. Aucune longueur minimale à la connexion (le compte par défaut est `admin` / `admin`).
-- Succès `200` : `{ "user": { "id": "uuid", "username": "admin", "displayName": "admin", "role": "admin", "mustChangePassword": false } }` et cookie de session. Un compte désactivé reçoit `401 INVALID_CREDENTIALS`, comme un mot de passe faux.
+- Succès `200` : `{ "user": { "id": "uuid", "username": "admin", "displayName": "admin", "role": "admin", "mustChangePassword": false, "mustEnrollSecondFactor": false } }` et cookie de session. Un compte désactivé reçoit `401 INVALID_CREDENTIALS`, comme un mot de passe faux.
+- Compte avec un second facteur : `200 { "secondFactorRequired": true, "methods": ["totp", "recovery"], "expiresAt": "…" }` et cookie de défi, **sans session** ; la connexion se termine par `POST /api/v1/auth/login/second-factor` (§ 3.5). `mustEnrollSecondFactor` (§ 3.3) : la politique exige un second facteur des administrateurs et ce compte n'en a pas ; toutes les routes authentifiées sauf la session, la déconnexion, le mot de passe et `/auth/second-factor*` répondent alors `403 SECOND_FACTOR_REQUIRED`.
 - Échec : `401 INVALID_CREDENTIALS`, identique que l'utilisateur existe ou non ; le temps de réponse est équivalent (une vérification Argon2id est faite dans les deux cas).
 - Limitation : 10 tentatives par minute et par adresse IP source, au-delà `429 RATE_LIMITED` (fenêtre fixe d'une minute, au plus 10 000 adresses suivies).
 - Contrôle d'origine identique aux mutations (ci-dessous).
@@ -115,6 +122,17 @@ Comptes de Homelab Manager uniquement : aucun compte Linux n'est lu ni modifié.
 - Le dernier administrateur actif ne peut être ni rétrogradé, ni désactivé, ni supprimé : `409 LAST_ADMIN`.
 - Chaque modification réussie écrit une ligne d'audit (`user`, UUID du compte, `create` / `update` / `delete`) dans la même transaction.
 
+### 3.5 Second facteur
+
+TOTP (RFC 6238 : HMAC-SHA-1, 6 chiffres, 30 s, ±1 période, un code n'est accepté qu'une fois) et 10 codes de secours à usage unique. WebAuthn est prévu en phase 8.
+
+- **Deuxième étape de connexion** — `POST /api/v1/auth/login/second-factor` avec `{ "method": "totp" | "recovery", "code": "123456" }` (1 à 64 octets ; espaces ignorés pour le TOTP, casse, espaces et tirets ignorés pour un code de secours) et le cookie de défi `homelab_login` (`HttpOnly`, `SameSite=Strict`, `Path=/api/v1/auth`, 5 minutes, 5 essais, gardé en mémoire : un redémarrage du Manager impose de ressaisir le mot de passe). Succès `200 { "user": … }`, cookie de session et méthode de session `password+totp` ou `password+recovery`. Code faux : `401 INVALID_SECOND_FACTOR`, compté dans le verrouillage du compte (§ 3.2). Défi absent, expiré, épuisé ou compte devenu indisponible : `401 LOGIN_CHALLENGE_EXPIRED`. TOTP sans clé maître : `503 SECOND_FACTOR_UNAVAILABLE` (les codes de secours restent acceptés). Même limitation par adresse et même contrôle d'origine que la connexion.
+- `GET /api/v1/auth/second-factor` : `200 { "enabled": false, "pending": false, "recoveryCodesRemaining": 0, "available": true }`. `available` est faux quand la clé maître manque (§ 2.5 de la spécification).
+- `POST /api/v1/auth/second-factor/totp` avec `{ "password": "..." }` : `200 { "secret": "BASE32…", "uri": "otpauth://totp/Homelab%20Manager:alice?…", "qr": { "size": 29, "rows": ["1111111010…", …] } }`. `rows` décrit les modules du QR code (`1` = foncé), à dessiner par l'interface. Remplace un enrôlement en attente. Mot de passe faux : `401 INVALID_CREDENTIALS` ; déjà activé : `409 SECOND_FACTOR_ALREADY_ENABLED` ; sans clé maître : `503 SECOND_FACTOR_UNAVAILABLE`.
+- `POST /api/v1/auth/second-factor/totp/confirm` avec `{ "code": "123456" }` : `200 { "recoveryCodes": ["k7pq-2mzx-b9ht", …] }` (10 codes, affichés cette seule fois). Code faux : `400 INVALID_SECOND_FACTOR` ; aucun enrôlement en attente : `409 NO_PENDING_ENROLLMENT`. Audité (`user`, UUID, `second_factor_enable`).
+- `POST /api/v1/auth/second-factor/recovery-codes` avec `{ "password" }` : `200 { "recoveryCodes": […] }`, les anciens codes ne valent plus. Sans second facteur : `409 SECOND_FACTOR_NOT_ENABLED`. Audité (`recovery_codes_regenerate`).
+- `POST /api/v1/auth/second-factor/disable` avec `{ "password" }` : `200 { "disabled": true }`, secret et codes supprimés. Audité (`second_factor_disable`).
+
 ### 3.2 Sessions
 
 - **Verrouillage** — 5 mots de passe faux consécutifs verrouillent le compte 15 minutes, en plus de la limite par adresse. Un compte verrouillé reçoit `401 INVALID_CREDENTIALS`, comme un mot de passe faux, après la même vérification Argon2id. Une connexion réussie remet le compteur à zéro ; le verrouillage est audité (`system`, `user`, `lock`).
@@ -133,8 +151,8 @@ Comptes de Homelab Manager uniquement : aucun compte Linux n'est lu ni modifié.
 
 ### 3.3 Politique de sécurité
 
-- `GET /api/v1/security/policy` (admin) : `200 { "idleTimeoutMinutes": 60, "allowedNetworks": [], "currentAddress": "192.168.1.20" }`. `currentAddress` est l'adresse vue par le Manager pour la requête.
-- `PUT /api/v1/security/policy` (admin) avec `{ "idleTimeoutMinutes": 60, "allowedNetworks": ["192.168.1.0/24"] }`, les deux champs obligatoires : `idleTimeoutMinutes` de 5 à 720 ; `allowedNetworks` 32 préfixes CIDR au plus, stockés masqués ; liste vide = toutes les adresses. Succès `200` (même objet que `GET`), avec audit (`security_policy`, `local`, `update`). Une politique qui exclurait `currentAddress` : `409 POLICY_EXCLUDES_CURRENT_ADDRESS`.
+- `GET /api/v1/security/policy` (admin) : `200 { "idleTimeoutMinutes": 60, "allowedNetworks": [], "requireAdminSecondFactor": false, "currentAddress": "192.168.1.20" }`. `currentAddress` est l'adresse vue par le Manager pour la requête.
+- `PUT /api/v1/security/policy` (admin) avec `{ "idleTimeoutMinutes": 60, "allowedNetworks": ["192.168.1.0/24"], "requireAdminSecondFactor": true }`, les deux premiers champs obligatoires, `requireAdminSecondFactor` facultatif (valeur actuelle conservée s'il est absent ; l'activer exige que l'administrateur qui modifie ait lui-même un second facteur, sinon `409 SECOND_FACTOR_NOT_ENROLLED`) : `idleTimeoutMinutes` de 5 à 720 ; `allowedNetworks` 32 préfixes CIDR au plus, stockés masqués ; liste vide = toutes les adresses. Succès `200` (même objet que `GET`), avec audit (`security_policy`, `local`, `update`). Une politique qui exclurait `currentAddress` : `409 POLICY_EXCLUDES_CURRENT_ADDRESS`.
 - **Réseaux autorisés** — avec une liste non vide, toute requête d'une adresse hors liste reçoit `403 NETWORK_NOT_ALLOWED`, interface comprise, sauf `GET /health`. L'adresse est celle de la connexion TCP (`RemoteAddr`) : derrière un proxy inverse, c'est celle du proxy ; aucun en-tête `X-Forwarded-For` n'est pris en compte.
 
 ### 3.4 Journal d'audit
@@ -455,6 +473,15 @@ Les routes sont versionnées sous `/api/v1`. Un changement incompatible (champ s
 | `SESSION_REVOKE_FAILED` | 500 | Révocation de session en échec |
 | `SECURITY_POLICY_UPDATE_FAILED` | 500 | Écriture de la politique en échec |
 | `AUDIT_UNAVAILABLE` | 500 | Lecture du journal d'audit en échec |
+| `INVALID_SECOND_FACTOR` | 401, 400 | Code TOTP ou de secours faux (401 à la connexion, 400 à la confirmation) |
+| `LOGIN_CHALLENGE_EXPIRED` | 401 | Défi de connexion absent, expiré ou épuisé |
+| `SECOND_FACTOR_REQUIRED` | 403 | Second facteur à enrôler d'abord (administrateur, politique) |
+| `SECOND_FACTOR_UNAVAILABLE` | 503 | Clé maître absente : TOTP indisponible |
+| `SECOND_FACTOR_ALREADY_ENABLED` | 409 | Second facteur déjà activé |
+| `SECOND_FACTOR_NOT_ENABLED` | 409 | Aucun second facteur à régénérer ou désactiver |
+| `NO_PENDING_ENROLLMENT` | 409 | Aucun enrôlement TOTP en attente |
+| `SECOND_FACTOR_NOT_ENROLLED` | 409 | Exiger le second facteur sans en avoir soi-même |
+| `SECOND_FACTOR_UPDATE_FAILED` | 500 | Écriture du second facteur en échec |
 | `INTERNAL_ERROR` | 500 | Autre erreur serveur |
 
 Aucune trace de pile, chemin local, secret ou réponse Docker brute dans les erreurs. `requestId` correspond au champ `request_id` des journaux du Manager.

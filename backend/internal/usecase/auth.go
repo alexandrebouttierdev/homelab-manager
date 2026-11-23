@@ -28,6 +28,12 @@ type AuthUsecase struct {
 	audit    ports.AuditRecorder
 	policy   securityPolicySource
 
+	// Set by WithSecondFactor; box is nil without the secrets key, which
+	// leaves only recovery codes for the second step.
+	secondFactors ports.SecondFactorRepository
+	box           ports.SecretBox
+	challenges    *loginChallenges
+
 	// dummyHash is verified when the username is unknown, so that a missing
 	// account costs the same Argon2id work as a wrong password.
 	dummyOnce sync.Once
@@ -35,7 +41,27 @@ type AuthUsecase struct {
 }
 
 func NewAuthUsecase(users ports.UserRepository, sessions ports.SessionRepository, hasher ports.PasswordHasher) *AuthUsecase {
-	return &AuthUsecase{users: users, sessions: sessions, hasher: hasher, now: time.Now}
+	return &AuthUsecase{users: users, sessions: sessions, hasher: hasher, now: time.Now, challenges: newLoginChallenges()}
+}
+
+// sessionLifetime is the fixed maximum duration of a session.
+const sessionLifetime = 12 * time.Hour
+
+// LoginResult is either an open session (Token) or, for an account with a
+// second factor, a pending login to complete (Challenge).
+type LoginResult struct {
+	Token     string
+	Challenge string
+	User      domain.User
+	// ExpiresAt is the end of the session, or of the challenge.
+	ExpiresAt time.Time
+}
+
+// WithSecondFactor asks accounts that have a second factor for it at login
+// (SPEC_ADMINISTRATION.md § 3.3).
+func (u *AuthUsecase) WithSecondFactor(factors ports.SecondFactorRepository, box ports.SecretBox) *AuthUsecase {
+	u.secondFactors, u.box = factors, box
+	return u
 }
 
 // securityPolicySource gives the current policy; SecurityUsecase keeps it
@@ -54,54 +80,150 @@ func (u *AuthUsecase) WithSecurity(failures ports.LoginFailureRepository, audit 
 	return u
 }
 
-func (u *AuthUsecase) Login(ctx context.Context, username, password, ip, userAgent string) (string, domain.User, time.Time, error) {
+// Login checks the password. An account with a second factor gets a
+// challenge to complete with CompleteSecondFactor; the others get a session.
+func (u *AuthUsecase) Login(ctx context.Context, username, password, ip, userAgent string) (LoginResult, error) {
 	user, storedHash, err := u.users.FindByUsername(ctx, username)
 	if errors.Is(err, domain.ErrInvalidCredentials) {
 		u.verifyDummy(password)
-		return "", domain.User{}, time.Time{}, domain.ErrInvalidCredentials
+		return LoginResult{}, domain.ErrInvalidCredentials
 	}
 	if err != nil {
-		return "", domain.User{}, time.Time{}, err
+		return LoginResult{}, err
 	}
 	now := u.now().UTC()
-	var failures domain.LoginFailures
-	if u.failures != nil {
-		if failures, err = u.failures.LoginFailures(ctx, user.ID); err != nil {
-			return "", domain.User{}, time.Time{}, fmt.Errorf("read login failures: %w", err)
-		}
+	failures, err := u.loginFailures(ctx, user.ID)
+	if err != nil {
+		return LoginResult{}, err
 	}
 	// The password is always verified, so that a disabled or locked account
 	// costs the same Argon2id work as any other refusal and answers alike.
 	valid, err := u.hasher.Verify(password, storedHash)
 	if failures.Locked(now) || user.Disabled {
-		return "", domain.User{}, time.Time{}, domain.ErrInvalidCredentials
+		return LoginResult{}, domain.ErrInvalidCredentials
 	}
 	if err != nil || !valid {
 		if err := u.countFailure(ctx, user, failures, now); err != nil {
-			return "", domain.User{}, time.Time{}, err
+			return LoginResult{}, err
 		}
-		return "", domain.User{}, time.Time{}, domain.ErrInvalidCredentials
+		return LoginResult{}, domain.ErrInvalidCredentials
 	}
+	if u.secondFactors != nil {
+		enrolled, err := u.secondFactors.HasSecondFactor(ctx, user.ID)
+		if err != nil {
+			return LoginResult{}, err
+		}
+		if enrolled {
+			// The failure counter is kept until the second step succeeds, so
+			// that a known password does not reset it.
+			token, expiresAt, err := u.challenges.create(user.ID, now)
+			if err != nil {
+				return LoginResult{}, err
+			}
+			return LoginResult{Challenge: token, User: user, ExpiresAt: expiresAt}, nil
+		}
+	}
+	return u.openSession(ctx, user, failures, ip, userAgent, "password", now)
+}
+
+// CompleteSecondFactor ends a login started by Login with a TOTP code or a
+// recovery code. Wrong codes count as login failures; the challenge ends
+// after maxChallengeAttempts.
+func (u *AuthUsecase) CompleteSecondFactor(ctx context.Context, challenge string, method domain.SecondFactorMethod, code, ip, userAgent string) (LoginResult, error) {
+	now := u.now().UTC()
+	pending, ok := u.challenges.find(challenge, now)
+	if !ok || u.secondFactors == nil {
+		return LoginResult{}, domain.ErrLoginChallengeExpired
+	}
+	user, err := u.users.FindByID(ctx, pending.userID)
+	if errors.Is(err, domain.ErrUserNotFound) {
+		u.challenges.remove(challenge)
+		return LoginResult{}, domain.ErrLoginChallengeExpired
+	}
+	if err != nil {
+		return LoginResult{}, err
+	}
+	failures, err := u.loginFailures(ctx, user.ID)
+	if err != nil {
+		return LoginResult{}, err
+	}
+	if user.Disabled || failures.Locked(now) {
+		u.challenges.remove(challenge)
+		return LoginResult{}, domain.ErrLoginChallengeExpired
+	}
+	valid, err := u.checkSecondFactor(ctx, user, method, code, now)
+	if err != nil {
+		return LoginResult{}, err
+	}
+	if !valid {
+		u.challenges.fail(challenge)
+		if err := u.countFailure(ctx, user, failures, now); err != nil {
+			return LoginResult{}, err
+		}
+		return LoginResult{}, domain.ErrInvalidSecondFactor
+	}
+	u.challenges.remove(challenge)
+	return u.openSession(ctx, user, failures, ip, userAgent, "password+"+string(method), now)
+}
+
+func (u *AuthUsecase) checkSecondFactor(ctx context.Context, user domain.User, method domain.SecondFactorMethod, code string, now time.Time) (bool, error) {
+	switch method {
+	case domain.SecondFactorRecovery:
+		return u.secondFactors.UseRecoveryCode(ctx, user.ID, domain.RecoveryCodeHash(code))
+	case domain.SecondFactorTOTP:
+		if u.box == nil {
+			return false, domain.ErrSecondFactorUnavailable
+		}
+		enrollment, found, err := u.secondFactors.TOTP(ctx, user.ID)
+		if err != nil || !found || !enrollment.Confirmed {
+			return false, err
+		}
+		secret, err := u.box.Open(enrollment.Sealed, totpAssociatedData(user.ID))
+		if err != nil {
+			return false, fmt.Errorf("open TOTP secret: %w", err)
+		}
+		step, ok := domain.MatchTOTP(secret, code, now)
+		if !ok {
+			return false, nil
+		}
+		// Anti-replay: a step already used is refused.
+		return u.secondFactors.UseTOTPStep(ctx, user.ID, step)
+	default:
+		return false, nil
+	}
+}
+
+// openSession ends a successful login: failures cleared, login recorded,
+// session created.
+func (u *AuthUsecase) openSession(ctx context.Context, user domain.User, failures domain.LoginFailures, ip, userAgent, authMethod string, now time.Time) (LoginResult, error) {
 	if u.failures != nil && (failures.Count > 0 || failures.LockedUntil != nil) {
 		if err := u.failures.ClearLoginFailures(ctx, user.ID); err != nil {
-			return "", domain.User{}, time.Time{}, fmt.Errorf("clear login failures: %w", err)
+			return LoginResult{}, fmt.Errorf("clear login failures: %w", err)
 		}
 	}
-
 	token, err := randomToken()
 	if err != nil {
-		return "", domain.User{}, time.Time{}, err
+		return LoginResult{}, err
 	}
 	if err := u.users.RecordLogin(ctx, user.ID, ip, now); err != nil {
-		return "", domain.User{}, time.Time{}, fmt.Errorf("record login: %w", err)
+		return LoginResult{}, fmt.Errorf("record login: %w", err)
 	}
-	expiresAt := now.Add(12 * time.Hour)
-	tokenHash := sha256Hex(token)
-	session, err := u.sessions.Create(ctx, user.ID, tokenHash, ip, userAgent, expiresAt)
+	session, err := u.sessions.Create(ctx, user.ID, sha256Hex(token), ip, userAgent, authMethod, now.Add(sessionLifetime))
 	if err != nil {
-		return "", domain.User{}, time.Time{}, err
+		return LoginResult{}, err
 	}
-	return token, user, session.ExpiresAt, nil
+	return LoginResult{Token: token, User: user, ExpiresAt: session.ExpiresAt}, nil
+}
+
+func (u *AuthUsecase) loginFailures(ctx context.Context, userID uuid.UUID) (domain.LoginFailures, error) {
+	if u.failures == nil {
+		return domain.LoginFailures{}, nil
+	}
+	failures, err := u.failures.LoginFailures(ctx, userID)
+	if err != nil {
+		return domain.LoginFailures{}, fmt.Errorf("read login failures: %w", err)
+	}
+	return failures, nil
 }
 
 // EnsureAdministrator creates the initial administrator when absent. With
@@ -173,7 +295,8 @@ func (u *AuthUsecase) Session(ctx context.Context, token string) (domain.User, d
 	}
 	if u.policy != nil {
 		now := u.now().UTC()
-		if session.IdleExpired(now, u.policy.Policy()) {
+		policy := u.policy.Policy()
+		if session.IdleExpired(now, policy) {
 			if err := u.sessions.RevokeByID(ctx, session.ID); err != nil && !errors.Is(err, domain.ErrSessionNotFound) {
 				return domain.User{}, domain.Session{}, fmt.Errorf("revoke idle session: %w", err)
 			}
@@ -184,6 +307,13 @@ func (u *AuthUsecase) Session(ctx context.Context, token string) (domain.User, d
 				return domain.User{}, domain.Session{}, fmt.Errorf("touch session: %w", err)
 			}
 			session.LastSeenAt = now
+		}
+		if policy.RequireAdminSecondFactor && user.Role == domain.RoleAdmin && u.secondFactors != nil {
+			enrolled, err := u.secondFactors.HasSecondFactor(ctx, user.ID)
+			if err != nil {
+				return domain.User{}, domain.Session{}, fmt.Errorf("check second factor: %w", err)
+			}
+			user.MustEnrollSecondFactor = !enrolled
 		}
 	}
 	return user, session, nil

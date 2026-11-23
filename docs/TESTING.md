@@ -45,6 +45,8 @@ go test ./internal/adapters/sqlite -count=1 -v
 - Vérifier interactions clavier, labels et responsive.
 - Aucun test ne doit afficher des données simulées comme des données réelles.
 
+Scripts de release : `scripts/release/release_test.sh` (lancé par `scripts/verify.sh`) vérifie dans un dépôt Git jetable le calcul de version (sans tag, correctif, `feat`, changement cassant, commit hors convention, HEAD déjà publié) et le groupement des notes. La construction des archives (`scripts/release/build.sh`) se vérifie en l'exécutant : binaires statiques `amd64` et `arm64`, version présente dans les journaux et l'interface.
+
 Commandes :
 ```bash
 npm run format:check

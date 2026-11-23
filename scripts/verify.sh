@@ -15,3 +15,4 @@ npm --prefix frontend run lint
 npm --prefix frontend run typecheck
 npm --prefix frontend run test
 npm --prefix frontend run build
+scripts/release/release_test.sh

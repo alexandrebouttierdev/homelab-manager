@@ -20,6 +20,10 @@ import (
 	"go.uber.org/zap"
 )
 
+// version is set at build time by scripts/release/build.sh
+// (-ldflags "-X main.version=..."); "dev" for a local build.
+var version = "dev"
+
 func main() {
 	config, err := LoadConfig()
 	if err != nil {
@@ -33,6 +37,7 @@ func main() {
 		os.Exit(1)
 	}
 	defer logger.Sync() //nolint:errcheck
+	logger.Info("Starting Homelab Manager", zap.String("version", version))
 
 	database, databaseErr := sqlite.Open(context.Background(), config.DatabasePath)
 	if databaseErr != nil {

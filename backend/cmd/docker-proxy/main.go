@@ -16,6 +16,10 @@ import (
 	"go.uber.org/zap"
 )
 
+// version is set at build time by scripts/release/build.sh
+// (-ldflags "-X main.version=..."); "dev" for a local build.
+var version = "dev"
+
 func main() {
 	logger, err := zap.NewProduction()
 	if err != nil {
@@ -23,6 +27,7 @@ func main() {
 		os.Exit(1)
 	}
 	defer logger.Sync() //nolint:errcheck
+	logger.Info("Starting Docker proxy", zap.String("version", version))
 
 	listener, err := systemdListener()
 	if err != nil {

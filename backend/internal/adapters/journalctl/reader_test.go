@@ -49,6 +49,11 @@ func TestArguments(t *testing.T) {
 			[]string{"--no-pager", "--quiet", "--output=json", "--all", "--lines=1", "--priority=info", "--facility=auth,authpriv", "--since=@1795428000.000000", "--until=@1795431599.999999"},
 		},
 		{
+			"cursor in a range: the Manager applies it",
+			ports.JournalRead{Filter: domain.JournalFilter{Priority: 6, From: &from, To: &to}, Reverse: true, After: "s=z", Limit: 2},
+			[]string{"--no-pager", "--quiet", "--output=json", "--all", "--reverse", "--after-cursor=s=z", "--lines=2", "--priority=info"},
+		},
+		{
 			"docker daemon",
 			ports.JournalRead{Filter: domain.JournalFilter{Priority: 6, Source: domain.JournalSourceDocker}, Limit: 1},
 			[]string{"--no-pager", "--quiet", "--output=json", "--all", "--lines=1", "--priority=info", "--unit=docker.service"},
@@ -366,5 +371,27 @@ func TestJournalctlEntryBootsUnitsAndDiskUsage(t *testing.T) {
 	usage, err := reader.DiskUsage(ctx)
 	if err != nil || usage <= 0 {
 		t.Fatalf("DiskUsage = %d, %v", usage, err)
+	}
+}
+
+// journalctl refuses --since with a cursor: pages after the first one in a
+// range must still stop at its start.
+func TestJournalctlRangeWithACursor(t *testing.T) {
+	reader := testJournal(t)
+	from := time.UnixMicro(baseMicros + 10*60_000_000)
+	to := time.UnixMicro(baseMicros + 25*60_000_000)
+	filter := domain.JournalFilter{Priority: 7, From: &from, To: &to}
+
+	first, err := readAll(t, reader, ports.JournalRead{Filter: filter, Reverse: true, Limit: 3})
+	if err != nil || !slices.Equal(messageNumbers(first), []string{"24", "23", "22"}) {
+		t.Fatalf("first page = %v, %v", messageNumbers(first), err)
+	}
+	older, err := readAll(t, reader, ports.JournalRead{Filter: filter, Reverse: true, After: first[2]["__CURSOR"], Limit: 50})
+	if err != nil || len(older) != 12 || messageNumbers(older)[0] != "21" || messageNumbers(older)[11] != "10" {
+		t.Fatalf("older pages = %v, %v; want 21 down to 10, the start of the range", messageNumbers(older), err)
+	}
+	newer, err := readAll(t, reader, ports.JournalRead{Filter: filter, After: older[11]["__CURSOR"], Limit: 50})
+	if err != nil || len(newer) != 14 || messageNumbers(newer)[13] != "24" {
+		t.Fatalf("follow in a range = %v, %v; want 11 up to 24, the end of the range", messageNumbers(newer), err)
 	}
 }

@@ -123,10 +123,12 @@ func (r *Reader) arguments(request ports.JournalRead) []string {
 	if filter.BootID != "" {
 		args = append(args, "--boot="+filter.BootID)
 	}
-	if filter.From != nil {
+	// With a cursor, journalctl refuses --since and ignores --until: Read
+	// applies the range itself.
+	if request.After == "" && filter.From != nil {
 		args = append(args, "--since="+timestamp(*filter.From))
 	}
-	if filter.To != nil {
+	if request.After == "" && filter.To != nil {
 		// --until includes its bound; the range is [From, To).
 		args = append(args, "--until="+timestamp(filter.To.Add(-time.Microsecond)))
 	}
@@ -155,12 +157,28 @@ func (r *Reader) Read(ctx context.Context, request ports.JournalRead, visit func
 	if request.Limit <= 0 {
 		return ports.JournalReadStats{}, nil
 	}
+	// With a cursor the range is applied here (see arguments): reading
+	// stops at the first entry past the bound it moves towards, and passes
+	// over entries past the other one.
+	ranged := request.After != "" && (request.Filter.From != nil || request.Filter.To != nil)
 	var stats ports.JournalReadStats
 	err := r.run(ctx, r.arguments(request), func(line []byte) bool {
 		record, err := decodeRecord(line)
 		if err != nil {
 			stats.Skipped++
 			return true
+		}
+		if ranged {
+			if at, err := strconv.ParseInt(record["__REALTIME_TIMESTAMP"], 10, 64); err == nil {
+				before := request.Filter.From != nil && at < request.Filter.From.UnixMicro()
+				after := request.Filter.To != nil && at >= request.Filter.To.UnixMicro()
+				switch {
+				case before && request.Reverse, after && !request.Reverse:
+					return false
+				case before, after:
+					return true
+				}
+			}
 		}
 		return visit(record)
 	}, &stats)

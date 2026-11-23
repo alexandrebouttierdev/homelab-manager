@@ -16,6 +16,7 @@ import (
 	"homelab-manager/backend/internal/adapters/qrcode"
 	"homelab-manager/backend/internal/adapters/secretbox"
 	"homelab-manager/backend/internal/adapters/sqlite"
+	"homelab-manager/backend/internal/adapters/systemd"
 	systemcollector "homelab-manager/backend/internal/collector/system"
 	httpdelivery "homelab-manager/backend/internal/delivery/http"
 	"homelab-manager/backend/internal/ports"
@@ -60,6 +61,9 @@ func main() {
 	var clientCloser interface{ Close() error }
 	var dockerClientCloser interface{ CloseIdleConnections() }
 	var schedulerDone chan struct{}
+	// failedUnits stays a nil interface without a database: the service
+	// inventory is then served without events.
+	var failedUnits ports.FailedUnitRepository
 	schedulerCtx, cancelScheduler := context.WithCancel(context.Background())
 	defer cancelScheduler()
 	if database != nil {
@@ -99,6 +103,7 @@ func main() {
 				logger.Info("Reboot and power off are enabled; they also require the polkit rule")
 			}
 		}
+		failedUnits = sqlite.NewSystemUnitRepository(client)
 		monitoringRepository := sqlite.NewMonitoringRepository(database)
 		dockerClient := dockerengine.NewClient(config.DockerProxySocket)
 		dockerClientCloser = dockerClient
@@ -120,10 +125,17 @@ func main() {
 			monitoringUsecase.Run(schedulerCtx)
 		}()
 	}
+	journalUsecase := loadJournal(logger)
+	serviceUsecase := usecase.NewServiceUsecase(systemd.New(systemd.SystemBus), failedUnits, journalUsecase, logger)
+	servicesDone := make(chan struct{})
+	go func() {
+		defer close(servicesDone)
+		serviceUsecase.Run(schedulerCtx)
+	}()
 	router := httpdelivery.NewRouter(logger, httpdelivery.Services{
 		Health: healthUsecase, Auth: authUsecase, Monitoring: monitoringUsecase,
 		Accounts: accountUsecase, Power: powerUsecase, Security: securityUsecase, Audit: auditUsecase,
-		SecondFactors: secondFactorUsecase, Journal: loadJournal(logger),
+		SecondFactors: secondFactorUsecase, Journal: journalUsecase,
 	}, config.SessionSecure, config.WebRoot)
 
 	server := &http.Server{
@@ -161,6 +173,11 @@ func main() {
 		case <-time.After(10 * time.Second):
 			logger.Error("monitoring workers did not stop before deadline")
 		}
+	}
+	select {
+	case <-servicesDone:
+	case <-time.After(10 * time.Second):
+		logger.Error("system units collection did not stop before deadline")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

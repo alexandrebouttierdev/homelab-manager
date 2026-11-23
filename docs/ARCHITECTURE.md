@@ -77,6 +77,7 @@ En cas d'indisponibilité du démon, conserver le dernier inventaire connu comme
 - La collecte démarre au lancement du Manager, non à la première requête.
 - Une panne ponctuelle d'un sous-système n'empêche pas l'autre collecteur de fonctionner.
 - Les insertions de métriques sont groupées ; les requêtes historiques ont des bornes temporelles et un plafond de résultats ; les vues courantes lisent le dernier cycle complet.
+- Les services systemd (SPEC_ADMINISTRATION.md § 5.1) sont collectés toutes les 30 s par une goroutine détenue par `ServiceUsecase.Run` et arrêtée avec les autres avant la fermeture de la base : une connexion D-Bus par cycle, 25 s au plus. L'inventaire reste en mémoire avec son statut (`pending`, `ok`, `error`, `unavailable`) ; seul l'ensemble des unités en échec est enregistré (`failed_units`), avec les événements `service.failed` et `service.recovered`. Le détail d'une unité est lu à la demande, avec les 50 dernières entrées de son journal.
 - L'état des collecteurs est tenu en mémoire par le usecase (`starting`, `ok`, `stale`, `unavailable`) et n'est pas persisté.
 - La purge est paginée/par lots afin de limiter la durée de chaque écriture SQLite : la connexion unique est partagée avec les collecteurs et l'API.
 - Toute goroutine a un propriétaire, une stratégie d'arrêt et des timeouts.

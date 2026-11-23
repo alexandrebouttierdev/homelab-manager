@@ -179,6 +179,14 @@ func TestAccountAdministrationEndToEnd(t *testing.T) {
 // "admin" account. A nil controller leaves the power actions disabled.
 func newTestRouter(t *testing.T, controller ports.PowerController) (http.Handler, *sqlite.Database) {
 	t.Helper()
+	services, database := newTestServices(t, controller)
+	return NewRouter(zap.NewNop(), services, false, ""), database
+}
+
+// newTestServices builds the usecases of newTestRouter, for a test that
+// adds its own.
+func newTestServices(t *testing.T, controller ports.PowerController) (Services, *sqlite.Database) {
+	t.Helper()
 	ctx := context.Background()
 	database, err := sqlite.Open(ctx, filepath.Join(t.TempDir(), "manager.db"))
 	if err != nil {
@@ -215,7 +223,7 @@ func newTestRouter(t *testing.T, controller ports.PowerController) (http.Handler
 		Audit:         usecase.NewAuditUsecase(auditRepository, auditRepository),
 		SecondFactors: usecase.NewSecondFactorUsecase(authRepository, factorRepository, box, qrcode.New(), hasher),
 	}
-	return NewRouter(zap.NewNop(), services, false, ""), database
+	return services, database
 }
 
 // testClientAddress is the address of every request sent by call.

@@ -58,8 +58,14 @@ Ce document est le contrat exact de l'API implémentée. Toute différence entre
 | `POST /api/v1/users/{userID}/password` | admin | Réinitialise le mot de passe d'un compte (§ 3.1) |
 | `GET /api/v1/machine/power` | admin | Actions d'alimentation disponibles (§ 4.5) |
 | `POST /api/v1/machine/power/{action}` | admin | Redémarre ou éteint la machine (§ 4.5) |
+| `GET /api/v1/journal/entries` | oui | Entrées du journal systemd, filtrées et paginées (§ 4.6) |
+| `GET /api/v1/journal/entry` | oui | Tous les champs d'une entrée, masqués (§ 4.6) |
+| `GET /api/v1/journal/boots` | oui | Démarrages enregistrés (§ 4.6) |
+| `GET /api/v1/journal/units` | oui | Unités présentes dans le journal (§ 4.6) |
+| `GET /api/v1/journal/summary` | oui | Volume sur 24 h par priorité, occupation disque (§ 4.6) |
+| `GET /api/v1/journal/export` | oui | Export `.log` ou `.json` (§ 4.6) |
 
-Toutes les routes de supervision sont en lecture seule ; les seules écritures sont l'authentification, `PUT /api/v1/settings/retention`, la gestion des comptes et les demandes d'alimentation de la machine. La colonne « Session » indique `admin` pour les routes réservées au rôle administrateur (§ 3.1). Une route inconnue sous `/api` répond `404 NOT_FOUND`, une méthode non prévue `405 METHOD_NOT_ALLOWED`, toujours au format d'erreur du § 8. Il n'existe aucune route d'Agent, d'hôte distant, de journaux, ni d'action Docker (création, suppression, démarrage, arrêt, restart, exec).
+Toutes les routes de supervision sont en lecture seule ; les seules écritures sont l'authentification, `PUT /api/v1/settings/retention`, la gestion des comptes et les demandes d'alimentation de la machine. La colonne « Session » indique `admin` pour les routes réservées au rôle administrateur (§ 3.1). Une route inconnue sous `/api` répond `404 NOT_FOUND`, une méthode non prévue `405 METHOD_NOT_ALLOWED`, toujours au format d'erreur du § 8. Le journal système n'est lu qu'en lecture seule. Il n'existe aucune route d'Agent, d'hôte distant, de journaux de conteneurs, ni d'action Docker (création, suppression, démarrage, arrêt, restart, exec).
 
 ### Paramètres de chemin
 
@@ -122,17 +128,6 @@ Comptes de Homelab Manager uniquement : aucun compte Linux n'est lu ni modifié.
 - Le dernier administrateur actif ne peut être ni rétrogradé, ni désactivé, ni supprimé : `409 LAST_ADMIN`.
 - Chaque modification réussie écrit une ligne d'audit (`user`, UUID du compte, `create` / `update` / `delete`) dans la même transaction.
 
-### 3.5 Second facteur
-
-TOTP (RFC 6238 : HMAC-SHA-1, 6 chiffres, 30 s, ±1 période, un code n'est accepté qu'une fois) et 10 codes de secours à usage unique. WebAuthn est prévu en phase 8.
-
-- **Deuxième étape de connexion** — `POST /api/v1/auth/login/second-factor` avec `{ "method": "totp" | "recovery", "code": "123456" }` (1 à 64 octets ; espaces ignorés pour le TOTP, casse, espaces et tirets ignorés pour un code de secours) et le cookie de défi `homelab_login` (`HttpOnly`, `SameSite=Strict`, `Path=/api/v1/auth`, 5 minutes, 5 essais, gardé en mémoire : un redémarrage du Manager impose de ressaisir le mot de passe). Succès `200 { "user": … }`, cookie de session et méthode de session `password+totp` ou `password+recovery`. Code faux : `401 INVALID_SECOND_FACTOR`, compté dans le verrouillage du compte (§ 3.2). Défi absent, expiré, épuisé ou compte devenu indisponible : `401 LOGIN_CHALLENGE_EXPIRED`. TOTP sans clé maître : `503 SECOND_FACTOR_UNAVAILABLE` (les codes de secours restent acceptés). Même limitation par adresse et même contrôle d'origine que la connexion.
-- `GET /api/v1/auth/second-factor` : `200 { "enabled": false, "pending": false, "recoveryCodesRemaining": 0, "available": true }`. `available` est faux quand la clé maître manque (§ 2.5 de la spécification).
-- `POST /api/v1/auth/second-factor/totp` avec `{ "password": "..." }` : `200 { "secret": "BASE32…", "uri": "otpauth://totp/Homelab%20Manager:alice?…", "qr": { "size": 29, "rows": ["1111111010…", …] } }`. `rows` décrit les modules du QR code (`1` = foncé), à dessiner par l'interface. Remplace un enrôlement en attente. Mot de passe faux : `401 INVALID_CREDENTIALS` ; déjà activé : `409 SECOND_FACTOR_ALREADY_ENABLED` ; sans clé maître : `503 SECOND_FACTOR_UNAVAILABLE`.
-- `POST /api/v1/auth/second-factor/totp/confirm` avec `{ "code": "123456" }` : `200 { "recoveryCodes": ["k7pq-2mzx-b9ht", …] }` (10 codes, affichés cette seule fois). Code faux : `400 INVALID_SECOND_FACTOR` ; aucun enrôlement en attente : `409 NO_PENDING_ENROLLMENT`. Audité (`user`, UUID, `second_factor_enable`).
-- `POST /api/v1/auth/second-factor/recovery-codes` avec `{ "password" }` : `200 { "recoveryCodes": […] }`, les anciens codes ne valent plus. Sans second facteur : `409 SECOND_FACTOR_NOT_ENABLED`. Audité (`recovery_codes_regenerate`).
-- `POST /api/v1/auth/second-factor/disable` avec `{ "password" }` : `200 { "disabled": true }`, secret et codes supprimés. Audité (`second_factor_disable`).
-
 ### 3.2 Sessions
 
 - **Verrouillage** — 5 mots de passe faux consécutifs verrouillent le compte 15 minutes, en plus de la limite par adresse. Un compte verrouillé reçoit `401 INVALID_CREDENTIALS`, comme un mot de passe faux, après la même vérification Argon2id. Une connexion réussie remet le compteur à zéro ; le verrouillage est audité (`system`, `user`, `lock`).
@@ -166,6 +161,17 @@ TOTP (RFC 6238 : HMAC-SHA-1, 6 chiffres, 30 s, ±1 période, un code n'est accep
 
 - `GET /api/v1/audit/export?format=csv|json` (admin), mêmes filtres, 10 000 lignes au plus (défaut et maximum) : fichier joint `audit-<horodatage>.csv` ou `.json`. Le CSV a l'en-tête `createdAt,actor,targetType,targetId,action,outcome,requestId` ; une valeur commençant par `=`, `+`, `-`, `@`, une tabulation ou un retour chariot est préfixée d'une apostrophe (pas de formule dans un tableur).
 - Résultats tracés : `success`, `denied` (rôle insuffisant : cible `route`, `METHODE chemin`, action `access` ; dernier administrateur protégé : cible `user`), `requested` et `failure` (alimentation, § 4.5).
+
+### 3.5 Second facteur
+
+TOTP (RFC 6238 : HMAC-SHA-1, 6 chiffres, 30 s, ±1 période, un code n'est accepté qu'une fois) et 10 codes de secours à usage unique. WebAuthn est prévu en phase 8.
+
+- **Deuxième étape de connexion** — `POST /api/v1/auth/login/second-factor` avec `{ "method": "totp" | "recovery", "code": "123456" }` (1 à 64 octets ; espaces ignorés pour le TOTP, casse, espaces et tirets ignorés pour un code de secours) et le cookie de défi `homelab_login` (`HttpOnly`, `SameSite=Strict`, `Path=/api/v1/auth`, 5 minutes, 5 essais, gardé en mémoire : un redémarrage du Manager impose de ressaisir le mot de passe). Succès `200 { "user": … }`, cookie de session et méthode de session `password+totp` ou `password+recovery`. Code faux : `401 INVALID_SECOND_FACTOR`, compté dans le verrouillage du compte (§ 3.2). Défi absent, expiré, épuisé ou compte devenu indisponible : `401 LOGIN_CHALLENGE_EXPIRED`. TOTP sans clé maître : `503 SECOND_FACTOR_UNAVAILABLE` (les codes de secours restent acceptés). Même limitation par adresse et même contrôle d'origine que la connexion.
+- `GET /api/v1/auth/second-factor` : `200 { "enabled": false, "pending": false, "recoveryCodesRemaining": 0, "available": true }`. `available` est faux quand la clé maître manque (§ 2.5 de la spécification).
+- `POST /api/v1/auth/second-factor/totp` avec `{ "password": "..." }` : `200 { "secret": "BASE32…", "uri": "otpauth://totp/Homelab%20Manager:alice?…", "qr": { "size": 29, "rows": ["1111111010…", …] } }`. `rows` décrit les modules du QR code (`1` = foncé), à dessiner par l'interface. Remplace un enrôlement en attente. Mot de passe faux : `401 INVALID_CREDENTIALS` ; déjà activé : `409 SECOND_FACTOR_ALREADY_ENABLED` ; sans clé maître : `503 SECOND_FACTOR_UNAVAILABLE`.
+- `POST /api/v1/auth/second-factor/totp/confirm` avec `{ "code": "123456" }` : `200 { "recoveryCodes": ["k7pq-2mzx-b9ht", …] }` (10 codes, affichés cette seule fois). Code faux : `400 INVALID_SECOND_FACTOR` ; aucun enrôlement en attente : `409 NO_PENDING_ENROLLMENT`. Audité (`user`, UUID, `second_factor_enable`).
+- `POST /api/v1/auth/second-factor/recovery-codes` avec `{ "password" }` : `200 { "recoveryCodes": […] }`, les anciens codes ne valent plus. Sans second facteur : `409 SECOND_FACTOR_NOT_ENABLED`. Audité (`recovery_codes_regenerate`).
+- `POST /api/v1/auth/second-factor/disable` avec `{ "password" }` : `200 { "disabled": true }`, secret et codes supprimés. Audité (`second_factor_disable`).
 
 ## 4. Santé, synthèse, hôte et paramètres
 
@@ -280,6 +286,53 @@ Réservé au rôle `admin` ; voir SPEC_ADMINISTRATION.md § 8 bis.
 - Succès `202 { "requested": true, "action": "reboot" }` : `systemd-logind` a accepté la demande ; le Manager s'arrête avec les autres services peu après. La réponse peut ne pas parvenir si l'arrêt est très rapide.
 - `400 HOSTNAME_MISMATCH` : confirmation différente du nom d'hôte. `409 POWER_ACTIONS_DISABLED` : réglage désactivé. `409 ACTION_IN_PROGRESS` : une demande a déjà été acceptée. `503 POWER_ACTION_REFUSED` : polkit ou logind refuse (règle absente, verrou d'inhibition, arrêt déjà en cours). `500 POWER_ACTION_FAILED` : bus système ou logind injoignable.
 - Une ligne d'audit (`host`, nom d'hôte, action, `requested`) est écrite avant la demande ; un refus ajoute `failure`.
+
+### 4.6 Journal système
+
+Lecture seule du journal systemd par `journalctl` (SPEC_ADMINISTRATION.md § 4), ouverte à tous les rôles. Le Manager doit appartenir au groupe `systemd-journal` ; sinon il ne voit que ses propres entrées (`fullAccess: false`). Sans `journalctl` dans son `PATH`, toutes ces routes répondent `503 JOURNAL_UNAVAILABLE` et le reste du Manager fonctionne.
+
+**Filtres** (paramètres de requête, communs à `entries` et `export`) :
+
+| Paramètre | Valeurs | Défaut |
+|---|---|---|
+| `source` | `all`, `kernel` (`_TRANSPORT=kernel`), `auth` (facilités `auth` et `authpriv`), `docker` (unité `docker.service`, exclusif de `unit`) | `all` |
+| `priority` | Priorité la moins grave affichée : `emerg`, `alert`, `crit`, `err`, `warning`, `notice`, `info`, `debug` | `info` |
+| `unit` | Nom d'unité systemd, motif `^[A-Za-z0-9@._:\-]+\.(service\|socket\|timer\|mount\|automount\|swap\|path\|scope\|slice\|target\|device)$`, 255 octets au plus | — |
+| `boot` | Identifiant de démarrage (32 caractères hexadécimaux minuscules) présent dans `GET /journal/boots` | tous |
+| `from`, `to` | RFC 3339, intervalle `[from, to)` | — |
+| `q` | Texte cherché (200 octets au plus) : sous-chaîne insensible à la casse du message, de l'unité ou de l'identifiant, cherchée par le Manager | — |
+
+La chaîne de requête est analysée strictement : un curseur doit être encodé (`;` → `%3B`), sinon `400 VALIDATION_ERROR`. Toute valeur hors de ces bornes, un démarrage inconnu ou `before` avec `after` → `400 VALIDATION_ERROR`.
+
+`GET /api/v1/journal/entries` — en plus des filtres : `limit` (1 à 500, défaut 200) et au plus un curseur, `before` (entrées plus anciennes) ou `after` (entrées plus récentes, pour le suivi en direct). Réponse `200` :
+
+```json
+{
+  "entries": [
+    { "cursor": "s=…;i=…;b=…;m=…;t=…;x=…", "time": "2026-11-23T09:30:12.123456Z", "priority": 3,
+      "unit": "ssh.service", "identifier": "sshd", "pid": "812", "hostname": "homelab",
+      "bootId": "bbbb…", "message": "…", "truncated": false }
+  ],
+  "olderCursor": "s=…", "newerCursor": "s=…", "scanned": 201, "scanLimitReached": false, "skipped": 0
+}
+```
+
+- `entries` va toujours de la plus récente à la plus ancienne. `priority` est `null` si l'entrée n'en a pas. `message` est tronqué à 8 Kio (`truncated: true`) ; l'entrée complète est donnée par `GET /journal/entry`.
+- `olderCursor` : à passer en `before` pour la page suivante ; `null` quand il n'y a plus d'entrées. Absent (`null`) pour une page `after`.
+- `newerCursor` : à passer en `after` pour le suivi ; c'est la dernière entrée examinée, même si la recherche ne l'a pas retenue, ou le `after` reçu si rien de nouveau. `null` pour une page `before`, ou si le journal est vide.
+- Avec `q`, 5 000 entrées au plus sont examinées par requête ; `scanLimitReached: true` signale que la recherche s'est arrêtée à cette borne (ou à la taille maximale de sortie) : continuer avec `olderCursor`. `scanned` compte les entrées examinées, `skipped` celles illisibles ou de plus de 1 Mio.
+
+`GET /api/v1/journal/entry?cursor=…` : `200 { "entry": Entrée, "fields": [{ "name": "_CMDLINE", "value": "[masqué]", "masked": true }, …] }`, champs triés par nom. Sont masqués `_CMDLINE` et tout champ dont le nom contient `PASSWORD`, `TOKEN` ou `SECRET` (casse ignorée). Une valeur binaire est rendue en texte UTF-8 pour `MESSAGE`, sinon `[données binaires, N octets]` ; un champ répété donne ses valeurs séparées par des sauts de ligne. Curseur invalide : `400` ; entrée disparue : `404 NOT_FOUND`.
+
+`GET /api/v1/journal/boots` : `200 { "boots": [{ "index": 0, "bootId": "…", "firstEntry": "…", "lastEntry": "…" }, …] }`, du plus récent (`index` 0, démarrage en cours) au plus ancien, 100 au plus. Liste gardée une minute.
+
+`GET /api/v1/journal/units` : `200 { "units": ["cron.service", …] }`, unités distinctes du champ `_SYSTEMD_UNIT`, triées, 1 000 au plus. Remplacée par la liste du module S en phase 3.
+
+`GET /api/v1/journal/summary` : `200 { "start", "bucketMinutes": 15, "buckets": [{ "start", "counts": [emerg, alert, crit, err, warning, notice, info, debug] }, … 96 tranches], "total", "truncated", "diskUsageBytes", "fullAccess", "generatedAt" }`. Les 96 tranches couvrent les 24 h écoulées, la dernière contient l'heure courante ; une entrée sans priorité compte comme `info`. Au-delà de 200 000 entrées, seules les plus récentes sont comptées (`truncated: true`). `diskUsageBytes` (`journalctl --disk-usage`) est `null` si la lecture échoue. Résultat gardé une minute.
+
+`GET /api/v1/journal/export?format=log|json` et les filtres : fichier joint `journal-<horodatage>.log` (format court `2026-11-23T09:30:12Z hôte identifiant[pid]: message`, lignes suivantes indentées) ou `.json` (tableau d'entrées comme ci-dessus), dans l'ordre chronologique. Seules les 50 000 entrées les plus récentes du filtre sont lues ; la recherche `q` s'applique à celles-ci. La réponse est envoyée en flux : une erreur après le début (délai de 10 s de `journalctl` dépassé, par exemple) coupe la réponse, et un export JSON coupé reste alors invalide.
+
+Bornes communes : 10 s par appel à `journalctl`, 4 appels simultanés au plus, 64 Mio de sortie par appel. Échec de `journalctl` : `500 JOURNAL_READ_FAILED` (le détail va dans le journal du Manager).
 
 ## 5. Métriques
 
@@ -482,6 +535,8 @@ Les routes sont versionnées sous `/api/v1`. Un changement incompatible (champ s
 | `NO_PENDING_ENROLLMENT` | 409 | Aucun enrôlement TOTP en attente |
 | `SECOND_FACTOR_NOT_ENROLLED` | 409 | Exiger le second facteur sans en avoir soi-même |
 | `SECOND_FACTOR_UPDATE_FAILED` | 500 | Écriture du second facteur en échec |
+| `JOURNAL_UNAVAILABLE` | 503 | `journalctl` absent : journal système indisponible |
+| `JOURNAL_READ_FAILED` | 500 | Lecture du journal système en échec |
 | `INTERNAL_ERROR` | 500 | Autre erreur serveur |
 
 Aucune trace de pile, chemin local, secret ou réponse Docker brute dans les erreurs. `requestId` correspond au champ `request_id` des journaux du Manager.

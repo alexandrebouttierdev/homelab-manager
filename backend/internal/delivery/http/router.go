@@ -39,12 +39,18 @@ type Services struct {
 	Audit      *usecase.AuditUsecase
 	// SecondFactors manages the second factor of the signed-in account.
 	SecondFactors *usecase.SecondFactorUsecase
+	// Journal reads the systemd journal; nil means unavailable.
+	Journal *usecase.JournalUsecase
 }
 
 func NewRouter(logger *zap.Logger, services Services, sessionSecure bool, webRoot string) http.Handler {
 	health, auth, monitoring := services.Health, services.Auth, services.Monitoring
 	accounts, power, security, audit := services.Accounts, services.Power, services.Security, services.Audit
 	factors := services.SecondFactors
+	journal := services.Journal
+	if journal == nil {
+		journal = usecase.NewJournalUsecase(nil)
+	}
 	deny := func(r *http.Request, user domain.User) {
 		if audit == nil {
 			return
@@ -121,6 +127,14 @@ func NewRouter(logger *zap.Logger, services Services, sessionSecure bool, webRoo
 						log.Use(requirePermission(deny, domain.PermViewAudit))
 						log.Get("/", listAuditHandler(audit))
 						log.Get("/export", exportAuditHandler(audit))
+					})
+					active.Route("/journal", func(system chi.Router) {
+						system.Get("/entries", listJournalHandler(logger, journal))
+						system.Get("/entry", journalEntryHandler(logger, journal))
+						system.Get("/boots", journalBootsHandler(logger, journal))
+						system.Get("/units", journalUnitsHandler(logger, journal))
+						system.Get("/summary", journalSummaryHandler(logger, journal))
+						system.Get("/export", exportJournalHandler(logger, journal))
 					})
 					active.Route("/machine/power", func(machine chi.Router) {
 						machine.Use(requirePermission(deny, domain.PermManagePower))

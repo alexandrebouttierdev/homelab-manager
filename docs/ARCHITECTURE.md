@@ -49,11 +49,11 @@ Chi reste exclusivement dans Delivery/HTTP. Ent reste dans les adaptateurs de pe
 - `domain/` : objets et règles métier pour l'hôte, les conteneurs, les mesures et événements.
 - `usecase/` : orchestration des lectures, collectes, historiques et paramètres.
 - `ports/` : interfaces minimales pour les collecteurs, repositories et horloge si nécessaire.
-- `adapters/` : Linux, API Docker, SQLite/Ent et système de fichiers.
+- `adapters/` : Linux, API Docker, SQLite/Ent, système de fichiers, `systemd-logind` (D-Bus), journal système (`journalctl`), coffre de secrets et QR code.
 - `delivery/http/` : handlers Chi, DTO, middleware et validation HTTP.
 - `cmd/manager/` : composition des dépendances et cycle de vie du processus.
 
-Les collecteurs ne sont jamais appelés directement depuis un handler. Un planificateur détenu par le Manager lance des cycles périodiques et s'arrête avec son contexte avant la fermeture des ressources.
+Les collecteurs ne sont jamais appelés directement depuis un handler. Le journal système fait exception à la collecte périodique : il est lu à la demande, par `journalctl`, sans copie en base (le journal reste la source) ; la synthèse sur 24 h et la liste des démarrages sont gardées une minute en mémoire. Un planificateur détenu par le Manager lance des cycles périodiques et s'arrête avec son contexte avant la fermeture des ressources.
 
 ## 4. Collecte système
 

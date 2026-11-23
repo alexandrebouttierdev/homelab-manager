@@ -11,6 +11,7 @@ import (
 
 	argon2adapter "homelab-manager/backend/internal/adapters/argon2"
 	"homelab-manager/backend/internal/adapters/dockerengine"
+	"homelab-manager/backend/internal/adapters/journalctl"
 	logindadapter "homelab-manager/backend/internal/adapters/logind"
 	"homelab-manager/backend/internal/adapters/qrcode"
 	"homelab-manager/backend/internal/adapters/secretbox"
@@ -122,7 +123,7 @@ func main() {
 	router := httpdelivery.NewRouter(logger, httpdelivery.Services{
 		Health: healthUsecase, Auth: authUsecase, Monitoring: monitoringUsecase,
 		Accounts: accountUsecase, Power: powerUsecase, Security: securityUsecase, Audit: auditUsecase,
-		SecondFactors: secondFactorUsecase,
+		SecondFactors: secondFactorUsecase, Journal: loadJournal(logger),
 	}, config.SessionSecure, config.WebRoot)
 
 	server := &http.Server{
@@ -196,4 +197,19 @@ func loadSecretBox(logger *zap.Logger, path string) ports.SecretBox {
 	}
 	logger.Info("Secrets key loaded")
 	return box
+}
+
+// loadJournal finds journalctl; without it the journal routes answer
+// JOURNAL_UNAVAILABLE and the rest of the Manager works.
+func loadJournal(logger *zap.Logger) *usecase.JournalUsecase {
+	path, err := journalctl.Find()
+	if err != nil {
+		logger.Warn("journalctl not found: the system journal is unavailable", zap.Error(err))
+		return usecase.NewJournalUsecase(nil)
+	}
+	reader := journalctl.New(path)
+	if !reader.FullAccess() {
+		logger.Warn("The Manager is not in the systemd-journal group: the journal shows its own entries only")
+	}
+	return usecase.NewJournalUsecase(reader)
 }

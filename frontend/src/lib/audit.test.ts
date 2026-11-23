@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { AuditEntry } from './api/security'
-import { auditPeriodStart, toAuditRow } from './audit'
+import { auditPeriodStart, isAuditPeriod, toAuditRow } from './audit'
 
 const entry: AuditEntry = {
   id: 'a1',
@@ -36,5 +36,12 @@ describe('auditPeriodStart', () => {
     expect(auditPeriodStart('24h', now)?.toISOString()).toBe('2026-11-22T10:00:00.000Z')
     expect(auditPeriodStart('7d', now)?.toISOString()).toBe('2026-11-16T10:00:00.000Z')
     expect(auditPeriodStart('all', now)).toBeUndefined()
+  })
+})
+
+describe('isAuditPeriod', () => {
+  it('recognises only the offered periods', () => {
+    expect(isAuditPeriod('30d')).toBe(true)
+    expect(isAuditPeriod('1y')).toBe(false)
   })
 })

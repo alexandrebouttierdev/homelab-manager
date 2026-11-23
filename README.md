@@ -21,7 +21,7 @@ Les limites actuelles sont explicites :
 
 - Les historiques sont bruts ou agrégés (1 min, 5 min, 1 h), 2 000 points au plus par requête ; l'interface choisit le pas selon la période.
 - À l'intervalle par défaut (10 s), la base croît d'environ 300 Mo par jour jusqu'à la rétention : ≈ 2 Go pour les 7 jours par défaut. La rétention se règle dans Paramètres.
-- Comptes multiples avec rôles (`viewer`, `operator`, `admin`), gérés par les administrateurs dans « Utilisateurs & accès » ; un compte créé doit changer son mot de passe initial. Les administrateurs peuvent redémarrer ou éteindre la machine depuis la page Machine, si l'administrateur système l'a activé (voir « Redémarrer et éteindre depuis l'interface »). Les sessions consultables, le verrouillage, le second facteur et les autres modules d'administration (journaux, services, alertes, sauvegardes, Cron) sont spécifiés dans [docs/SPEC_ADMINISTRATION.md](docs/SPEC_ADMINISTRATION.md) mais pas encore implémentés. Les applications restent gérées par Coolify.
+- Comptes multiples avec rôles (`viewer`, `operator`, `admin`), gérés par les administrateurs dans « Utilisateurs & accès » ; un compte créé doit changer son mot de passe initial. Les administrateurs peuvent redémarrer ou éteindre la machine depuis la page Machine, si l'administrateur système l'a activé (voir « Redémarrer et éteindre depuis l'interface »). Chacun consulte et révoque ses sessions dans Paramètres ; les administrateurs règlent l'inactivité des sessions et les réseaux autorisés, voient toutes les sessions et consultent ou exportent le journal d'audit ; un compte est verrouillé 15 minutes après 5 mots de passe faux. Le second facteur et les autres modules d'administration (journaux, services, alertes, sauvegardes, Cron) sont spécifiés dans [docs/SPEC_ADMINISTRATION.md](docs/SPEC_ADMINISTRATION.md) mais pas encore implémentés. Les applications restent gérées par Coolify.
 - Les listes sont bornées et ne fournissent pas encore de pagination.
 - SQLite n'accepte qu'un écrivain à la fois ; le Manager sérialise ses accès sur une connexion unique, ce qui convient au volume d'une seule machine.
 - L'installation système (comptes, permissions et groupes) doit être réalisée par l'administrateur avant d'activer les unités systemd.
@@ -125,6 +125,19 @@ Le socket du proxy appartient au groupe `homelab-manager` (mode `0660`) : le Man
 Installer et activer les unités `homelab-docker-proxy.socket` et `homelab-manager.service`. Le socket proxy écoute seulement sur Unix, autorise les routes GET nécessaires, filtre `Env` et `Labels`, borne la taille des réponses à 8 MiB et la concurrence à 16 requêtes. Vérifier les permissions effectives avant le démarrage.
 
 L'unité systemd crée `/var/lib/homelab-manager` (`StateDirectory`, mode `0700`). Le Manager y crée la base et applique les migrations au démarrage. Contrôler les journaux systemd après installation.
+
+### Réseaux autorisés et récupération
+
+Dans « Utilisateurs & accès » › Politique, un administrateur peut limiter l'accès à des réseaux (CIDR). Le Manager voit l'adresse de la connexion : derrière un proxy inverse, il faut autoriser le proxy, et la liste ne filtre alors plus les clients. Une liste qui exclurait l'administrateur courant est refusée, mais un changement d'adresse ultérieur peut tout de même bloquer l'accès. Pour vider la liste (la politique est gardée en mémoire : le service doit être arrêté) :
+
+```bash
+sudo systemctl stop homelab-manager
+sudo -u homelab-manager sqlite3 /var/lib/homelab-manager/homelab-manager.db \
+  "UPDATE security_policies SET allowed_networks = '[]';"
+sudo systemctl start homelab-manager
+```
+
+Un compte verrouillé après 5 mots de passe faux se déverrouille seul au bout de 15 minutes.
 
 ### Redémarrer et éteindre depuis l'interface (optionnel)
 

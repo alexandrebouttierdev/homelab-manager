@@ -69,7 +69,9 @@ Ordre de réalisation : 1A → M → 1B → 1C → 2 → 3 → 4 → 5 → 6 →
 - À tester sur une machine virtuelle Debian 13 jetable, jamais sur la machine de développement.
 - Plan : [2026-11-23-module-m-alimentation.md](./2026-11-23-module-m-alimentation.md).
 
-### 1B — Sessions, verrouillage, politique, audit
+### 1B — Sessions, verrouillage, politique, audit (livrée)
+
+- Plan : [2026-11-23-phase-1b-sessions-securite.md](./2026-11-23-phase-1b-sessions-securite.md).
 
 - Migration : `sessions.last_seen_at`, `sessions.auth_method` ; tables `security_policy` (singleton), `login_failures`.
 - Sessions : liste des siennes (navigateur, IP, méthode, dernière activité), révocation unitaire et « toutes sauf celle-ci » ; un administrateur voit et révoque celles de tous. `last_seen_at` mis à jour au plus une fois par minute pour limiter les écritures SQLite.

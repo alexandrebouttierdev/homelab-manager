@@ -25,6 +25,13 @@ Ce document est le contrat exact de l'API implémentée. Toute différence entre
 | `GET /api/v1/auth/session` | cookie | Utilisateur courant (§ 3) |
 | `POST /api/v1/auth/logout` | oui | Révoque la session |
 | `POST /api/v1/auth/password` | oui | Change le mot de passe |
+| `GET /api/v1/auth/sessions` | oui | Ses sessions actives ; `?scope=all` : toutes (admin) (§ 3.2) |
+| `DELETE /api/v1/auth/sessions/{sessionID}` | oui | Révoque une session (§ 3.2) |
+| `POST /api/v1/auth/sessions/revoke-others` | oui | Révoque ses autres sessions (§ 3.2) |
+| `GET /api/v1/security/policy` | admin | Politique de sécurité (§ 3.3) |
+| `PUT /api/v1/security/policy` | admin | Modifie la politique (§ 3.3) |
+| `GET /api/v1/audit` | admin | Journal d'audit filtré (§ 3.4) |
+| `GET /api/v1/audit/export` | admin | Export CSV ou JSON du journal (§ 3.4) |
 | `GET /api/v1/dashboard` | oui | Synthèse (§ 4.2) |
 | `GET /api/v1/host` | oui | Identité de l'hôte (§ 4.3) |
 | `GET /api/v1/host/metrics/current` | oui | Dernier cycle hôte (§ 5.2) |
@@ -104,6 +111,40 @@ Comptes de Homelab Manager uniquement : aucun compte Linux n'est lu ni modifié.
 - `DELETE /api/v1/users/{userID}` : `200 { "deleted": true }`. Les sessions du compte sont supprimées ; ses lignes d'audit sont conservées.
 - Le dernier administrateur actif ne peut être ni rétrogradé, ni désactivé, ni supprimé : `409 LAST_ADMIN`.
 - Chaque modification réussie écrit une ligne d'audit (`user`, UUID du compte, `create` / `update` / `delete`) dans la même transaction.
+
+### 3.2 Sessions
+
+- **Verrouillage** — 5 mots de passe faux consécutifs verrouillent le compte 15 minutes, en plus de la limite par adresse. Un compte verrouillé reçoit `401 INVALID_CREDENTIALS`, comme un mot de passe faux, après la même vérification Argon2id. Une connexion réussie remet le compteur à zéro ; le verrouillage est audité (`system`, `user`, `lock`).
+- **Inactivité** — une session inactive depuis plus de `idleTimeoutMinutes` (§ 3.3) est révoquée à sa requête suivante (`401 SESSION_NOT_FOUND`), en plus de la durée maximale de 12 h. La dernière activité est enregistrée au plus une fois par minute ; les requêtes périodiques de l'interface comptent comme de l'activité.
+- `GET /api/v1/auth/sessions` : `200 { "sessions": [Session] }`, sessions actives du compte, les plus récemment actives d'abord, 500 au plus. `?scope=all` : sessions de tous les comptes, réservé à `admin` (`403 FORBIDDEN` sinon) ; toute autre valeur de `scope` : `400 VALIDATION_ERROR`.
+
+```json
+{ "id": "uuid", "userId": "uuid", "username": "admin", "ipAddress": "192.168.1.20",
+  "userAgent": "Mozilla/5.0 …", "authMethod": "password", "createdAt": "…",
+  "lastSeenAt": "…", "expiresAt": "…", "current": true }
+```
+
+  `userAgent` est tronqué à 256 octets. `current` désigne la session de la requête.
+- `DELETE /api/v1/auth/sessions/{sessionID}` (UUID minuscule) : `200 { "revoked": true }`. Chacun révoque ses sessions, un administrateur celles de tous ; la session d'un autre compte est `404 NOT_FOUND` pour un non-administrateur. Révoquer la session courante efface aussi le cookie. Audité (`session`, UUID, `revoke`).
+- `POST /api/v1/auth/sessions/revoke-others` : `200 { "revoked": 2 }`, toutes les sessions du compte sauf la courante. Audité (`user`, UUID, `revoke_other_sessions`) quand au moins une session est révoquée.
+
+### 3.3 Politique de sécurité
+
+- `GET /api/v1/security/policy` (admin) : `200 { "idleTimeoutMinutes": 60, "allowedNetworks": [], "currentAddress": "192.168.1.20" }`. `currentAddress` est l'adresse vue par le Manager pour la requête.
+- `PUT /api/v1/security/policy` (admin) avec `{ "idleTimeoutMinutes": 60, "allowedNetworks": ["192.168.1.0/24"] }`, les deux champs obligatoires : `idleTimeoutMinutes` de 5 à 720 ; `allowedNetworks` 32 préfixes CIDR au plus, stockés masqués ; liste vide = toutes les adresses. Succès `200` (même objet que `GET`), avec audit (`security_policy`, `local`, `update`). Une politique qui exclurait `currentAddress` : `409 POLICY_EXCLUDES_CURRENT_ADDRESS`.
+- **Réseaux autorisés** — avec une liste non vide, toute requête d'une adresse hors liste reçoit `403 NETWORK_NOT_ALLOWED`, interface comprise, sauf `GET /health`. L'adresse est celle de la connexion TCP (`RemoteAddr`) : derrière un proxy inverse, c'est celle du proxy ; aucun en-tête `X-Forwarded-For` n'est pris en compte.
+
+### 3.4 Journal d'audit
+
+- `GET /api/v1/audit` (admin) : `200 { "entries": [Entrée] }`, les plus récentes d'abord. Filtres facultatifs : `actor`, `targetType`, `action`, `outcome` (égalité exacte, 255 octets au plus), `from` et `to` (RFC 3339, intervalle `[from, to)`, `from` avant `to`), `limit` (1 à 1 000, défaut 200). Sinon `400 VALIDATION_ERROR`.
+
+```json
+{ "id": "uuid", "actor": "alice", "targetType": "route", "targetId": "GET /api/v1/users",
+  "action": "access", "outcome": "denied", "requestId": "host/abc-000012", "createdAt": "…" }
+```
+
+- `GET /api/v1/audit/export?format=csv|json` (admin), mêmes filtres, 10 000 lignes au plus (défaut et maximum) : fichier joint `audit-<horodatage>.csv` ou `.json`. Le CSV a l'en-tête `createdAt,actor,targetType,targetId,action,outcome,requestId` ; une valeur commençant par `=`, `+`, `-`, `@`, une tabulation ou un retour chariot est préfixée d'une apostrophe (pas de formule dans un tableur).
+- Résultats tracés : `success`, `denied` (rôle insuffisant : cible `route`, `METHODE chemin`, action `access` ; dernier administrateur protégé : cible `user`), `requested` et `failure` (alimentation, § 4.5).
 
 ## 4. Santé, synthèse, hôte et paramètres
 
@@ -404,6 +445,12 @@ Les routes sont versionnées sous `/api/v1`. Un changement incompatible (champ s
 | `ACTION_IN_PROGRESS` | 409 | Une action est déjà en cours |
 | `POWER_ACTION_REFUSED` | 503 | polkit ou logind refuse l'action |
 | `POWER_ACTION_FAILED` | 500 | Demande d'alimentation impossible à transmettre |
+| `NETWORK_NOT_ALLOWED` | 403 | Adresse cliente hors des réseaux autorisés |
+| `POLICY_EXCLUDES_CURRENT_ADDRESS` | 409 | La politique exclurait l'adresse de l'administrateur |
+| `SESSIONS_UNAVAILABLE` | 500 | Lecture des sessions en échec |
+| `SESSION_REVOKE_FAILED` | 500 | Révocation de session en échec |
+| `SECURITY_POLICY_UPDATE_FAILED` | 500 | Écriture de la politique en échec |
+| `AUDIT_UNAVAILABLE` | 500 | Lecture du journal d'audit en échec |
 | `INTERNAL_ERROR` | 500 | Autre erreur serveur |
 
 Aucune trace de pile, chemin local, secret ou réponse Docker brute dans les erreurs. `requestId` correspond au champ `request_id` des journaux du Manager.

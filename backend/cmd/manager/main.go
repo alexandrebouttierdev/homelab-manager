@@ -44,6 +44,8 @@ func main() {
 	var authUsecase *usecase.AuthUsecase
 	var accountUsecase *usecase.AccountUsecase
 	var powerUsecase *usecase.PowerUsecase
+	var securityUsecase *usecase.SecurityUsecase
+	var auditUsecase *usecase.AuditUsecase
 	var monitoringUsecase *usecase.MonitoringUsecase
 	var clientCloser interface{ Close() error }
 	var dockerClientCloser interface{ CloseIdleConnections() }
@@ -66,11 +68,24 @@ func main() {
 		} else if created {
 			logger.Info("Administrator created", zap.String("username", config.AdminUsername))
 		}
-		authUsecase = usecase.NewAuthUsecase(authRepository, authRepository, hasher)
-		accountUsecase = usecase.NewAccountUsecase(sqlite.NewAccountRepository(client), authRepository, hasher)
-		powerUsecase = usecase.NewPowerUsecase(logindadapter.New(), sqlite.NewAuditRepository(client), os.Hostname, config.PowerActionsEnabled)
-		if config.PowerActionsEnabled {
-			logger.Info("Reboot and power off are enabled; they also require the polkit rule")
+		auditRepository := sqlite.NewAuditRepository(client)
+		securityRepository := sqlite.NewSecurityRepository(client)
+		security := usecase.NewSecurityUsecase(securityRepository)
+		// Without its policy the Manager cannot tell which networks may use
+		// the interface: authentication stays unavailable rather than open.
+		if err := security.Load(context.Background()); err != nil {
+			logger.Error("Could not load the security policy; authentication is unavailable", zap.Error(err))
+		} else {
+			securityUsecase = security
+			auditUsecase = usecase.NewAuditUsecase(auditRepository, auditRepository)
+			authUsecase = usecase.NewAuthUsecase(authRepository, authRepository, hasher).
+				WithSecurity(securityRepository, auditRepository, security)
+			accountUsecase = usecase.NewAccountUsecase(sqlite.NewAccountRepository(client), authRepository, hasher).
+				WithAudit(auditRepository)
+			powerUsecase = usecase.NewPowerUsecase(logindadapter.New(), auditRepository, os.Hostname, config.PowerActionsEnabled)
+			if config.PowerActionsEnabled {
+				logger.Info("Reboot and power off are enabled; they also require the polkit rule")
+			}
 		}
 		monitoringRepository := sqlite.NewMonitoringRepository(database)
 		dockerClient := dockerengine.NewClient(config.DockerProxySocket)
@@ -93,7 +108,10 @@ func main() {
 			monitoringUsecase.Run(schedulerCtx)
 		}()
 	}
-	router := httpdelivery.NewRouter(logger, healthUsecase, authUsecase, monitoringUsecase, accountUsecase, powerUsecase, config.SessionSecure, config.WebRoot)
+	router := httpdelivery.NewRouter(logger, httpdelivery.Services{
+		Health: healthUsecase, Auth: authUsecase, Monitoring: monitoringUsecase,
+		Accounts: accountUsecase, Power: powerUsecase, Security: securityUsecase, Audit: auditUsecase,
+	}, config.SessionSecure, config.WebRoot)
 
 	server := &http.Server{
 		Addr:              config.HTTPAddress,

@@ -9,7 +9,6 @@ import (
 	"homelab-manager/backend/internal/domain"
 	"homelab-manager/backend/internal/usecase"
 
-	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/google/uuid"
 )
@@ -158,13 +157,7 @@ func deleteUserHandler(accounts *usecase.AccountUsecase) http.HandlerFunc {
 
 // userIDParam validates the {userID} path parameter (canonical lowercase UUID).
 func userIDParam(w http.ResponseWriter, r *http.Request) (uuid.UUID, bool) {
-	value := chi.URLParam(r, "userID")
-	id, err := uuid.Parse(value)
-	if !userIDPattern.MatchString(value) || err != nil {
-		writeError(w, r, http.StatusBadRequest, "VALIDATION_ERROR", "userID must be a lowercase UUID.")
-		return uuid.UUID{}, false
-	}
-	return id, true
+	return uuidParam(w, r, "userID")
 }
 
 func writeAccountError(w http.ResponseWriter, r *http.Request, err error) {

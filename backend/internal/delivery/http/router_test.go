@@ -17,7 +17,7 @@ import (
 )
 
 func TestHealthEndpoints(t *testing.T) {
-	router := NewRouter(zap.NewNop(), usecase.NewHealthUsecase(time.Now()), nil, nil, nil, nil, false, "")
+	router := NewRouter(zap.NewNop(), Services{Health: usecase.NewHealthUsecase(time.Now())}, false, "")
 	for _, path := range []string{"/health", "/api/v1/health"} {
 		t.Run(path, func(t *testing.T) {
 			recorder := httptest.NewRecorder()
@@ -33,7 +33,7 @@ func TestHealthEndpoints(t *testing.T) {
 }
 
 func TestDetailedHealthReportsUnavailableDependencies(t *testing.T) {
-	router := NewRouter(zap.NewNop(), usecase.NewHealthUsecase(time.Now()), nil, nil, nil, nil, false, "")
+	router := NewRouter(zap.NewNop(), Services{Health: usecase.NewHealthUsecase(time.Now())}, false, "")
 	recorder := httptest.NewRecorder()
 	router.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/v1/health", nil))
 	var response map[string]any
@@ -50,7 +50,7 @@ func TestStaticHandlerServesSPAAndDoesNotMaskUnknownAPI(t *testing.T) {
 	if err := os.WriteFile(filepath.Join(root, "index.html"), []byte("application"), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	router := NewRouter(zap.NewNop(), usecase.NewHealthUsecase(time.Now()), nil, nil, nil, nil, false, root)
+	router := NewRouter(zap.NewNop(), Services{Health: usecase.NewHealthUsecase(time.Now())}, false, root)
 	for _, test := range []struct {
 		path       string
 		statusCode int
@@ -68,7 +68,7 @@ func TestStaticHandlerServesSPAAndDoesNotMaskUnknownAPI(t *testing.T) {
 }
 
 func TestLoginUnavailableWithoutDatabase(t *testing.T) {
-	router := NewRouter(zap.NewNop(), usecase.NewHealthUsecase(time.Now()), nil, nil, nil, nil, false, "")
+	router := NewRouter(zap.NewNop(), Services{Health: usecase.NewHealthUsecase(time.Now())}, false, "")
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login",
 		strings.NewReader(`{"username":"admin","password":"secure-password"}`))
@@ -80,7 +80,7 @@ func TestLoginUnavailableWithoutDatabase(t *testing.T) {
 }
 
 func TestManagementRoutesRequireSession(t *testing.T) {
-	router := NewRouter(zap.NewNop(), usecase.NewHealthUsecase(time.Now()), nil, nil, nil, nil, false, "")
+	router := NewRouter(zap.NewNop(), Services{Health: usecase.NewHealthUsecase(time.Now())}, false, "")
 	for _, path := range []string{"/api/v1/dashboard", "/api/v1/containers"} {
 		t.Run(path, func(t *testing.T) {
 			recorder := httptest.NewRecorder()
@@ -146,7 +146,7 @@ func TestMetricOptions(t *testing.T) {
 }
 
 func TestAPIMethodNotAllowedUsesErrorFormat(t *testing.T) {
-	router := NewRouter(zap.NewNop(), usecase.NewHealthUsecase(time.Now()), nil, nil, nil, nil, false, "")
+	router := NewRouter(zap.NewNop(), Services{Health: usecase.NewHealthUsecase(time.Now())}, false, "")
 	recorder := httptest.NewRecorder()
 	router.ServeHTTP(recorder, httptest.NewRequest(http.MethodDelete, "/api/v1/health", nil))
 	if recorder.Code != http.StatusMethodNotAllowed || !strings.Contains(recorder.Body.String(), `"code":"METHOD_NOT_ALLOWED"`) {
@@ -155,7 +155,7 @@ func TestAPIMethodNotAllowedUsesErrorFormat(t *testing.T) {
 }
 
 func TestLoginRejectsCrossOrigin(t *testing.T) {
-	router := NewRouter(zap.NewNop(), usecase.NewHealthUsecase(time.Now()), nil, nil, nil, nil, false, "")
+	router := NewRouter(zap.NewNop(), Services{Health: usecase.NewHealthUsecase(time.Now())}, false, "")
 	recorder := httptest.NewRecorder()
 	request := httptest.NewRequest(http.MethodPost, "/api/v1/auth/login",
 		strings.NewReader(`{"username":"admin","password":"admin"}`))

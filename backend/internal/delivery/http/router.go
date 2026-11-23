@@ -27,13 +27,37 @@ type healthResponse struct {
 	Collectors map[string]any `json:"collectors"`
 }
 
-func NewRouter(logger *zap.Logger, health *usecase.HealthUsecase, auth *usecase.AuthUsecase, monitoring *usecase.MonitoringUsecase, accounts *usecase.AccountUsecase, power *usecase.PowerUsecase, sessionSecure bool, webRoot string) http.Handler {
+// Services groups the usecases served over HTTP; a nil usecase leaves its
+// routes unavailable (for example when the database could not be opened).
+type Services struct {
+	Health     *usecase.HealthUsecase
+	Auth       *usecase.AuthUsecase
+	Monitoring *usecase.MonitoringUsecase
+	Accounts   *usecase.AccountUsecase
+	Power      *usecase.PowerUsecase
+	Security   *usecase.SecurityUsecase
+	Audit      *usecase.AuditUsecase
+}
+
+func NewRouter(logger *zap.Logger, services Services, sessionSecure bool, webRoot string) http.Handler {
+	health, auth, monitoring := services.Health, services.Auth, services.Monitoring
+	accounts, power, security, audit := services.Accounts, services.Power, services.Security, services.Audit
+	deny := func(r *http.Request, user domain.User) {
+		if audit == nil {
+			return
+		}
+		if err := audit.RecordDenied(r.Context(), user, r.Method, r.URL.Path, middleware.GetReqID(r.Context())); err != nil {
+			logger.Error("Could not audit a denied request",
+				zap.String("request_id", middleware.GetReqID(r.Context())), zap.Error(err))
+		}
+	}
 	router := chi.NewRouter()
 	router.Use(middleware.RequestID)
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.RequestSize(1 << 20))
 	router.Use(securityHeaders)
 	router.Use(requestLogger(logger))
+	router.Use(allowedNetworks(security))
 
 	router.Get("/health", healthHandler(health, monitoring, false))
 	router.Route("/api/v1", func(r chi.Router) {
@@ -65,16 +89,29 @@ func NewRouter(logger *zap.Logger, health *usecase.HealthUsecase, auth *usecase.
 				active.Get("/containers/{containerID}/events", listEventsHandler(monitoring, true))
 				active.Get("/events", listEventsHandler(monitoring, false))
 				active.Get("/settings", settingsHandler(monitoring))
-				active.With(requirePermission(domain.PermManageSettings)).Put("/settings/retention", updateRetentionHandler(monitoring))
+				active.With(requirePermission(deny, domain.PermManageSettings)).Put("/settings/retention", updateRetentionHandler(monitoring))
 				active.Route("/users", func(users chi.Router) {
-					users.Use(requirePermission(domain.PermManageUsers))
+					users.Use(requirePermission(deny, domain.PermManageUsers))
 					users.Get("/", listUsersHandler(accounts))
 					users.Post("/", createUserHandler(accounts))
 					users.Patch("/{userID}", updateUserHandler(accounts))
 					users.Delete("/{userID}", deleteUserHandler(accounts))
 				})
+				active.Get("/auth/sessions", listSessionsHandler(auth, deny))
+				active.Delete("/auth/sessions/{sessionID}", revokeSessionHandler(auth, sessionSecure))
+				active.Post("/auth/sessions/revoke-others", revokeOtherSessionsHandler(auth))
+				active.Route("/security/policy", func(policy chi.Router) {
+					policy.Use(requirePermission(deny, domain.PermManageUsers))
+					policy.Get("/", securityPolicyHandler(security))
+					policy.Put("/", updateSecurityPolicyHandler(security))
+				})
+				active.Route("/audit", func(log chi.Router) {
+					log.Use(requirePermission(deny, domain.PermViewAudit))
+					log.Get("/", listAuditHandler(audit))
+					log.Get("/export", exportAuditHandler(audit))
+				})
 				active.Route("/machine/power", func(machine chi.Router) {
-					machine.Use(requirePermission(domain.PermManagePower))
+					machine.Use(requirePermission(deny, domain.PermManagePower))
 					machine.Get("/", powerSettingsHandler(power))
 					machine.Post("/{action}", powerActionHandler(power))
 				})

@@ -26,7 +26,7 @@ func toSessionUserDTO(user domain.User) sessionUserDTO {
 
 // requirePermission refuses the request unless the role of the session
 // grants p. The policy itself is domain.Role.Can.
-func requirePermission(p domain.Permission) func(http.Handler) http.Handler {
+func requirePermission(deny denyRecorder, p domain.Permission) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			user, ok := sessionUser(r)
@@ -35,6 +35,9 @@ func requirePermission(p domain.Permission) func(http.Handler) http.Handler {
 				return
 			}
 			if !user.Role.Can(p) {
+				if deny != nil {
+					deny(r, user)
+				}
 				writeError(w, r, http.StatusForbidden, "FORBIDDEN", "The account role does not allow this action.")
 				return
 			}

@@ -39,13 +39,13 @@ func TestRequirePermissionAppliesTheRolePolicy(t *testing.T) {
 	for _, c := range cases {
 		recorder := httptest.NewRecorder()
 		request := withSessionUser(httptest.NewRequest(http.MethodGet, "/api/v1/users", nil), domain.User{Username: "u", Role: c.role})
-		requirePermission(domain.PermManageUsers)(noContent).ServeHTTP(recorder, request)
+		requirePermission(nil, domain.PermManageUsers)(noContent).ServeHTTP(recorder, request)
 		if recorder.Code != c.want {
 			t.Errorf("role %s got %d, want %d", c.role, recorder.Code, c.want)
 		}
 	}
 	recorder := httptest.NewRecorder()
-	requirePermission(domain.PermManageUsers)(noContent).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/v1/users", nil))
+	requirePermission(nil, domain.PermManageUsers)(noContent).ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/api/v1/users", nil))
 	if recorder.Code != http.StatusUnauthorized {
 		t.Fatalf("without a session got %d, want 401", recorder.Code)
 	}
@@ -107,6 +107,7 @@ func TestUpdateUserValidatesPathAndBody(t *testing.T) {
 }
 
 func TestAccountAdministrationEndToEnd(t *testing.T) {
+	resetLoginRateLimit(t)
 	router, _ := newTestRouter(t, nil)
 	admin := signIn(t, router, "admin", "admin-password-1")
 
@@ -191,24 +192,49 @@ func newTestRouter(t *testing.T, controller ports.PowerController) (http.Handler
 	if _, err := authRepository.EnsureAdmin(ctx, "admin", hash); err != nil {
 		t.Fatal(err)
 	}
-	auth := usecase.NewAuthUsecase(authRepository, authRepository, hasher)
-	accounts := usecase.NewAccountUsecase(sqlite.NewAccountRepository(database.Client()), authRepository, hasher)
-	hostname := func() (string, error) { return "homelab", nil }
-	power := usecase.NewPowerUsecase(controller, sqlite.NewAuditRepository(database.Client()), hostname, controller != nil)
-	return NewRouter(zap.NewNop(), usecase.NewHealthUsecase(time.Now()), auth, nil, accounts, power, false, ""), database
+	auditRepository := sqlite.NewAuditRepository(database.Client())
+	securityRepository := sqlite.NewSecurityRepository(database.Client())
+	security := usecase.NewSecurityUsecase(securityRepository)
+	if err := security.Load(ctx); err != nil {
+		t.Fatal(err)
+	}
+	services := Services{
+		Health:   usecase.NewHealthUsecase(time.Now()),
+		Auth:     usecase.NewAuthUsecase(authRepository, authRepository, hasher).WithSecurity(securityRepository, auditRepository, security),
+		Accounts: usecase.NewAccountUsecase(sqlite.NewAccountRepository(database.Client()), authRepository, hasher).WithAudit(auditRepository),
+		Power:    usecase.NewPowerUsecase(controller, auditRepository, func() (string, error) { return "homelab", nil }, controller != nil),
+		Security: security,
+		Audit:    usecase.NewAuditUsecase(auditRepository, auditRepository),
+	}
+	return NewRouter(zap.NewNop(), services, false, ""), database
 }
 
-// call sends a request from a fixed address so that the login rate limit
-// of this test does not depend on the other tests of the package.
+// testClientAddress is the address of every request sent by call.
+const testClientAddress = "198.51.100.7"
+
+// call sends a request from testClientAddress.
 func call(handler http.Handler, method, path, body string, cookie *http.Cookie) *httptest.ResponseRecorder {
+	return callFrom(handler, testClientAddress, method, path, body, cookie)
+}
+
+func callFrom(handler http.Handler, address, method, path, body string, cookie *http.Cookie) *httptest.ResponseRecorder {
 	request := httptest.NewRequest(method, path, strings.NewReader(body))
-	request.RemoteAddr = "198.51.100.7:4000"
+	request.RemoteAddr = address + ":4000"
 	if cookie != nil {
 		request.AddCookie(cookie)
 	}
 	recorder := httptest.NewRecorder()
 	handler.ServeHTTP(recorder, request)
 	return recorder
+}
+
+// resetLoginRateLimit empties the per-address login counter shared by the
+// tests of the package, so that each end-to-end test starts afresh.
+func resetLoginRateLimit(t *testing.T) {
+	t.Helper()
+	loginAttempts.Lock()
+	loginAttempts.byIP = make(map[string]loginWindow)
+	loginAttempts.Unlock()
 }
 
 func signIn(t *testing.T, handler http.Handler, username, password string) *http.Cookie {

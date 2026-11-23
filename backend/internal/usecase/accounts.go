@@ -2,6 +2,7 @@ package usecase
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"sync"
 
@@ -22,6 +23,9 @@ type AccountUsecase struct {
 	accounts ports.AccountRepository
 	sessions ports.SessionRepository
 	hasher   ports.PasswordHasher
+	// audit, when set, traces the refusals that protect the last
+	// administrator (SPEC_ADMINISTRATION.md § 2.2).
+	audit ports.AuditRecorder
 
 	// mu serialises account changes: the last-administrator check and the
 	// write that follows must not interleave with another change. The
@@ -31,6 +35,12 @@ type AccountUsecase struct {
 
 func NewAccountUsecase(accounts ports.AccountRepository, sessions ports.SessionRepository, hasher ports.PasswordHasher) *AccountUsecase {
 	return &AccountUsecase{accounts: accounts, sessions: sessions, hasher: hasher}
+}
+
+// WithAudit traces the refused changes with outcome "denied".
+func (u *AccountUsecase) WithAudit(audit ports.AuditRecorder) *AccountUsecase {
+	u.audit = audit
+	return u
 }
 
 func (u *AccountUsecase) List(ctx context.Context) ([]domain.User, error) {
@@ -71,7 +81,7 @@ func (u *AccountUsecase) Update(ctx context.Context, actor domain.User, id uuid.
 		return domain.User{}, err
 	}
 	if target.IsActiveAdmin() && !change.Apply(target).IsActiveAdmin() {
-		if err := u.requireAnotherAdmin(ctx); err != nil {
+		if err := u.requireAnotherAdmin(ctx, actor, id, "update", requestID); err != nil {
 			return domain.User{}, err
 		}
 	}
@@ -96,22 +106,31 @@ func (u *AccountUsecase) Delete(ctx context.Context, actor domain.User, id uuid.
 		return err
 	}
 	if target.IsActiveAdmin() {
-		if err := u.requireAnotherAdmin(ctx); err != nil {
+		if err := u.requireAnotherAdmin(ctx, actor, id, "delete", requestID); err != nil {
 			return err
 		}
 	}
 	return u.accounts.DeleteUser(ctx, id, auditEntry(actor, "delete", requestID))
 }
 
-func (u *AccountUsecase) requireAnotherAdmin(ctx context.Context) error {
+// requireAnotherAdmin refuses a change that would leave no active
+// administrator, and traces the refusal.
+func (u *AccountUsecase) requireAnotherAdmin(ctx context.Context, actor domain.User, id uuid.UUID, action, requestID string) error {
 	count, err := u.accounts.CountActiveAdmins(ctx)
 	if err != nil {
 		return err
 	}
-	if count <= 1 {
-		return domain.ErrLastAdmin
+	if count > 1 {
+		return nil
 	}
-	return nil
+	if u.audit != nil {
+		entry := auditEntry(actor, action, requestID)
+		entry.TargetID, entry.Outcome = id.String(), domain.AuditDenied
+		if err := u.audit.RecordAudit(ctx, entry); err != nil {
+			return errors.Join(domain.ErrLastAdmin, fmt.Errorf("record audit: %w", err))
+		}
+	}
+	return domain.ErrLastAdmin
 }
 
 func auditEntry(actor domain.User, action, requestID string) domain.AuditEntry {

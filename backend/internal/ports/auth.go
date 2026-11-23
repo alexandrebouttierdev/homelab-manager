@@ -25,6 +25,17 @@ type SessionRepository interface {
 	FindActiveByTokenHash(ctx context.Context, tokenHash string) (domain.Session, error)
 	RevokeByTokenHash(ctx context.Context, tokenHash string) error
 	RevokeAllForUser(ctx context.Context, userID uuid.UUID) error
+	// FindActiveByID returns domain.ErrSessionNotFound for a revoked or
+	// expired session.
+	FindActiveByID(ctx context.Context, id uuid.UUID) (domain.Session, error)
+	// ListActive returns at most limit active sessions, most recently seen
+	// first; a nil userID lists the sessions of every account.
+	ListActive(ctx context.Context, userID *uuid.UUID, now time.Time, limit int) ([]domain.Session, error)
+	Touch(ctx context.Context, id uuid.UUID, at time.Time) error
+	// RevokeByID returns domain.ErrSessionNotFound for a session that is
+	// not active.
+	RevokeByID(ctx context.Context, id uuid.UUID) error
+	RevokeAllForUserExcept(ctx context.Context, userID, keep uuid.UUID) (int, error)
 }
 
 type PasswordHasher interface {

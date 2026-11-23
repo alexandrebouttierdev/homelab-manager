@@ -9,8 +9,17 @@ import (
 	"homelab-manager/backend/ent/loginfailure"
 	"homelab-manager/backend/ent/securitypolicy"
 	"homelab-manager/backend/internal/domain"
+	"homelab-manager/backend/internal/ports"
 
 	"github.com/google/uuid"
+)
+
+var (
+	_ ports.SecurityRepository     = (*SecurityRepository)(nil)
+	_ ports.LoginFailureRepository = (*SecurityRepository)(nil)
+	_ ports.AuditReader            = (*AuditRepository)(nil)
+	_ ports.SessionRepository      = (*AuthRepository)(nil)
+	_ ports.UserRepository         = (*AuthRepository)(nil)
 )
 
 // SecurityRepository stores the security policy and the consecutive login

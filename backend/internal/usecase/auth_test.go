@@ -57,6 +57,17 @@ func (m *mockSessionRepository) RevokeByTokenHash(context.Context, string) error
 	return nil
 }
 func (m *mockSessionRepository) RevokeAllForUser(context.Context, uuid.UUID) error { return nil }
+func (m *mockSessionRepository) FindActiveByID(context.Context, uuid.UUID) (domain.Session, error) {
+	return domain.Session{}, domain.ErrSessionNotFound
+}
+func (m *mockSessionRepository) ListActive(context.Context, *uuid.UUID, time.Time, int) ([]domain.Session, error) {
+	return nil, nil
+}
+func (m *mockSessionRepository) Touch(context.Context, uuid.UUID, time.Time) error { return nil }
+func (m *mockSessionRepository) RevokeByID(context.Context, uuid.UUID) error       { return nil }
+func (m *mockSessionRepository) RevokeAllForUserExcept(context.Context, uuid.UUID, uuid.UUID) (int, error) {
+	return 0, nil
+}
 
 type mockHasher struct {
 	valid    bool

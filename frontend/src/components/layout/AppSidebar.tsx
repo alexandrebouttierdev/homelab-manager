@@ -52,12 +52,12 @@ const systemItems: NavItem[] = [
   { label: 'Réseau', to: '/network', icon: Cable },
   { label: 'Métriques', to: '/metrics', icon: Activity },
   { label: 'Journaux système', to: '/logs', icon: ScrollText },
+  { label: 'Services système', to: '/services', icon: Wrench },
 ]
 
 const activityItems: NavItem[] = [{ label: 'Événements', to: '/events', icon: Gauge }]
 
 const soonItems: SoonItem[] = [
-  { label: 'Services système', icon: Wrench },
   { label: 'Alertes', icon: Bell },
   { label: 'Sauvegardes', icon: DatabaseBackup },
   { label: 'Tâches Cron', icon: CalendarClock },

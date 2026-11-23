@@ -34,12 +34,12 @@ Chaque incrément, quel qu'il soit :
 | **1B** | Sessions (liste, révocation, inactivité), verrouillage de compte, politique de sécurité, journal d'audit consultable et exportable | 1A | `004_sessions_security.sql` | M |
 | **1C** | Coffre de secrets (AES-256-GCM, `systemd-creds`), TOTP, codes de secours, connexion en deux étapes, 2FA obligatoire pour les administrateurs | 1B | `005_second_factor.sql` | L |
 | **2** | Journaux système (lecture `journalctl`) | 1A, groupe `systemd-journal` | — | M |
-| **3** | Services système en lecture (D-Bus), événements `service.failed` / `service.recovered` | 1A, D-Bus | — | M |
-| **4** | Alertes et notifications : règles, cycle de vie, silences, canaux | 1C (secrets), 3 | `006_alerts.sql` | L |
+| **3** | Services système en lecture (D-Bus), événements `service.failed` / `service.recovered` | 1A, D-Bus | `006_failed_units.sql` | M |
+| **4** | Alertes et notifications : règles, cycle de vie, silences, canaux | 1C (secrets), 3 | `007_alerts.sql` | L |
 | **5** | Actions sur les services par polkit (`start`, `stop`, `restart`, `reload`) | 1B (audit), 3 | — | M |
-| **6** | Sauvegardes restic : dépôts, sources, exclusions, rétention, restauration en quarantaine | 1C, 4, 5 | `007_backups.sql` | XL |
+| **6** | Sauvegardes restic : dépôts, sources, exclusions, rétention, restauration en quarantaine | 1C, 4, 5 | `008_backups.sql` | XL |
 | **7** | Tâches planifiées en lecture (Cron et timers) | 2, 3 | — | S |
-| **8** | WebAuthn (passkeys, FIDO2) et jetons d'API en lecture | 1C, HTTPS | `008_webauthn_tokens.sql` | L |
+| **8** | WebAuthn (passkeys, FIDO2) et jetons d'API en lecture | 1C, HTTPS | `009_webauthn_tokens.sql` | L |
 | *Option* | Dettes v2.1 : pagination par curseur, inventaire complet images/volumes/réseaux | Décision Q-4 | selon choix | M |
 
 Le coffre de secrets (§ 2.5 de la spécification) est avancé en **1C** et non en phase 4 : les secrets TOTP doivent être chiffrés (§ 3.6), ce qui en fait le premier consommateur.
@@ -104,13 +104,15 @@ Ordre de réalisation : 1A → M → 1B → 1C → 2 → 3 → 4 → 5 → 6 →
 - Déploiement : ajouter `homelab-manager` au groupe `systemd-journal` (README, unité).
 - Tests : construction des arguments, décodage JSON, bornes, masquage, et intégration contre le vrai `journalctl` sur des fichiers fabriqués par `systemd-journal-remote` (installé aussi en CI).
 
-### 3 — Services système en lecture
+### 3 — Services système en lecture (livrée)
 
-- Dépendance `github.com/coreos/go-systemd/v22/dbus` (justifiée § 2.4 de la spécification).
+- Plan : [2026-11-23-phase-3-services-systeme.md](./2026-11-23-phase-3-services-systeme.md).
+- Dépendance : `github.com/godbus/dbus/v5`, déjà présente (module M), au lieu de `go-systemd` prévu au § 2.4 de la spécification ; méthodes `ListUnits`, `GetUnit` et `Properties.GetAll` seulement.
 - Collecte toutes les 30 s par une goroutine détenue par un usecase (arrêt par contexte, délai par cycle) ; inventaire services, timers, sockets avec états, PID, mémoire, CPU, dernier changement.
-- Événements `service.failed` (sévérité `error`) et `service.recovered` dans la table `events` existante.
+- Événements `service.failed` (sévérité `error`) et `service.recovered` dans la table `events` existante ; ensemble des unités en échec dans `failed_units` (migration `006`), pour ne signaler un échec qu'une fois.
 - Détail d'unité : `FragmentPath`, `ExecStart` affiché tel quel, dépendances, limites, slice, 50 dernières lignes du journal (phase 2).
-- Tests : port D-Bus simulé, transitions d'état.
+- Tests : faux systemd exporté par godbus sur un bus privé (`dbus-daemon`, installé en CI), transitions d'état, SQLite réel, routes `httptest`, page et fonctions pures de l'interface.
+- Parcours vérifié dans le navigateur contre le Manager et un faux systemd sur un bus privé (macOS, sans vrai systemd) : inventaire, détail, événements d'échec puis de rétablissement, aucun doublon après redémarrage du Manager.
 
 ### 4 — Alertes et notifications
 

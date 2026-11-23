@@ -1,6 +1,6 @@
 # Spécification des modules d'administration — Homelab Manager
 
-Version 3.0 (brouillon) — 22 novembre 2026 — **partiellement implémenté** : comptes multiples et rôles (§§ 3.1–3.2, phase 1A), sessions, politique de sécurité et journal d'audit (§§ 3.4–3.5, phase 1B), coffre de secrets, TOTP et codes de secours (§§ 2.5, 3.3 hors WebAuthn, phase 1C) journaux système (§ 4, phase 2) et redémarrage et extinction de la machine (§ 8 bis, module M), le 23 novembre 2026.
+Version 3.0 (brouillon) — 22 novembre 2026 — **partiellement implémenté** : comptes multiples et rôles (§§ 3.1–3.2, phase 1A), sessions, politique de sécurité et journal d'audit (§§ 3.4–3.5, phase 1B), coffre de secrets, TOTP et codes de secours (§§ 2.5, 3.3 hors WebAuthn, phase 1C) journaux système (§ 4, phase 2), consultation des services système (§ 5.1, phase 3) et redémarrage et extinction de la machine (§ 8 bis, module M), le 23 novembre 2026.
 
 Ce document spécifie les modules annoncés « à venir » dans la navigation : utilisateurs et accès, journaux système, services système, alertes et notifications, sauvegardes, tâches planifiées, ainsi que le redémarrage et l'extinction de la machine (§ 8 bis, ajouté le 23 novembre 2026). Il s'appuie sur les maquettes de `maquette/` et en fixe le périmètre réel : une maquette montre une intention visuelle, ce document fait foi. Tant qu'un module n'est pas livré, il reste désactivé dans l'interface et ses routes n'existent pas.
 
@@ -57,7 +57,7 @@ Tout autre programme exige une révision de ce document.
 
 | Dépendance | Usage | Justification |
 |---|---|---|
-| `github.com/coreos/go-systemd/v22/dbus` | Unités et timers via D-Bus | Go pur (godbus), évite d'exécuter `systemctl` |
+| `github.com/coreos/go-systemd/v22/dbus` | Unités et timers via D-Bus | Go pur (godbus), évite d'exécuter `systemctl`. **Non retenue en phase 3** : godbus seul suffit à la lecture (§ 5.1) ; à réexaminer pour les actions (phase 5) |
 | `github.com/godbus/dbus/v5` | Appels `systemd-logind` (§ 8 bis) | Client D-Bus Go pur, déjà dépendance de go-systemd ; le paquet `login1` de go-systemd ne renvoie pas l'erreur de `Reboot` / `PowerOff` |
 | `github.com/go-webauthn/webauthn` | Passkeys et clés FIDO2 | Vérification d'attestation et d'assertion WebAuthn conforme ; à ne pas réimplémenter |
 | `github.com/robfig/cron/v3` (analyseur seul) | Prochaines exécutions Cron | Go pur ; ou un analyseur interne équivalent, testé |
@@ -127,7 +127,7 @@ Lecture seule du journal systemd.
 - **Synthèse** : volume par priorité sur 24 h par tranches de 15 min (requête dédiée, bornée), occupation disque du journal (`journalctl --disk-usage`).
 - **Export** : `.log` (format court) ou `.json` du résultat filtré, 50 000 entrées au plus.
 - Non retenus : scellement FSS et compression affichés par la maquette (informations non fiables à obtenir sans privilège).
-- Mise en œuvre (phase 2) : la liste des unités vient du journal lui-même (`journalctl --field=_SYSTEMD_UNIT`) en attendant le module S. Avec un curseur, `journalctl` refuse `--since` et ignore `--until` : le Manager applique alors l'intervalle lui-même. Contrat exact : API_CONTRACTS.md § 4.6.
+- Mise en œuvre (phase 2) : la liste des unités vient du journal lui-même (`journalctl --field=_SYSTEMD_UNIT`) ; elle reste utilisée après la phase 3, car le journal cite aussi des unités d'autres types ou déchargées, absentes de l'inventaire du module S. Avec un curseur, `journalctl` refuse `--since` et ignore `--until` : le Manager applique alors l'intervalle lui-même. Contrat exact : API_CONTRACTS.md § 4.6.
 
 ## 5. Services système (module S) — maquette `services_syst_me_*`
 
@@ -138,6 +138,7 @@ Lecture seule du journal systemd.
 - Détail d'une unité, en lecture : fichier de définition (`FragmentPath`), `ExecStart` affiché tel quel, `Requires`, `After`, politique `Restart`, limites (`TasksMax`, `LimitNOFILE`, `MemoryMax`), slice cgroup, extrait des 50 dernières lignes du journal (module J).
 - Collecte toutes les 30 s ; une unité qui passe en `failed` crée un événement `service.failed` (sévérité `error`) et, au retour en `active`, `service.recovered`.
 - Filtres : type, état, recherche par nom ; tri « en échec d'abord ».
+- Mise en œuvre (phase 3) : `github.com/godbus/dbus/v5` (déjà utilisé par le module M) au lieu de `go-systemd`, dont seules ces lectures seraient utilisées (écart au § 2.4, sans effet sur les garanties) ; méthodes `ListUnits`, `GetUnit` et `Properties.GetAll` seulement. 2 000 unités au plus, en échec d'abord. Les unités enregistrées en échec sont gardées en base (`failed_units`) pour qu'un échec ne soit signalé qu'une fois. Un nom d'unité échappé par systemd (contenant `\`) est hors du motif du § 2.2 : l'unité est listée mais son détail est refusé. Contrat exact : API_CONTRACTS.md § 4.7.
 
 ### 5.2 Actions
 
@@ -237,7 +238,7 @@ Ajouté le 23 novembre 2026 à la demande du propriétaire du projet : redémarr
 | 1 | Module U : rôles, comptes multiples, TOTP, codes de secours, sessions, audit consultable, verrouillage. **Livré** (1A : rôles et comptes ; 1B : sessions, verrouillage, politique, audit ; 1C : coffre de secrets, TOTP, codes de secours, second facteur obligatoire). WebAuthn suit en phase 8 | — |
 | 1 bis | Module M : redémarrer et éteindre la machine. **Livré** | Rôles (phase 1, premier incrément), polkit |
 | 2 | Module J (lecture du journal). **Livré** | Groupe `systemd-journal` |
-| 3 | Module S en lecture, événements `service.failed` | D-Bus |
+| 3 | Module S en lecture, événements `service.failed`. **Livré** | D-Bus |
 | 4 | Module A : règles, cycle de vie, canaux | Phases 1 et 3, secrets § 2.5 |
 | 5 | Module S, actions par polkit | Phase 1 |
 | 6 | Module B : dépôts, sauvegarde, rétention, restauration en quarantaine | Phases 1 et 4 |

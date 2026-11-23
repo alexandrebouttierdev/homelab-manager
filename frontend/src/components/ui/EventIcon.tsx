@@ -1,4 +1,13 @@
-import { AlertTriangle, Activity, Play, Plus, RotateCw, Square, Trash2 } from 'lucide-react'
+import {
+  AlertTriangle,
+  Activity,
+  CheckCircle2,
+  Play,
+  Plus,
+  RotateCw,
+  Square,
+  Trash2,
+} from 'lucide-react'
 import { cn } from '../../lib/cn'
 
 type EventIconProps = {
@@ -20,7 +29,10 @@ export function EventIcon({ type, className }: EventIconProps) {
       return <Plus className={classes} aria-hidden="true" />
     case 'container.removed':
       return <Trash2 className={classes} aria-hidden="true" />
+    case 'service.recovered':
+      return <CheckCircle2 className={classes} aria-hidden="true" />
     case 'container.died':
+    case 'service.failed':
     case 'collector.unavailable':
       return <AlertTriangle className={classes} aria-hidden="true" />
     default:

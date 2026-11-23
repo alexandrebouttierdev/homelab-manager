@@ -54,8 +54,9 @@ var _ ports.SystemUnitReader = (*Reader)(nil)
 // Connector opens a connection to the bus where systemd runs.
 type Connector func(ctx context.Context) (*dbus.Conn, error)
 
-// SystemBus connects to the system bus; DBUS_SYSTEM_BUS_ADDRESS overrides
-// its address.
+// SystemBus connects to the system bus. On Linux DBUS_SYSTEM_BUS_ADDRESS
+// overrides its address (godbus reads DBUS_LAUNCHD_SESSION_BUS_SOCKET, a
+// socket path, on macOS).
 func SystemBus(ctx context.Context) (*dbus.Conn, error) {
 	return dbus.ConnectSystemBus(dbus.WithContext(ctx))
 }

@@ -53,6 +53,9 @@ export const errorMessages: Record<string, string> = {
   JOURNAL_UNAVAILABLE:
     'Journal système indisponible : journalctl est introuvable sur la machine du Manager.',
   JOURNAL_READ_FAILED: "Le journal système n'a pas pu être lu.",
+  SYSTEMD_UNAVAILABLE:
+    "Services système indisponibles : systemd n'est pas joignable sur le bus système de la machine.",
+  SYSTEMD_READ_FAILED: "L'unité systemd n'a pas pu être lue.",
   OWN_PASSWORD_RESET: 'Changez votre propre mot de passe dans Paramètres.',
   INVALID_SECOND_FACTOR: 'Code incorrect.',
   LOGIN_CHALLENGE_EXPIRED: 'Délai dépassé : reconnectez-vous avec votre mot de passe.',

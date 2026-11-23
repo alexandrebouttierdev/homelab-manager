@@ -36,6 +36,7 @@ Homelab Manager supervise **une seule machine Linux : celle qui l'héberge**. Le
 - Découverte continue des conteneurs Docker, arrêtés compris, et métriques par conteneur
 - Événements de création, suppression, redémarrage et changement d'état
 - Journal systemd en lecture seule : filtres, recherche, suivi en direct, export, champs sensibles masqués
+- Services, timers et sockets systemd en lecture seule (D-Bus) : états, ressources, détail, événements d'échec et de rétablissement
 - Aucune valeur inventée : une donnée absente s'affiche comme indisponible
 
 </td>
@@ -63,6 +64,7 @@ Homelab Manager supervise **une seule machine Linux : celle qui l'héberge**. Le
 Navigateur ── HTTPS, même origine ──▶ homelab-manager (Go, Chi, Ent)
                                         ├── collecte /proc, /sys
                                         ├── SQLite  /var/lib/homelab-manager
+                                        ├── systemd via D-Bus (lecture des unités)
                                         ├── systemd-logind via D-Bus + polkit (optionnel)
                                         └── socket Unix ──▶ homelab-docker-proxy ──▶ Docker Engine
 ```
@@ -229,6 +231,10 @@ La page « Journaux système » lit le journal systemd par `journalctl`, en lect
 
 Le Manager ne lance que `journalctl`, sans shell, avec des options construites à partir de filtres validés et sans lui transmettre ses variables d'environnement. Chaque appel est limité à 10 secondes. `_CMDLINE` et les champs dont le nom contient `PASSWORD`, `TOKEN` ou `SECRET` sont masqués ; un secret écrit dans le texte d'un message reste visible, comme dans `journalctl`. L'export est limité aux 50 000 entrées les plus récentes du filtre.
 
+### Services système
+
+La page « Services système » liste les services, timers et sockets systemd chargés, pour tous les rôles, en lecture seule : état, démarrage, PID, mémoire, temps CPU, prochaine exécution des timers, et un détail (fichier d'unité, `ExecStart`, dépendances, limites, 50 dernières entrées du journal). Le Manager lit systemd sur le bus système D-Bus, sans privilège ni règle polkit, toutes les 30 secondes ; il n'appelle aucune méthode qui modifie une unité et n'exécute pas `systemctl`. Une unité qui passe en échec crée un événement `service.failed`, son retour à l'état actif un événement `service.recovered`, une seule fois même après un redémarrage du Manager. Sans bus système (hors Linux, conteneur), la page l'indique et le reste fonctionne. Les actions (démarrer, arrêter, redémarrer) viendront en phase 5.
+
 ### Double authentification
 
 Chaque utilisateur l'active dans « Configuration » › Double authentification : mot de passe actuel, QR code à scanner (Aegis, Google Authenticator, 1Password…), premier code, puis 10 codes de secours affichés une seule fois. La connexion demande ensuite un code après le mot de passe. Dans « Utilisateurs & accès » › Politique, un administrateur qui l'a lui-même activée peut l'exiger de tous les administrateurs : ceux qui ne l'ont pas encore ne peuvent plus que l'activer.
@@ -282,8 +288,8 @@ La première release est `v2.3.0`, alignée sur la [spécification produit](docs
 
 ## État et limites connues
 
-- **Livré** : supervision système et Docker, historique, événements, comptes et rôles, sessions, politique de sécurité, journal d'audit, double authentification (TOTP et codes de secours), journaux système, redémarrage et extinction (optionnels).
-- **Spécifié, pas encore implémenté** : passkeys (WebAuthn) et jetons d'API, services systemd, alertes et notifications, sauvegardes restic, tâches planifiées. Voir [docs/SPEC_ADMINISTRATION.md](docs/SPEC_ADMINISTRATION.md) et la [feuille de route](docs/superpowers/plans/2026-11-23-feuille-de-route-v3.md).
+- **Livré** : supervision système et Docker, historique, événements, comptes et rôles, sessions, politique de sécurité, journal d'audit, double authentification (TOTP et codes de secours), journaux système, services système en lecture, redémarrage et extinction (optionnels).
+- **Spécifié, pas encore implémenté** : passkeys (WebAuthn) et jetons d'API, actions sur les services systemd, alertes et notifications, sauvegardes restic, tâches planifiées. Voir [docs/SPEC_ADMINISTRATION.md](docs/SPEC_ADMINISTRATION.md) et la [feuille de route](docs/superpowers/plans/2026-11-23-feuille-de-route-v3.md).
 - Historiques bruts ou agrégés, 2 000 points au plus par requête ; l'interface choisit le pas selon la période.
 - À l'intervalle par défaut (10 s), la base croît d'environ 300 Mo par jour jusqu'à la rétention : ≈ 2 Go pour 7 jours.
 - Listes bornées, sans pagination ; images, volumes et réseaux Docker déduits des conteneurs.

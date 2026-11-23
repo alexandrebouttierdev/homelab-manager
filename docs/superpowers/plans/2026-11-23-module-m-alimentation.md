@@ -1045,7 +1045,7 @@ Attendu : tous les paquets `ok`, y compris `TestPowerActionEndToEnd` et `TestAcc
 
 et compléter la phrase sur les écritures : « … la gestion des comptes et les demandes d'alimentation de la machine. ». Dans « Paramètres de chemin » : « `action` : `reboot` ou `poweroff`. Sinon `400 VALIDATION_ERROR`. »
 
-2. Ajouter après le § 4.4 :
+2. Supprimer le § 9.2 « Alimentation de la machine (module M) » (contrat annoncé avant implémentation) et ajouter après le § 4.4 :
 
 ```markdown
 ### 4.5 Alimentation de la machine

@@ -359,3 +359,12 @@ Ces contrats sont arrêtés pour guider l'implémentation ; tant qu'ils ne sont 
 ### 9.1 Pagination par curseur
 
 Pour `GET /api/v1/containers` et les événements : `cursor` opaque (base64url de `(clé de tri, id)`), `nextCursor` non nul tant qu'il reste des résultats. L'ordre doit être stable à égalité d'horodatage (départage par `id`).
+
+### 9.2 Alimentation de la machine (module M)
+
+Spécifié dans SPEC_ADMINISTRATION.md § 8 bis ; plan d'implémentation `docs/superpowers/plans/2026-11-23-module-m-alimentation.md`. Routes réservées au rôle `admin`, qui n'existent pas encore (`404 NOT_FOUND`).
+
+- `GET /api/v1/machine/power` : `200 { "enabled": false, "actions": ["reboot", "poweroff"] }` ; `enabled` reflète le réglage de service `power_actions_enabled` (défaut `false`).
+- `POST /api/v1/machine/power/{action}`, `action` ∈ `reboot`, `poweroff`, corps `{ "confirmHostname": "homelab" }` (1 à 253 octets, espaces de bord ignorés, égal au nom d'hôte de la machine) : `202 { "requested": true, "action": "reboot" }` quand `systemd-logind` a accepté la demande.
+- Erreurs : `400 VALIDATION_ERROR` (action ou corps invalide), `400 HOSTNAME_MISMATCH`, `403 FORBIDDEN` (rôle), `409 POWER_ACTIONS_DISABLED`, `409 ACTION_IN_PROGRESS` (une demande déjà acceptée), `503 POWER_ACTION_REFUSED` (polkit ou logind refuse : règle absente, verrou d'inhibition, arrêt en cours), `500 POWER_ACTION_FAILED` (bus système ou logind injoignable).
+- Audit `host` / nom d'hôte / `reboot` ou `poweroff` / `requested` écrit avant la demande ; `failure` ajouté en cas de refus.

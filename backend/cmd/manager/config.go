@@ -24,6 +24,7 @@ type Config struct {
 	DockerStatsIntervalSeconds     int
 	DockerDiscoveryIntervalSeconds int
 	MetricsRetentionDays           int
+	PowerActionsEnabled            bool
 }
 
 func LoadConfig() (Config, error) {
@@ -50,6 +51,9 @@ func LoadConfig() (Config, error) {
 	v.SetDefault("docker_collect_interval_seconds", 15)
 	v.SetDefault("docker_discovery_interval_seconds", 30)
 	v.SetDefault("metrics_retention_days", 7)
+	// Rebooting and powering off also need the polkit rule of
+	// deployments/polkit; both are off by default.
+	v.SetDefault("power_actions_enabled", false)
 
 	if err := v.ReadInConfig(); err != nil {
 		var notFound viper.ConfigFileNotFoundError
@@ -73,6 +77,7 @@ func LoadConfig() (Config, error) {
 		DockerStatsIntervalSeconds:     v.GetInt("docker_collect_interval_seconds"),
 		DockerDiscoveryIntervalSeconds: v.GetInt("docker_discovery_interval_seconds"),
 		MetricsRetentionDays:           v.GetInt("metrics_retention_days"),
+		PowerActionsEnabled:            v.GetBool("power_actions_enabled"),
 	}
 	if config.TLSCertFile != "" {
 		config.SessionSecure = true

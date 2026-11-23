@@ -1,6 +1,7 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { useForm, useWatch } from 'react-hook-form'
+import { useSession } from '../../hooks/useSession'
 import { updateRetention, type MonitoringSettings } from '../../lib/api/monitoring'
 import {
   estimatedStorageGigabytes,
@@ -12,6 +13,7 @@ import { settingsQueryKey } from './useSettings'
 /** Retention form: validation, storage estimate and saving. */
 export function useRetentionForm(settings: MonitoringSettings) {
   const queryClient = useQueryClient()
+  const { canManageSettings } = useSession()
   const form = useForm<RetentionValues>({
     resolver: zodResolver(retentionSchema),
     values: { metricsRetentionDays: settings.metricsRetentionDays },
@@ -37,5 +39,7 @@ export function useRetentionForm(settings: MonitoringSettings) {
         ? estimatedStorageGigabytes(days, settings.systemCollectIntervalSeconds)
         : null,
     customised: settings.metricsRetentionSource === 'user',
+    /** Only administrators may change the retention; the server enforces it. */
+    readOnly: !canManageSettings,
   }
 }

@@ -1,2 +1,5 @@
-/** Product/specification version shown in the interface (docs/PRODUCT_SPEC.md). */
-export const APP_VERSION = '2.1'
+/**
+ * Version shown in the interface: the release version injected at build time
+ * by scripts/release/build.sh (VITE_APP_VERSION), "dev" for a local build.
+ */
+export const APP_VERSION: string = import.meta.env.VITE_APP_VERSION || 'dev'

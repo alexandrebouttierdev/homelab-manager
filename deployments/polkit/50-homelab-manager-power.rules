@@ -1,0 +1,18 @@
+// Homelab Manager: lets the homelab-manager account reboot or power off the
+// machine through systemd-logind, and nothing else (SPEC_ADMINISTRATION.md
+// § 8 bis). The *-ignore-inhibit actions are deliberately not granted:
+// inhibitor locks, such as a running backup, keep blocking the request.
+//
+// Install as root:root 0644 in /etc/polkit-1/rules.d/ and set
+// power_actions_enabled: true in /etc/homelab-manager/manager.yaml.
+polkit.addRule(function (action, subject) {
+    var allowed = [
+        "org.freedesktop.login1.reboot",
+        "org.freedesktop.login1.reboot-multiple-sessions",
+        "org.freedesktop.login1.power-off",
+        "org.freedesktop.login1.power-off-multiple-sessions"
+    ];
+    if (subject.user === "homelab-manager" && allowed.indexOf(action.id) >= 0) {
+        return polkit.Result.YES;
+    }
+});

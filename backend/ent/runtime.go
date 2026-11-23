@@ -9,7 +9,9 @@ import (
 	"homelab-manager/backend/ent/containermetricsample"
 	"homelab-manager/backend/ent/event"
 	"homelab-manager/backend/ent/hostinfo"
+	"homelab-manager/backend/ent/loginfailure"
 	"homelab-manager/backend/ent/schema"
+	"homelab-manager/backend/ent/securitypolicy"
 	"homelab-manager/backend/ent/session"
 	"homelab-manager/backend/ent/systemmetricsample"
 	"homelab-manager/backend/ent/user"
@@ -156,12 +158,38 @@ func init() {
 	hostinfoDescID := hostinfoFields[0].Descriptor()
 	// hostinfo.DefaultID holds the default value on creation for the id field.
 	hostinfo.DefaultID = hostinfoDescID.Default.(func() uuid.UUID)
+	loginfailureFields := schema.LoginFailure{}.Fields()
+	_ = loginfailureFields
+	// loginfailureDescConsecutiveFailures is the schema descriptor for consecutive_failures field.
+	loginfailureDescConsecutiveFailures := loginfailureFields[1].Descriptor()
+	// loginfailure.DefaultConsecutiveFailures holds the default value on creation for the consecutive_failures field.
+	loginfailure.DefaultConsecutiveFailures = loginfailureDescConsecutiveFailures.Default.(int)
+	securitypolicyFields := schema.SecurityPolicy{}.Fields()
+	_ = securitypolicyFields
+	// securitypolicyDescSingletonKey is the schema descriptor for singleton_key field.
+	securitypolicyDescSingletonKey := securitypolicyFields[1].Descriptor()
+	// securitypolicy.SingletonKeyValidator is a validator for the "singleton_key" field. It is called by the builders before save.
+	securitypolicy.SingletonKeyValidator = securitypolicyDescSingletonKey.Validators[0].(func(string) error)
+	// securitypolicyDescUpdatedAt is the schema descriptor for updated_at field.
+	securitypolicyDescUpdatedAt := securitypolicyFields[4].Descriptor()
+	// securitypolicy.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	securitypolicy.DefaultUpdatedAt = securitypolicyDescUpdatedAt.Default.(func() time.Time)
+	// securitypolicy.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
+	securitypolicy.UpdateDefaultUpdatedAt = securitypolicyDescUpdatedAt.UpdateDefault.(func() time.Time)
+	// securitypolicyDescID is the schema descriptor for id field.
+	securitypolicyDescID := securitypolicyFields[0].Descriptor()
+	// securitypolicy.DefaultID holds the default value on creation for the id field.
+	securitypolicy.DefaultID = securitypolicyDescID.Default.(func() uuid.UUID)
 	sessionFields := schema.Session{}.Fields()
 	_ = sessionFields
 	// sessionDescCreatedAt is the schema descriptor for created_at field.
 	sessionDescCreatedAt := sessionFields[4].Descriptor()
 	// session.DefaultCreatedAt holds the default value on creation for the created_at field.
 	session.DefaultCreatedAt = sessionDescCreatedAt.Default.(func() time.Time)
+	// sessionDescAuthMethod is the schema descriptor for auth_method field.
+	sessionDescAuthMethod := sessionFields[9].Descriptor()
+	// session.DefaultAuthMethod holds the default value on creation for the auth_method field.
+	session.DefaultAuthMethod = sessionDescAuthMethod.Default.(string)
 	// sessionDescID is the schema descriptor for id field.
 	sessionDescID := sessionFields[0].Descriptor()
 	// session.DefaultID holds the default value on creation for the id field.
@@ -186,12 +214,20 @@ func init() {
 	userDescUsername := userFields[1].Descriptor()
 	// user.UsernameValidator is a validator for the "username" field. It is called by the builders before save.
 	user.UsernameValidator = userDescUsername.Validators[0].(func(string) error)
+	// userDescDisplayName is the schema descriptor for display_name field.
+	userDescDisplayName := userFields[3].Descriptor()
+	// user.DefaultDisplayName holds the default value on creation for the display_name field.
+	user.DefaultDisplayName = userDescDisplayName.Default.(string)
+	// userDescMustChangePassword is the schema descriptor for must_change_password field.
+	userDescMustChangePassword := userFields[6].Descriptor()
+	// user.DefaultMustChangePassword holds the default value on creation for the must_change_password field.
+	user.DefaultMustChangePassword = userDescMustChangePassword.Default.(bool)
 	// userDescCreatedAt is the schema descriptor for created_at field.
-	userDescCreatedAt := userFields[3].Descriptor()
+	userDescCreatedAt := userFields[9].Descriptor()
 	// user.DefaultCreatedAt holds the default value on creation for the created_at field.
 	user.DefaultCreatedAt = userDescCreatedAt.Default.(func() time.Time)
 	// userDescUpdatedAt is the schema descriptor for updated_at field.
-	userDescUpdatedAt := userFields[4].Descriptor()
+	userDescUpdatedAt := userFields[10].Descriptor()
 	// user.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	user.DefaultUpdatedAt = userDescUpdatedAt.Default.(func() time.Time)
 	// user.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

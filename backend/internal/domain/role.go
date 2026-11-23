@@ -1,0 +1,44 @@
+package domain
+
+// Role is the access level of a Manager account (SPEC_ADMINISTRATION.md § 3.2).
+type Role string
+
+const (
+	RoleViewer   Role = "viewer"
+	RoleOperator Role = "operator"
+	RoleAdmin    Role = "admin"
+)
+
+// Permission names an action reserved to some roles. Reading the
+// monitoring data and managing one's own password need no permission.
+type Permission string
+
+const (
+	// PermManageSettings covers the settings changed from the interface.
+	PermManageSettings Permission = "settings:manage"
+	// PermManageUsers covers the accounts of other users.
+	PermManageUsers Permission = "users:manage"
+	// PermManagePower covers rebooting and powering off the machine.
+	PermManagePower Permission = "machine:power"
+	// PermViewAudit covers reading and exporting the audit log.
+	PermViewAudit Permission = "audit:view"
+)
+
+// rolePermissions is the single source of the role policy. Operators gain
+// their service and backup permissions with phases 5 and 6.
+var rolePermissions = map[Role]map[Permission]bool{
+	RoleViewer:   {},
+	RoleOperator: {},
+	RoleAdmin:    {PermManageSettings: true, PermManageUsers: true, PermManagePower: true, PermViewAudit: true},
+}
+
+// Valid reports whether r is one of the defined roles.
+func (r Role) Valid() bool {
+	_, ok := rolePermissions[r]
+	return ok
+}
+
+// Can reports whether r grants p; an unknown role grants nothing.
+func (r Role) Can(p Permission) bool {
+	return rolePermissions[r][p]
+}

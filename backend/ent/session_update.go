@@ -146,6 +146,40 @@ func (_u *SessionUpdate) ClearUserAgent() *SessionUpdate {
 	return _u
 }
 
+// SetLastSeenAt sets the "last_seen_at" field.
+func (_u *SessionUpdate) SetLastSeenAt(v time.Time) *SessionUpdate {
+	_u.mutation.SetLastSeenAt(v)
+	return _u
+}
+
+// SetNillableLastSeenAt sets the "last_seen_at" field if the given value is not nil.
+func (_u *SessionUpdate) SetNillableLastSeenAt(v *time.Time) *SessionUpdate {
+	if v != nil {
+		_u.SetLastSeenAt(*v)
+	}
+	return _u
+}
+
+// ClearLastSeenAt clears the value of the "last_seen_at" field.
+func (_u *SessionUpdate) ClearLastSeenAt() *SessionUpdate {
+	_u.mutation.ClearLastSeenAt()
+	return _u
+}
+
+// SetAuthMethod sets the "auth_method" field.
+func (_u *SessionUpdate) SetAuthMethod(v string) *SessionUpdate {
+	_u.mutation.SetAuthMethod(v)
+	return _u
+}
+
+// SetNillableAuthMethod sets the "auth_method" field if the given value is not nil.
+func (_u *SessionUpdate) SetNillableAuthMethod(v *string) *SessionUpdate {
+	if v != nil {
+		_u.SetAuthMethod(*v)
+	}
+	return _u
+}
+
 // SetUser sets the "user" edge to the User entity.
 func (_u *SessionUpdate) SetUser(v *User) *SessionUpdate {
 	return _u.SetUserID(v.ID)
@@ -235,6 +269,15 @@ func (_u *SessionUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.UserAgentCleared() {
 		_spec.ClearField(session.FieldUserAgent, field.TypeString)
+	}
+	if value, ok := _u.mutation.LastSeenAt(); ok {
+		_spec.SetField(session.FieldLastSeenAt, field.TypeTime, value)
+	}
+	if _u.mutation.LastSeenAtCleared() {
+		_spec.ClearField(session.FieldLastSeenAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.AuthMethod(); ok {
+		_spec.SetField(session.FieldAuthMethod, field.TypeString, value)
 	}
 	if _u.mutation.UserCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -401,6 +444,40 @@ func (_u *SessionUpdateOne) ClearUserAgent() *SessionUpdateOne {
 	return _u
 }
 
+// SetLastSeenAt sets the "last_seen_at" field.
+func (_u *SessionUpdateOne) SetLastSeenAt(v time.Time) *SessionUpdateOne {
+	_u.mutation.SetLastSeenAt(v)
+	return _u
+}
+
+// SetNillableLastSeenAt sets the "last_seen_at" field if the given value is not nil.
+func (_u *SessionUpdateOne) SetNillableLastSeenAt(v *time.Time) *SessionUpdateOne {
+	if v != nil {
+		_u.SetLastSeenAt(*v)
+	}
+	return _u
+}
+
+// ClearLastSeenAt clears the value of the "last_seen_at" field.
+func (_u *SessionUpdateOne) ClearLastSeenAt() *SessionUpdateOne {
+	_u.mutation.ClearLastSeenAt()
+	return _u
+}
+
+// SetAuthMethod sets the "auth_method" field.
+func (_u *SessionUpdateOne) SetAuthMethod(v string) *SessionUpdateOne {
+	_u.mutation.SetAuthMethod(v)
+	return _u
+}
+
+// SetNillableAuthMethod sets the "auth_method" field if the given value is not nil.
+func (_u *SessionUpdateOne) SetNillableAuthMethod(v *string) *SessionUpdateOne {
+	if v != nil {
+		_u.SetAuthMethod(*v)
+	}
+	return _u
+}
+
 // SetUser sets the "user" edge to the User entity.
 func (_u *SessionUpdateOne) SetUser(v *User) *SessionUpdateOne {
 	return _u.SetUserID(v.ID)
@@ -520,6 +597,15 @@ func (_u *SessionUpdateOne) sqlSave(ctx context.Context) (_node *Session, err er
 	}
 	if _u.mutation.UserAgentCleared() {
 		_spec.ClearField(session.FieldUserAgent, field.TypeString)
+	}
+	if value, ok := _u.mutation.LastSeenAt(); ok {
+		_spec.SetField(session.FieldLastSeenAt, field.TypeTime, value)
+	}
+	if _u.mutation.LastSeenAtCleared() {
+		_spec.ClearField(session.FieldLastSeenAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.AuthMethod(); ok {
+		_spec.SetField(session.FieldAuthMethod, field.TypeString, value)
 	}
 	if _u.mutation.UserCleared() {
 		edge := &sqlgraph.EdgeSpec{

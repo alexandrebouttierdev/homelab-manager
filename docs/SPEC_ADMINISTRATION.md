@@ -1,8 +1,8 @@
 # Spécification des modules d'administration — Homelab Manager
 
-Version 3.0 (brouillon) — 22 novembre 2026 — **non implémenté**
+Version 3.0 (brouillon) — 22 novembre 2026 — **partiellement implémenté** : comptes multiples et rôles (§§ 3.1–3.2, phase 1A), sessions, politique de sécurité hors second facteur et journal d'audit (§§ 3.4–3.5, phase 1B) et redémarrage et extinction de la machine (§ 8 bis, module M), le 23 novembre 2026.
 
-Ce document spécifie les modules annoncés « à venir » dans la navigation : utilisateurs et accès, journaux système, services système, alertes et notifications, sauvegardes, tâches planifiées. Il s'appuie sur les maquettes de `maquette/` et en fixe le périmètre réel : une maquette montre une intention visuelle, ce document fait foi. Tant qu'un module n'est pas livré, il reste désactivé dans l'interface et ses routes n'existent pas.
+Ce document spécifie les modules annoncés « à venir » dans la navigation : utilisateurs et accès, journaux système, services système, alertes et notifications, sauvegardes, tâches planifiées, ainsi que le redémarrage et l'extinction de la machine (§ 8 bis, ajouté le 23 novembre 2026). Il s'appuie sur les maquettes de `maquette/` et en fixe le périmètre réel : une maquette montre une intention visuelle, ce document fait foi. Tant qu'un module n'est pas livré, il reste désactivé dans l'interface et ses routes n'existent pas.
 
 Les décisions encore ouvertes sont signalées **[D-n]** et listées au § 10.
 
@@ -31,6 +31,7 @@ Le Manager s'exécute sous le compte `homelab-manager`. Chaque besoin privilégi
 | Démarrer, arrêter, redémarrer, recharger des unités | D-Bus + règle **polkit** | Uniquement les unités de la liste blanche, uniquement ces 4 verbes |
 | Exécuter une sauvegarde, un contrôle, une restauration | Unités systemd fournies `homelab-backup@.service`, démarrées via polkit | Uniquement ces instances, qui lisent leur configuration dans le répertoire d'état du Manager |
 | Lire les crontabs système | Lecture de `/etc/crontab`, `/etc/cron.d`, `/etc/cron.*` (lisibles par tous) | Lecture seule |
+| Redémarrer ou éteindre la machine (§ 8 bis) | D-Bus `systemd-logind` + règle **polkit** dédiée | Uniquement `org.freedesktop.login1.reboot`, `power-off` et leurs variantes `-multiple-sessions` ; jamais `-ignore-inhibit` ; inactif tant que `power_actions_enabled` est faux |
 
 La règle polkit est installée par l'administrateur et générée à partir de la configuration (`/etc/polkit-1/rules.d/50-homelab-manager.rules`). Elle n'accorde `org.freedesktop.systemd1.manage-units` qu'au compte `homelab-manager`, pour les verbes `start`, `stop`, `restart`, `reload` et pour les seules unités de la liste blanche `systemd_manageable_units`. Le Manager ne peut donc ni toucher une autre unité, ni lancer `daemon-reload`, ni activer ou désactiver une unité, même s'il était compromis.
 
@@ -57,6 +58,7 @@ Tout autre programme exige une révision de ce document.
 | Dépendance | Usage | Justification |
 |---|---|---|
 | `github.com/coreos/go-systemd/v22/dbus` | Unités et timers via D-Bus | Go pur (godbus), évite d'exécuter `systemctl` |
+| `github.com/godbus/dbus/v5` | Appels `systemd-logind` (§ 8 bis) | Client D-Bus Go pur, déjà dépendance de go-systemd ; le paquet `login1` de go-systemd ne renvoie pas l'erreur de `Reboot` / `PowerOff` |
 | `github.com/go-webauthn/webauthn` | Passkeys et clés FIDO2 | Vérification d'attestation et d'assertion WebAuthn conforme ; à ne pas réimplémenter |
 | `github.com/robfig/cron/v3` (analyseur seul) | Prochaines exécutions Cron | Go pur ; ou un analyseur interne équivalent, testé |
 | Paquets Debian `restic`, `polkitd` | Sauvegardes, autorisations | Paquets officiels Debian 13 |
@@ -76,6 +78,8 @@ Uniquement les comptes de Homelab Manager (règle 2).
 - Plusieurs comptes ; identifiant unique (`^[a-z0-9._-]{1,64}$`), nom affiché, rôle, état actif ou désactivé, date de dernière connexion et adresse IP source.
 - Le compte initial `admin` reste le premier administrateur. Il est impossible de supprimer ou de rétrograder le dernier administrateur actif.
 - Création par un administrateur, avec un mot de passe initial de 12 caractères au moins à changer à la première connexion. Suppression : révoque ses sessions et ses jetons, conserve ses lignes d'audit.
+- **Réinitialisation par un administrateur** (décision Q-1, 23 novembre 2026) : un administrateur fixe un nouveau mot de passe initial (12 caractères au moins) pour un autre compte ; le titulaire doit le changer à sa connexion suivante, ses sessions sont révoquées et un verrouillage en cours est levé. Action auditée. Un administrateur change son propre mot de passe par la procédure normale, pas par une réinitialisation.
+- **Mot de passe par défaut** (décision Q-2, 23 novembre 2026) : un compte `admin` créé avec le mot de passe intégré `admin` (aucun `HOMELAB_ADMIN_PASSWORD`) doit changer de mot de passe à sa première connexion. Au démarrage, si le compte existant accepte encore ce mot de passe par défaut, le même changement est imposé.
 
 ### 3.2 Rôles
 
@@ -211,11 +215,26 @@ Le Manager configure et pilote **restic** ; il ne réimplémente ni le chiffreme
 - Dernières exécutions : lignes `CRON[pid]` du journal (module J). Cron ne journalise pas le code de sortie : il n'est affiché que pour les timers systemd. Le « taux de succès » de la maquette n'est donc pas calculable pour Cron et n'est pas retenu.
 - Inspecteur d'expression : saisie d'une expression et affichage des 5 prochaines exécutions, sans enregistrement.
 
+## 8 bis. Alimentation de la machine (module M)
+
+Ajouté le 23 novembre 2026 à la demande du propriétaire du projet : redémarrer ou éteindre la machine depuis la page Machine.
+
+- **Actions** : `reboot` (Redémarrer) et `poweroff` (Éteindre), demandées à `systemd-logind` par D-Bus (`org.freedesktop.login1.Manager.Reboot` / `PowerOff`, sans authentification interactive). Aucune commande (`shutdown`, `systemctl`, `reboot`) n'est exécutée.
+- **Double activation, désactivée par défaut** : le réglage de service `power_actions_enabled` (`HOMELAB_POWER_ACTIONS_ENABLED`, défaut `false`) **et** la règle polkit fournie `deployments/polkit/50-homelab-manager-power.rules`, installée par l'administrateur. Sans l'un ou l'autre, aucune action n'aboutit.
+- **Rôle** `admin` uniquement (décision D-7, tranchée le 23 novembre 2026).
+- **Confirmation** : saisir le nom exact de la machine, vérifié par le serveur contre le nom d'hôte courant ; avertissement explicite des conséquences (services et conteneurs arrêtés ; après extinction, Homelab Manager ne peut pas rallumer la machine).
+- **Inhibitions respectées** : les actions `-ignore-inhibit` ne sont pas accordées ; une sauvegarde ou un autre programme qui tient un verrou d'inhibition bloque la demande, refusée avec un message explicite.
+- **Audit avant l'action** : une ligne (`host`, nom d'hôte, `reboot` ou `poweroff`, `requested`) est écrite avant la demande à logind ; sans écriture possible, rien n'est demandé. Un refus ajoute une ligne `failure`.
+- **Une seule demande** : après une demande acceptée, les suivantes sont refusées (`409 ACTION_IN_PROGRESS`) jusqu'à l'arrêt du Manager.
+- **Arrêt propre** : logind arrête les services, dont le Manager, qui attend ses collecteurs puis ferme la base ; Docker arrête les conteneurs selon sa configuration. Au redémarrage, systemd relance le Manager ; l'interface signale l'indisponibilité pendant l'intervalle.
+- **Exclus** : arrêt programmé ou annulable (décision D-8, tranchée le 23 novembre 2026), veille, hibernation, redémarrage vers le firmware, `kexec`, réveil par le réseau (Wake-on-LAN).
+
 ## 9. Ordre de réalisation
 
 | Phase | Contenu | Prérequis |
 |---|---|---|
-| 1 | Module U : rôles, comptes multiples, TOTP, codes de secours, sessions, audit consultable, verrouillage | — |
+| 1 | Module U : rôles, comptes multiples, TOTP, codes de secours, sessions, audit consultable, verrouillage. **1A et 1B livrées** (rôles, comptes, sessions, verrouillage, politique, audit) ; reste : TOTP, codes de secours, second facteur obligatoire (1C) | — |
+| 1 bis | Module M : redémarrer et éteindre la machine. **Livré** | Rôles (phase 1, premier incrément), polkit |
 | 2 | Module J (lecture du journal) | Groupe `systemd-journal` |
 | 3 | Module S en lecture, événements `service.failed` | D-Bus |
 | 4 | Module A : règles, cycle de vie, canaux | Phases 1 et 3, secrets § 2.5 |
@@ -234,3 +253,8 @@ Chaque phase livre son contrat dans API_CONTRACTS.md, ses tables dans DATA_MODEL
 - **[D-4] Portées d'action pour les jetons d'API** (ex. redémarrer une unité depuis Home Assistant).
 - **[D-5] Actions Docker** (démarrer, arrêter, redémarrer un conteneur) et **journaux de conteneur** (maquettes `d_tails_conteneur_*`, `journaux_docker_*`). La lecture des journaux est compatible avec les règles via une route en lecture seule du proxy ; les actions exigent d'élargir le proxy et une décision explicite. `exec` et la suppression restent exclus par les règles 1 et 3.
 - **[D-6] Préférences système** (maquette `param_tres_syst_me_*` : nom d'hôte, fuseau, langue). Modifient la machine ; hors de ce lot.
+
+### Décisions tranchées
+
+- **[D-7] Rôle des actions d'alimentation** — tranchée le 23 novembre 2026 par le propriétaire du projet : `admin` uniquement, car elles interrompent tous les services. Les `operator` n'y ont pas accès, contrairement aux actions sur les services (§ 5.2).
+- **[D-8] Arrêt programmé et annulable** (`ScheduleShutdown` de logind, compte à rebours, bouton « Annuler ») — tranchée le 23 novembre 2026 : non retenu. La demande est transmise immédiatement après la confirmation par le nom de la machine.

@@ -27,13 +27,37 @@ type healthResponse struct {
 	Collectors map[string]any `json:"collectors"`
 }
 
-func NewRouter(logger *zap.Logger, health *usecase.HealthUsecase, auth *usecase.AuthUsecase, monitoring *usecase.MonitoringUsecase, sessionSecure bool, webRoot string) http.Handler {
+// Services groups the usecases served over HTTP; a nil usecase leaves its
+// routes unavailable (for example when the database could not be opened).
+type Services struct {
+	Health     *usecase.HealthUsecase
+	Auth       *usecase.AuthUsecase
+	Monitoring *usecase.MonitoringUsecase
+	Accounts   *usecase.AccountUsecase
+	Power      *usecase.PowerUsecase
+	Security   *usecase.SecurityUsecase
+	Audit      *usecase.AuditUsecase
+}
+
+func NewRouter(logger *zap.Logger, services Services, sessionSecure bool, webRoot string) http.Handler {
+	health, auth, monitoring := services.Health, services.Auth, services.Monitoring
+	accounts, power, security, audit := services.Accounts, services.Power, services.Security, services.Audit
+	deny := func(r *http.Request, user domain.User) {
+		if audit == nil {
+			return
+		}
+		if err := audit.RecordDenied(r.Context(), user, r.Method, r.URL.Path, middleware.GetReqID(r.Context())); err != nil {
+			logger.Error("Could not audit a denied request",
+				zap.String("request_id", middleware.GetReqID(r.Context())), zap.Error(err))
+		}
+	}
 	router := chi.NewRouter()
 	router.Use(middleware.RequestID)
 	router.Use(middleware.Recoverer)
 	router.Use(middleware.RequestSize(1 << 20))
 	router.Use(securityHeaders)
 	router.Use(requestLogger(logger))
+	router.Use(allowedNetworks(security))
 
 	router.Get("/health", healthHandler(health, monitoring, false))
 	router.Route("/api/v1", func(r chi.Router) {
@@ -51,19 +75,48 @@ func NewRouter(logger *zap.Logger, health *usecase.HealthUsecase, auth *usecase.
 			protected.Use(sameOrigin)
 			protected.Post("/auth/logout", logoutHandler(auth, sessionSecure))
 			protected.Post("/auth/password", changePasswordHandler(auth, sessionSecure))
-			protected.Get("/dashboard", dashboardHandler(monitoring))
-			protected.Get("/host", hostHandler(monitoring))
-			protected.Get("/host/metrics/current", currentMetricsHandler(monitoring, false))
-			protected.Get("/host/metrics/{metricName}", metricHistoryHandler(monitoring, false))
-			protected.Get("/host/temperatures", hostTemperaturesHandler(monitoring))
-			protected.Get("/containers", listContainersHandler(monitoring))
-			protected.Get("/containers/{containerID}", getContainerHandler(monitoring))
-			protected.Get("/containers/{containerID}/metrics/current", currentMetricsHandler(monitoring, true))
-			protected.Get("/containers/{containerID}/metrics/{metricName}", metricHistoryHandler(monitoring, true))
-			protected.Get("/containers/{containerID}/events", listEventsHandler(monitoring, true))
-			protected.Get("/events", listEventsHandler(monitoring, false))
-			protected.Get("/settings", settingsHandler(monitoring))
-			protected.Put("/settings/retention", updateRetentionHandler(monitoring))
+			protected.Group(func(active chi.Router) {
+				active.Use(requirePasswordChanged)
+				active.Get("/dashboard", dashboardHandler(monitoring))
+				active.Get("/host", hostHandler(monitoring))
+				active.Get("/host/metrics/current", currentMetricsHandler(monitoring, false))
+				active.Get("/host/metrics/{metricName}", metricHistoryHandler(monitoring, false))
+				active.Get("/host/temperatures", hostTemperaturesHandler(monitoring))
+				active.Get("/containers", listContainersHandler(monitoring))
+				active.Get("/containers/{containerID}", getContainerHandler(monitoring))
+				active.Get("/containers/{containerID}/metrics/current", currentMetricsHandler(monitoring, true))
+				active.Get("/containers/{containerID}/metrics/{metricName}", metricHistoryHandler(monitoring, true))
+				active.Get("/containers/{containerID}/events", listEventsHandler(monitoring, true))
+				active.Get("/events", listEventsHandler(monitoring, false))
+				active.Get("/settings", settingsHandler(monitoring))
+				active.With(requirePermission(deny, domain.PermManageSettings)).Put("/settings/retention", updateRetentionHandler(monitoring))
+				active.Route("/users", func(users chi.Router) {
+					users.Use(requirePermission(deny, domain.PermManageUsers))
+					users.Get("/", listUsersHandler(accounts))
+					users.Post("/", createUserHandler(accounts))
+					users.Patch("/{userID}", updateUserHandler(accounts))
+					users.Delete("/{userID}", deleteUserHandler(accounts))
+					users.Post("/{userID}/password", resetPasswordHandler(accounts))
+				})
+				active.Get("/auth/sessions", listSessionsHandler(auth, deny))
+				active.Delete("/auth/sessions/{sessionID}", revokeSessionHandler(auth, sessionSecure))
+				active.Post("/auth/sessions/revoke-others", revokeOtherSessionsHandler(auth))
+				active.Route("/security/policy", func(policy chi.Router) {
+					policy.Use(requirePermission(deny, domain.PermManageUsers))
+					policy.Get("/", securityPolicyHandler(security))
+					policy.Put("/", updateSecurityPolicyHandler(security))
+				})
+				active.Route("/audit", func(log chi.Router) {
+					log.Use(requirePermission(deny, domain.PermViewAudit))
+					log.Get("/", listAuditHandler(audit))
+					log.Get("/export", exportAuditHandler(audit))
+				})
+				active.Route("/machine/power", func(machine chi.Router) {
+					machine.Use(requirePermission(deny, domain.PermManagePower))
+					machine.Get("/", powerSettingsHandler(power))
+					machine.Post("/{action}", powerActionHandler(power))
+				})
+			})
 		})
 	})
 	if webRoot != "" {
@@ -135,10 +188,12 @@ func requestLogger(logger *zap.Logger) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			start := time.Now()
-			next.ServeHTTP(w, r)
+			wrapped := middleware.NewWrapResponseWriter(w, r.ProtoMajor)
+			next.ServeHTTP(wrapped, r)
 			logger.Info("http request",
 				zap.String("method", r.Method),
 				zap.String("path", r.URL.Path),
+				zap.Int("status", wrapped.Status()),
 				zap.String("request_id", middleware.GetReqID(r.Context())),
 				zap.Duration("duration", time.Since(start)),
 			)

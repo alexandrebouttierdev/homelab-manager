@@ -41,5 +41,9 @@ export function RequireAuth({ children }: { children: ReactNode }) {
     )
   }
 
+  if (session.mustChangePassword) {
+    return <Navigate to="/password-change" replace />
+  }
+
   return children
 }

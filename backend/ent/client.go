@@ -17,6 +17,8 @@ import (
 	"homelab-manager/backend/ent/containermetricsample"
 	"homelab-manager/backend/ent/event"
 	"homelab-manager/backend/ent/hostinfo"
+	"homelab-manager/backend/ent/loginfailure"
+	"homelab-manager/backend/ent/securitypolicy"
 	"homelab-manager/backend/ent/session"
 	"homelab-manager/backend/ent/systemmetricsample"
 	"homelab-manager/backend/ent/user"
@@ -45,6 +47,10 @@ type Client struct {
 	Event *EventClient
 	// HostInfo is the client for interacting with the HostInfo builders.
 	HostInfo *HostInfoClient
+	// LoginFailure is the client for interacting with the LoginFailure builders.
+	LoginFailure *LoginFailureClient
+	// SecurityPolicy is the client for interacting with the SecurityPolicy builders.
+	SecurityPolicy *SecurityPolicyClient
 	// Session is the client for interacting with the Session builders.
 	Session *SessionClient
 	// SystemMetricSample is the client for interacting with the SystemMetricSample builders.
@@ -68,6 +74,8 @@ func (c *Client) init() {
 	c.ContainerMetricSample = NewContainerMetricSampleClient(c.config)
 	c.Event = NewEventClient(c.config)
 	c.HostInfo = NewHostInfoClient(c.config)
+	c.LoginFailure = NewLoginFailureClient(c.config)
+	c.SecurityPolicy = NewSecurityPolicyClient(c.config)
 	c.Session = NewSessionClient(c.config)
 	c.SystemMetricSample = NewSystemMetricSampleClient(c.config)
 	c.User = NewUserClient(c.config)
@@ -169,6 +177,8 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		ContainerMetricSample: NewContainerMetricSampleClient(cfg),
 		Event:                 NewEventClient(cfg),
 		HostInfo:              NewHostInfoClient(cfg),
+		LoginFailure:          NewLoginFailureClient(cfg),
+		SecurityPolicy:        NewSecurityPolicyClient(cfg),
 		Session:               NewSessionClient(cfg),
 		SystemMetricSample:    NewSystemMetricSampleClient(cfg),
 		User:                  NewUserClient(cfg),
@@ -197,6 +207,8 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		ContainerMetricSample: NewContainerMetricSampleClient(cfg),
 		Event:                 NewEventClient(cfg),
 		HostInfo:              NewHostInfoClient(cfg),
+		LoginFailure:          NewLoginFailureClient(cfg),
+		SecurityPolicy:        NewSecurityPolicyClient(cfg),
 		Session:               NewSessionClient(cfg),
 		SystemMetricSample:    NewSystemMetricSampleClient(cfg),
 		User:                  NewUserClient(cfg),
@@ -230,7 +242,8 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.AppSetting, c.AuditLog, c.Container, c.ContainerMetricSample, c.Event,
-		c.HostInfo, c.Session, c.SystemMetricSample, c.User,
+		c.HostInfo, c.LoginFailure, c.SecurityPolicy, c.Session, c.SystemMetricSample,
+		c.User,
 	} {
 		n.Use(hooks...)
 	}
@@ -241,7 +254,8 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.AppSetting, c.AuditLog, c.Container, c.ContainerMetricSample, c.Event,
-		c.HostInfo, c.Session, c.SystemMetricSample, c.User,
+		c.HostInfo, c.LoginFailure, c.SecurityPolicy, c.Session, c.SystemMetricSample,
+		c.User,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -262,6 +276,10 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Event.mutate(ctx, m)
 	case *HostInfoMutation:
 		return c.HostInfo.mutate(ctx, m)
+	case *LoginFailureMutation:
+		return c.LoginFailure.mutate(ctx, m)
+	case *SecurityPolicyMutation:
+		return c.SecurityPolicy.mutate(ctx, m)
 	case *SessionMutation:
 		return c.Session.mutate(ctx, m)
 	case *SystemMetricSampleMutation:
@@ -1135,6 +1153,272 @@ func (c *HostInfoClient) mutate(ctx context.Context, m *HostInfoMutation) (Value
 	}
 }
 
+// LoginFailureClient is a client for the LoginFailure schema.
+type LoginFailureClient struct {
+	config
+}
+
+// NewLoginFailureClient returns a client for the LoginFailure from the given config.
+func NewLoginFailureClient(c config) *LoginFailureClient {
+	return &LoginFailureClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `loginfailure.Hooks(f(g(h())))`.
+func (c *LoginFailureClient) Use(hooks ...Hook) {
+	c.hooks.LoginFailure = append(c.hooks.LoginFailure, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `loginfailure.Intercept(f(g(h())))`.
+func (c *LoginFailureClient) Intercept(interceptors ...Interceptor) {
+	c.inters.LoginFailure = append(c.inters.LoginFailure, interceptors...)
+}
+
+// Create returns a builder for creating a LoginFailure entity.
+func (c *LoginFailureClient) Create() *LoginFailureCreate {
+	mutation := newLoginFailureMutation(c.config, OpCreate)
+	return &LoginFailureCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of LoginFailure entities.
+func (c *LoginFailureClient) CreateBulk(builders ...*LoginFailureCreate) *LoginFailureCreateBulk {
+	return &LoginFailureCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *LoginFailureClient) MapCreateBulk(slice any, setFunc func(*LoginFailureCreate, int)) *LoginFailureCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &LoginFailureCreateBulk{err: fmt.Errorf("calling to LoginFailureClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*LoginFailureCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &LoginFailureCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for LoginFailure.
+func (c *LoginFailureClient) Update() *LoginFailureUpdate {
+	mutation := newLoginFailureMutation(c.config, OpUpdate)
+	return &LoginFailureUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *LoginFailureClient) UpdateOne(_m *LoginFailure) *LoginFailureUpdateOne {
+	mutation := newLoginFailureMutation(c.config, OpUpdateOne, withLoginFailure(_m))
+	return &LoginFailureUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *LoginFailureClient) UpdateOneID(id uuid.UUID) *LoginFailureUpdateOne {
+	mutation := newLoginFailureMutation(c.config, OpUpdateOne, withLoginFailureID(id))
+	return &LoginFailureUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for LoginFailure.
+func (c *LoginFailureClient) Delete() *LoginFailureDelete {
+	mutation := newLoginFailureMutation(c.config, OpDelete)
+	return &LoginFailureDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *LoginFailureClient) DeleteOne(_m *LoginFailure) *LoginFailureDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *LoginFailureClient) DeleteOneID(id uuid.UUID) *LoginFailureDeleteOne {
+	builder := c.Delete().Where(loginfailure.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &LoginFailureDeleteOne{builder}
+}
+
+// Query returns a query builder for LoginFailure.
+func (c *LoginFailureClient) Query() *LoginFailureQuery {
+	return &LoginFailureQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeLoginFailure},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a LoginFailure entity by its id.
+func (c *LoginFailureClient) Get(ctx context.Context, id uuid.UUID) (*LoginFailure, error) {
+	return c.Query().Where(loginfailure.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *LoginFailureClient) GetX(ctx context.Context, id uuid.UUID) *LoginFailure {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *LoginFailureClient) Hooks() []Hook {
+	return c.hooks.LoginFailure
+}
+
+// Interceptors returns the client interceptors.
+func (c *LoginFailureClient) Interceptors() []Interceptor {
+	return c.inters.LoginFailure
+}
+
+func (c *LoginFailureClient) mutate(ctx context.Context, m *LoginFailureMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&LoginFailureCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&LoginFailureUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&LoginFailureUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&LoginFailureDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown LoginFailure mutation op: %q", m.Op())
+	}
+}
+
+// SecurityPolicyClient is a client for the SecurityPolicy schema.
+type SecurityPolicyClient struct {
+	config
+}
+
+// NewSecurityPolicyClient returns a client for the SecurityPolicy from the given config.
+func NewSecurityPolicyClient(c config) *SecurityPolicyClient {
+	return &SecurityPolicyClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `securitypolicy.Hooks(f(g(h())))`.
+func (c *SecurityPolicyClient) Use(hooks ...Hook) {
+	c.hooks.SecurityPolicy = append(c.hooks.SecurityPolicy, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `securitypolicy.Intercept(f(g(h())))`.
+func (c *SecurityPolicyClient) Intercept(interceptors ...Interceptor) {
+	c.inters.SecurityPolicy = append(c.inters.SecurityPolicy, interceptors...)
+}
+
+// Create returns a builder for creating a SecurityPolicy entity.
+func (c *SecurityPolicyClient) Create() *SecurityPolicyCreate {
+	mutation := newSecurityPolicyMutation(c.config, OpCreate)
+	return &SecurityPolicyCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of SecurityPolicy entities.
+func (c *SecurityPolicyClient) CreateBulk(builders ...*SecurityPolicyCreate) *SecurityPolicyCreateBulk {
+	return &SecurityPolicyCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *SecurityPolicyClient) MapCreateBulk(slice any, setFunc func(*SecurityPolicyCreate, int)) *SecurityPolicyCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &SecurityPolicyCreateBulk{err: fmt.Errorf("calling to SecurityPolicyClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*SecurityPolicyCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &SecurityPolicyCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for SecurityPolicy.
+func (c *SecurityPolicyClient) Update() *SecurityPolicyUpdate {
+	mutation := newSecurityPolicyMutation(c.config, OpUpdate)
+	return &SecurityPolicyUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *SecurityPolicyClient) UpdateOne(_m *SecurityPolicy) *SecurityPolicyUpdateOne {
+	mutation := newSecurityPolicyMutation(c.config, OpUpdateOne, withSecurityPolicy(_m))
+	return &SecurityPolicyUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *SecurityPolicyClient) UpdateOneID(id uuid.UUID) *SecurityPolicyUpdateOne {
+	mutation := newSecurityPolicyMutation(c.config, OpUpdateOne, withSecurityPolicyID(id))
+	return &SecurityPolicyUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for SecurityPolicy.
+func (c *SecurityPolicyClient) Delete() *SecurityPolicyDelete {
+	mutation := newSecurityPolicyMutation(c.config, OpDelete)
+	return &SecurityPolicyDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *SecurityPolicyClient) DeleteOne(_m *SecurityPolicy) *SecurityPolicyDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *SecurityPolicyClient) DeleteOneID(id uuid.UUID) *SecurityPolicyDeleteOne {
+	builder := c.Delete().Where(securitypolicy.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &SecurityPolicyDeleteOne{builder}
+}
+
+// Query returns a query builder for SecurityPolicy.
+func (c *SecurityPolicyClient) Query() *SecurityPolicyQuery {
+	return &SecurityPolicyQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeSecurityPolicy},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a SecurityPolicy entity by its id.
+func (c *SecurityPolicyClient) Get(ctx context.Context, id uuid.UUID) (*SecurityPolicy, error) {
+	return c.Query().Where(securitypolicy.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *SecurityPolicyClient) GetX(ctx context.Context, id uuid.UUID) *SecurityPolicy {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *SecurityPolicyClient) Hooks() []Hook {
+	return c.hooks.SecurityPolicy
+}
+
+// Interceptors returns the client interceptors.
+func (c *SecurityPolicyClient) Interceptors() []Interceptor {
+	return c.inters.SecurityPolicy
+}
+
+func (c *SecurityPolicyClient) mutate(ctx context.Context, m *SecurityPolicyMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&SecurityPolicyCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&SecurityPolicyUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&SecurityPolicyUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&SecurityPolicyDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown SecurityPolicy mutation op: %q", m.Op())
+	}
+}
+
 // SessionClient is a client for the Session schema.
 type SessionClient struct {
 	config
@@ -1570,10 +1854,11 @@ func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error)
 type (
 	hooks struct {
 		AppSetting, AuditLog, Container, ContainerMetricSample, Event, HostInfo,
-		Session, SystemMetricSample, User []ent.Hook
+		LoginFailure, SecurityPolicy, Session, SystemMetricSample, User []ent.Hook
 	}
 	inters struct {
 		AppSetting, AuditLog, Container, ContainerMetricSample, Event, HostInfo,
-		Session, SystemMetricSample, User []ent.Interceptor
+		LoginFailure, SecurityPolicy, Session, SystemMetricSample,
+		User []ent.Interceptor
 	}
 )

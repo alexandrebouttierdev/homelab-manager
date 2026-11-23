@@ -25,6 +25,13 @@ Ce document est le contrat exact de l'API implémentée. Toute différence entre
 | `GET /api/v1/auth/session` | cookie | Utilisateur courant (§ 3) |
 | `POST /api/v1/auth/logout` | oui | Révoque la session |
 | `POST /api/v1/auth/password` | oui | Change le mot de passe |
+| `GET /api/v1/auth/sessions` | oui | Ses sessions actives ; `?scope=all` : toutes (admin) (§ 3.2) |
+| `DELETE /api/v1/auth/sessions/{sessionID}` | oui | Révoque une session (§ 3.2) |
+| `POST /api/v1/auth/sessions/revoke-others` | oui | Révoque ses autres sessions (§ 3.2) |
+| `GET /api/v1/security/policy` | admin | Politique de sécurité (§ 3.3) |
+| `PUT /api/v1/security/policy` | admin | Modifie la politique (§ 3.3) |
+| `GET /api/v1/audit` | admin | Journal d'audit filtré (§ 3.4) |
+| `GET /api/v1/audit/export` | admin | Export CSV ou JSON du journal (§ 3.4) |
 | `GET /api/v1/dashboard` | oui | Synthèse (§ 4.2) |
 | `GET /api/v1/host` | oui | Identité de l'hôte (§ 4.3) |
 | `GET /api/v1/host/metrics/current` | oui | Dernier cycle hôte (§ 5.2) |
@@ -37,13 +44,22 @@ Ce document est le contrat exact de l'API implémentée. Toute différence entre
 | `GET /api/v1/containers/{containerID}/events` | oui | Événements du conteneur (§ 6.2) |
 | `GET /api/v1/events` | oui | Tous les événements (§ 6.2) |
 | `GET /api/v1/settings` | oui | Paramètres effectifs (§ 4.4) |
-| `PUT /api/v1/settings/retention` | oui | Modifie la rétention (§ 4.4) |
+| `PUT /api/v1/settings/retention` | admin | Modifie la rétention (§ 4.4) |
+| `GET /api/v1/users` | admin | Comptes (§ 3.1) |
+| `POST /api/v1/users` | admin | Crée un compte (§ 3.1) |
+| `PATCH /api/v1/users/{userID}` | admin | Modifie un compte (§ 3.1) |
+| `DELETE /api/v1/users/{userID}` | admin | Supprime un compte (§ 3.1) |
+| `POST /api/v1/users/{userID}/password` | admin | Réinitialise le mot de passe d'un compte (§ 3.1) |
+| `GET /api/v1/machine/power` | admin | Actions d'alimentation disponibles (§ 4.5) |
+| `POST /api/v1/machine/power/{action}` | admin | Redémarre ou éteint la machine (§ 4.5) |
 
-Toutes les routes de supervision sont en lecture seule ; les seules écritures sont l'authentification et `PUT /api/v1/settings/retention`. Une route inconnue sous `/api` répond `404 NOT_FOUND`, une méthode non prévue `405 METHOD_NOT_ALLOWED`, toujours au format d'erreur du § 8. Il n'existe aucune route d'Agent, d'hôte distant, de journaux, ni d'action Docker (création, suppression, démarrage, arrêt, restart, exec).
+Toutes les routes de supervision sont en lecture seule ; les seules écritures sont l'authentification, `PUT /api/v1/settings/retention`, la gestion des comptes et les demandes d'alimentation de la machine. La colonne « Session » indique `admin` pour les routes réservées au rôle administrateur (§ 3.1). Une route inconnue sous `/api` répond `404 NOT_FOUND`, une méthode non prévue `405 METHOD_NOT_ALLOWED`, toujours au format d'erreur du § 8. Il n'existe aucune route d'Agent, d'hôte distant, de journaux, ni d'action Docker (création, suppression, démarrage, arrêt, restart, exec).
 
 ### Paramètres de chemin
 
 - `containerID` : UUID Manager (`8-4-4-4-12` hexadécimal minuscule) ou ID Docker de 12 à 64 caractères hexadécimaux minuscules. Sinon `400 VALIDATION_ERROR` ; inconnu → `404 NOT_FOUND`.
+- `userID` : UUID Manager en minuscules (`8-4-4-4-12`). Sinon `400 VALIDATION_ERROR` ; inconnu → `404 NOT_FOUND`.
+- `action` : `reboot` ou `poweroff`. Sinon `400 VALIDATION_ERROR`.
 - `metricName` : 64 caractères au plus, motif `^[a-z][a-z0-9_]*(\.[a-z0-9_]+)+$` (ex. `cpu.percent`). Sinon `400 VALIDATION_ERROR`. Un nom valide mais jamais collecté renvoie une liste vide.
 
 ## 3. Authentification et sessions
@@ -51,14 +67,14 @@ Toutes les routes de supervision sont en lecture seule ; les seules écritures s
 **Connexion** — `POST /api/v1/auth/login` avec `{ "username": "...", "password": "..." }`.
 
 - `username` : espaces de début et fin retirés, 1 à 255 octets. `password` : 1 à 1 024 octets. Aucune longueur minimale à la connexion (le compte par défaut est `admin` / `admin`).
-- Succès `200` : `{ "user": { "id": "uuid", "username": "admin" } }` et cookie de session.
+- Succès `200` : `{ "user": { "id": "uuid", "username": "admin", "displayName": "admin", "role": "admin", "mustChangePassword": false } }` et cookie de session. Un compte désactivé reçoit `401 INVALID_CREDENTIALS`, comme un mot de passe faux.
 - Échec : `401 INVALID_CREDENTIALS`, identique que l'utilisateur existe ou non ; le temps de réponse est équivalent (une vérification Argon2id est faite dans les deux cas).
 - Limitation : 10 tentatives par minute et par adresse IP source, au-delà `429 RATE_LIMITED` (fenêtre fixe d'une minute, au plus 10 000 adresses suivies).
 - Contrôle d'origine identique aux mutations (ci-dessous).
 
 **Cookie** — nom `homelab_session`, `HttpOnly`, `SameSite=Lax`, `Path=/`, `Secure` si TLS est activé ou `HOMELAB_SESSION_SECURE=true`. Durée de vie fixe de 12 heures, sans prolongation. Seul le SHA-256 du jeton (32 octets aléatoires) est stocké.
 
-**Session** — `GET /api/v1/auth/session` : `200 { "user": { "id", "username" } }`, sinon `401 SESSION_NOT_FOUND`.
+**Session** — `GET /api/v1/auth/session` : `200 { "user": … }` (même objet que la connexion), sinon `401 SESSION_NOT_FOUND`, y compris pour un compte désactivé ou supprimé.
 
 **Déconnexion** — `POST /api/v1/auth/logout` : révoque la session, efface le cookie, `200 { "loggedOut": true }`.
 
@@ -71,6 +87,67 @@ Toutes les routes de supervision sont en lecture seule ; les seules écritures s
 **Contrôle d'origine (CSRF)** — appliqué à la connexion et à toutes les routes authentifiées : si l'en-tête `Origin` est présent, son hôte doit être égal à l'en-tête `Host` ; une requête `Sec-Fetch-Site: cross-site` est refusée. Refus : `403 CROSS_ORIGIN_REQUEST`. Combiné à `SameSite=Lax`, il protège les mutations par cookie.
 
 **Base indisponible** — si la base SQLite n'a pas pu être ouverte au démarrage, toutes les routes qui exigent une session et la connexion répondent `503 AUTH_UNAVAILABLE`.
+
+### 3.1 Comptes et rôles
+
+Comptes de Homelab Manager uniquement : aucun compte Linux n'est lu ni modifié.
+
+**Rôles** — `viewer` : consultation et son propre mot de passe. `operator` : idem pour l'instant (actions sur les services et sauvegardes dans les phases suivantes). `admin` : idem, plus `PUT /api/v1/settings/retention` et les routes `/api/v1/users`. Un rôle insuffisant reçoit `403 FORBIDDEN`.
+
+**Mot de passe initial** — un compte créé par un administrateur a `mustChangePassword: true`. Tant qu'il ne l'a pas changé (`POST /api/v1/auth/password`), toutes les routes authentifiées sauf `/auth/session`, `/auth/logout` et `/auth/password` répondent `403 PASSWORD_CHANGE_REQUIRED`.
+
+**Compte** :
+
+```json
+{
+  "id": "uuid", "username": "alice", "displayName": "Alice", "role": "viewer",
+  "disabled": false, "mustChangePassword": true,
+  "lastLoginAt": null, "lastLoginIp": null, "createdAt": "2026-11-23T10:00:00Z"
+}
+```
+
+- `GET /api/v1/users` : `200 { "users": [Compte] }`, triés par identifiant, 500 au plus.
+- `POST /api/v1/users` avec `{ "username", "displayName", "role", "password" }` : `username` selon `^[a-z0-9._-]{1,64}$` ; `displayName` 128 octets au plus, sans caractère de contrôle, espaces de bord retirés, identifiant par défaut ; `role` ∈ `viewer`, `operator`, `admin` ; `password` 12 à 1 024 octets. Succès `201 { "user": Compte }`. Identifiant déjà pris : `409 USERNAME_TAKEN`.
+- `PATCH /api/v1/users/{userID}` avec au moins un champ parmi `{ "displayName", "role", "disabled" }` : succès `200 { "user": Compte }`. Désactiver un compte révoque ses sessions.
+- `DELETE /api/v1/users/{userID}` : `200 { "deleted": true }`. Les sessions du compte sont supprimées ; ses lignes d'audit sont conservées.
+- `POST /api/v1/users/{userID}/password` avec `{ "password": "..." }` (12 à 1 024 octets) : `200 { "user": Compte }` avec `mustChangePassword: true`. Le titulaire devra changer ce mot de passe à sa connexion suivante ; ses sessions sont révoquées et un verrouillage en cours est levé. Audité (`user`, UUID, `reset_password`). Sur son propre compte : `409 OWN_PASSWORD_RESET` (utiliser `POST /api/v1/auth/password`).
+- Compte initial : créé sans `HOMELAB_ADMIN_PASSWORD`, `admin` / `admin` a `mustChangePassword: true` ; au démarrage, un compte existant qui accepte encore ce mot de passe reçoit la même obligation.
+- Le dernier administrateur actif ne peut être ni rétrogradé, ni désactivé, ni supprimé : `409 LAST_ADMIN`.
+- Chaque modification réussie écrit une ligne d'audit (`user`, UUID du compte, `create` / `update` / `delete`) dans la même transaction.
+
+### 3.2 Sessions
+
+- **Verrouillage** — 5 mots de passe faux consécutifs verrouillent le compte 15 minutes, en plus de la limite par adresse. Un compte verrouillé reçoit `401 INVALID_CREDENTIALS`, comme un mot de passe faux, après la même vérification Argon2id. Une connexion réussie remet le compteur à zéro ; le verrouillage est audité (`system`, `user`, `lock`).
+- **Inactivité** — une session inactive depuis plus de `idleTimeoutMinutes` (§ 3.3) est révoquée à sa requête suivante (`401 SESSION_NOT_FOUND`), en plus de la durée maximale de 12 h. La dernière activité est enregistrée au plus une fois par minute ; les requêtes périodiques de l'interface comptent comme de l'activité.
+- `GET /api/v1/auth/sessions` : `200 { "sessions": [Session] }`, sessions actives du compte, les plus récemment actives d'abord, 500 au plus. `?scope=all` : sessions de tous les comptes, réservé à `admin` (`403 FORBIDDEN` sinon) ; toute autre valeur de `scope` : `400 VALIDATION_ERROR`.
+
+```json
+{ "id": "uuid", "userId": "uuid", "username": "admin", "ipAddress": "192.168.1.20",
+  "userAgent": "Mozilla/5.0 …", "authMethod": "password", "createdAt": "…",
+  "lastSeenAt": "…", "expiresAt": "…", "current": true }
+```
+
+  `userAgent` est tronqué à 256 octets. `current` désigne la session de la requête.
+- `DELETE /api/v1/auth/sessions/{sessionID}` (UUID minuscule) : `200 { "revoked": true }`. Chacun révoque ses sessions, un administrateur celles de tous ; la session d'un autre compte est `404 NOT_FOUND` pour un non-administrateur. Révoquer la session courante efface aussi le cookie. Audité (`session`, UUID, `revoke`).
+- `POST /api/v1/auth/sessions/revoke-others` : `200 { "revoked": 2 }`, toutes les sessions du compte sauf la courante. Audité (`user`, UUID, `revoke_other_sessions`) quand au moins une session est révoquée.
+
+### 3.3 Politique de sécurité
+
+- `GET /api/v1/security/policy` (admin) : `200 { "idleTimeoutMinutes": 60, "allowedNetworks": [], "currentAddress": "192.168.1.20" }`. `currentAddress` est l'adresse vue par le Manager pour la requête.
+- `PUT /api/v1/security/policy` (admin) avec `{ "idleTimeoutMinutes": 60, "allowedNetworks": ["192.168.1.0/24"] }`, les deux champs obligatoires : `idleTimeoutMinutes` de 5 à 720 ; `allowedNetworks` 32 préfixes CIDR au plus, stockés masqués ; liste vide = toutes les adresses. Succès `200` (même objet que `GET`), avec audit (`security_policy`, `local`, `update`). Une politique qui exclurait `currentAddress` : `409 POLICY_EXCLUDES_CURRENT_ADDRESS`.
+- **Réseaux autorisés** — avec une liste non vide, toute requête d'une adresse hors liste reçoit `403 NETWORK_NOT_ALLOWED`, interface comprise, sauf `GET /health`. L'adresse est celle de la connexion TCP (`RemoteAddr`) : derrière un proxy inverse, c'est celle du proxy ; aucun en-tête `X-Forwarded-For` n'est pris en compte.
+
+### 3.4 Journal d'audit
+
+- `GET /api/v1/audit` (admin) : `200 { "entries": [Entrée] }`, les plus récentes d'abord. Filtres facultatifs : `actor`, `targetType`, `action`, `outcome` (égalité exacte, 255 octets au plus), `from` et `to` (RFC 3339, intervalle `[from, to)`, `from` avant `to`), `limit` (1 à 1 000, défaut 200). Sinon `400 VALIDATION_ERROR`.
+
+```json
+{ "id": "uuid", "actor": "alice", "targetType": "route", "targetId": "GET /api/v1/users",
+  "action": "access", "outcome": "denied", "requestId": "host/abc-000012", "createdAt": "…" }
+```
+
+- `GET /api/v1/audit/export?format=csv|json` (admin), mêmes filtres, 10 000 lignes au plus (défaut et maximum) : fichier joint `audit-<horodatage>.csv` ou `.json`. Le CSV a l'en-tête `createdAt,actor,targetType,targetId,action,outcome,requestId` ; une valeur commençant par `=`, `+`, `-`, `@`, une tabulation ou un retour chariot est préfixée d'une apostrophe (pas de formule dans un tableur).
+- Résultats tracés : `success`, `denied` (rôle insuffisant : cible `route`, `METHODE chemin`, action `access` ; dernier administrateur protégé : cible `user`), `requested` et `failure` (alimentation, § 4.5).
 
 ## 4. Santé, synthèse, hôte et paramètres
 
@@ -173,6 +250,18 @@ Toutes les routes de supervision sont en lecture seule ; les seules écritures s
 - La valeur est enregistrée en base (table `app_settings`), prend effet immédiatement sans redémarrage, survit aux redémarrages et l'emporte ensuite sur la configuration. Une purge est lancée aussitôt : réduire la rétention supprime définitivement les données plus anciennes.
 - Chaque modification ajoute une entrée au journal d'audit (`audit_logs` : acteur, cible `settings/metrics_retention_days`, action `update`, `requestId`), dans la même transaction.
 - Réponse `200` : le DTO de paramètres ci-dessus. Échec d'écriture : `500 SETTINGS_UPDATE_FAILED`.
+
+### 4.5 Alimentation de la machine
+
+Réservé au rôle `admin` ; voir SPEC_ADMINISTRATION.md § 8 bis.
+
+`GET /api/v1/machine/power` : `200 { "enabled": false, "actions": ["reboot", "poweroff"] }`. `enabled` reflète le réglage de service `power_actions_enabled` (défaut `false`) ; la règle polkit, elle, n'est connue qu'au moment de la demande.
+
+`POST /api/v1/machine/power/{action}` avec `{ "confirmHostname": "homelab" }` (1 à 253 octets, espaces de bord ignorés, comparé exactement au nom d'hôte de la machine) :
+
+- Succès `202 { "requested": true, "action": "reboot" }` : `systemd-logind` a accepté la demande ; le Manager s'arrête avec les autres services peu après. La réponse peut ne pas parvenir si l'arrêt est très rapide.
+- `400 HOSTNAME_MISMATCH` : confirmation différente du nom d'hôte. `409 POWER_ACTIONS_DISABLED` : réglage désactivé. `409 ACTION_IN_PROGRESS` : une demande a déjà été acceptée. `503 POWER_ACTION_REFUSED` : polkit ou logind refuse (règle absente, verrou d'inhibition, arrêt déjà en cours). `500 POWER_ACTION_FAILED` : bus système ou logind injoignable.
+- Une ligne d'audit (`host`, nom d'hôte, action, `requested`) est écrite avant la demande ; un refus ajoute `failure`.
 
 ## 5. Métriques
 
@@ -339,7 +428,7 @@ Les routes sont versionnées sous `/api/v1`. Un changement incompatible (champ s
 | `SESSION_NOT_FOUND` | 401 | Session absente, expirée ou révoquée |
 | `CROSS_ORIGIN_REQUEST` | 403 | Contrôle d'origine refusé |
 | `TOO_MANY_POINTS` | 400 | Historique agrégé dépassant `limit` |
-| `NOT_FOUND` | 404 | Route ou conteneur inconnu |
+| `NOT_FOUND` | 404 | Route, conteneur ou compte inconnu |
 | `METHOD_NOT_ALLOWED` | 405 | Méthode non prévue sur la route |
 | `RATE_LIMITED` | 429 | Trop de tentatives de connexion |
 | `AUTH_UNAVAILABLE` | 503 | Base indisponible au démarrage |
@@ -348,6 +437,24 @@ Les routes sont versionnées sous `/api/v1`. Un changement incompatible (champ s
 | `LOGOUT_FAILED` | 500 | Révocation de session en échec |
 | `PASSWORD_CHANGE_FAILED` | 500 | Écriture du nouveau mot de passe en échec |
 | `SETTINGS_UPDATE_FAILED` | 500 | Écriture des paramètres en échec |
+| `FORBIDDEN` | 403 | Rôle insuffisant pour la route |
+| `PASSWORD_CHANGE_REQUIRED` | 403 | Mot de passe initial à changer d'abord |
+| `USERNAME_TAKEN` | 409 | Identifiant de compte déjà utilisé |
+| `LAST_ADMIN` | 409 | Dernier administrateur actif à conserver |
+| `OWN_PASSWORD_RESET` | 409 | Réinitialisation de son propre mot de passe |
+| `USERS_UNAVAILABLE` | 500 | Lecture des comptes en échec |
+| `ACCOUNT_UPDATE_FAILED` | 500 | Écriture d'un compte en échec |
+| `HOSTNAME_MISMATCH` | 400 | Confirmation différente du nom de la machine |
+| `POWER_ACTIONS_DISABLED` | 409 | Redémarrage et extinction désactivés par la configuration |
+| `ACTION_IN_PROGRESS` | 409 | Une action est déjà en cours |
+| `POWER_ACTION_REFUSED` | 503 | polkit ou logind refuse l'action |
+| `POWER_ACTION_FAILED` | 500 | Demande d'alimentation impossible à transmettre |
+| `NETWORK_NOT_ALLOWED` | 403 | Adresse cliente hors des réseaux autorisés |
+| `POLICY_EXCLUDES_CURRENT_ADDRESS` | 409 | La politique exclurait l'adresse de l'administrateur |
+| `SESSIONS_UNAVAILABLE` | 500 | Lecture des sessions en échec |
+| `SESSION_REVOKE_FAILED` | 500 | Révocation de session en échec |
+| `SECURITY_POLICY_UPDATE_FAILED` | 500 | Écriture de la politique en échec |
+| `AUDIT_UNAVAILABLE` | 500 | Lecture du journal d'audit en échec |
 | `INTERNAL_ERROR` | 500 | Autre erreur serveur |
 
 Aucune trace de pile, chemin local, secret ou réponse Docker brute dans les erreurs. `requestId` correspond au champ `request_id` des journaux du Manager.

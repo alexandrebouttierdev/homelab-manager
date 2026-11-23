@@ -23,6 +23,7 @@ L'interface ne montre jamais un message d'erreur brut de l'API : elle traduit le
 | Go | Tests et analyse | `go test ./...`, `go test -race ./...`, `go vet ./...` |
 | Frontend | Formatage | `npm run format:check` (Prettier) |
 | Frontend | Lint, types, tests, build | `npm run lint`, `npm run typecheck`, `npm run test`, `npm run build` |
+| Release | Calcul de version et notes | `scripts/release/release_test.sh` (dépôt Git jetable) |
 
 Corriger le formatage : `gofmt -w backend` et `npm --prefix frontend run format`. Un avertissement du linter est traité comme une erreur.
 
@@ -130,7 +131,7 @@ Les pages et composants (`.tsx` de `src/app`, `src/components`, `src/features`) 
 
 - `docs/API_CONTRACTS.md` est le contrat exact : toute route, paramètre, borne, DTO ou code d'erreur ajouté ou modifié l'est dans le même commit que le code.
 - Un changement de comportement met à jour le document qui le décrit (METRICS_COLLECTION.md, DATA_MODEL.md, SECURITY.md…) dans le même commit.
-- Nouvelle table ou colonne : nouvelle migration numérotée (`00N_description.sql`), jamais de modification d'une migration livrée ; schéma Ent régénéré avec `go run entgo.io/ent/cmd/ent@v0.14.6 generate ./ent/schema`.
+- Nouvelle table ou colonne : nouvelle migration numérotée (`00N_description.sql`), jamais de modification d'une migration livrée ; schéma Ent régénéré depuis `backend/` avec `GOTOOLCHAIN=go1.26.10 go run entgo.io/ent/cmd/ent@v0.14.6 generate ./ent/schema`. Fixer `GOTOOLCHAIN` est nécessaire : `go run …@v0.14.6` est lancé hors du module et prendrait sinon le Go de base de la machine, trop ancien pour le `go.mod` du projet ; en cas d'échec, restaurer `ent/runtime.go` (`git checkout`), que le générateur laisse modifié.
 
 ## 6. Dépendances
 
@@ -141,6 +142,8 @@ Les pages et composants (`.tsx` de `src/app`, `src/components`, `src/features`) 
 ## 7. Git
 
 - Branche de travail `dev` ; `main` reçoit des fusions de `dev`.
+- Chaque push sur `main` publie une release (`.github/workflows/release.yml`) : vérification complète, archives Linux `amd64` et `arm64`, `SHA256SUMS`, tag `vMAJEUR.MINEUR.CORRECTIF`. La version se déduit des Conventional Commits depuis le dernier tag (`scripts/release/next-version.sh`) : `type!:` ou `BREAKING CHANGE:` → majeure, `feat` → mineure, le reste → correctif ; la première est `2.3.0`. Le type d'un commit compte donc : un `feat` qui n'ajoute rien de visible fausse la version.
+- La version est injectée à la construction (`-X main.version`, `VITE_APP_VERSION`) ; ne jamais l'écrire en dur dans le code.
 - Messages au format Conventional Commits, en anglais : `type(scope): résumé à l'impératif`, avec `type` ∈ `feat`, `fix`, `refactor`, `perf`, `test`, `docs`, `chore`, `build` ; corps expliquant le pourquoi.
 - Un commit = un changement cohérent, avec ses tests et sa documentation, qui passe `scripts/verify.sh`.
 - Ne jamais versionner : `.env`, bases SQLite (`*.db`, `-wal`, `-shm`), binaires, `dist/`, secrets.

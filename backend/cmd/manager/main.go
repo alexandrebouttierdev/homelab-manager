@@ -11,6 +11,7 @@ import (
 
 	argon2adapter "homelab-manager/backend/internal/adapters/argon2"
 	"homelab-manager/backend/internal/adapters/dockerengine"
+	logindadapter "homelab-manager/backend/internal/adapters/logind"
 	"homelab-manager/backend/internal/adapters/sqlite"
 	systemcollector "homelab-manager/backend/internal/collector/system"
 	httpdelivery "homelab-manager/backend/internal/delivery/http"
@@ -18,6 +19,10 @@ import (
 
 	"go.uber.org/zap"
 )
+
+// version is set at build time by scripts/release/build.sh
+// (-ldflags "-X main.version=..."); "dev" for a local build.
+var version = "dev"
 
 func main() {
 	config, err := LoadConfig()
@@ -32,6 +37,7 @@ func main() {
 		os.Exit(1)
 	}
 	defer logger.Sync() //nolint:errcheck
+	logger.Info("Starting Homelab Manager", zap.String("version", version))
 
 	database, databaseErr := sqlite.Open(context.Background(), config.DatabasePath)
 	if databaseErr != nil {
@@ -41,6 +47,10 @@ func main() {
 
 	healthUsecase := usecase.NewHealthUsecase(config.StartedAt)
 	var authUsecase *usecase.AuthUsecase
+	var accountUsecase *usecase.AccountUsecase
+	var powerUsecase *usecase.PowerUsecase
+	var securityUsecase *usecase.SecurityUsecase
+	var auditUsecase *usecase.AuditUsecase
 	var monitoringUsecase *usecase.MonitoringUsecase
 	var clientCloser interface{ Close() error }
 	var dockerClientCloser interface{ CloseIdleConnections() }
@@ -52,18 +62,34 @@ func main() {
 		client := database.Client()
 		authRepository := sqlite.NewAuthRepository(client)
 		hasher := argon2adapter.New()
+		auth := usecase.NewAuthUsecase(authRepository, authRepository, hasher)
 		bootstrapPassword, isDefault := config.BootstrapAdminPassword()
-		if hash, err := hasher.Hash(bootstrapPassword); err != nil {
-			logger.Error("Could not hash initial administrator password", zap.Error(err))
-		} else if created, err := authRepository.EnsureAdmin(context.Background(), config.AdminUsername, hash); err != nil {
+		if created, forced, err := auth.EnsureAdministrator(context.Background(), config.AdminUsername, bootstrapPassword, isDefault); err != nil {
 			logger.Error("Could not bootstrap administrator", zap.Error(err))
-		} else if created && isDefault {
-			logger.Warn("Administrator created with the default password; change it from the Settings page",
-				zap.String("username", config.AdminUsername))
+		} else if forced {
+			logger.Warn("Administrator uses the default password; it must be changed at the next login",
+				zap.String("username", config.AdminUsername), zap.Bool("created", created))
 		} else if created {
 			logger.Info("Administrator created", zap.String("username", config.AdminUsername))
 		}
-		authUsecase = usecase.NewAuthUsecase(authRepository, authRepository, hasher)
+		auditRepository := sqlite.NewAuditRepository(client)
+		securityRepository := sqlite.NewSecurityRepository(client)
+		security := usecase.NewSecurityUsecase(securityRepository)
+		// Without its policy the Manager cannot tell which networks may use
+		// the interface: authentication stays unavailable rather than open.
+		if err := security.Load(context.Background()); err != nil {
+			logger.Error("Could not load the security policy; authentication is unavailable", zap.Error(err))
+		} else {
+			securityUsecase = security
+			auditUsecase = usecase.NewAuditUsecase(auditRepository, auditRepository)
+			authUsecase = auth.WithSecurity(securityRepository, auditRepository, security)
+			accountUsecase = usecase.NewAccountUsecase(sqlite.NewAccountRepository(client), authRepository, hasher).
+				WithAudit(auditRepository)
+			powerUsecase = usecase.NewPowerUsecase(logindadapter.New(), auditRepository, os.Hostname, config.PowerActionsEnabled)
+			if config.PowerActionsEnabled {
+				logger.Info("Reboot and power off are enabled; they also require the polkit rule")
+			}
+		}
 		monitoringRepository := sqlite.NewMonitoringRepository(database)
 		dockerClient := dockerengine.NewClient(config.DockerProxySocket)
 		dockerClientCloser = dockerClient
@@ -85,7 +111,10 @@ func main() {
 			monitoringUsecase.Run(schedulerCtx)
 		}()
 	}
-	router := httpdelivery.NewRouter(logger, healthUsecase, authUsecase, monitoringUsecase, config.SessionSecure, config.WebRoot)
+	router := httpdelivery.NewRouter(logger, httpdelivery.Services{
+		Health: healthUsecase, Auth: authUsecase, Monitoring: monitoringUsecase,
+		Accounts: accountUsecase, Power: powerUsecase, Security: securityUsecase, Audit: auditUsecase,
+	}, config.SessionSecure, config.WebRoot)
 
 	server := &http.Server{
 		Addr:              config.HTTPAddress,

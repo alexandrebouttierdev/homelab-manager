@@ -19,6 +19,8 @@ func (Session) Fields() []ent.Field {
 		field.Time("revoked_at").Optional().Nillable(),
 		field.String("ip_address").Optional(),
 		field.String("user_agent").Optional(),
+		field.Time("last_seen_at").Optional(),
+		field.String("auth_method").Default("password"),
 	}
 }
 

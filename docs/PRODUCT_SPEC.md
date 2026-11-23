@@ -44,6 +44,7 @@ L'installation doit rester légère : un binaire, un fichier de base et le proxy
 ### Historique, événements et paramètres
 - Séries historiques brutes ou agrégées (1 min, 5 min, 1 h) avec bornes temporelles contrôlées.
 - Événements de changements d'état Docker ; le statut des collecteurs est exposé par la santé et les paramètres.
+- Journal systemd de la machine en lecture seule (filtres, recherche, suivi en direct, synthèse sur 24 h, export), champs sensibles masqués.
 - Authentification locale, session, changement du mot de passe administrateur.
 - Paramètres locaux de fréquence de collecte (configuration du service) et rétention réglable depuis l'interface : 7 jours par défaut, de 1 à 365 jours, effet immédiat, modification tracée dans le journal d'audit.
 
@@ -80,7 +81,7 @@ Présent dans le dépôt : module Backend unique, authentification locale (compt
 Limites connues, à ne pas présenter comme fonctionnelles :
 
 - Listes de conteneurs et d'événements plafonnées sans pagination (API_CONTRACTS.md § 9.1).
-- Modules d'administration (SPEC_ADMINISTRATION.md) : sont livrés les comptes multiples et les rôles (phase 1A), les sessions, le verrouillage, la politique de sécurité et le journal d'audit consultable (phase 1B), la double authentification par application TOTP et codes de secours avec son coffre de secrets (phase 1C) ainsi que le redémarrage et l'extinction de la machine (module M, désactivé par défaut) ; les autres entrées de navigation restent marquées « à venir ».
+- Modules d'administration (SPEC_ADMINISTRATION.md) : sont livrés les comptes multiples et les rôles (phase 1A), les sessions, le verrouillage, la politique de sécurité et le journal d'audit consultable (phase 1B), la double authentification par application TOTP et codes de secours avec son coffre de secrets (phase 1C), la lecture du journal système (phase 2, module J) ainsi que le redémarrage et l'extinction de la machine (module M, désactivé par défaut) ; les autres entrées de navigation restent marquées « à venir ».
 - Images, volumes et réseaux Docker sont déduits de l'inventaire des conteneurs : une image, un volume ou un réseau inutilisé n'apparaît pas.
 - Aucune notification ni alerte, aucun journal de conteneur.
 - Le passage de PostgreSQL à SQLite ne migre pas les données existantes.
@@ -97,7 +98,7 @@ Ouvertes : voir SPEC_ADMINISTRATION.md § 10.
 
 ## 8. Historique
 
-- 2.3 — 23 novembre 2026 : sessions consultables et révocables, expiration par inactivité, verrouillage de compte, réseaux autorisés, journal d'audit consultable et exportable, audit des refus (phase 1B) ; réinitialisation de mot de passe par un administrateur et changement imposé du mot de passe par défaut ; coffre de secrets, double authentification TOTP, codes de secours et second facteur exigible des administrateurs (phase 1C).
+- 2.3 — 23 novembre 2026 : sessions consultables et révocables, expiration par inactivité, verrouillage de compte, réseaux autorisés, journal d'audit consultable et exportable, audit des refus (phase 1B) ; réinitialisation de mot de passe par un administrateur et changement imposé du mot de passe par défaut ; coffre de secrets, double authentification TOTP, codes de secours et second facteur exigible des administrateurs (phase 1C) ; lecture du journal système par `journalctl` (phase 2).
 - 2.2 — 23 novembre 2026 : comptes multiples, rôles `viewer` / `operator` / `admin`, mot de passe initial à changer, rétention réservée aux administrateurs (phase 1A des modules d'administration) ; redémarrage et extinction de la machine par logind et polkit, réservés aux administrateurs et désactivés par défaut (module M).
 - 2.1 — 22 novembre 2026 : stockage SQLite embarqué, compte initial `admin` / `admin`, contrats API exacts, état `stale`, vues courantes sur le dernier cycle complet, purge horaire, agrégation des historiques et filtre par label, rétention réglable (7 jours par défaut), spécification des modules d'administration v3.
 - 2.0 — 21 novembre 2026 : périmètre mono-machine, abandon de l'Agent distant.

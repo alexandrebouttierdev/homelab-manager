@@ -93,14 +93,16 @@ Ordre de réalisation : 1A → M → 1B → 1C → 2 → 3 → 4 → 5 → 6 →
 - Tables : `totp_secrets`, `recovery_codes` (migration `005`) ; pas encore de table `secrets` générique (phases 4 et 6).
 - Parcours vérifié dans Chromium contre le binaire réel : enrôlement, QR code décodé, anti-rejeu, codes de secours, obligation pour un nouvel administrateur, mode dégradé sans clé.
 
-### 2 — Journaux système
+### 2 — Journaux système (livrée)
 
+- Plan : [2026-11-23-phase-2-journaux-systeme.md](./2026-11-23-phase-2-journaux-systeme.md).
+- Constat du parcours réel : avec un curseur, `journalctl` refuse `--since` et ignore `--until` ; le Manager applique l'intervalle lui-même.
 - Adaptateur `journalctl` : `exec` sans shell, arguments construits depuis des options validées (`--since`, `--until`, `--priority`, `--unit`, `--boot`, `--lines`, curseurs), sortie JSON bornée en taille et en lignes, délai 10 s.
 - Recherche de sous-chaîne faite par le Manager (jamais une regex transmise), 500 entrées par page, pagination par curseur journald, suivi par interrogation toutes les 2 s (arrêt quand l'onglet est masqué).
 - Masquage de `_CMDLINE` et des champs contenant `PASSWORD`, `TOKEN`, `SECRET`.
 - Synthèse 24 h par tranches de 15 min, `--disk-usage`, export `.log` / `.json` (50 000 entrées au plus).
 - Déploiement : ajouter `homelab-manager` au groupe `systemd-journal` (README, unité).
-- Tests : fixtures JSON de `journalctl`, construction des arguments, bornes, masquage.
+- Tests : construction des arguments, décodage JSON, bornes, masquage, et intégration contre le vrai `journalctl` sur des fichiers fabriqués par `systemd-journal-remote` (installé aussi en CI).
 
 ### 3 — Services système en lecture
 

@@ -1,6 +1,6 @@
 # Spécification des modules d'administration — Homelab Manager
 
-Version 3.0 (brouillon) — 22 novembre 2026 — **partiellement implémenté** : comptes multiples et rôles (§§ 3.1–3.2, phase 1A), sessions, politique de sécurité et journal d'audit (§§ 3.4–3.5, phase 1B), coffre de secrets, TOTP et codes de secours (§§ 2.5, 3.3 hors WebAuthn, phase 1C) et redémarrage et extinction de la machine (§ 8 bis, module M), le 23 novembre 2026.
+Version 3.0 (brouillon) — 22 novembre 2026 — **partiellement implémenté** : comptes multiples et rôles (§§ 3.1–3.2, phase 1A), sessions, politique de sécurité et journal d'audit (§§ 3.4–3.5, phase 1B), coffre de secrets, TOTP et codes de secours (§§ 2.5, 3.3 hors WebAuthn, phase 1C) journaux système (§ 4, phase 2) et redémarrage et extinction de la machine (§ 8 bis, module M), le 23 novembre 2026.
 
 Ce document spécifie les modules annoncés « à venir » dans la navigation : utilisateurs et accès, journaux système, services système, alertes et notifications, sauvegardes, tâches planifiées, ainsi que le redémarrage et l'extinction de la machine (§ 8 bis, ajouté le 23 novembre 2026). Il s'appuie sur les maquettes de `maquette/` et en fixe le périmètre réel : une maquette montre une intention visuelle, ce document fait foi. Tant qu'un module n'est pas livré, il reste désactivé dans l'interface et ses routes n'existent pas.
 
@@ -127,6 +127,7 @@ Lecture seule du journal systemd.
 - **Synthèse** : volume par priorité sur 24 h par tranches de 15 min (requête dédiée, bornée), occupation disque du journal (`journalctl --disk-usage`).
 - **Export** : `.log` (format court) ou `.json` du résultat filtré, 50 000 entrées au plus.
 - Non retenus : scellement FSS et compression affichés par la maquette (informations non fiables à obtenir sans privilège).
+- Mise en œuvre (phase 2) : la liste des unités vient du journal lui-même (`journalctl --field=_SYSTEMD_UNIT`) en attendant le module S. Avec un curseur, `journalctl` refuse `--since` et ignore `--until` : le Manager applique alors l'intervalle lui-même. Contrat exact : API_CONTRACTS.md § 4.6.
 
 ## 5. Services système (module S) — maquette `services_syst_me_*`
 
@@ -235,7 +236,7 @@ Ajouté le 23 novembre 2026 à la demande du propriétaire du projet : redémarr
 |---|---|---|
 | 1 | Module U : rôles, comptes multiples, TOTP, codes de secours, sessions, audit consultable, verrouillage. **Livré** (1A : rôles et comptes ; 1B : sessions, verrouillage, politique, audit ; 1C : coffre de secrets, TOTP, codes de secours, second facteur obligatoire). WebAuthn suit en phase 8 | — |
 | 1 bis | Module M : redémarrer et éteindre la machine. **Livré** | Rôles (phase 1, premier incrément), polkit |
-| 2 | Module J (lecture du journal) | Groupe `systemd-journal` |
+| 2 | Module J (lecture du journal). **Livré** | Groupe `systemd-journal` |
 | 3 | Module S en lecture, événements `service.failed` | D-Bus |
 | 4 | Module A : règles, cycle de vie, canaux | Phases 1 et 3, secrets § 2.5 |
 | 5 | Module S, actions par polkit | Phase 1 |

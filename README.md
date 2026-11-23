@@ -35,6 +35,7 @@ Homelab Manager supervise **une seule machine Linux : celle qui l'héberge**. Le
 - Historiques bruts ou agrégés (1 min, 5 min, 1 h), rétention réglable
 - Découverte continue des conteneurs Docker, arrêtés compris, et métriques par conteneur
 - Événements de création, suppression, redémarrage et changement d'état
+- Journal systemd en lecture seule : filtres, recherche, suivi en direct, export, champs sensibles masqués
 - Aucune valeur inventée : une donnée absente s'affiche comme indisponible
 
 </td>
@@ -134,7 +135,7 @@ Chaque release publie, pour Linux `amd64` et `arm64`, une archive contenant les 
 
 ## Développement
 
-Prérequis : Go `1.26.10` ou plus récent, Node.js 22 et npm. Docker Engine est optionnel : sans lui, la collecte Docker est simplement indisponible.
+Prérequis : Go `1.26.10` ou plus récent, Node.js 22 et npm. Docker Engine est optionnel : sans lui, la collecte Docker est simplement indisponible. Les tests d'intégration du journal système lancent le vrai `journalctl` sur des fichiers fabriqués par `systemd-journal-remote` (`sudo apt install systemd-journal-remote`) ; sans lui, ils sont ignorés.
 
 1. Copier [.env.example](.env.example) vers `.env`. Laisser `HOMELAB_ADMIN_PASSWORD` vide pour se connecter avec `admin` / `admin` (changement imposé à la première connexion), ou y définir un secret fort.
 2. Installer les paquets de l'interface :
@@ -222,6 +223,12 @@ sudo systemctl start homelab-manager
 
 Un compte verrouillé après 5 mots de passe faux se déverrouille seul au bout de 15 minutes, ou immédiatement si un administrateur réinitialise son mot de passe.
 
+### Journaux système
+
+La page « Journaux système » lit le journal systemd par `journalctl`, en lecture seule, pour tous les rôles. L'unité fournie ajoute le groupe `systemd-journal` au service (`SupplementaryGroups=`) : sans lui, le Manager ne voit que ses propres entrées et la page l'indique. `journalctl` est cherché dans le `PATH` du service ; absent, la page affiche le journal comme indisponible et le reste fonctionne.
+
+Le Manager ne lance que `journalctl`, sans shell, avec des options construites à partir de filtres validés et sans lui transmettre ses variables d'environnement. Chaque appel est limité à 10 secondes. `_CMDLINE` et les champs dont le nom contient `PASSWORD`, `TOKEN` ou `SECRET` sont masqués ; un secret écrit dans le texte d'un message reste visible, comme dans `journalctl`. L'export est limité aux 50 000 entrées les plus récentes du filtre.
+
 ### Double authentification
 
 Chaque utilisateur l'active dans « Configuration » › Double authentification : mot de passe actuel, QR code à scanner (Aegis, Google Authenticator, 1Password…), premier code, puis 10 codes de secours affichés une seule fois. La connexion demande ensuite un code après le mot de passe. Dans « Utilisateurs & accès » › Politique, un administrateur qui l'a lui-même activée peut l'exiger de tous les administrateurs : ceux qui ne l'ont pas encore ne peuvent plus que l'activer.
@@ -275,8 +282,8 @@ La première release est `v2.3.0`, alignée sur la [spécification produit](docs
 
 ## État et limites connues
 
-- **Livré** : supervision système et Docker, historique, événements, comptes et rôles, sessions, politique de sécurité, journal d'audit, double authentification (TOTP et codes de secours), redémarrage et extinction (optionnels).
-- **Spécifié, pas encore implémenté** : passkeys (WebAuthn) et jetons d'API, journaux système, services systemd, alertes et notifications, sauvegardes restic, tâches planifiées. Voir [docs/SPEC_ADMINISTRATION.md](docs/SPEC_ADMINISTRATION.md) et la [feuille de route](docs/superpowers/plans/2026-11-23-feuille-de-route-v3.md).
+- **Livré** : supervision système et Docker, historique, événements, comptes et rôles, sessions, politique de sécurité, journal d'audit, double authentification (TOTP et codes de secours), journaux système, redémarrage et extinction (optionnels).
+- **Spécifié, pas encore implémenté** : passkeys (WebAuthn) et jetons d'API, services systemd, alertes et notifications, sauvegardes restic, tâches planifiées. Voir [docs/SPEC_ADMINISTRATION.md](docs/SPEC_ADMINISTRATION.md) et la [feuille de route](docs/superpowers/plans/2026-11-23-feuille-de-route-v3.md).
 - Historiques bruts ou agrégés, 2 000 points au plus par requête ; l'interface choisit le pas selon la période.
 - À l'intervalle par défaut (10 s), la base croît d'environ 300 Mo par jour jusqu'à la rétention : ≈ 2 Go pour 7 jours.
 - Listes bornées, sans pagination ; images, volumes et réseaux Docker déduits des conteneurs.

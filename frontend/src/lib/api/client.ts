@@ -43,6 +43,13 @@ export const errorMessages: Record<string, string> = {
   POWER_ACTION_REFUSED:
     "La machine a refusé : règle polkit absente, ou une opération en cours (sauvegarde, mise à jour) bloque l'arrêt.",
   POWER_ACTION_FAILED: "La demande n'a pas pu être transmise à la machine.",
+  NETWORK_NOT_ALLOWED: "Accès refusé : cette adresse n'est pas dans les réseaux autorisés.",
+  POLICY_EXCLUDES_CURRENT_ADDRESS:
+    'Refusé : cette politique exclurait votre propre adresse. Ajoutez un réseau qui la contient.',
+  SESSIONS_UNAVAILABLE: 'Sessions momentanément indisponibles.',
+  SESSION_REVOKE_FAILED: "La session n'a pas pu être révoquée.",
+  SECURITY_POLICY_UPDATE_FAILED: "La politique de sécurité n'a pas pu être enregistrée.",
+  AUDIT_UNAVAILABLE: "Journal d'audit momentanément indisponible.",
   INTERNAL_ERROR: 'Erreur interne du Manager.',
 }
 

@@ -1,6 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { ApiError, getSession, logout } from '../lib/api/auth'
+import { canManageSettings, canManageUsers, roleLabel } from '../lib/roles'
 
 export const sessionQueryKey = ['session'] as const
 
@@ -13,12 +14,18 @@ export function useSession() {
     staleTime: 30_000,
   })
   const unauthenticated = session.error instanceof ApiError && session.error.status === 401
+  const user = session.data?.user ?? null
   return {
-    user: session.data?.user ?? null,
+    user,
     isPending: session.isPending,
     unauthenticated,
     /** Error other than "not signed in" (Manager unreachable, database down…). */
     error: session.isError && !unauthenticated ? session.error : null,
+    /** The account must choose its own password before anything else. */
+    mustChangePassword: user?.mustChangePassword ?? false,
+    roleLabel: user ? roleLabel(user.role) : null,
+    canManageUsers: canManageUsers(user?.role),
+    canManageSettings: canManageSettings(user?.role),
   }
 }
 

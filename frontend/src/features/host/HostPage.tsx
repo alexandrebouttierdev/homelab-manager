@@ -31,6 +31,7 @@ import {
 import { CollectorRow } from '../../components/ui/CollectorRow'
 import { collectorStatusLabel, collectorStatusTone } from '../../lib/collectors'
 import { metricLabel, metricLabels, useHostPage } from './useHostPage'
+import { PowerCard } from './PowerCard'
 
 export function HostPage() {
   const {
@@ -374,6 +375,7 @@ export function HostPage() {
           </Card>
         </>
       )}
+      {hostInfo?.hostname && <PowerCard hostname={hostInfo.hostname} />}
     </div>
   )
 }

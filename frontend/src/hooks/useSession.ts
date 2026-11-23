@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from 'react-router-dom'
 import { ApiError, getSession, logout } from '../lib/api/auth'
-import { canManageSettings, canManageUsers, roleLabel } from '../lib/roles'
+import { canManagePower, canManageSettings, canManageUsers, roleLabel } from '../lib/roles'
 
 export const sessionQueryKey = ['session'] as const
 
@@ -26,6 +26,7 @@ export function useSession() {
     roleLabel: user ? roleLabel(user.role) : null,
     canManageUsers: canManageUsers(user?.role),
     canManageSettings: canManageSettings(user?.role),
+    canManagePower: canManagePower(user?.role),
   }
 }
 

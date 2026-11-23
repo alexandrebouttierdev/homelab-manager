@@ -18,6 +18,7 @@ const session = vi.hoisted(() => ({
   roleLabel: 'Lecteur',
   canManageUsers: false,
   canManageSettings: false,
+  canManagePower: false,
 }))
 
 vi.mock('../hooks/useSession', () => ({ useSession: () => session }))

@@ -28,3 +28,7 @@ export function canManageUsers(role: Role | undefined): boolean {
 export function canManageSettings(role: Role | undefined): boolean {
   return role === 'admin'
 }
+
+export function canManagePower(role: Role | undefined): boolean {
+  return role === 'admin'
+}

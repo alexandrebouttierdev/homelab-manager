@@ -36,6 +36,13 @@ export const errorMessages: Record<string, string> = {
     'Le dernier administrateur actif ne peut être ni supprimé, ni rétrogradé, ni désactivé.',
   USERS_UNAVAILABLE: 'Comptes momentanément indisponibles.',
   ACCOUNT_UPDATE_FAILED: "Le compte n'a pas pu être modifié.",
+  HOSTNAME_MISMATCH: 'Le nom saisi ne correspond pas au nom de la machine.',
+  POWER_ACTIONS_DISABLED:
+    "Le redémarrage et l'extinction sont désactivés dans la configuration du Manager.",
+  ACTION_IN_PROGRESS: 'Une action est déjà en cours.',
+  POWER_ACTION_REFUSED:
+    "La machine a refusé : règle polkit absente, ou une opération en cours (sauvegarde, mise à jour) bloque l'arrêt.",
+  POWER_ACTION_FAILED: "La demande n'a pas pu être transmise à la machine.",
   INTERNAL_ERROR: 'Erreur interne du Manager.',
 }
 

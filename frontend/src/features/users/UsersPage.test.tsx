@@ -29,6 +29,7 @@ vi.mock('../../hooks/useSession', () => ({
     roleLabel: 'Administrateur',
     canManageUsers: true,
     canManageSettings: true,
+    canManagePower: true,
   }),
 }))
 

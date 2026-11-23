@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vitest'
-import { canManageSettings, canManageUsers, isRole, roleLabel, roleOptions } from './roles'
+import {
+  canManagePower,
+  canManageSettings,
+  canManageUsers,
+  isRole,
+  roleLabel,
+  roleOptions,
+} from './roles'
 
 describe('roles', () => {
   it('labels every role in French, in increasing order of rights', () => {
@@ -23,5 +30,7 @@ describe('roles', () => {
     expect(canManageUsers(undefined)).toBe(false)
     expect(canManageSettings('admin')).toBe(true)
     expect(canManageSettings('viewer')).toBe(false)
+    expect(canManagePower('admin')).toBe(true)
+    expect(canManagePower('operator')).toBe(false)
   })
 })

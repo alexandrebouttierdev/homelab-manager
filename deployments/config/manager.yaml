@@ -8,3 +8,6 @@ system_collect_interval_seconds: 10
 docker_collect_interval_seconds: 15
 docker_discovery_interval_seconds: 30
 metrics_retention_days: 7
+# Redémarrer et éteindre la machine depuis l'interface : exige aussi la règle
+# polkit deployments/polkit/50-homelab-manager-power.rules (voir README).
+power_actions_enabled: false

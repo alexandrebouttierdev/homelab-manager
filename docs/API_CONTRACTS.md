@@ -42,13 +42,16 @@ Ce document est le contrat exact de l'API implémentée. Toute différence entre
 | `POST /api/v1/users` | admin | Crée un compte (§ 3.1) |
 | `PATCH /api/v1/users/{userID}` | admin | Modifie un compte (§ 3.1) |
 | `DELETE /api/v1/users/{userID}` | admin | Supprime un compte (§ 3.1) |
+| `GET /api/v1/machine/power` | admin | Actions d'alimentation disponibles (§ 4.5) |
+| `POST /api/v1/machine/power/{action}` | admin | Redémarre ou éteint la machine (§ 4.5) |
 
-Toutes les routes de supervision sont en lecture seule ; les seules écritures sont l'authentification, `PUT /api/v1/settings/retention` et la gestion des comptes. La colonne « Session » indique `admin` pour les routes réservées au rôle administrateur (§ 3.1). Une route inconnue sous `/api` répond `404 NOT_FOUND`, une méthode non prévue `405 METHOD_NOT_ALLOWED`, toujours au format d'erreur du § 8. Il n'existe aucune route d'Agent, d'hôte distant, de journaux, ni d'action Docker (création, suppression, démarrage, arrêt, restart, exec).
+Toutes les routes de supervision sont en lecture seule ; les seules écritures sont l'authentification, `PUT /api/v1/settings/retention`, la gestion des comptes et les demandes d'alimentation de la machine. La colonne « Session » indique `admin` pour les routes réservées au rôle administrateur (§ 3.1). Une route inconnue sous `/api` répond `404 NOT_FOUND`, une méthode non prévue `405 METHOD_NOT_ALLOWED`, toujours au format d'erreur du § 8. Il n'existe aucune route d'Agent, d'hôte distant, de journaux, ni d'action Docker (création, suppression, démarrage, arrêt, restart, exec).
 
 ### Paramètres de chemin
 
 - `containerID` : UUID Manager (`8-4-4-4-12` hexadécimal minuscule) ou ID Docker de 12 à 64 caractères hexadécimaux minuscules. Sinon `400 VALIDATION_ERROR` ; inconnu → `404 NOT_FOUND`.
 - `userID` : UUID Manager en minuscules (`8-4-4-4-12`). Sinon `400 VALIDATION_ERROR` ; inconnu → `404 NOT_FOUND`.
+- `action` : `reboot` ou `poweroff`. Sinon `400 VALIDATION_ERROR`.
 - `metricName` : 64 caractères au plus, motif `^[a-z][a-z0-9_]*(\.[a-z0-9_]+)+$` (ex. `cpu.percent`). Sinon `400 VALIDATION_ERROR`. Un nom valide mais jamais collecté renvoie une liste vide.
 
 ## 3. Authentification et sessions
@@ -203,6 +206,18 @@ Comptes de Homelab Manager uniquement : aucun compte Linux n'est lu ni modifié.
 - La valeur est enregistrée en base (table `app_settings`), prend effet immédiatement sans redémarrage, survit aux redémarrages et l'emporte ensuite sur la configuration. Une purge est lancée aussitôt : réduire la rétention supprime définitivement les données plus anciennes.
 - Chaque modification ajoute une entrée au journal d'audit (`audit_logs` : acteur, cible `settings/metrics_retention_days`, action `update`, `requestId`), dans la même transaction.
 - Réponse `200` : le DTO de paramètres ci-dessus. Échec d'écriture : `500 SETTINGS_UPDATE_FAILED`.
+
+### 4.5 Alimentation de la machine
+
+Réservé au rôle `admin` ; voir SPEC_ADMINISTRATION.md § 8 bis.
+
+`GET /api/v1/machine/power` : `200 { "enabled": false, "actions": ["reboot", "poweroff"] }`. `enabled` reflète le réglage de service `power_actions_enabled` (défaut `false`) ; la règle polkit, elle, n'est connue qu'au moment de la demande.
+
+`POST /api/v1/machine/power/{action}` avec `{ "confirmHostname": "homelab" }` (1 à 253 octets, espaces de bord ignorés, comparé exactement au nom d'hôte de la machine) :
+
+- Succès `202 { "requested": true, "action": "reboot" }` : `systemd-logind` a accepté la demande ; le Manager s'arrête avec les autres services peu après. La réponse peut ne pas parvenir si l'arrêt est très rapide.
+- `400 HOSTNAME_MISMATCH` : confirmation différente du nom d'hôte. `409 POWER_ACTIONS_DISABLED` : réglage désactivé. `409 ACTION_IN_PROGRESS` : une demande a déjà été acceptée. `503 POWER_ACTION_REFUSED` : polkit ou logind refuse (règle absente, verrou d'inhibition, arrêt déjà en cours). `500 POWER_ACTION_FAILED` : bus système ou logind injoignable.
+- Une ligne d'audit (`host`, nom d'hôte, action, `requested`) est écrite avant la demande ; un refus ajoute `failure`.
 
 ## 5. Métriques
 
@@ -384,6 +399,11 @@ Les routes sont versionnées sous `/api/v1`. Un changement incompatible (champ s
 | `LAST_ADMIN` | 409 | Dernier administrateur actif à conserver |
 | `USERS_UNAVAILABLE` | 500 | Lecture des comptes en échec |
 | `ACCOUNT_UPDATE_FAILED` | 500 | Écriture d'un compte en échec |
+| `HOSTNAME_MISMATCH` | 400 | Confirmation différente du nom de la machine |
+| `POWER_ACTIONS_DISABLED` | 409 | Redémarrage et extinction désactivés par la configuration |
+| `ACTION_IN_PROGRESS` | 409 | Une action est déjà en cours |
+| `POWER_ACTION_REFUSED` | 503 | polkit ou logind refuse l'action |
+| `POWER_ACTION_FAILED` | 500 | Demande d'alimentation impossible à transmettre |
 | `INTERNAL_ERROR` | 500 | Autre erreur serveur |
 
 Aucune trace de pile, chemin local, secret ou réponse Docker brute dans les erreurs. `requestId` correspond au champ `request_id` des journaux du Manager.
@@ -395,12 +415,3 @@ Ces contrats sont arrêtés pour guider l'implémentation ; tant qu'ils ne sont 
 ### 9.1 Pagination par curseur
 
 Pour `GET /api/v1/containers` et les événements : `cursor` opaque (base64url de `(clé de tri, id)`), `nextCursor` non nul tant qu'il reste des résultats. L'ordre doit être stable à égalité d'horodatage (départage par `id`).
-
-### 9.2 Alimentation de la machine (module M)
-
-Spécifié dans SPEC_ADMINISTRATION.md § 8 bis ; plan d'implémentation `docs/superpowers/plans/2026-11-23-module-m-alimentation.md`. Routes réservées au rôle `admin`, qui n'existent pas encore (`404 NOT_FOUND`).
-
-- `GET /api/v1/machine/power` : `200 { "enabled": false, "actions": ["reboot", "poweroff"] }` ; `enabled` reflète le réglage de service `power_actions_enabled` (défaut `false`).
-- `POST /api/v1/machine/power/{action}`, `action` ∈ `reboot`, `poweroff`, corps `{ "confirmHostname": "homelab" }` (1 à 253 octets, espaces de bord ignorés, égal au nom d'hôte de la machine) : `202 { "requested": true, "action": "reboot" }` quand `systemd-logind` a accepté la demande.
-- Erreurs : `400 VALIDATION_ERROR` (action ou corps invalide), `400 HOSTNAME_MISMATCH`, `403 FORBIDDEN` (rôle), `409 POWER_ACTIONS_DISABLED`, `409 ACTION_IN_PROGRESS` (une demande déjà acceptée), `503 POWER_ACTION_REFUSED` (polkit ou logind refuse : règle absente, verrou d'inhibition, arrêt en cours), `500 POWER_ACTION_FAILED` (bus système ou logind injoignable).
-- Audit `host` / nom d'hôte / `reboot` ou `poweroff` / `requested` écrit avant la demande ; `failure` ajouté en cas de refus.

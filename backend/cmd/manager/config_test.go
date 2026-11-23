@@ -55,3 +55,18 @@ func TestDefaultRetentionIsSevenDays(t *testing.T) {
 		t.Fatalf("default retention = %d days, want 7", config.MetricsRetentionDays)
 	}
 }
+
+func TestPowerActionsAreDisabledByDefault(t *testing.T) {
+	t.Chdir(t.TempDir()) // no manager.yaml from the repository
+	config, err := LoadConfig()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if config.PowerActionsEnabled {
+		t.Fatal("power actions must be disabled unless explicitly enabled")
+	}
+	t.Setenv("HOMELAB_POWER_ACTIONS_ENABLED", "true")
+	if config, err = LoadConfig(); err != nil || !config.PowerActionsEnabled {
+		t.Fatalf("LoadConfig = (%v, %v), want power actions enabled", config.PowerActionsEnabled, err)
+	}
+}

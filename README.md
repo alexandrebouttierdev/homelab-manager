@@ -95,6 +95,7 @@ La configuration de développement est documentée dans [.env.example](.env.exam
 - `HOMELAB_DOCKER_PROXY_SOCKET` : socket du proxy local restreint.
 - `HOMELAB_DOCKER_ENGINE_SOCKET` : socket Engine lu par le proxy, pas par le Manager.
 - `HOMELAB_WEB_ROOT` : répertoire `dist` servi par le Manager.
+- `HOMELAB_POWER_ACTIONS_ENABLED` : autorise Redémarrer / Éteindre depuis la page Machine (défaut `false`) ; exige aussi la règle polkit (voir plus bas).
 
 Ne pas enregistrer les secrets de production dans Git. Protéger le fichier d'environnement du service.
 
@@ -124,6 +125,17 @@ Le socket du proxy appartient au groupe `homelab-manager` (mode `0660`) : le Man
 Installer et activer les unités `homelab-docker-proxy.socket` et `homelab-manager.service`. Le socket proxy écoute seulement sur Unix, autorise les routes GET nécessaires, filtre `Env` et `Labels`, borne la taille des réponses à 8 MiB et la concurrence à 16 requêtes. Vérifier les permissions effectives avant le démarrage.
 
 L'unité systemd crée `/var/lib/homelab-manager` (`StateDirectory`, mode `0700`). Le Manager y crée la base et applique les migrations au démarrage. Contrôler les journaux systemd après installation.
+
+### Redémarrer et éteindre depuis l'interface (optionnel)
+
+Désactivé par défaut. Pour l'activer :
+
+```bash
+sudo apt install polkitd
+sudo install -o root -g root -m 0644 deployments/polkit/50-homelab-manager-power.rules /etc/polkit-1/rules.d/
+```
+
+puis mettre `power_actions_enabled: true` dans `/etc/homelab-manager/manager.yaml` et redémarrer `homelab-manager.service`. La règle n'autorise que le redémarrage et l'extinction, par le seul compte `homelab-manager`, et respecte les verrous d'inhibition. Seuls les administrateurs voient la carte « Alimentation » de la page Machine ; la confirmation demande de saisir le nom de la machine. Après une extinction, il faut un accès physique (ou Wake-on-LAN configuré hors de Homelab Manager) pour rallumer la machine.
 
 ### Sauvegarde et restauration
 

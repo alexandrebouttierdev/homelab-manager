@@ -14,6 +14,7 @@ import (
 	argon2adapter "homelab-manager/backend/internal/adapters/argon2"
 	"homelab-manager/backend/internal/adapters/sqlite"
 	"homelab-manager/backend/internal/domain"
+	"homelab-manager/backend/internal/ports"
 	"homelab-manager/backend/internal/usecase"
 
 	"github.com/go-chi/chi/v5"
@@ -106,7 +107,7 @@ func TestUpdateUserValidatesPathAndBody(t *testing.T) {
 }
 
 func TestAccountAdministrationEndToEnd(t *testing.T) {
-	router := newAccountsTestRouter(t)
+	router, _ := newTestRouter(t, nil)
 	admin := signIn(t, router, "admin", "admin-password-1")
 
 	const aliceBody = `{"username":"alice","displayName":"Alice","role":"viewer","password":"initial-password-1"}`
@@ -171,7 +172,9 @@ func TestAccountAdministrationEndToEnd(t *testing.T) {
 	}
 }
 
-func newAccountsTestRouter(t *testing.T) http.Handler {
+// newTestRouter builds the HTTP stack on a fresh SQLite file with an
+// "admin" account. A nil controller leaves the power actions disabled.
+func newTestRouter(t *testing.T, controller ports.PowerController) (http.Handler, *sqlite.Database) {
 	t.Helper()
 	ctx := context.Background()
 	database, err := sqlite.Open(ctx, filepath.Join(t.TempDir(), "manager.db"))
@@ -190,7 +193,9 @@ func newAccountsTestRouter(t *testing.T) http.Handler {
 	}
 	auth := usecase.NewAuthUsecase(authRepository, authRepository, hasher)
 	accounts := usecase.NewAccountUsecase(sqlite.NewAccountRepository(database.Client()), authRepository, hasher)
-	return NewRouter(zap.NewNop(), usecase.NewHealthUsecase(time.Now()), auth, nil, accounts, false, "")
+	hostname := func() (string, error) { return "homelab", nil }
+	power := usecase.NewPowerUsecase(controller, sqlite.NewAuditRepository(database.Client()), hostname, controller != nil)
+	return NewRouter(zap.NewNop(), usecase.NewHealthUsecase(time.Now()), auth, nil, accounts, power, false, ""), database
 }
 
 // call sends a request from a fixed address so that the login rate limit

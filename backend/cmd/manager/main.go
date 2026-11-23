@@ -11,6 +11,7 @@ import (
 
 	argon2adapter "homelab-manager/backend/internal/adapters/argon2"
 	"homelab-manager/backend/internal/adapters/dockerengine"
+	logindadapter "homelab-manager/backend/internal/adapters/logind"
 	"homelab-manager/backend/internal/adapters/sqlite"
 	systemcollector "homelab-manager/backend/internal/collector/system"
 	httpdelivery "homelab-manager/backend/internal/delivery/http"
@@ -42,6 +43,7 @@ func main() {
 	healthUsecase := usecase.NewHealthUsecase(config.StartedAt)
 	var authUsecase *usecase.AuthUsecase
 	var accountUsecase *usecase.AccountUsecase
+	var powerUsecase *usecase.PowerUsecase
 	var monitoringUsecase *usecase.MonitoringUsecase
 	var clientCloser interface{ Close() error }
 	var dockerClientCloser interface{ CloseIdleConnections() }
@@ -66,6 +68,10 @@ func main() {
 		}
 		authUsecase = usecase.NewAuthUsecase(authRepository, authRepository, hasher)
 		accountUsecase = usecase.NewAccountUsecase(sqlite.NewAccountRepository(client), authRepository, hasher)
+		powerUsecase = usecase.NewPowerUsecase(logindadapter.New(), sqlite.NewAuditRepository(client), os.Hostname, config.PowerActionsEnabled)
+		if config.PowerActionsEnabled {
+			logger.Info("Reboot and power off are enabled; they also require the polkit rule")
+		}
 		monitoringRepository := sqlite.NewMonitoringRepository(database)
 		dockerClient := dockerengine.NewClient(config.DockerProxySocket)
 		dockerClientCloser = dockerClient
@@ -87,7 +93,7 @@ func main() {
 			monitoringUsecase.Run(schedulerCtx)
 		}()
 	}
-	router := httpdelivery.NewRouter(logger, healthUsecase, authUsecase, monitoringUsecase, accountUsecase, config.SessionSecure, config.WebRoot)
+	router := httpdelivery.NewRouter(logger, healthUsecase, authUsecase, monitoringUsecase, accountUsecase, powerUsecase, config.SessionSecure, config.WebRoot)
 
 	server := &http.Server{
 		Addr:              config.HTTPAddress,

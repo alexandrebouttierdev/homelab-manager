@@ -27,7 +27,7 @@ type healthResponse struct {
 	Collectors map[string]any `json:"collectors"`
 }
 
-func NewRouter(logger *zap.Logger, health *usecase.HealthUsecase, auth *usecase.AuthUsecase, monitoring *usecase.MonitoringUsecase, accounts *usecase.AccountUsecase, sessionSecure bool, webRoot string) http.Handler {
+func NewRouter(logger *zap.Logger, health *usecase.HealthUsecase, auth *usecase.AuthUsecase, monitoring *usecase.MonitoringUsecase, accounts *usecase.AccountUsecase, power *usecase.PowerUsecase, sessionSecure bool, webRoot string) http.Handler {
 	router := chi.NewRouter()
 	router.Use(middleware.RequestID)
 	router.Use(middleware.Recoverer)
@@ -72,6 +72,11 @@ func NewRouter(logger *zap.Logger, health *usecase.HealthUsecase, auth *usecase.
 					users.Post("/", createUserHandler(accounts))
 					users.Patch("/{userID}", updateUserHandler(accounts))
 					users.Delete("/{userID}", deleteUserHandler(accounts))
+				})
+				active.Route("/machine/power", func(machine chi.Router) {
+					machine.Use(requirePermission(domain.PermManagePower))
+					machine.Get("/", powerSettingsHandler(power))
+					machine.Post("/{action}", powerActionHandler(power))
 				})
 			})
 		})

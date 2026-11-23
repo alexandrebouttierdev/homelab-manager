@@ -385,7 +385,7 @@ Lecture seule des unités systemd par D-Bus (SPEC_ADMINISTRATION.md § 5.1), ouv
 }
 ```
 
-- `execStart` : chaque commande telle que systemd la conserve (arguments joints par des espaces), affichée sans être exécutée ni interprétée. `requires` et `after` : 100 noms au plus.
+- `execStart` : chaque commande telle que systemd la conserve, arguments joints par des espaces ; un argument vide ou contenant une espace, une tabulation, un saut de ligne ou un guillemet est placé entre guillemets doubles (`\` et `"` échappés) pour que chaque argument reste distinct. Affichée sans être exécutée ni interprétée. `requires` et `after` : 100 noms au plus.
 - Limites : `unlimited: true` pour `infinity` ; `value: null` et `unlimited: false` quand la limite est inconnue (propriété absente, par exemple pour un timer). `restart`, `slice` et `fragmentPath` sont `null` s'ils ne sont pas fournis.
 - `journal.entries` : les 50 entrées les plus récentes de l'unité, toutes priorités, de la plus récente à la plus ancienne, au format du § 4.6. `available: false` et `entries: []` si le journal ne peut pas être lu (`journalctl` absent ou en échec) ; le détail reste servi.
 - Erreurs : nom invalide `400 VALIDATION_ERROR` (un nom échappé par systemd, contenant `\`, est hors du motif : l'unité figure dans l'inventaire mais son détail est refusé) ; unité absente du dernier inventaire ou disparue `404 NOT_FOUND` ; aucun inventaire réussi ou systemd injoignable `503 SYSTEMD_UNAVAILABLE` ; autre échec de lecture `500 SYSTEMD_READ_FAILED`.

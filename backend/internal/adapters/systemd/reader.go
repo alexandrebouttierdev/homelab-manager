@@ -300,8 +300,9 @@ func (p properties) limit(name string) domain.UnitLimit {
 }
 
 // commandLines reads an a(sasbttttuii) property such as ExecStart: the
-// argument vector of each command, joined by spaces, or its path when the
-// vector is empty.
+// argument vector of each command, joined by spaces with the arguments
+// that are empty or hold a space or a quote in double quotes, or its path
+// when the vector is empty.
 func (p properties) commandLines(name string) []string {
 	commands, ok := p[name].Value().([][]any)
 	if !ok {
@@ -318,7 +319,20 @@ func (p properties) commandLines(name string) []string {
 			lines = append(lines, path)
 			continue
 		}
-		lines = append(lines, strings.Join(argv, " "))
+		quoted := make([]string, len(argv))
+		for i, argument := range argv {
+			quoted[i] = quoteArgument(argument)
+		}
+		lines = append(lines, strings.Join(quoted, " "))
 	}
 	return lines
+}
+
+// quoteArgument keeps an argument readable once joined: without quotes,
+// "sh -c 'a; b'" would show as three arguments.
+func quoteArgument(argument string) string {
+	if argument != "" && !strings.ContainsAny(argument, " \t\n\"'") {
+		return argument
+	}
+	return `"` + strings.NewReplacer(`\`, `\\`, `"`, `\"`).Replace(argument) + `"`
 }

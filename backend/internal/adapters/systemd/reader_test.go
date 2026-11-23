@@ -392,3 +392,17 @@ func assertReadOnly(t *testing.T, fake *fakeSystemd) {
 		}
 	}
 }
+
+func TestCommandLinesQuoteArgumentsWithSpaces(t *testing.T) {
+	// As decoded from the bus: one []any per (sasbttttuii) command.
+	props := properties{"ExecStart": dbus.MakeVariant([][]any{
+		{"/bin/sh", []string{"/bin/sh", "-c", `echo "hi"; exit 3`}},
+		{"/usr/bin/env", []string{"/usr/bin/env", "", `a\b`}},
+		{"/usr/bin/true", []string{}},
+	})}
+	got := props.commandLines("ExecStart")
+	want := []string{`/bin/sh -c "echo \"hi\"; exit 3"`, `/usr/bin/env "" a\b`, "/usr/bin/true"}
+	if !slices.Equal(got, want) {
+		t.Fatalf("commandLines = %q, want %q", got, want)
+	}
+}

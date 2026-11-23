@@ -314,6 +314,11 @@ func TestAdministratorsMustEnrollWhenRequired(t *testing.T) {
 	if user, _, err := auth.Session(context.Background(), "alice-token"); err != nil || user.MustEnrollSecondFactor {
 		t.Fatalf("viewer = (%+v, %v), want no obligation", user, err)
 	}
+	// The login response tells the interface too, before any session check.
+	result, err := auth.Login(context.Background(), "admin", "right-password", "192.0.2.1", "test")
+	if err != nil || result.Token == "" || !result.User.MustEnrollSecondFactor {
+		t.Fatalf("admin login = (%+v, %v), want a session and MustEnrollSecondFactor", result.User, err)
+	}
 	factors.totp[securityAdmin.ID] = domain.TOTPEnrollment{Confirmed: true}
 	if user, _, err := auth.Session(context.Background(), "admin-token"); err != nil || user.MustEnrollSecondFactor {
 		t.Fatalf("admin with a factor = (%+v, %v)", user, err)

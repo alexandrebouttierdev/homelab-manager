@@ -122,6 +122,7 @@ func (u *AuthUsecase) Login(ctx context.Context, username, password, ip, userAge
 			}
 			return LoginResult{Challenge: token, User: user, ExpiresAt: expiresAt}, nil
 		}
+		user.MustEnrollSecondFactor = u.mustEnroll(user, false)
 	}
 	return u.openSession(ctx, user, failures, ip, userAgent, "password", now)
 }
@@ -308,7 +309,7 @@ func (u *AuthUsecase) Session(ctx context.Context, token string) (domain.User, d
 			}
 			session.LastSeenAt = now
 		}
-		if policy.RequireAdminSecondFactor && user.Role == domain.RoleAdmin && u.secondFactors != nil {
+		if u.mustEnroll(user, false) {
 			enrolled, err := u.secondFactors.HasSecondFactor(ctx, user.ID)
 			if err != nil {
 				return domain.User{}, domain.Session{}, fmt.Errorf("check second factor: %w", err)
@@ -317,6 +318,13 @@ func (u *AuthUsecase) Session(ctx context.Context, token string) (domain.User, d
 		}
 	}
 	return user, session, nil
+}
+
+// mustEnroll tells whether the policy restricts this account to the
+// second factor enrollment, given whether it already has one.
+func (u *AuthUsecase) mustEnroll(user domain.User, enrolled bool) bool {
+	return !enrolled && user.Role == domain.RoleAdmin && u.secondFactors != nil &&
+		u.policy != nil && u.policy.Policy().RequireAdminSecondFactor
 }
 
 // ListSessions returns the active sessions of the actor, or of every

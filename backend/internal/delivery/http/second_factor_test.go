@@ -136,6 +136,9 @@ func TestSecondFactorEndToEnd(t *testing.T) {
 	if response := call(router, http.MethodPost, "/api/v1/auth/password", `{"currentPassword":"initial-password-1","newPassword":"root2-own-password"}`, root2); response.Code != http.StatusOK {
 		t.Fatalf("root2 password = %d", response.Code)
 	}
+	if response := call(router, http.MethodPost, "/api/v1/auth/login", `{"username":"root2","password":"root2-own-password"}`, nil); !strings.Contains(response.Body.String(), `"mustEnrollSecondFactor":true`) {
+		t.Fatalf("root2 login = %d %s, want the enrollment obligation in the response", response.Code, response.Body)
+	}
 	root2 = signIn(t, router, "root2", "root2-own-password")
 	if response := call(router, http.MethodGet, "/api/v1/settings", "", root2); response.Code != http.StatusForbidden || errorCode(t, response) != "SECOND_FACTOR_REQUIRED" {
 		t.Fatalf("root2 without a factor = %d %s", response.Code, response.Body)

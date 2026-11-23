@@ -2,9 +2,15 @@ import { requestJSON } from './client'
 
 export { ApiError } from './client'
 
+export type Role = 'viewer' | 'operator' | 'admin'
+
 export type SessionUser = {
   id: string
   username: string
+  displayName: string
+  role: Role
+  /** The account must choose its own password before anything else. */
+  mustChangePassword: boolean
 }
 
 export function login(username: string, password: string) {

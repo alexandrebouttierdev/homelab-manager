@@ -29,6 +29,13 @@ export const errorMessages: Record<string, string> = {
   EVENTS_UNAVAILABLE: 'Événements momentanément indisponibles.',
   LOGOUT_FAILED: 'La déconnexion a échoué.',
   PASSWORD_CHANGE_FAILED: "Le mot de passe n'a pas pu être modifié.",
+  FORBIDDEN: 'Votre rôle ne permet pas cette action.',
+  PASSWORD_CHANGE_REQUIRED: 'Choisissez votre mot de passe pour continuer.',
+  USERNAME_TAKEN: 'Cet identifiant est déjà utilisé.',
+  LAST_ADMIN:
+    'Le dernier administrateur actif ne peut être ni supprimé, ni rétrogradé, ni désactivé.',
+  USERS_UNAVAILABLE: 'Comptes momentanément indisponibles.',
+  ACCOUNT_UPDATE_FAILED: "Le compte n'a pas pu être modifié.",
   INTERNAL_ERROR: 'Erreur interne du Manager.',
 }
 

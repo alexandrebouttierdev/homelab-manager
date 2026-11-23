@@ -64,14 +64,17 @@ Ce document est le contrat exact de l'API implémentée. Toute différence entre
 | `GET /api/v1/journal/units` | oui | Unités présentes dans le journal (§ 4.6) |
 | `GET /api/v1/journal/summary` | oui | Volume sur 24 h par priorité, occupation disque (§ 4.6) |
 | `GET /api/v1/journal/export` | oui | Export `.log` ou `.json` (§ 4.6) |
+| `GET /api/v1/system/units` | oui | Inventaire des services, timers et sockets systemd (§ 4.7) |
+| `GET /api/v1/system/units/{unitName}` | oui | Détail d'une unité et extrait de son journal (§ 4.7) |
 
-Toutes les routes de supervision sont en lecture seule ; les seules écritures sont l'authentification, `PUT /api/v1/settings/retention`, la gestion des comptes et les demandes d'alimentation de la machine. La colonne « Session » indique `admin` pour les routes réservées au rôle administrateur (§ 3.1). Une route inconnue sous `/api` répond `404 NOT_FOUND`, une méthode non prévue `405 METHOD_NOT_ALLOWED`, toujours au format d'erreur du § 8. Le journal système n'est lu qu'en lecture seule. Il n'existe aucune route d'Agent, d'hôte distant, de journaux de conteneurs, ni d'action Docker (création, suppression, démarrage, arrêt, restart, exec).
+Toutes les routes de supervision sont en lecture seule ; les seules écritures sont l'authentification, `PUT /api/v1/settings/retention`, la gestion des comptes et les demandes d'alimentation de la machine. La colonne « Session » indique `admin` pour les routes réservées au rôle administrateur (§ 3.1). Une route inconnue sous `/api` répond `404 NOT_FOUND`, une méthode non prévue `405 METHOD_NOT_ALLOWED`, toujours au format d'erreur du § 8. Le journal système et les unités systemd ne sont lus qu'en lecture seule. Il n'existe aucune route d'Agent, d'hôte distant, de journaux de conteneurs, ni d'action Docker (création, suppression, démarrage, arrêt, restart, exec).
 
 ### Paramètres de chemin
 
 - `containerID` : UUID Manager (`8-4-4-4-12` hexadécimal minuscule) ou ID Docker de 12 à 64 caractères hexadécimaux minuscules. Sinon `400 VALIDATION_ERROR` ; inconnu → `404 NOT_FOUND`.
 - `userID` : UUID Manager en minuscules (`8-4-4-4-12`). Sinon `400 VALIDATION_ERROR` ; inconnu → `404 NOT_FOUND`.
 - `action` : `reboot` ou `poweroff`. Sinon `400 VALIDATION_ERROR`.
+- `unitName` : nom d'unité systemd, éventuellement encodé (`getty%40tty1.service`), motif `^[A-Za-z0-9@._:\-]{1,255}\.(service|timer|socket)$`. Sinon `400 VALIDATION_ERROR` ; absent du dernier inventaire → `404 NOT_FOUND`.
 - `metricName` : 64 caractères au plus, motif `^[a-z][a-z0-9_]*(\.[a-z0-9_]+)+$` (ex. `cpu.percent`). Sinon `400 VALIDATION_ERROR`. Un nom valide mais jamais collecté renvoie une liste vide.
 
 ## 3. Authentification et sessions
@@ -326,13 +329,66 @@ La chaîne de requête est analysée strictement : un curseur doit être encodé
 
 `GET /api/v1/journal/boots` : `200 { "boots": [{ "index": 0, "bootId": "…", "firstEntry": "…", "lastEntry": "…" }, …] }`, du plus récent (`index` 0, démarrage en cours) au plus ancien, 100 au plus. Liste gardée une minute.
 
-`GET /api/v1/journal/units` : `200 { "units": ["cron.service", …] }`, unités distinctes du champ `_SYSTEMD_UNIT`, triées, 1 000 au plus. Remplacée par la liste du module S en phase 3.
+`GET /api/v1/journal/units` : `200 { "units": ["cron.service", …] }`, unités distinctes du champ `_SYSTEMD_UNIT`, triées, 1 000 au plus. Elle reste la source des filtres du journal : l'inventaire du § 4.7 ne contient que les services, timers et sockets chargés, alors que le journal cite aussi des unités d'autres types ou déchargées.
 
 `GET /api/v1/journal/summary` : `200 { "start", "bucketMinutes": 15, "buckets": [{ "start", "counts": [emerg, alert, crit, err, warning, notice, info, debug] }, … 96 tranches], "total", "truncated", "diskUsageBytes", "fullAccess", "generatedAt" }`. Les 96 tranches couvrent les 24 h écoulées, la dernière contient l'heure courante ; une entrée sans priorité compte comme `info`. Au-delà de 200 000 entrées, seules les plus récentes sont comptées (`truncated: true`). `diskUsageBytes` (`journalctl --disk-usage`) est `null` si la lecture échoue. Résultat gardé une minute.
 
 `GET /api/v1/journal/export?format=log|json` et les filtres : fichier joint `journal-<horodatage>.log` (format court `2026-11-23T09:30:12Z hôte identifiant[pid]: message`, lignes suivantes indentées) ou `.json` (tableau d'entrées comme ci-dessus), dans l'ordre chronologique. Seules les 50 000 entrées les plus récentes du filtre sont lues ; la recherche `q` s'applique à celles-ci. La réponse est envoyée en flux : une erreur après le début (délai de 10 s de `journalctl` dépassé, par exemple) coupe la réponse, et un export JSON coupé reste alors invalide.
 
 Bornes communes : 10 s par appel à `journalctl`, 4 appels simultanés au plus, 64 Mio de sortie par appel. Échec de `journalctl` : `500 JOURNAL_READ_FAILED` (le détail va dans le journal du Manager).
+
+### 4.7 Services système
+
+Lecture seule des unités systemd par D-Bus (SPEC_ADMINISTRATION.md § 5.1), ouverte à tous les rôles. Le Manager appelle seulement `ListUnits`, `GetUnit` et la lecture des propriétés (`org.freedesktop.DBus.Properties.GetAll`) sur `org.freedesktop.systemd1` ; aucune méthode qui modifie une unité.
+
+**Collecte** : au démarrage puis toutes les 30 s (25 s au plus par cycle), indépendamment des requêtes. Seuls les types `service`, `timer` et `socket` chargés en mémoire par systemd sont retenus, 2 000 au plus, les unités en échec d'abord puis par nom.
+
+`GET /api/v1/system/units` :
+
+```json
+{
+  "status": "ok",
+  "collectedAt": "2026-11-23T10:00:00Z",
+  "counts": { "total": 214, "active": 131, "failed": 1, "activeTimers": 12 },
+  "units": [
+    {
+      "name": "ssh.service", "description": "OpenBSD Secure Shell server", "type": "service",
+      "loadState": "loaded", "activeState": "active", "subState": "running", "unitFileState": "enabled",
+      "stateChangedAt": "2026-11-23T08:00:00.123456Z", "mainPid": 812, "memoryBytes": 4194304,
+      "cpuNanoseconds": 2000000000, "result": "success", "nextElapse": null, "lastTrigger": null, "triggers": []
+    }
+  ]
+}
+```
+
+- `status` : `pending` (aucun cycle terminé depuis le démarrage), `ok`, `error` (systemd a répondu par une erreur ou le cycle a dépassé son délai), `unavailable` (pas de bus système ou pas de systemd, par exemple hors Linux). Après un échec, `units`, `counts` et `collectedAt` restent ceux du dernier cycle réussi ; `collectedAt` est `null` tant qu'aucun cycle n'a réussi.
+- `counts` : `active` et `failed` comptent les `activeState` `active` et `failed` ; `activeTimers`, les timers `active`.
+- Valeurs absentes, jamais `0` : `mainPid` (pas de processus principal), `memoryBytes` et `cpuNanoseconds` (comptabilité désactivée, `UINT64_MAX` pour systemd ; services seulement), `stateChangedAt`, `nextElapse` et `lastTrigger` (horodatage 0, jamais ; ces deux derniers pour les timers seulement), `unitFileState` et `result` (non fournis) valent `null`.
+- `triggers` : unités démarrées par un timer ou un socket ; `[]` sinon.
+- Une unité disparue entre la liste et la lecture de ses propriétés garde les seuls champs de la liste (`description`, états).
+
+`GET /api/v1/system/units/{unitName}` — unité du dernier inventaire, relue à la demande (10 s au plus) :
+
+```json
+{
+  "unit": { "...": "DTO d'unité ci-dessus" },
+  "definition": {
+    "fragmentPath": "/lib/systemd/system/ssh.service",
+    "execStart": ["/usr/sbin/sshd -D"],
+    "requires": ["sysinit.target"], "after": ["network.target", "auditd.service"],
+    "restart": "on-failure", "slice": "system.slice",
+    "tasksMax": { "value": null, "unlimited": true },
+    "limitNofile": { "value": 1024, "unlimited": false },
+    "memoryMax": { "value": null, "unlimited": false }
+  },
+  "journal": { "available": true, "entries": [{ "...": "entrée du § 4.6" }] }
+}
+```
+
+- `execStart` : chaque commande telle que systemd la conserve (arguments joints par des espaces), affichée sans être exécutée ni interprétée. `requires` et `after` : 100 noms au plus.
+- Limites : `unlimited: true` pour `infinity` ; `value: null` et `unlimited: false` quand la limite est inconnue (propriété absente, par exemple pour un timer). `restart`, `slice` et `fragmentPath` sont `null` s'ils ne sont pas fournis.
+- `journal.entries` : les 50 entrées les plus récentes de l'unité, toutes priorités, de la plus récente à la plus ancienne, au format du § 4.6. `available: false` et `entries: []` si le journal ne peut pas être lu (`journalctl` absent ou en échec) ; le détail reste servi.
+- Erreurs : nom invalide `400 VALIDATION_ERROR` (un nom échappé par systemd, contenant `\`, est hors du motif : l'unité figure dans l'inventaire mais son détail est refusé) ; unité absente du dernier inventaire ou disparue `404 NOT_FOUND` ; aucun inventaire réussi ou systemd injoignable `503 SYSTEMD_UNAVAILABLE` ; autre échec de lecture `500 SYSTEMD_READ_FAILED`.
 
 ## 5. Métriques
 
@@ -480,7 +536,16 @@ Types émis par la réconciliation Docker, et uniquement ceux-ci :
 | `container.restarted` | `info` | Compteur de redémarrages en hausse | `previousState`, `state` |
 | `container.removed` | `warning` | Conteneur absent de la liste Docker | absent |
 
-`severity` accepte `info`, `warning`, `error`, `critical` ; seuls `info` et `warning` sont émis actuellement. Aucun événement d'hôte ou de collecteur n'est persisté.
+Types émis par la collecte des services système (§ 4.7), sans `containerId` (`null`) :
+
+| `type` | `severity` | Déclencheur | `metadata` |
+|---|---|---|---|
+| `service.failed` | `error` | Unité vue en `failed` alors qu'elle n'était pas enregistrée en échec | `unit`, `activeState`, `subState`, `result` |
+| `service.recovered` | `info` | Unité enregistrée en échec revenue à `active` | `unit`, `activeState`, `subState`, `result` |
+
+Une unité en échec n'est signalée qu'une fois, même après un redémarrage du Manager ou la purge de l'événement (table `failed_units`) ; une unité qui redémarre (`activating`) reste en échec jusqu'à son retour à `active` ; une unité disparue de l'inventaire est oubliée sans événement.
+
+`severity` accepte `info`, `warning`, `error`, `critical` ; `critical` n'est pas émis actuellement. Aucun événement d'hôte ou de collecteur n'est persisté.
 
 ## 7. Versionnement
 
@@ -499,7 +564,7 @@ Les routes sont versionnées sous `/api/v1`. Un changement incompatible (champ s
 | `SESSION_NOT_FOUND` | 401 | Session absente, expirée ou révoquée |
 | `CROSS_ORIGIN_REQUEST` | 403 | Contrôle d'origine refusé |
 | `TOO_MANY_POINTS` | 400 | Historique agrégé dépassant `limit` |
-| `NOT_FOUND` | 404 | Route, conteneur ou compte inconnu |
+| `NOT_FOUND` | 404 | Route, conteneur, compte ou unité inconnus |
 | `METHOD_NOT_ALLOWED` | 405 | Méthode non prévue sur la route |
 | `RATE_LIMITED` | 429 | Trop de tentatives de connexion |
 | `AUTH_UNAVAILABLE` | 503 | Base indisponible au démarrage |
@@ -537,6 +602,8 @@ Les routes sont versionnées sous `/api/v1`. Un changement incompatible (champ s
 | `SECOND_FACTOR_UPDATE_FAILED` | 500 | Écriture du second facteur en échec |
 | `JOURNAL_UNAVAILABLE` | 503 | `journalctl` absent : journal système indisponible |
 | `JOURNAL_READ_FAILED` | 500 | Lecture du journal système en échec |
+| `SYSTEMD_UNAVAILABLE` | 503 | systemd injoignable ou aucun inventaire des unités |
+| `SYSTEMD_READ_FAILED` | 500 | Lecture d'une unité systemd en échec |
 | `INTERNAL_ERROR` | 500 | Autre erreur serveur |
 
 Aucune trace de pile, chemin local, secret ou réponse Docker brute dans les erreurs. `requestId` correspond au champ `request_id` des journaux du Manager.

@@ -41,6 +41,8 @@ type Services struct {
 	SecondFactors *usecase.SecondFactorUsecase
 	// Journal reads the systemd journal; nil means unavailable.
 	Journal *usecase.JournalUsecase
+	// Units serves the systemd units inventory; nil means unavailable.
+	Units *usecase.ServiceUsecase
 }
 
 func NewRouter(logger *zap.Logger, services Services, sessionSecure bool, webRoot string) http.Handler {
@@ -50,6 +52,11 @@ func NewRouter(logger *zap.Logger, services Services, sessionSecure bool, webRoo
 	journal := services.Journal
 	if journal == nil {
 		journal = usecase.NewJournalUsecase(nil)
+	}
+	units := services.Units
+	if units == nil {
+		// Never run: its inventory stays pending and its detail unavailable.
+		units = usecase.NewServiceUsecase(nil, nil, nil, logger)
 	}
 	deny := func(r *http.Request, user domain.User) {
 		if audit == nil {
@@ -135,6 +142,10 @@ func NewRouter(logger *zap.Logger, services Services, sessionSecure bool, webRoo
 						system.Get("/units", journalUnitsHandler(logger, journal))
 						system.Get("/summary", journalSummaryHandler(logger, journal))
 						system.Get("/export", exportJournalHandler(logger, journal))
+					})
+					active.Route("/system/units", func(system chi.Router) {
+						system.Get("/", listUnitsHandler(units))
+						system.Get("/{unitName}", unitDetailHandler(logger, units))
 					})
 					active.Route("/machine/power", func(machine chi.Router) {
 						machine.Use(requirePermission(deny, domain.PermManagePower))

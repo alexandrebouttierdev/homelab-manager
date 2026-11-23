@@ -8,6 +8,7 @@ import (
 	"homelab-manager/backend/ent/container"
 	"homelab-manager/backend/ent/containermetricsample"
 	"homelab-manager/backend/ent/event"
+	"homelab-manager/backend/ent/failedunit"
 	"homelab-manager/backend/ent/hostinfo"
 	"homelab-manager/backend/ent/loginfailure"
 	"homelab-manager/backend/ent/recoverycode"
@@ -142,6 +143,12 @@ func init() {
 	eventDescID := eventFields[0].Descriptor()
 	// event.DefaultID holds the default value on creation for the id field.
 	event.DefaultID = eventDescID.Default.(func() uuid.UUID)
+	failedunitFields := schema.FailedUnit{}.Fields()
+	_ = failedunitFields
+	// failedunitDescID is the schema descriptor for id field.
+	failedunitDescID := failedunitFields[0].Descriptor()
+	// failedunit.IDValidator is a validator for the "id" field. It is called by the builders before save.
+	failedunit.IDValidator = failedunitDescID.Validators[0].(func(string) error)
 	hostinfoFields := schema.HostInfo{}.Fields()
 	_ = hostinfoFields
 	// hostinfoDescSingletonKey is the schema descriptor for singleton_key field.

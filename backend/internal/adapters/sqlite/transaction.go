@@ -5,6 +5,7 @@ import (
 	"fmt"
 
 	"homelab-manager/backend/ent"
+	entevent "homelab-manager/backend/ent/event"
 	"homelab-manager/backend/internal/domain"
 )
 
@@ -36,6 +37,24 @@ func writeAudit(ctx context.Context, tx *ent.Tx, audit domain.AuditEntry) error 
 	}
 	if _, err := create.Save(ctx); err != nil {
 		return fmt.Errorf("write audit log: %w", err)
+	}
+	return nil
+}
+
+// writeEvent records a monitoring event in the transaction that detects
+// it.
+func writeEvent(ctx context.Context, tx *ent.Tx, event domain.MonitorEvent) error {
+	create := tx.Event.Create().
+		SetID(event.ID).SetType(event.Type).SetSeverity(entevent.Severity(event.Severity)).
+		SetMessage(event.Message).SetOccurredAt(event.OccurredAt)
+	if event.ContainerID != nil {
+		create.SetContainerID(*event.ContainerID)
+	}
+	if event.Metadata != nil {
+		create.SetMetadata(event.Metadata)
+	}
+	if _, err := create.Save(ctx); err != nil {
+		return fmt.Errorf("write event: %w", err)
 	}
 	return nil
 }

@@ -22,6 +22,8 @@ type Tx struct {
 	ContainerMetricSample *ContainerMetricSampleClient
 	// Event is the client for interacting with the Event builders.
 	Event *EventClient
+	// FailedUnit is the client for interacting with the FailedUnit builders.
+	FailedUnit *FailedUnitClient
 	// HostInfo is the client for interacting with the HostInfo builders.
 	HostInfo *HostInfoClient
 	// LoginFailure is the client for interacting with the LoginFailure builders.
@@ -174,6 +176,7 @@ func (tx *Tx) init() {
 	tx.Container = NewContainerClient(tx.config)
 	tx.ContainerMetricSample = NewContainerMetricSampleClient(tx.config)
 	tx.Event = NewEventClient(tx.config)
+	tx.FailedUnit = NewFailedUnitClient(tx.config)
 	tx.HostInfo = NewHostInfoClient(tx.config)
 	tx.LoginFailure = NewLoginFailureClient(tx.config)
 	tx.RecoveryCode = NewRecoveryCodeClient(tx.config)

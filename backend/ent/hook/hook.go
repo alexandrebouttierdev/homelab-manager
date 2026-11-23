@@ -68,6 +68,18 @@ func (f EventFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.EventMutation", m)
 }
 
+// The FailedUnitFunc type is an adapter to allow the use of ordinary
+// function as FailedUnit mutator.
+type FailedUnitFunc func(context.Context, *ent.FailedUnitMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f FailedUnitFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.FailedUnitMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.FailedUnitMutation", m)
+}
+
 // The HostInfoFunc type is an adapter to allow the use of ordinary
 // function as HostInfo mutator.
 type HostInfoFunc func(context.Context, *ent.HostInfoMutation) (ent.Value, error)

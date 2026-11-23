@@ -51,7 +51,12 @@ Modèle logique d'Ent et SQLite. Il décrit un hôte unique et ses conteneurs lo
 
 ### Event
 - UUID, référence optionnelle au conteneur, type, sévérité, message non sensible, métadonnées bornées, `occurred_at`.
-- La version actuelle enregistre les changements d'état de conteneur ; les événements hôte/collecteur ne sont pas encore persistés.
+- Enregistre les changements d'état de conteneur et, depuis la phase 3, les passages d'une unité systemd en échec (`service.failed`, sévérité `error`) et son retour à l'état actif (`service.recovered`, `info`) : sans `container_id`, `metadata` = `unit`, `activeState`, `subState`, `result`. Les événements hôte/collecteur ne sont pas persistés.
+
+### FailedUnit
+- `failed_units` : une ligne par unité systemd enregistrée en échec ; `id` = nom de l'unité, `failed_at` = cycle de collecte qui l'a vue en `failed`.
+- Ajoutée avec son événement `service.failed`, retirée avec `service.recovered` quand l'unité redevient `active`, ou sans événement quand l'unité disparaît de l'inventaire ; toujours dans la même transaction que les événements.
+- Distincte des événements, que la rétention purge : un échec n'est signalé qu'une fois, même après un redémarrage du Manager ou la purge de son événement. Elle n'a pas de purge propre, sa taille étant bornée par l'inventaire (2 000 unités au plus).
 
 ### AuditLog
 - UUID, acteur local, cible (`target_type`, `target_id`), action, request ID, résultat, timestamp.
@@ -90,4 +95,4 @@ Le stockage est un fichier SQLite unique ; aucune base de séries temporelles ni
 - Horodatages UTC et migrations versionnées/reproductibles.
 - Les modèles Ent restent confinés aux adaptateurs ; DTO et domaine sont indépendants.
 - Les valeurs volatiles de stats ne sont pas dupliquées comme état courant dans `Container` si le dernier échantillon peut servir de source.
-- `001_initial.sql` crée le schéma SQLite initial, `002_app_settings.sql` la table `app_settings`, `003_user_accounts.sql` les colonnes de rôle et d'état des comptes, `004_sessions_security.sql` l'activité des sessions, la politique de sécurité, les échecs de connexion et l'index `audit_logs (created_at DESC)`, `005_second_factor.sql` les secrets TOTP, les codes de secours et l'obligation du second facteur ; les migrations suivantes s'ajoutent sous un nouveau numéro, sans modifier les fichiers déjà livrés. Les anciennes migrations PostgreSQL ont été retirées et leurs données ne sont pas reprises.
+- `001_initial.sql` crée le schéma SQLite initial, `002_app_settings.sql` la table `app_settings`, `003_user_accounts.sql` les colonnes de rôle et d'état des comptes, `004_sessions_security.sql` l'activité des sessions, la politique de sécurité, les échecs de connexion et l'index `audit_logs (created_at DESC)`, `005_second_factor.sql` les secrets TOTP, les codes de secours et l'obligation du second facteur, `006_failed_units.sql` les unités systemd enregistrées en échec ; les migrations suivantes s'ajoutent sous un nouveau numéro, sans modifier les fichiers déjà livrés. Les anciennes migrations PostgreSQL ont été retirées et leurs données ne sont pas reprises.

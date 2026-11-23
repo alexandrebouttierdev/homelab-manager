@@ -214,16 +214,7 @@ func (r *MonitoringRepository) ReconcileContainers(ctx context.Context, current 
 		})
 	}
 	for _, event := range events {
-		create := tx.Event.Create().
-			SetID(event.ID).SetType(event.Type).SetSeverity(entevent.Severity(event.Severity)).
-			SetMessage(event.Message).SetOccurredAt(event.OccurredAt)
-		if event.ContainerID != nil {
-			create.SetContainerID(*event.ContainerID)
-		}
-		if event.Metadata != nil {
-			create.SetMetadata(event.Metadata)
-		}
-		if _, err := create.Save(ctx); err != nil {
+		if err := writeEvent(ctx, tx, event); err != nil {
 			return rollback(err)
 		}
 	}

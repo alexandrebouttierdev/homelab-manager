@@ -21,6 +21,9 @@ type ContainerMetricSample func(*sql.Selector)
 // Event is the predicate function for event builders.
 type Event func(*sql.Selector)
 
+// FailedUnit is the predicate function for failedunit builders.
+type FailedUnit func(*sql.Selector)
+
 // HostInfo is the predicate function for hostinfo builders.
 type HostInfo func(*sql.Selector)
 

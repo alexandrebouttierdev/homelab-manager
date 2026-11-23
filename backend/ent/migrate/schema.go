@@ -112,6 +112,17 @@ var (
 			},
 		},
 	}
+	// FailedUnitsColumns holds the columns for the "failed_units" table.
+	FailedUnitsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString},
+		{Name: "failed_at", Type: field.TypeTime},
+	}
+	// FailedUnitsTable holds the schema information for the "failed_units" table.
+	FailedUnitsTable = &schema.Table{
+		Name:       "failed_units",
+		Columns:    FailedUnitsColumns,
+		PrimaryKey: []*schema.Column{FailedUnitsColumns[0]},
+	}
 	// HostInfosColumns holds the columns for the "host_infos" table.
 	HostInfosColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -254,6 +265,7 @@ var (
 		ContainersTable,
 		ContainerMetricSamplesTable,
 		EventsTable,
+		FailedUnitsTable,
 		HostInfosTable,
 		LoginFailuresTable,
 		RecoveryCodesTable,

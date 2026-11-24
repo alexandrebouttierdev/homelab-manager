@@ -10,6 +10,7 @@ import {
   listBackupRuns,
   listBackupSnapshots,
   requestBackup,
+  requestBackupOperation,
   updateBackupConfig,
   type BackupConfig,
   type BackupRun,
@@ -26,6 +27,8 @@ vi.mock('../../lib/api/backups', () => ({
   requestBackup: vi.fn(),
   listBackupRuns: vi.fn(),
   listBackupSnapshots: vi.fn(),
+  requestBackupOperation: vi.fn(),
+  connectBackupRepository: vi.fn(),
 }))
 
 const session = vi.hoisted(() => ({ role: 'viewer' as 'viewer' | 'operator' | 'admin' }))
@@ -60,6 +63,7 @@ const success: BackupRun = {
     totalBytesProcessed: 65536,
     durationSeconds: 2,
   },
+  details: null,
   startedAt: '2026-11-24T03:00:00Z',
   finishedAt: '2026-11-24T03:00:02Z',
 }
@@ -82,6 +86,7 @@ const summary: BackupSummary = {
   running: null,
   lastRun: success,
   lastSuccess: success,
+  lastCheck: null,
   nextRunAt: '2026-11-25T03:00:00Z',
 }
 
@@ -96,6 +101,8 @@ const config: BackupConfig = {
   excludeCaches: true,
   excludeIfPresent: '',
   schedule: { enabled: true, frequency: 'daily', weekday: 0, time: '03:00' },
+  retention: { enabled: false, keepDaily: 7, keepWeekly: 4, keepMonthly: 6, keepYearly: 0 },
+  check: { enabled: true, subsetPercent: 5 },
   updatedAt: null,
   updatedBy: null,
 }
@@ -190,5 +197,53 @@ describe('BackupsPage', () => {
     expect(await screen.findByText('generated-password')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: "J'ai conservé le mot de passe" }))
     expect(screen.queryByText('generated-password')).not.toBeInTheDocument()
+  })
+
+  it('lets an administrator simulate a restore, then unlock the repository after confirmation', async () => {
+    session.role = 'admin'
+    vi.mocked(listBackupSnapshots).mockResolvedValue([
+      {
+        id: 'abcdef0123456789',
+        shortId: 'abcdef01',
+        time: '2026-11-24T03:00:02Z',
+        hostname: 'homelab',
+        paths: ['/etc'],
+        tags: ['homelab-manager'],
+        totalFiles: 14,
+        totalBytes: 65536,
+        dataAdded: 2048,
+      },
+    ])
+    vi.mocked(requestBackupOperation).mockResolvedValue({
+      ...success,
+      operation: 'restore',
+      state: 'running',
+      details: { dryRun: true, target: '/var/lib/homelab-backup/restore/r' },
+    })
+    const user = userEvent.setup()
+    renderPage()
+    await user.click(await screen.findByRole('button', { name: 'Instantanés' }))
+    await user.click(await screen.findByRole('button', { name: /Restaurer…/ }))
+    await user.type(screen.getByLabelText(/Chemins à restaurer/), 'etc')
+    expect(screen.getByText(/n'est pas un chemin absolu propre/)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: 'Simuler' })).toBeDisabled()
+    await user.clear(screen.getByLabelText(/Chemins à restaurer/))
+    await user.type(screen.getByLabelText(/Chemins à restaurer/), '/etc/hostname')
+    await user.click(screen.getByRole('button', { name: 'Simuler' }))
+    await waitFor(() =>
+      expect(requestBackupOperation).toHaveBeenCalledWith('restore', {
+        snapshotId: 'abcdef0123456789',
+        include: ['/etc/hostname'],
+        dryRun: true,
+      }),
+    )
+    expect(await screen.findByText(/Simulation lancée/)).toBeInTheDocument()
+
+    await user.click(screen.getByRole('button', { name: 'Configuration' }))
+    await user.click(await screen.findByRole('button', { name: 'Forcer le déverrouillage' }))
+    expect(screen.getByText(/supprime tous les verrous/)).toBeInTheDocument()
+    expect(requestBackupOperation).toHaveBeenCalledTimes(1)
+    await user.click(screen.getByRole('button', { name: 'Confirmer le déverrouillage' }))
+    await waitFor(() => expect(requestBackupOperation).toHaveBeenLastCalledWith('unlock'))
   })
 })

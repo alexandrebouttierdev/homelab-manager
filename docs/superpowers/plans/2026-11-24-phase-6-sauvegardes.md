@@ -6,7 +6,7 @@
 
 **Prérequis :** phase 1C (coffre de secrets), phase 4 (alertes), phase 5 et module V (démarrage d'une unité par D-Bus et polkit). restic : paquet Debian 13 `restic` 0.18.0.
 
-**Statut :** D-12 tranchée le 24 novembre 2026 (option A : le Manager planifie). Incrément 6A livré, règle d'alerte comprise ; 6B à venir.
+**Statut :** D-12 tranchée le 24 novembre 2026 (option A : le Manager planifie). Incréments 6A (règle d'alerte comprise) et 6B livrés ; restent diff, copies et SFTP.
 
 ## Découpage
 
@@ -74,3 +74,9 @@ Le § 7.1 prévoit un timer `homelab-backup-schedule.timer` dont l'expression `O
 - rest-server 0.13 de Debian en HTTPS avec authentification : initialisation et sauvegarde réussies ; le mot de passe du rest-server ne figure dans aucun fichier de travail. (Le serveur de test refusait un `htpasswd` en `apr1`, que rest-server ne lit pas : `{SHA}` ou bcrypt.)
 - Vérification visuelle (thème sombre, thème clair, largeur mobile) : corrigé un débordement horizontal du formulaire (`<fieldset>` sans `min-w-0`) et un sous-titre trop long ; les messages d'erreur longs passent à la ligne.
 - Reste : S3 réel (demande un serveur à télécharger) ; planification réelle sur plusieurs jours.
+
+## Bilan de l'incrément 6B (24 novembre 2026)
+
+- Livré : opérations `forget-prune`, `check`, `restore`, `snapshots` (rattachement) et `unlock` dans le programme d'entrée, l'unité et la règle polkit ; rétention et vérification réglables (migration `012`), enchaînées après une sauvegarde planifiée réussie ; restauration simulée puis réelle en quarantaine ; rattachement d'un dépôt existant ; déverrouillage avec avertissement ; route `POST /api/v1/backups/operations` (administrateurs) ; carte « Maintenance », panneau de restauration.
+- Écarts : la vérification n'a pas son propre horaire, elle suit la sauvegarde planifiée au plus une fois par semaine ; le diff entre instantanés et les copies vers un autre dépôt ne sont pas livrés ; SFTP attend la décision sur la clé SSH de root.
+- Recette dans la VM : tout réussi avec restic 0.18 (rétention, vérification à 5 %, restauration simulée puis réelle d'un fichier dans la quarantaine, déverrouillage, rattachement avec mauvais puis bon mot de passe).

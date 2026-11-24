@@ -9,6 +9,12 @@ const lines = (text: string) =>
     .map((line) => line.trim())
     .filter((line) => line !== '')
 
+const keepCount = z
+  .number({ error: 'Nombre requis' })
+  .int('Nombre entier')
+  .min(0, 'Au moins 0')
+  .max(1000, 'Au plus 1 000')
+
 export const backupConfigSchema = z
   .object({
     type: z.enum(['none', 'local', 'rest', 's3']),
@@ -26,6 +32,17 @@ export const backupConfigSchema = z
     frequency: z.enum(['daily', 'weekly']),
     weekday: z.number().int().min(0).max(6),
     time: z.string().regex(/^([01]\d|2[0-3]):[0-5]\d$/, 'Heure au format HH:MM'),
+    retentionEnabled: z.boolean(),
+    keepDaily: keepCount,
+    keepWeekly: keepCount,
+    keepMonthly: keepCount,
+    keepYearly: keepCount,
+    checkEnabled: z.boolean(),
+    checkSubsetPercent: z
+      .number({ error: 'Pourcentage requis' })
+      .int('Nombre entier')
+      .min(1, 'Au moins 1 %')
+      .max(100, 'Au plus 100 %'),
   })
   .superRefine((values, context) => {
     if (values.type === 'local' && (!absolutePath.test(values.location) || values.location === '/'))
@@ -64,6 +81,15 @@ export const backupConfigSchema = z
     const excludes = lines(values.excludes)
     if (excludes.length > 500)
       context.addIssue({ code: 'custom', path: ['excludes'], message: 'Au plus 500 motifs' })
+    if (
+      values.retentionEnabled &&
+      values.keepDaily + values.keepWeekly + values.keepMonthly + values.keepYearly === 0
+    )
+      context.addIssue({
+        code: 'custom',
+        path: ['keepDaily'],
+        message: 'La rétention garde au moins un instantané',
+      })
     if (excludes.some((pattern) => pattern.startsWith('#')))
       context.addIssue({
         code: 'custom',

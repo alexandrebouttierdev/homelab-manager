@@ -1,4 +1,4 @@
-import { AlertTriangle, DatabaseBackup, History, Play, RefreshCw } from 'lucide-react'
+import { AlertTriangle, DatabaseBackup, History, Play, RefreshCw, RotateCcw, X } from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
@@ -9,7 +9,9 @@ import { LoadingState } from '../../components/ui/LoadingState'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { SegmentedTabs } from '../../components/ui/SegmentedTabs'
 import { formatBytes, formatCount, formatDateTime, formatRelativeTime } from '../../lib/format'
+import { FormField } from '../alerts/FormField'
 import { BackupConfigForm } from './BackupConfigForm'
+import type { BackupRestoreModel } from './useBackupRestore'
 import { useBackupsPage, type BackupsPageModel } from './useBackupsPage'
 
 export function BackupsPage() {
@@ -197,37 +199,129 @@ function Snapshots({ page }: { page: BackupsPageModel }) {
         description="La liste est relue après chaque sauvegarde réussie."
       />
     )
+  const restore = page.restore
   return (
-    <Table minWidthClassName="min-w-[760px]">
-      <THead>
-        <tr>
-          <TH>Instantané</TH>
-          <TH>Date</TH>
-          <TH>Chemins</TH>
-          <TH>Fichiers</TH>
-          <TH>Taille</TH>
-          <TH>Ajouté</TH>
-        </tr>
-      </THead>
-      <TBody>
-        {rows.map((snapshot) => (
-          <TR key={snapshot.id}>
-            <TD className="font-mono text-xs" title={snapshot.id}>
-              {snapshot.shortId}
-            </TD>
-            <TD className="whitespace-nowrap text-xs">{formatDateTime(snapshot.time)}</TD>
-            <TD
-              className="max-w-[320px] truncate font-mono text-[11px]"
-              title={snapshot.paths.join(', ')}
-            >
-              {snapshot.paths.join(', ')}
-            </TD>
-            <TD className="font-mono text-xs">{formatCount(snapshot.totalFiles)}</TD>
-            <TD className="font-mono text-xs">{formatBytes(snapshot.totalBytes)}</TD>
-            <TD className="font-mono text-xs">{formatBytes(snapshot.dataAdded)}</TD>
-          </TR>
-        ))}
-      </TBody>
-    </Table>
+    <div className="space-y-3">
+      {restore.snapshot && <RestorePanel model={restore} />}
+      <Table minWidthClassName="min-w-[760px]">
+        <THead>
+          <tr>
+            <TH>Instantané</TH>
+            <TH>Date</TH>
+            <TH>Chemins</TH>
+            <TH>Fichiers</TH>
+            <TH>Taille</TH>
+            <TH>Ajouté</TH>
+            {restore.visible && <TH className="text-right">Restaurer</TH>}
+          </tr>
+        </THead>
+        <TBody>
+          {rows.map((snapshot) => (
+            <TR key={snapshot.id}>
+              <TD className="font-mono text-xs" title={snapshot.id}>
+                {snapshot.shortId}
+              </TD>
+              <TD className="whitespace-nowrap text-xs">{formatDateTime(snapshot.time)}</TD>
+              <TD
+                className="max-w-[320px] truncate font-mono text-[11px]"
+                title={snapshot.paths.join(', ')}
+              >
+                {snapshot.paths.join(', ')}
+              </TD>
+              <TD className="font-mono text-xs">{formatCount(snapshot.totalFiles)}</TD>
+              <TD className="font-mono text-xs">{formatBytes(snapshot.totalBytes)}</TD>
+              <TD className="font-mono text-xs">{formatBytes(snapshot.dataAdded)}</TD>
+              {restore.visible && (
+                <TD className="text-right">
+                  <Button
+                    size="sm"
+                    icon={<RotateCcw className="h-3.5 w-3.5" />}
+                    onClick={() => restore.choose(snapshot)}
+                  >
+                    Restaurer…
+                  </Button>
+                </TD>
+              )}
+            </TR>
+          ))}
+        </TBody>
+      </Table>
+    </div>
+  )
+}
+
+function RestorePanel({ model }: { model: BackupRestoreModel }) {
+  const snapshot = model.snapshot
+  if (!snapshot) return null
+  return (
+    <div
+      className="space-y-3 rounded-lg border border-line bg-card p-4"
+      role="group"
+      aria-label="Restaurer un instantané"
+    >
+      <div className="flex items-start justify-between gap-2">
+        <div>
+          <p className="text-sm font-semibold text-text-primary">
+            Restaurer l&apos;instantané <span className="font-mono">{snapshot.shortId}</span> du{' '}
+            {formatDateTime(snapshot.time)}
+          </p>
+          <p className="mt-1 text-xs text-text-secondary">
+            Les fichiers sont restaurés dans un répertoire de quarantaine,
+            /var/lib/homelab-backup/restore/…, accessible à root seulement : rien n&apos;est écrit à
+            leur emplacement d&apos;origine. Copiez ensuite ce qui vous sert. Simulez d&apos;abord
+            pour connaître le volume.
+          </p>
+        </div>
+        <button
+          type="button"
+          aria-label="Fermer la restauration"
+          onClick={model.close}
+          className="rounded-md p-1 text-text-muted hover:bg-elevated hover:text-text-primary"
+        >
+          <X className="h-4 w-4" />
+        </button>
+      </div>
+      <FormField
+        id="restore-include"
+        label="Chemins à restaurer (un par ligne ; vide pour tout l'instantané)"
+        error={model.includeError ?? undefined}
+      >
+        <textarea
+          id="restore-include"
+          className="min-h-[72px] w-full rounded-md border border-line bg-surface px-3 py-2 font-mono text-xs text-text-primary outline-none focus:border-accent"
+          value={model.include}
+          onChange={(event) => model.setInclude(event.target.value)}
+        />
+      </FormField>
+      <div className="flex flex-wrap gap-2">
+        <Button
+          size="sm"
+          loading={model.pending === 'simulate'}
+          disabled={model.pending !== null || model.includeError !== null}
+          onClick={model.simulate}
+        >
+          Simuler
+        </Button>
+        <Button
+          size="sm"
+          variant="primary"
+          loading={model.pending === 'restore'}
+          disabled={model.pending !== null || model.includeError !== null}
+          onClick={model.restore}
+        >
+          Restaurer dans la quarantaine
+        </Button>
+      </div>
+      {model.started && (
+        <p className="text-xs text-text-secondary" role="status">
+          {model.started}
+        </p>
+      )}
+      {model.error && (
+        <p className="text-xs text-danger" role="alert">
+          {model.error}
+        </p>
+      )}
+    </div>
   )
 }

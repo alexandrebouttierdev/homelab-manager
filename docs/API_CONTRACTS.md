@@ -95,6 +95,8 @@ Ce document est le contrat exact de l'API implémentée. Toute différence entre
 | `GET /api/v1/backups/config` | oui | Configuration, sans secret (§ 4.10) |
 | `PUT /api/v1/backups/config` | admin | Dépôt, sources, exclusions, planification (§ 4.10) |
 | `POST /api/v1/backups/repository/init` | admin | Initialise le dépôt, renvoie son mot de passe une fois (§ 4.10) |
+| `POST /api/v1/backups/repository/connect` | admin | Rattache un dépôt existant avec son mot de passe (§ 4.10) |
+| `POST /api/v1/backups/operations` | admin | Rétention, vérification, déverrouillage ou restauration en quarantaine (§ 4.10) |
 | `GET /api/v1/backups/runs` | oui | Historique des exécutions (§ 4.10) |
 | `POST /api/v1/backups/runs` | `operator` | Lance une sauvegarde (§ 4.10) |
 | `GET /api/v1/backups/runs/{runID}` | oui | Une exécution (§ 4.10) |
@@ -630,7 +632,7 @@ Vulnérabilités connues des paquets système de la machine du Manager (SPEC_ADM
 
 ### 4.10 Sauvegardes
 
-Sauvegardes chiffrées par restic (SPEC_ADMINISTRATION.md § 7, incrément 6A). restic ne s'exécute que dans l'unité root `homelab-backup@<opération>.service` (`init`, `backup`), démarrée par le Manager par D-Bus (règle polkit `50-homelab-manager-backup.rules`) ; le programme `homelab-backup-runner` y lit le fichier de travail écrit par le Manager, le valide de nouveau et lance restic sans shell. Une opération à la fois. Sans base de données : `503 BACKUPS_UNAVAILABLE` sur toutes les routes ; pendant le démarrage du Manager (avant que les exécutions laissées en cours par un arrêt soient closes) et pendant son arrêt, une demande d'opération reçoit aussi `503 BACKUPS_UNAVAILABLE`.
+Sauvegardes chiffrées par restic (SPEC_ADMINISTRATION.md § 7, incréments 6A et 6B). restic ne s'exécute que dans l'unité root `homelab-backup@<opération>.service` (`init`, `backup`, `forget-prune`, `check`, `restore`, `snapshots`, `unlock`), démarrée par le Manager par D-Bus (règle polkit `50-homelab-manager-backup.rules`) ; le programme `homelab-backup-runner` y lit le fichier de travail écrit par le Manager, le valide de nouveau et lance restic sans shell. Une opération à la fois. Sans base de données : `503 BACKUPS_UNAVAILABLE` sur toutes les routes ; pendant le démarrage du Manager (avant que les exécutions laissées en cours par un arrêt soient closes) et pendant son arrêt, une demande d'opération reçoit aussi `503 BACKUPS_UNAVAILABLE`.
 
 `GET /api/v1/backups/config` (tous les rôles) :
 
@@ -643,20 +645,25 @@ Sauvegardes chiffrées par restic (SPEC_ADMINISTRATION.md § 7, incrément 6A). 
   "sources": ["/etc", "/var/lib/docker/volumes"], "excludes": ["*.tmp", "**/node_modules"],
   "excludeCaches": true, "excludeIfPresent": ".nobackup",
   "schedule": { "enabled": true, "frequency": "weekly", "weekday": 0, "time": "03:00" },
+  "retention": { "enabled": true, "keepDaily": 7, "keepWeekly": 4, "keepMonthly": 6, "keepYearly": 0 },
+  "check": { "enabled": true, "subsetPercent": 5 },
   "updatedAt": "2026-11-24T10:00:00Z", "updatedBy": "alice"
 }
 ```
 
 - `repository` : `null` tant qu'aucun dépôt n'est défini. `type` : `local` (chemin absolu, répertoire local ou monté), `rest` (rest-server) ou `s3` (S3 compatible, dont Backblaze B2) ; `location` d'un dépôt distant : adresse `https://` sans identifiant, requête ni fragment ; celle d'un dépôt S3 nomme le bucket.
 - `credentials` : seulement si chaque secret est défini, jamais sa valeur. `username` et `secret` : utilisateur et mot de passe du rest-server (facultatifs), ou clé d'accès et clé secrète S3 (obligatoires). `secretsAvailable` : `false` sans clé du coffre (§ 2.5 de la spécification) ; les sauvegardes sont alors impossibles.
+- `retention` : politique de `restic forget --prune` (0 à 1 000 par période ; activée, elle garde au moins un instantané), appliquée après chaque sauvegarde planifiée réussie quand `enabled` ; défaut 7 quotidiens, 4 hebdomadaires, 6 mensuels, désactivée. `check` : `restic check --read-data-subset <subsetPercent>%` (1 à 100) après une sauvegarde planifiée réussie, au plus une fois par semaine ; défaut activé, 5 %.
 - `schedule` : planification tenue par le Manager (décision D-12) ; `frequency` `daily` ou `weekly`, `weekday` de 0 (dimanche) à 6, `time` `HH:MM` dans le fuseau de la machine.
 
-`PUT /api/v1/backups/config` (`admin`) remplace la configuration : mêmes champs, sans `initialized`, `credentials`, `secretsAvailable` ni `updated*`, plus `username` et `secret` (absents ou `null` : conservés ; `""` : supprimés). Réponse : la configuration. Audité (`backup_config` / `local` / `update`) dans la même transaction.
+`PUT /api/v1/backups/config` (`admin`) remplace la configuration : mêmes champs, sans `initialized`, `credentials`, `secretsAvailable` ni `updated*`, plus `username` et `secret` (absents ou `null` : conservés ; `""` : supprimés) ; `retention` et `check` absents : conservés. Réponse : la configuration. Audité (`backup_config` / `local` / `update`) dans la même transaction.
 
 - Validation : sources absolues, propres (sans `..`, `//` ni `/` final), 50 au plus, sans doublon ; motifs d'exclusion d'une ligne, 500 au plus, 4 Kio chacun, syntaxe glob valide, sans `#` initial ; `excludeIfPresent` vide ou nom de fichier (`[A-Za-z0-9._-]`) ; champs inconnus refusés. Sinon `400 VALIDATION_ERROR`, le message nommant le champ.
 - Changer de dépôt remet `initialized` à `false` et efface le mot de passe : le nouveau dépôt doit être initialisé. Refusé pendant une opération : `409 BACKUP_IN_PROGRESS`. Modifier une clé sans clé du coffre : `503 SECRETS_UNAVAILABLE`.
 
-`POST /api/v1/backups/repository/init` (`admin`, sans corps) → `202 { "password": "…", "run": Exécution }`, en-tête `Cache-Control: no-store`. Le Manager génère le mot de passe du dépôt (32 octets aléatoires, base64url), le scelle dans le coffre et lance `restic init` ; le mot de passe n'est plus jamais renvoyé. Audité (`backup_config` / `local` / `init_repository`). Sans dépôt : `409 BACKUP_NOT_CONFIGURED` ; déjà initialisé : `409 BACKUP_ALREADY_INITIALIZED` ; opération en cours : `409 BACKUP_IN_PROGRESS` ; sans clé du coffre : `503 SECRETS_UNAVAILABLE`. Un dépôt existant ne peut pas encore être rattaché (incrément 6B).
+`POST /api/v1/backups/repository/init` (`admin`, sans corps) → `202 { "password": "…", "run": Exécution }`, en-tête `Cache-Control: no-store`. Le Manager génère le mot de passe du dépôt (32 octets aléatoires, base64url), le scelle dans le coffre et lance `restic init` ; le mot de passe n'est plus jamais renvoyé. Audité (`backup_config` / `local` / `init_repository`). Sans dépôt : `409 BACKUP_NOT_CONFIGURED` ; déjà initialisé : `409 BACKUP_ALREADY_INITIALIZED` ; opération en cours : `409 BACKUP_IN_PROGRESS` ; sans clé du coffre : `503 SECRETS_UNAVAILABLE`. `POST /api/v1/backups/repository/connect` (`admin`) avec `{ "password": "…" }` → `202 { "run": Exécution }` (`operation: snapshots`) : rattache un dépôt existant à l'emplacement configuré. Le mot de passe est scellé, restic liste les instantanés ; le dépôt devient `initialized` si la liste réussit (sinon `failure: restic_failed`, par exemple « wrong password », et l'administrateur recommence). Audité (`backup_config` / `local` / `connect_repository`). Mêmes erreurs que l'initialisation ; mot de passe vide `400 VALIDATION_ERROR`.
+
+`POST /api/v1/backups/operations` (`admin`) avec `{ "operation": "forget-prune" | "check" | "unlock" | "restore", "restore": { "snapshotId": "…", "include": ["/etc"], "dryRun": true } }` → `202 { "run": Exécution }`. `forget-prune` applique la politique de `retention`, même désactivée, pourvu qu'elle garde au moins un instantané ; `check` relit `check.subsetPercent` des données ; `unlock` supprime **tous** les verrous du dépôt (`restic unlock --remove-all`), à réserver au cas où une opération interrompue en a laissé ; `restore` exige `restore` : `snapshotId` (8 à 64 caractères hexadécimaux minuscules), `include` (chemins absolus propres, 50 au plus, vide pour tout l'instantané) et `dryRun`. La restauration écrit toujours dans `/var/lib/homelab-backup/restore/<id de l'exécution>/` (0700, root), jamais à l'emplacement d'origine (D-2) ; une simulation n'y laisse rien. Audité (`backup_run` / UUID / nom de l'opération). Autre opération ou restauration invalide : `400 VALIDATION_ERROR` ; dépôt non prêt : `409 BACKUP_NOT_CONFIGURED` ou `BACKUP_NOT_INITIALIZED` ; opération en cours : `409 BACKUP_IN_PROGRESS`.
 
 `POST /api/v1/backups/runs` (`operator` ou `admin`, sans corps) → `202 { "run": Exécution }` (`state: running`). Audité (`backup_run` / UUID / `start`). Sans dépôt : `409 BACKUP_NOT_CONFIGURED` ; dépôt non initialisé : `409 BACKUP_NOT_INITIALIZED` ; aucune source : `400 VALIDATION_ERROR` ; opération en cours : `409 BACKUP_IN_PROGRESS` ; sans clé du coffre : `503 SECRETS_UNAVAILABLE`.
 
@@ -674,16 +681,17 @@ Exécution :
 }
 ```
 
-- `operation` : `init` ou `backup`. `origin` : `manual`, `schedule`, `catchup` (sauvegarde planifiée manquée pendant un arrêt du Manager, lancée une fois, 2 min après son redémarrage). `state` : `running`, `succeeded`, `failed`.
+- `operation` : `init`, `backup`, `forget-prune`, `check`, `restore`, `snapshots` (rattachement) ou `unlock`. `origin` : `manual`, `schedule`, `catchup` (sauvegarde planifiée manquée pendant un arrêt du Manager, lancée une fois, 2 min après son redémarrage). `state` : `running`, `succeeded`, `failed`.
 - `failure` (`null` sauf en échec) : `runner_not_installed` (unité ou programme absent), `not_allowed` (refus de polkit), `restic_failed` (`message` : l'erreur de restic, 2 Kio au plus), `timeout` (6 h pour une sauvegarde, 10 min pour une initialisation), `invalid_result` (résultat absent, ancien ou invalide), `secrets_unavailable`, `job_failed`, `systemd_unavailable`, `interrupted` (Manager arrêté pendant l'opération ; restic peut finir dans son unité, mais le résultat n'est pas relu).
 - `warning: true` : l'instantané existe mais restic n'a pas pu lire certains fichiers (code de sortie 3) ; `message` cite le dernier.
-- `stats` : résumé de `restic backup --json`, `null` pour une initialisation ou un échec.
+- `stats` : résumé de `restic backup --json`, `null` pour une autre opération ou un échec.
+- `details` (`null` sauf pour ces opérations) : restauration `{ "snapshotId", "target", "dryRun", "totalFiles", "filesRestored", "totalBytes", "bytesRestored" }` (`snapshotId`, `target` et `dryRun` sont présents dès la demande, même en échec) ; rétention `{ "snapshotsRemoved" }` ; vérification `{ "subsetPercent" }`. Les champs nuls sont omis.
 
 `GET /api/v1/backups/runs?limit=50` (tous les rôles, `limit` de 1 à 200, défaut 50) → `{ "runs": [Exécution] }`, les plus récentes d'abord ; conservées un an. `GET /api/v1/backups/runs/{runID}` → `{ "run": Exécution }` ; inconnue `404 NOT_FOUND` ; identifiant invalide `400 VALIDATION_ERROR`.
 
 `GET /api/v1/backups/snapshots` (tous les rôles) → `{ "snapshots": [{ "id", "shortId", "time", "hostname", "paths", "tags", "totalFiles", "totalBytes", "dataAdded" }] }` : instantanés du dépôt marqués `homelab-manager`, les plus récents d'abord, 500 au plus, relus après chaque sauvegarde réussie (`totalFiles`, `totalBytes` et `dataAdded` valent 0 si restic ne les a pas enregistrés).
 
-`GET /api/v1/backups/summary` (tous les rôles) → `{ "configured": true, "initialized": true, "running": Exécution | null, "lastRun": Exécution | null, "lastSuccess": Exécution | null, "nextRunAt": "…" | null }`. `lastRun` et `lastSuccess` ne portent que sur les sauvegardes ; `nextRunAt` : prochaine sauvegarde planifiée, `null` si la planification est désactivée ou si le dépôt n'est pas prêt.
+`GET /api/v1/backups/summary` (tous les rôles) → `{ "configured": true, "initialized": true, "running": Exécution | null, "lastRun": Exécution | null, "lastSuccess": Exécution | null, "lastCheck": Exécution | null, "nextRunAt": "…" | null }`. `lastRun` et `lastSuccess` ne portent que sur les sauvegardes, `lastCheck` est la dernière vérification réussie ; `nextRunAt` : prochaine sauvegarde planifiée, `null` si la planification est désactivée ou si le dépôt n'est pas prêt.
 
 ## 5. Métriques
 

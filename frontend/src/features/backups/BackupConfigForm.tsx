@@ -170,6 +170,67 @@ export function BackupConfigForm({ model }: { model: BackupConfigFormModel }) {
               </FormField>
             </CardBody>
           </Card>
+          <Card>
+            <CardHeader
+              title="Rétention et vérification"
+              subtitle="Après chaque sauvegarde planifiée"
+            />
+            <CardBody className="grid gap-4 md:grid-cols-4">
+              <p className="text-xs text-text-secondary md:col-span-4">
+                La rétention supprime les instantanés au-delà de la politique (restic forget
+                --prune) ; la vérification relit une part des données du dépôt au plus une fois par
+                semaine (restic check).
+              </p>
+              <label className="flex items-center gap-2 text-xs text-text-secondary md:col-span-4">
+                <input type="checkbox" {...model.register('retentionEnabled')} />
+                Appliquer la rétention
+              </label>
+              {(
+                [
+                  ['keepDaily', 'Quotidiens gardés'],
+                  ['keepWeekly', 'Hebdomadaires gardés'],
+                  ['keepMonthly', 'Mensuels gardés'],
+                  ['keepYearly', 'Annuels gardés'],
+                ] as const
+              ).map(([name, label]) => (
+                <FormField
+                  key={name}
+                  id={`backup-${name}`}
+                  label={label}
+                  error={model.errors[name]?.message}
+                >
+                  <input
+                    id={`backup-${name}`}
+                    type="number"
+                    min={0}
+                    max={1000}
+                    className={inputClass}
+                    disabled={!model.retentionEnabled}
+                    {...model.register(name, { valueAsNumber: true })}
+                  />
+                </FormField>
+              ))}
+              <label className="flex items-center gap-2 text-xs text-text-secondary md:col-span-3">
+                <input type="checkbox" {...model.register('checkEnabled')} />
+                Vérifier le dépôt chaque semaine
+              </label>
+              <FormField
+                id="backup-subset"
+                label="Part relue (%)"
+                error={model.errors.checkSubsetPercent?.message}
+              >
+                <input
+                  id="backup-subset"
+                  type="number"
+                  min={1}
+                  max={100}
+                  className={inputClass}
+                  disabled={!model.checkEnabled}
+                  {...model.register('checkSubsetPercent', { valueAsNumber: true })}
+                />
+              </FormField>
+            </CardBody>
+          </Card>
         </fieldset>
 
         {!readOnly && (
@@ -233,6 +294,103 @@ export function BackupConfigForm({ model }: { model: BackupConfigFormModel }) {
             >
               Initialiser le dépôt
             </Button>
+            <div className="space-y-2 border-t border-line pt-3">
+              <p className="text-xs text-text-secondary">
+                Le dépôt existe déjà (réinstallation, autre machine) ? Saisissez son mot de passe
+                pour le rattacher : restic en liste les instantanés.
+              </p>
+              <div className="flex flex-wrap gap-2">
+                <input
+                  type="password"
+                  autoComplete="off"
+                  aria-label="Mot de passe du dépôt existant"
+                  className={`${inputClass} max-w-xs`}
+                  value={model.existingPassword}
+                  onChange={(event) => model.setExistingPassword(event.target.value)}
+                />
+                <Button
+                  size="sm"
+                  loading={model.isConnecting}
+                  disabled={!model.canConnect || !model.secretsAvailable}
+                  onClick={model.connect}
+                >
+                  Rattacher ce dépôt
+                </Button>
+              </div>
+              {model.connectError && (
+                <p className="text-xs text-danger" role="alert">
+                  {model.connectError}
+                </p>
+              )}
+            </div>
+          </CardBody>
+        </Card>
+      )}
+
+      {model.canMaintain && (
+        <Card>
+          <CardHeader title="Maintenance" subtitle="Opérations ponctuelles sur le dépôt" />
+          <CardBody className="space-y-3">
+            <div className="flex flex-wrap gap-2">
+              <Button
+                size="sm"
+                loading={model.operationPending === 'forget-prune'}
+                disabled={model.operationPending !== null}
+                onClick={() => model.runOperation('forget-prune')}
+              >
+                Appliquer la rétention
+              </Button>
+              <Button
+                size="sm"
+                loading={model.operationPending === 'check'}
+                disabled={model.operationPending !== null}
+                onClick={() => model.runOperation('check')}
+              >
+                Vérifier le dépôt
+              </Button>
+              <Button
+                size="sm"
+                variant="danger"
+                disabled={model.operationPending !== null || model.confirmUnlock}
+                onClick={model.askUnlock}
+              >
+                Forcer le déverrouillage
+              </Button>
+            </div>
+            {model.confirmUnlock && (
+              <div
+                className="space-y-2 rounded-md border border-danger/30 bg-danger/5 p-3"
+                role="alert"
+              >
+                <p className="text-xs text-text-secondary">
+                  Le déverrouillage supprime tous les verrous du dépôt. Si une autre machine ou une
+                  opération restic utilise le dépôt en ce moment, il peut être endommagé.
+                </p>
+                <div className="flex gap-2">
+                  <Button
+                    size="sm"
+                    variant="danger"
+                    loading={model.operationPending === 'unlock'}
+                    onClick={model.unlock}
+                  >
+                    Confirmer le déverrouillage
+                  </Button>
+                  <Button size="sm" onClick={model.cancelUnlock}>
+                    Annuler
+                  </Button>
+                </div>
+              </div>
+            )}
+            {model.operationDone && (
+              <p className="text-xs text-text-secondary" role="status">
+                Opération lancée : suivez-la dans l&apos;historique.
+              </p>
+            )}
+            {model.operationError && (
+              <p className="text-xs text-danger" role="alert">
+                {model.operationError}
+              </p>
+            )}
           </CardBody>
         </Card>
       )}

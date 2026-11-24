@@ -1,5 +1,12 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
-import { initBackupRepository, listBackupRuns, requestBackup, updateBackupConfig } from './backups'
+import {
+  connectBackupRepository,
+  initBackupRepository,
+  listBackupRuns,
+  requestBackup,
+  requestBackupOperation,
+  updateBackupConfig,
+} from './backups'
 
 function mockFetch(body: unknown, status = 200) {
   const fetchMock = vi.fn().mockResolvedValue(new Response(JSON.stringify(body), { status }))
@@ -21,6 +28,8 @@ describe('backups API', () => {
       excludeCaches: true,
       excludeIfPresent: '',
       schedule: { enabled: false, frequency: 'daily' as const, weekday: 0, time: '03:00' },
+      retention: { enabled: false, keepDaily: 7, keepWeekly: 4, keepMonthly: 6, keepYearly: 0 },
+      check: { enabled: true, subsetPercent: 5 },
     }
     await updateBackupConfig(input)
     expect(fetchMock.mock.calls[0][0]).toBe('/api/v1/backups/config')
@@ -41,5 +50,23 @@ describe('backups API', () => {
     expect(fetchMock.mock.calls[0][0]).toBe('/api/v1/backups/runs?limit=20')
     mockFetch({ error: { code: 'BACKUP_IN_PROGRESS', message: 'busy' } }, 409)
     await expect(requestBackup()).rejects.toThrow(/déjà en cours/)
+  })
+
+  it('starts an operation and connects a repository', async () => {
+    let fetchMock = mockFetch({ run: { id: 'r3' } }, 202)
+    const restore = { snapshotId: '3a253ad8', include: ['/etc'], dryRun: true }
+    await requestBackupOperation('restore', restore)
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/v1/backups/operations')
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({
+      body: JSON.stringify({ operation: 'restore', restore }),
+    })
+    fetchMock = mockFetch({ run: { id: 'r4' } }, 202)
+    await requestBackupOperation('unlock')
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({
+      body: JSON.stringify({ operation: 'unlock' }),
+    })
+    fetchMock = mockFetch({ run: { id: 'r5' } }, 202)
+    await connectBackupRepository('old-password')
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/v1/backups/repository/connect')
   })
 })

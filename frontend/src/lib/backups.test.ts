@@ -3,6 +3,7 @@ import type { BackupConfig, BackupRun, BackupSummary } from './api/backups'
 import {
   backupHealth,
   configToValues,
+  describeDetails,
   credentialLabels,
   describeSchedule,
   describeStats,
@@ -25,6 +26,7 @@ function run(overrides: Partial<BackupRun> = {}): BackupRun {
     warning: false,
     snapshotId: 'abcdef0123',
     stats: null,
+    details: null,
     startedAt: '2026-11-24T03:00:00Z',
     finishedAt: '2026-11-24T03:01:30Z',
     ...overrides,
@@ -42,6 +44,8 @@ const config: BackupConfig = {
   excludeCaches: true,
   excludeIfPresent: '.nobackup',
   schedule: { enabled: true, frequency: 'weekly', weekday: 0, time: '04:30' },
+  retention: { enabled: false, keepDaily: 7, keepWeekly: 4, keepMonthly: 6, keepYearly: 0 },
+  check: { enabled: true, subsetPercent: 5 },
   updatedAt: null,
   updatedBy: null,
 }
@@ -97,6 +101,7 @@ describe('backups', () => {
       running: null,
       lastRun: run(),
       lastSuccess: run(),
+      lastCheck: null,
       nextRunAt: null,
     }
     expect(backupHealth({ ...base, configured: false }).label).toBe('Non configurées')
@@ -126,5 +131,44 @@ describe('backups', () => {
   it('names the keys of each repository type', () => {
     expect(credentialLabels('local')).toBeNull()
     expect(credentialLabels('s3')?.secret).toBe('Clé secrète')
+  })
+
+  it('labels and describes the maintenance operations', () => {
+    expect(runLabel(run({ operation: 'forget-prune', origin: 'schedule' }))).toBe(
+      'Rétention planifiée',
+    )
+    expect(runLabel(run({ operation: 'check', origin: 'manual' }))).toBe('Vérification du dépôt')
+    expect(
+      runLabel(run({ operation: 'restore', origin: 'manual', details: { dryRun: true } })),
+    ).toBe('Restauration simulée')
+    expect(
+      describeDetails(
+        run({
+          operation: 'restore',
+          details: { filesRestored: 3, target: '/var/lib/homelab-backup/restore/x' },
+        }),
+      ),
+    ).toBe('3 fichier(s) restauré(s) dans /var/lib/homelab-backup/restore/x')
+    expect(
+      describeDetails(run({ operation: 'forget-prune', details: { snapshotsRemoved: 2 } })),
+    ).toBe('2 instantané(s) supprimé(s)')
+    expect(describeDetails(run({ operation: 'check', details: { subsetPercent: 5 } }))).toBe(
+      '5 % des données relues sans erreur',
+    )
+    expect(
+      describeDetails(run({ operation: 'check', state: 'failed', details: { subsetPercent: 5 } })),
+    ).toBeNull()
+  })
+
+  it('converts the retention and the check', () => {
+    const values = configToValues(config)
+    expect(values).toMatchObject({ retentionEnabled: false, keepDaily: 7, checkSubsetPercent: 5 })
+    expect(valuesToInput({ ...values, retentionEnabled: true, keepYearly: 2 }).retention).toEqual({
+      enabled: true,
+      keepDaily: 7,
+      keepWeekly: 4,
+      keepMonthly: 6,
+      keepYearly: 2,
+    })
   })
 })

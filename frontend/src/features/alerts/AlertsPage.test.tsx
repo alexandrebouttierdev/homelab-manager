@@ -26,6 +26,7 @@ import {
   type NotificationChannel,
   type Silence,
 } from '../../lib/api/notifications'
+import { getLastUnitAction, listUnits, requestUnitAction } from '../../lib/api/services'
 import { RefreshProvider } from '../../lib/refresh'
 import { AlertsPage } from './AlertsPage'
 
@@ -40,6 +41,12 @@ vi.mock('../../lib/api/alerts', () => ({
 }))
 
 vi.mock('../../lib/api/monitoring', () => ({ listContainers: vi.fn() }))
+
+vi.mock('../../lib/api/services', () => ({
+  listUnits: vi.fn(),
+  requestUnitAction: vi.fn(),
+  getLastUnitAction: vi.fn(),
+}))
 
 vi.mock('../../lib/api/notifications', () => ({
   listSilences: vi.fn(),
@@ -210,6 +217,13 @@ function renderPage() {
 
 describe('AlertsPage', () => {
   beforeEach(() => {
+    vi.mocked(listUnits).mockResolvedValue({
+      status: 'ok',
+      collectedAt: '2026-11-24T10:00:00Z',
+      counts: { total: 0, active: 0, failed: 0, activeTimers: 0 },
+      units: [],
+      manageableUnits: ['backup.service'],
+    })
     vi.mocked(getAlertSummary).mockResolvedValue({
       open: { info: 0, warning: 1, critical: 1 },
       resolvedLast24h: 3,
@@ -272,6 +286,44 @@ describe('AlertsPage', () => {
     await user.click(buttons[1])
     await waitFor(() => expect(acknowledgeAlert).toHaveBeenCalled())
     expect(vi.mocked(acknowledgeAlert).mock.calls[0][0]).toBe('disk')
+  })
+
+  it('lets an operator restart the failed unit of an alert after confirmation', async () => {
+    session.role = 'operator'
+    const running = {
+      unit: 'backup.service',
+      action: 'restart' as const,
+      state: 'running' as const,
+      failure: null,
+      requestedBy: 'u',
+      requestedAt: '2026-11-24T10:00:00Z',
+      finishedAt: null,
+      final: null,
+    }
+    vi.mocked(requestUnitAction).mockResolvedValue(running)
+    vi.mocked(getLastUnitAction).mockResolvedValue({
+      ...running,
+      state: 'failed',
+      failure: 'not_allowed',
+      finishedAt: '2026-11-24T10:00:01Z',
+    })
+    const user = userEvent.setup()
+    renderPage()
+
+    const restart = await screen.findAllByRole('button', { name: 'Redémarrer' })
+    expect(restart).toHaveLength(1)
+    await user.click(restart[0])
+    await user.click(screen.getByRole('button', { name: 'Confirmer : Redémarrer' }))
+    await waitFor(() => expect(requestUnitAction).toHaveBeenCalledWith('backup.service', 'restart'))
+    expect(await screen.findByText(/homelab-manager polkit-rule/)).toBeInTheDocument()
+  })
+
+  it('offers no restart to a viewer', async () => {
+    session.role = 'viewer'
+    renderPage()
+    expect(await screen.findByText('Unité systemd en échec')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Redémarrer' })).not.toBeInTheDocument()
+    expect(listUnits).not.toHaveBeenCalled()
   })
 
   it('lets an administrator create, toggle and delete rules', async () => {

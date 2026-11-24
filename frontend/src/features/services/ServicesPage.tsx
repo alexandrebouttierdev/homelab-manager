@@ -32,6 +32,7 @@ import {
   unitStateTone,
   unitTypeLabel,
 } from '../../lib/services'
+import { UnitActionButtons, UnitActionStatus } from './UnitActions'
 import { useServicesPage, type ServicesPageModel } from './useServicesPage'
 
 export function ServicesPage() {
@@ -46,7 +47,7 @@ export function ServicesPage() {
         badge={
           inventory.status && <Badge tone={inventory.status.tone}>{inventory.status.label}</Badge>
         }
-        description="Services, timers et sockets systemd de la machine, en lecture seule, relus toutes les 30 secondes."
+        description="Services, timers et sockets systemd de la machine, relus toutes les 30 secondes. Seules les unités listées dans la configuration du Manager peuvent être démarrées, arrêtées, redémarrées ou rechargées."
         actions={
           <Button
             size="sm"
@@ -305,6 +306,17 @@ function Detail({ page }: { page: ServicesPageModel }) {
         )}
         {data && (
           <>
+            {(detail.actions.length > 0 || page.unitAction.progress) && (
+              <section className="space-y-2">
+                <h3 className="text-xs font-semibold text-text-primary">Actions</h3>
+                <UnitActionButtons
+                  model={page.unitAction}
+                  choices={detail.actions}
+                  unitName={data.unit.name}
+                />
+                <UnitActionStatus model={page.unitAction} />
+              </section>
+            )}
             <section>
               <h3 className="mb-1 text-xs font-semibold text-text-primary">État</h3>
               <dl>

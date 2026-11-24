@@ -1,4 +1,4 @@
-import { BellOff, CheckCircle2, History, RefreshCw, VolumeX } from 'lucide-react'
+import { BellOff, CheckCircle2, History, RefreshCw, RotateCcw, VolumeX } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
@@ -15,6 +15,7 @@ import { AlertRulesPanel } from './AlertRulesPanel'
 import { ChannelsPanel } from './ChannelsPanel'
 import { SilenceForm } from './SilenceForm'
 import { SilencesPanel } from './SilencesPanel'
+import { UnitActionStatus } from '../services/UnitActions'
 import { useAlertsPage, useAlertsTabs, type AlertsPageModel } from './useAlertsPage'
 
 export function AlertsPage() {
@@ -91,6 +92,8 @@ function AlertsPanel() {
       )}
 
       {page.silence.isOpen && <SilenceForm model={page.silence} />}
+
+      <UnitActionStatus model={page.unitAction} />
 
       {page.view === 'open' ? <OpenAlerts page={page} /> : <AlertHistory page={page} />}
     </div>
@@ -179,6 +182,16 @@ function OpenAlerts({ page }: { page: AlertsPageModel }) {
                     onClick={() => page.startSilence(row.id)}
                   >
                     Silence
+                  </Button>
+                )}
+                {row.restartUnit && (
+                  <Button
+                    size="sm"
+                    icon={<RotateCcw className="h-3.5 w-3.5" />}
+                    disabled={page.unitAction.busy || page.unitAction.pending !== null}
+                    onClick={() => page.restart(row.restartUnit ?? '')}
+                  >
+                    Redémarrer
                   </Button>
                 )}
               </div>

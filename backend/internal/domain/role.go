@@ -28,16 +28,19 @@ const (
 	PermManageAlerts Permission = "alerts:manage"
 	// PermScanVulnerabilities covers starting a vulnerability scan.
 	PermScanVulnerabilities Permission = "vulnerabilities:scan"
+	// PermManageServices covers starting, stopping, restarting and
+	// reloading the units of the allow list.
+	PermManageServices Permission = "services:manage"
 )
 
 // rolePermissions is the single source of the role policy. Operators gain
-// their service and backup permissions with phases 5 and 6.
+// their backup permissions with phase 6.
 var rolePermissions = map[Role]map[Permission]bool{
 	RoleViewer:   {},
-	RoleOperator: {PermOperateAlerts: true, PermScanVulnerabilities: true},
+	RoleOperator: {PermOperateAlerts: true, PermScanVulnerabilities: true, PermManageServices: true},
 	RoleAdmin: {
 		PermManageSettings: true, PermManageUsers: true, PermManagePower: true, PermViewAudit: true,
-		PermOperateAlerts: true, PermManageAlerts: true, PermScanVulnerabilities: true,
+		PermOperateAlerts: true, PermManageAlerts: true, PermScanVulnerabilities: true, PermManageServices: true,
 	},
 }
 

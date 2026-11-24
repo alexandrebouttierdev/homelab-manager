@@ -59,6 +59,9 @@ type unitListDTO struct {
 	CollectedAt *time.Time    `json:"collectedAt"`
 	Counts      unitCountsDTO `json:"counts"`
 	Units       []unitDTO     `json:"units"`
+	// ManageableUnits is the allow list of the service configuration
+	// (SPEC_ADMINISTRATION.md § 5.2), sorted; [] when it is empty.
+	ManageableUnits []string `json:"manageableUnits"`
 }
 
 // unitLimitDTO tells "infinity" (unlimited) from an unknown limit (value
@@ -102,16 +105,21 @@ func toUnitLimitDTO(limit domain.UnitLimit) unitLimitDTO {
 	return unitLimitDTO{Value: limit.Value, Unlimited: limit.Unlimited}
 }
 
-func listUnitsHandler(units *usecase.ServiceUsecase) http.HandlerFunc {
+func listUnitsHandler(units *usecase.ServiceUsecase, actions *usecase.UnitActionUsecase) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		inventory := units.Inventory()
+		manageable := []string{}
+		if actions != nil {
+			manageable = actions.ManageableUnits()
+		}
 		response := unitListDTO{
 			Status: string(inventory.Status), CollectedAt: inventory.CollectedAt,
 			Counts: unitCountsDTO{
 				Total: inventory.Counts.Total, Active: inventory.Counts.Active,
 				Failed: inventory.Counts.Failed, ActiveTimers: inventory.Counts.ActiveTimers,
 			},
-			Units: make([]unitDTO, 0, len(inventory.Units)),
+			Units:           make([]unitDTO, 0, len(inventory.Units)),
+			ManageableUnits: manageable,
 		}
 		for _, unit := range inventory.Units {
 			response.Units = append(response.Units, toUnitDTO(unit))
@@ -120,13 +128,21 @@ func listUnitsHandler(units *usecase.ServiceUsecase) http.HandlerFunc {
 	}
 }
 
+// unitNameParam decodes the unit name of the path: chi matches the escaped
+// path, so "getty%40tty1.service" arrives escaped and is decoded once here.
+func unitNameParam(w http.ResponseWriter, r *http.Request) (string, bool) {
+	name, err := url.PathUnescape(chi.URLParam(r, "unitName"))
+	if err != nil || !domain.ValidUnitName(name) {
+		writeError(w, r, http.StatusBadRequest, "VALIDATION_ERROR", "The unit name is invalid.")
+		return "", false
+	}
+	return name, true
+}
+
 func unitDetailHandler(logger *zap.Logger, units *usecase.ServiceUsecase) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
-		// chi matches the escaped path: "getty%40tty1.service" arrives
-		// escaped and is decoded once here.
-		name, err := url.PathUnescape(chi.URLParam(r, "unitName"))
-		if err != nil {
-			writeError(w, r, http.StatusBadRequest, "VALIDATION_ERROR", "The unit name is invalid.")
+		name, ok := unitNameParam(w, r)
+		if !ok {
 			return
 		}
 		detail, err := units.Detail(r.Context(), name)
@@ -162,5 +178,105 @@ func unitDetailHandler(logger *zap.Logger, units *usecase.ServiceUsecase) http.H
 			response.Journal.Entries = append(response.Journal.Entries, toJournalEntryDTO(entry))
 		}
 		writeJSON(w, http.StatusOK, response)
+	}
+}
+
+type unitActionRequest struct {
+	Action string `json:"action"`
+}
+
+type unitStableStateDTO struct {
+	ActiveState string `json:"activeState"`
+	SubState    string `json:"subState"`
+}
+
+type unitActionDTO struct {
+	Unit        string              `json:"unit"`
+	Action      string              `json:"action"`
+	State       string              `json:"state"`
+	Failure     *string             `json:"failure"`
+	RequestedBy string              `json:"requestedBy"`
+	RequestedAt time.Time           `json:"requestedAt"`
+	FinishedAt  *time.Time          `json:"finishedAt"`
+	Final       *unitStableStateDTO `json:"final"`
+}
+
+func toUnitActionDTO(action domain.UnitAction) unitActionDTO {
+	dto := unitActionDTO{
+		Unit: action.Unit, Action: string(action.Verb), State: string(action.State),
+		Failure: optionalString(string(action.Failure)), RequestedBy: action.RequestedBy,
+		RequestedAt: action.RequestedAt, FinishedAt: action.FinishedAt,
+	}
+	if action.Final != nil {
+		dto.Final = &unitStableStateDTO{ActiveState: action.Final.ActiveState, SubState: action.Final.SubState}
+	}
+	return dto
+}
+
+// requireUnitActions answers 503 when the actions are unavailable (no
+// database, hence no audit).
+func requireUnitActions(actions *usecase.UnitActionUsecase) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if actions == nil {
+				writeError(w, r, http.StatusServiceUnavailable, "UNIT_ACTIONS_UNAVAILABLE", "Unit actions are unavailable.")
+				return
+			}
+			next.ServeHTTP(w, r)
+		})
+	}
+}
+
+func requestUnitActionHandler(actions *usecase.UnitActionUsecase) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		name, ok := unitNameParam(w, r)
+		if !ok {
+			return
+		}
+		var request unitActionRequest
+		if err := decodeJSON(r, &request); err != nil || !domain.UnitVerb(request.Action).Valid() {
+			writeError(w, r, http.StatusBadRequest, "VALIDATION_ERROR", "action must be start, stop, restart or reload.")
+			return
+		}
+		actor, ok := sessionUser(r)
+		if !ok {
+			writeError(w, r, http.StatusUnauthorized, "SESSION_NOT_FOUND", "Authentication is required.")
+			return
+		}
+		action, err := actions.Request(r.Context(), actor, name, domain.UnitVerb(request.Action), middleware.GetReqID(r.Context()))
+		switch {
+		case err == nil:
+			writeJSON(w, http.StatusAccepted, map[string]any{"action": toUnitActionDTO(action)})
+		case errors.Is(err, domain.ErrInvalidUnitVerb), errors.Is(err, domain.ErrInvalidUnitName):
+			writeError(w, r, http.StatusBadRequest, "VALIDATION_ERROR", "The unit or the action is invalid.")
+		case errors.Is(err, domain.ErrUnitNotManageable):
+			writeError(w, r, http.StatusConflict, "UNIT_NOT_MANAGEABLE", "The unit is not in the allow list of the service configuration.")
+		case errors.Is(err, domain.ErrActionInProgress):
+			writeError(w, r, http.StatusConflict, "ACTION_IN_PROGRESS", "An action is already in progress on this unit.")
+		case errors.Is(err, domain.ErrUnitActionsLimited):
+			writeError(w, r, http.StatusTooManyRequests, "UNIT_ACTION_RATE_LIMITED", "Too many unit actions in the last minute.")
+		case errors.Is(err, domain.ErrUnitActionsUnavailable):
+			writeError(w, r, http.StatusServiceUnavailable, "UNIT_ACTIONS_UNAVAILABLE", "Unit actions are unavailable.")
+		default:
+			writeError(w, r, http.StatusInternalServerError, "UNIT_ACTION_FAILED", "The action could not be requested.")
+		}
+	}
+}
+
+func lastUnitActionHandler(actions *usecase.UnitActionUsecase) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		name, ok := unitNameParam(w, r)
+		if !ok {
+			return
+		}
+		action, found, err := actions.Last(name)
+		switch {
+		case err != nil:
+			writeError(w, r, http.StatusBadRequest, "VALIDATION_ERROR", "The unit name is invalid.")
+		case !found:
+			writeError(w, r, http.StatusNotFound, "NOT_FOUND", "No action was requested on this unit since the Manager started.")
+		default:
+			writeJSON(w, http.StatusOK, map[string]any{"action": toUnitActionDTO(action)})
+		}
 	}
 }

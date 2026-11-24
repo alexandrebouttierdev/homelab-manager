@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"homelab-manager/backend/internal/domain"
+
 	"github.com/spf13/viper"
 )
 
@@ -30,6 +32,9 @@ type Config struct {
 	VulnerabilityScanIntervalHours int
 	VulnscanInventoryPath          string
 	VulnscanResultPath             string
+	// ManageableUnits is the allow list of the service actions
+	// (systemd_manageable_units), validated by LoadConfig.
+	ManageableUnits domain.ManageableUnits
 }
 
 func LoadConfig() (Config, error) {
@@ -65,6 +70,10 @@ func LoadConfig() (Config, error) {
 	v.SetDefault("vulnerability_scan_interval_hours", 24)
 	v.SetDefault("vulnscan_inventory_path", "/var/lib/homelab-vulnscan/inventory/inventory.json")
 	v.SetDefault("vulnscan_result_path", "/var/lib/homelab-vulnscan/result/result.json")
+	// Units the operators may start, stop, restart and reload; empty by
+	// default. HOMELAB_SYSTEMD_MANAGEABLE_UNITS separates them by spaces.
+	// They also need the rule printed by "homelab-manager polkit-rule".
+	v.SetDefault("systemd_manageable_units", []string{})
 
 	if err := v.ReadInConfig(); err != nil {
 		var notFound viper.ConfigFileNotFoundError
@@ -97,6 +106,11 @@ func LoadConfig() (Config, error) {
 	if config.TLSCertFile != "" {
 		config.SessionSecure = true
 	}
+	manageable, err := domain.NewManageableUnits(v.GetStringSlice("systemd_manageable_units"))
+	if err != nil {
+		return Config{}, fmt.Errorf("systemd_manageable_units: %w", err)
+	}
+	config.ManageableUnits = manageable
 	if err := config.Validate(); err != nil {
 		return Config{}, err
 	}

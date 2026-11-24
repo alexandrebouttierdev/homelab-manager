@@ -33,6 +33,9 @@ import (
 var version = "dev"
 
 func main() {
+	if len(os.Args) > 1 {
+		os.Exit(runCommand(os.Args[1:], os.Stdout, os.Stderr, LoadConfig))
+	}
 	config, err := LoadConfig()
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "configuration error: %v\n", err)
@@ -187,10 +190,27 @@ func main() {
 			vulnerabilityUsecase.Run(schedulerCtx)
 		}()
 	}
+	// Service actions: they are audited, so they need the database.
+	var unitActionUsecase *usecase.UnitActionUsecase
+	var unitActionsDone chan struct{}
+	if database != nil {
+		unitActionUsecase = usecase.NewUnitActionUsecase(systemd.NewController(systemd.SystemBus),
+			sqlite.NewAuditRepository(database.Client()), config.ManageableUnits, logger)
+		unitActionsDone = make(chan struct{})
+		go func() {
+			defer close(unitActionsDone)
+			unitActionUsecase.Run(schedulerCtx)
+		}()
+		if names := config.ManageableUnits.Names(); len(names) > 0 {
+			logger.Info("Service actions are allowed on the listed units; they also require the rule of \"homelab-manager polkit-rule\"",
+				zap.Strings("units", names))
+		}
+	}
 	router := httpdelivery.NewRouter(logger, httpdelivery.Services{
 		Health: healthUsecase, Auth: authUsecase, Monitoring: monitoringUsecase,
 		Accounts: accountUsecase, Power: powerUsecase, Security: securityUsecase, Audit: auditUsecase,
-		SecondFactors: secondFactorUsecase, Journal: journalUsecase, Units: serviceUsecase, Alerts: alertUsecase,
+		SecondFactors: secondFactorUsecase, Journal: journalUsecase, Units: serviceUsecase, UnitActions: unitActionUsecase,
+		Alerts:        alertUsecase,
 		Notifications: notificationUsecase, Vulnerabilities: vulnerabilityUsecase,
 	}, config.SessionSecure, config.WebRoot)
 
@@ -250,6 +270,14 @@ func main() {
 			logger.Error("alert notifications did not stop before deadline")
 		}
 		notifier.CloseIdleConnections()
+	}
+	if unitActionsDone != nil {
+		// An action being followed ends as interrupted at once.
+		select {
+		case <-unitActionsDone:
+		case <-time.After(10 * time.Second):
+			logger.Error("unit actions did not stop before deadline")
+		}
 	}
 	if vulnerabilitiesDone != nil {
 		// A running scan is recorded as interrupted, within a few seconds.

@@ -1,6 +1,6 @@
 # Spécification des modules d'administration — Homelab Manager
 
-Version 3.0 (brouillon) — 22 novembre 2026 — **partiellement implémenté** : comptes multiples et rôles (§§ 3.1–3.2, phase 1A), sessions, politique de sécurité et journal d'audit (§§ 3.4–3.5, phase 1B), coffre de secrets, TOTP et codes de secours (§§ 2.5, 3.3 hors WebAuthn, phase 1C) journaux système (§ 4, phase 2), consultation des services système (§ 5.1, phase 3), vulnérabilités des paquets (§ 8 ter, module V) et redémarrage et extinction de la machine (§ 8 bis, module M), le 23 novembre 2026 ; règles, cycle de vie, indicateurs, silences et canaux des alertes (§§ 6.1 à 6.3, 6.4 sans action, phase 4), le 24 novembre 2026.
+Version 3.0 (brouillon) — 22 novembre 2026 — **partiellement implémenté** : comptes multiples et rôles (§§ 3.1–3.2, phase 1A), sessions, politique de sécurité et journal d'audit (§§ 3.4–3.5, phase 1B), coffre de secrets, TOTP et codes de secours (§§ 2.5, 3.3 hors WebAuthn, phase 1C) journaux système (§ 4, phase 2), consultation des services système (§ 5.1, phase 3), vulnérabilités des paquets (§ 8 ter, module V) et redémarrage et extinction de la machine (§ 8 bis, module M), le 23 novembre 2026 ; règles, cycle de vie, indicateurs, silences et canaux des alertes (§§ 6.1 à 6.4, phase 4) et actions sur les services système (§ 5.2, phase 5), le 24 novembre 2026.
 
 Ce document spécifie les modules annoncés « à venir » dans la navigation : utilisateurs et accès, journaux système, services système, alertes et notifications, sauvegardes, tâches planifiées, ainsi que le redémarrage et l'extinction de la machine (§ 8 bis, ajouté le 23 novembre 2026). Il s'appuie sur les maquettes de `maquette/` et en fixe le périmètre réel : une maquette montre une intention visuelle, ce document fait foi. Tant qu'un module n'est pas livré, il reste désactivé dans l'interface et ses routes n'existent pas.
 
@@ -34,7 +34,7 @@ Le Manager s'exécute sous le compte `homelab-manager`. Chaque besoin privilégi
 | Lire les crontabs système | Lecture de `/etc/crontab`, `/etc/cron.d`, `/etc/cron.*` (lisibles par tous) | Lecture seule |
 | Redémarrer ou éteindre la machine (§ 8 bis) | D-Bus `systemd-logind` + règle **polkit** dédiée | Uniquement `org.freedesktop.login1.reboot`, `power-off` et leurs variantes `-multiple-sessions` ; jamais `-ignore-inhibit` ; inactif tant que `power_actions_enabled` est faux |
 
-La règle polkit est installée par l'administrateur et générée à partir de la configuration (`/etc/polkit-1/rules.d/50-homelab-manager.rules`). Elle n'accorde `org.freedesktop.systemd1.manage-units` qu'au compte `homelab-manager`, pour les verbes `start`, `stop`, `restart`, `reload` et pour les seules unités de la liste blanche `systemd_manageable_units`. Le Manager ne peut donc ni toucher une autre unité, ni lancer `daemon-reload`, ni activer ou désactiver une unité, même s'il était compromis.
+La règle polkit est installée par l'administrateur et générée à partir de la configuration (`/etc/polkit-1/rules.d/50-homelab-manager.rules`) par la sous-commande `homelab-manager polkit-rule`, qui lit la même configuration que le service (option retenue le 24 novembre 2026 par le propriétaire du projet : la règle ne peut pas diverger de la liste, que le Manager ne peut pas relire dans `/etc/polkit-1/rules.d/`). Elle n'accorde `org.freedesktop.systemd1.manage-units` qu'au compte `homelab-manager`, pour les verbes `start`, `stop`, `restart`, `reload` et pour les seules unités de la liste blanche `systemd_manageable_units`. Le Manager ne peut donc ni toucher une autre unité, ni lancer `daemon-reload`, ni activer ou désactiver une unité, même s'il était compromis.
 
 ### 2.2 Garanties communes à toute action
 
@@ -59,7 +59,7 @@ Tout autre programme exige une révision de ce document.
 
 | Dépendance | Usage | Justification |
 |---|---|---|
-| `github.com/coreos/go-systemd/v22/dbus` | Unités et timers via D-Bus | Go pur (godbus), évite d'exécuter `systemctl`. **Non retenue en phase 3** : godbus seul suffit à la lecture (§ 5.1) ; à réexaminer pour les actions (phase 5) |
+| `github.com/coreos/go-systemd/v22/dbus` | Unités et timers via D-Bus | Go pur (godbus), évite d'exécuter `systemctl`. **Non retenue** : godbus seul suffit à la lecture (§ 5.1, phase 3) et aux quatre actions (§ 5.2, phase 5) |
 | `github.com/godbus/dbus/v5` | Appels `systemd-logind` (§ 8 bis) | Client D-Bus Go pur, déjà dépendance de go-systemd ; le paquet `login1` de go-systemd ne renvoie pas l'erreur de `Reboot` / `PowerOff` |
 | `github.com/go-webauthn/webauthn` | Passkeys et clés FIDO2 | Vérification d'attestation et d'assertion WebAuthn conforme ; à ne pas réimplémenter |
 | `github.com/robfig/cron/v3` (analyseur seul) | Prochaines exécutions Cron | Go pur ; ou un analyseur interne équivalent, testé |
@@ -147,12 +147,13 @@ Lecture seule du journal systemd.
 - `start`, `stop`, `restart`, `reload` sur les unités de la liste blanche `systemd_manageable_units` (configuration du service, vide par défaut) ; « Exécuter » un timer = `start` du service qu'il déclenche, si ce service est dans la liste blanche.
 - Rôle `operator` au moins ; confirmation ; audit ; résultat suivi jusqu'à l'état stable (délai maximal 90 s).
 - Exclus : créer ou éditer une unité, `daemon-reload`, `enable`/`disable`, `mask`, tuer un processus, ouvrir un « cgroup viewer » (règle 3).
+- Mise en œuvre (phase 5, 24 novembre 2026) : liste blanche `systemd_manageable_units` du fichier de configuration (ou `HOMELAB_SYSTEMD_MANAGEABLE_UNITS`), validée au démarrage (motif du § 2.2, modèles `nom@.service` refusés, 200 noms au plus) ; règle polkit générée par `homelab-manager polkit-rule` (§ 2.1). Le Manager vérifie la liste avant tout appel ; polkit la vérifie de nouveau. Appels `StartUnit`, `StopUnit`, `RestartUnit`, `ReloadUnit` en mode `replace` par godbus, puis lecture du job et de l'état jusqu'à un état stable. Une action par unité, 30 par minute et par utilisateur ; audit `requested` avant l'appel puis `success` ou `failure`. « Exécuter » un timer est proposé par l'interface comme un `start` du service déclenché, qui doit lui-même être dans la liste. L'état de la dernière action par unité est gardé en mémoire, sans table. Plan et bilan : `docs/superpowers/plans/2026-11-24-phase-5-actions-services.md` ; contrat : API_CONTRACTS.md § 4.7.
 
 ## 6. Alertes et notifications (module A) — maquette `alertes_notifications_*`
 
 Moteur intégré au Manager (règle 5), évalué sur les données qu'il collecte déjà.
 
-**Mise en œuvre (phase 4A, 24 novembre 2026)** : règles des types métrique hôte, métrique conteneur, état de conteneur, unité en échec et collecteur (la règle « Sauvegarde » et sa règle par défaut viendront avec le module B) ; cycle `firing` → `acknowledged` → `resolved` et indicateurs ; liens vers l'unité, son journal et le conteneur. La règle par défaut de température utilise un seuil fixe de 85 °C, modifiable, les seuils des capteurs n'étant pas collectés. **Phase 4B (24 novembre 2026)** : silences par règle, par cible (une règle sur une cible) ou globaux, l'alerte restant listée « sous silence » (décision Q-7) ; six canaux, secrets scellés par le coffre et jamais renvoyés, routage par sévérité, regroupement à un message par minute et par canal, renotification d'une alerte `firing` non acquittée, bouton « Tester », dernier envoi et dernière erreur. L'action « Redémarrer » (phase 5) n'est pas encore livrée. Contrat : API_CONTRACTS.md § 4.8.
+**Mise en œuvre (phase 4A, 24 novembre 2026)** : règles des types métrique hôte, métrique conteneur, état de conteneur, unité en échec et collecteur (la règle « Sauvegarde » et sa règle par défaut viendront avec le module B) ; cycle `firing` → `acknowledged` → `resolved` et indicateurs ; liens vers l'unité, son journal et le conteneur. La règle par défaut de température utilise un seuil fixe de 85 °C, modifiable, les seuils des capteurs n'étant pas collectés. **Phase 4B (24 novembre 2026)** : silences par règle, par cible (une règle sur une cible) ou globaux, l'alerte restant listée « sous silence » (décision Q-7) ; six canaux, secrets scellés par le coffre et jamais renvoyés, routage par sévérité, regroupement à un message par minute et par canal, renotification d'une alerte `firing` non acquittée, bouton « Tester », dernier envoi et dernière erreur. L'action « Redémarrer » est livrée avec la phase 5 (§ 6.4). Contrat : API_CONTRACTS.md § 4.8.
 
 ### 6.1 Règles
 
@@ -181,6 +182,8 @@ Moteur intégré au Manager (règle 5), évalué sur les données qu'il collecte
 ### 6.4 Actions depuis une alerte
 
 Liens vers le journal de l'unité (module J) et action « Redémarrer » si l'unité est dans la liste blanche (module S). « Nettoyer Docker (prune) » et « Augmenter le seuil » en un clic ne sont pas retenus ; le seuil se modifie dans la règle.
+
+Mise en œuvre (phase 5, 24 novembre 2026) : « Redémarrer » est proposé aux `operator` et `admin` sur une alerte ouverte de type « unité en échec » dont l'unité est dans la liste blanche, avec la même confirmation, le même audit et le même suivi que la page Services.
 
 ## 7. Sauvegardes et restauration (module B) — maquettes `sauvegardes_*`, `param_tres_sauvegardes_*`, `r_gles_d_exclusion_*`, `journaux_de_sauvegarde_*`
 
@@ -287,7 +290,7 @@ Ajouté le 24 novembre 2026 à la demande du propriétaire du projet : détecter
 | 2 | Module J (lecture du journal). **Livré** | Groupe `systemd-journal` |
 | 3 | Module S en lecture, événements `service.failed`. **Livré** | D-Bus |
 | 4 | Module A : règles, cycle de vie, canaux. **Livrée** : 4A (règles, cycle de vie, acquittement, indicateurs) et 4B (canaux, silences, regroupement, renotification) | Phases 1 et 3, secrets § 2.5 |
-| 5 | Module S, actions par polkit | Phase 1 |
+| 5 | Module S, actions par polkit. **Livrée** (liste blanche, règle générée, « Redémarrer » depuis une alerte) | Phase 1 |
 | 6 | Module B : dépôts, sauvegarde, rétention, restauration en quarantaine | Phases 1 et 4 |
 | 7 | Module C en lecture | Phase 2 |
 | 8 | WebAuthn, jetons d'API | Phase 1, HTTPS |

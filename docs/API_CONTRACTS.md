@@ -363,7 +363,7 @@ Bornes communes : 10 s par appel à `journalctl`, 4 appels simultanés au plus, 
 
 ### 4.7 Services système
 
-Lecture seule des unités systemd par D-Bus (SPEC_ADMINISTRATION.md § 5.1), ouverte à tous les rôles. Le Manager appelle seulement `ListUnits`, `GetUnit` et la lecture des propriétés (`org.freedesktop.DBus.Properties.GetAll`) sur `org.freedesktop.systemd1` ; aucune méthode qui modifie une unité.
+Lecture des unités systemd par D-Bus (SPEC_ADMINISTRATION.md § 5.1), ouverte à tous les rôles. Pour la lecture, le Manager appelle seulement `ListUnits`, `GetUnit` et la lecture des propriétés (`org.freedesktop.DBus.Properties.GetAll` et `Get`) sur `org.freedesktop.systemd1`. Les seules méthodes qui modifient une unité sont les quatre actions de la liste blanche (§ 5.2, plus bas).
 
 **Collecte** : au démarrage puis toutes les 30 s (25 s au plus par cycle), indépendamment des requêtes. Seuls les types `service`, `timer` et `socket` chargés en mémoire par systemd sont retenus, 2 000 au plus, les unités en échec d'abord puis par nom.
 
@@ -381,7 +381,8 @@ Lecture seule des unités systemd par D-Bus (SPEC_ADMINISTRATION.md § 5.1), ouv
       "stateChangedAt": "2026-11-23T08:00:00.123456Z", "mainPid": 812, "memoryBytes": 4194304,
       "cpuNanoseconds": 2000000000, "result": "success", "nextElapse": null, "lastTrigger": null, "triggers": []
     }
-  ]
+  ],
+  "manageableUnits": ["nginx.service"]
 }
 ```
 
@@ -389,6 +390,7 @@ Lecture seule des unités systemd par D-Bus (SPEC_ADMINISTRATION.md § 5.1), ouv
 - `counts` : `active` et `failed` comptent les `activeState` `active` et `failed` ; `activeTimers`, les timers `active`.
 - Valeurs absentes, jamais `0` : `mainPid` (pas de processus principal), `memoryBytes` et `cpuNanoseconds` (comptabilité désactivée, `UINT64_MAX` pour systemd ; services seulement), `stateChangedAt`, `nextElapse` et `lastTrigger` (horodatage 0, jamais ; ces deux derniers pour les timers seulement), `unitFileState` et `result` (non fournis) valent `null`.
 - `triggers` : unités démarrées par un timer ou un socket ; `[]` sinon.
+- `manageableUnits` : liste blanche de la configuration du service (`systemd_manageable_units`), triée ; `[]` si elle est vide ou si les actions sont indisponibles. Elle peut citer une unité absente de l'inventaire (non chargée).
 - Une unité disparue entre la liste et la lecture de ses propriétés garde les seuls champs de la liste (`description`, états).
 
 `GET /api/v1/system/units/{unitName}` — unité du dernier inventaire, relue à la demande (10 s au plus) :
@@ -413,6 +415,24 @@ Lecture seule des unités systemd par D-Bus (SPEC_ADMINISTRATION.md § 5.1), ouv
 - Limites : `unlimited: true` pour `infinity` ; `value: null` et `unlimited: false` quand la limite est inconnue (propriété absente, par exemple pour un timer). `restart`, `slice` et `fragmentPath` sont `null` s'ils ne sont pas fournis.
 - `journal.entries` : les 50 entrées les plus récentes de l'unité, toutes priorités, de la plus récente à la plus ancienne, au format du § 4.6. `available: false` et `entries: []` si le journal ne peut pas être lu (`journalctl` absent ou en échec) ; le détail reste servi.
 - Erreurs : nom invalide `400 VALIDATION_ERROR` (un nom échappé par systemd, contenant `\`, est hors du motif : l'unité figure dans l'inventaire mais son détail est refusé) ; unité absente du dernier inventaire ou disparue `404 NOT_FOUND` ; aucun inventaire réussi ou systemd injoignable `503 SYSTEMD_UNAVAILABLE` ; autre échec de lecture `500 SYSTEMD_READ_FAILED`.
+
+**Actions** (SPEC_ADMINISTRATION.md § 5.2, phase 5) : `start`, `stop`, `restart` ou `reload` d'une unité de `manageableUnits`, par D-Bus (`StartUnit`, `StopUnit`, `RestartUnit`, `ReloadUnit`, mode `replace`, sans authentification interactive), autorisé par la règle polkit que génère `homelab-manager polkit-rule`. « Exécuter » un timer est un `start` du service qu'il déclenche, demandé par l'interface sur ce service.
+
+`POST /api/v1/system/units/{unitName}/actions` (`operator` ou `admin`) avec `{ "action": "restart" }` → `202 { "action": Action }` (`state: running`). L'action se poursuit en arrière-plan : le Manager suit le job puis l'unité jusqu'à un état stable (ni `activating`, ni `deactivating`, ni `reloading`), 90 s au plus. Action :
+
+```json
+{
+  "unit": "nginx.service", "action": "restart", "state": "succeeded", "failure": null,
+  "requestedBy": "olivia", "requestedAt": "2026-11-24T10:00:00Z", "finishedAt": "2026-11-24T10:00:03Z",
+  "final": { "activeState": "active", "subState": "running" }
+}
+```
+
+- `state` : `running`, `succeeded` (unité qui n'est pas `failed` à l'état stable), `failed`. `failure` (`null` sauf en échec) : `failed` (unité en échec), `not_allowed` (refus de polkit : règle absente ou sans cette unité), `not_found` (unité inconnue de systemd), `rejected` (job refusé par systemd : verbe non applicable, unité masquée, démarrage manuel interdit…), `timeout`, `unavailable` (bus ou systemd injoignable), `interrupted` (Manager arrêté pendant le suivi). `final` : état lu à la fin, `null` en cours ou s'il n'a pas pu être lu ; une unité déchargée après un arrêt vaut `inactive` / `dead`.
+- Audit (`system_unit` / nom de l'unité / verbe) : `requested` avant l'appel à systemd (sans écriture possible, rien n'est demandé), puis `success` ou `failure` à la fin.
+- Erreurs : corps invalide, verbe inconnu ou champ inconnu `400 VALIDATION_ERROR` ; nom invalide `400 VALIDATION_ERROR` ; unité hors liste blanche `409 UNIT_NOT_MANAGEABLE` ; action déjà en cours sur l'unité `409 ACTION_IN_PROGRESS` ; plus de 30 demandes dans la dernière minute pour l'utilisateur `429 UNIT_ACTION_RATE_LIMITED` ; rôle `viewer` `403 FORBIDDEN` (audité) ; sans base de données, ou Manager en cours d'arrêt, `503 UNIT_ACTIONS_UNAVAILABLE` ; audit impossible à écrire `500 UNIT_ACTION_FAILED`.
+
+`GET /api/v1/system/units/{unitName}/actions/last` (tous les rôles) → `200 { "action": Action }` : dernière action demandée sur l'unité depuis le démarrage du Manager (gardée en mémoire ; l'historique est dans le journal d'audit). Aucune : `404 NOT_FOUND`. L'interface l'interroge chaque seconde tant que `state` vaut `running`.
 
 ### 4.8 Alertes
 
@@ -811,6 +831,10 @@ Les routes sont versionnées sous `/api/v1`. Un changement incompatible (champ s
 | `JOURNAL_READ_FAILED` | 500 | Lecture du journal système en échec |
 | `SYSTEMD_UNAVAILABLE` | 503 | systemd injoignable ou aucun inventaire des unités |
 | `SYSTEMD_READ_FAILED` | 500 | Lecture d'une unité systemd en échec |
+| `UNIT_NOT_MANAGEABLE` | 409 | Unité hors de la liste blanche `systemd_manageable_units` |
+| `UNIT_ACTION_RATE_LIMITED` | 429 | Plus de 30 actions sur les unités dans la dernière minute |
+| `UNIT_ACTIONS_UNAVAILABLE` | 503 | Actions sur les unités indisponibles (base de données absente, Manager en arrêt) |
+| `UNIT_ACTION_FAILED` | 500 | Demande d'action impossible à enregistrer (audit en échec) |
 | `ALERT_ALREADY_RESOLVED` | 409 | Acquittement d'une alerte résolue |
 | `DEFAULT_RULE` | 409 | Suppression d'une règle d'alerte par défaut |
 | `TOO_MANY_RULES` | 409 | Plus de 200 règles d'alerte |

@@ -20,3 +20,7 @@ secrets_key_file: ""
 vulnerability_scan_interval_hours: 24
 vulnscan_inventory_path: "/var/lib/homelab-vulnscan/inventory/inventory.json"
 vulnscan_result_path: "/var/lib/homelab-vulnscan/result/result.json"
+# Services système (phase 5) : unités que les opérateurs peuvent démarrer,
+# arrêter, redémarrer ou recharger. Vide par défaut. Après chaque changement,
+# régénérer la règle polkit : homelab-manager polkit-rule (voir README).
+systemd_manageable_units: []

@@ -211,6 +211,7 @@ La configuration est lue dans `manager.yaml` ([deployments/config/manager.yaml](
 | `HOMELAB_WEB_ROOT` | Répertoire `dist` servi par le Manager |
 | `HOMELAB_SECRETS_KEY_FILE` | Fichier de la clé du coffre de secrets (32 octets en base64). Vide : la clé importée par systemd, `$CREDENTIALS_DIRECTORY/homelab-manager-secrets-key`. Absente ou invalide : double authentification indisponible, le reste fonctionne |
 | `HOMELAB_POWER_ACTIONS_ENABLED` | Autorise Redémarrer / Éteindre depuis la page Machine (défaut `false`) ; exige aussi la règle polkit |
+| `HOMELAB_SYSTEMD_MANAGEABLE_UNITS` | Unités que les opérateurs peuvent démarrer, arrêter, redémarrer ou recharger, séparées par des espaces (défaut : aucune ; 200 au plus). Préférer la clé `systemd_manageable_units` de `manager.yaml`, que lit aussi `homelab-manager polkit-rule` ; exige la règle polkit générée (voir « Services système ») |
 
 Ne pas enregistrer les secrets de production dans Git. Protéger le fichier d'environnement du service.
 
@@ -241,7 +242,19 @@ Le Manager ne lance que `journalctl`, sans shell, avec des options construites �
 
 ### Services système
 
-La page « Services système » liste les services, timers et sockets systemd chargés, pour tous les rôles, en lecture seule : état, démarrage, PID, mémoire, temps CPU, prochaine exécution des timers, et un détail (fichier d'unité, `ExecStart`, dépendances, limites, 50 dernières entrées du journal). Le Manager lit systemd sur le bus système D-Bus, sans privilège ni règle polkit, toutes les 30 secondes ; il n'appelle aucune méthode qui modifie une unité et n'exécute pas `systemctl`. Une unité qui passe en échec crée un événement `service.failed`, son retour à l'état actif un événement `service.recovered`, une seule fois même après un redémarrage du Manager. Sans bus système (hors Linux, conteneur), la page l'indique et le reste fonctionne. Les actions (démarrer, arrêter, redémarrer) viendront en phase 5.
+La page « Services système » liste les services, timers et sockets systemd chargés, pour tous les rôles : état, démarrage, PID, mémoire, temps CPU, prochaine exécution des timers, et un détail (fichier d'unité, `ExecStart`, dépendances, limites, 50 dernières entrées du journal). Le Manager lit systemd sur le bus système D-Bus, sans privilège, toutes les 30 secondes, et n'exécute pas `systemctl`. Une unité qui passe en échec crée un événement `service.failed`, son retour à l'état actif un événement `service.recovered`, une seule fois même après un redémarrage du Manager. Sans bus système (hors Linux, conteneur), la page l'indique et le reste fonctionne.
+
+**Actions (optionnel).** Les opérateurs et les administrateurs peuvent démarrer, arrêter, redémarrer ou recharger les seules unités listées dans `systemd_manageable_units`, vide par défaut, et « Exécuter » un timer dont le service est listé. Chaque action est confirmée, auditée (`system_unit`, demande puis résultat), suivie jusqu'à un état stable (90 s au plus) ; une seule à la fois par unité, 30 par minute et par utilisateur. Une alerte « unité en échec » propose aussi « Redémarrer » si l'unité est listée. Rien d'autre n'est possible : ni activer, désactiver ou masquer une unité, ni `daemon-reload`, ni tuer un processus. Mise en place :
+
+```bash
+sudo apt install polkitd
+sudoedit /etc/homelab-manager/manager.yaml   # systemd_manageable_units: [nginx.service, backup.service]
+sudo /usr/local/bin/homelab-manager polkit-rule > 50-homelab-manager.rules
+sudo install -o root -g root -m 0644 50-homelab-manager.rules /etc/polkit-1/rules.d/
+sudo systemctl restart homelab-manager
+```
+
+`homelab-manager polkit-rule` lit la même configuration que le service et écrit la règle polkit correspondante : `org.freedesktop.systemd1.manage-units` pour le seul compte `homelab-manager`, sur les seules unités listées, avec les seuls verbes `start`, `stop`, `restart` et `reload`. Régénérer et réinstaller la règle après chaque changement de la liste ; sans elle, les actions échouent avec « polkit a refusé ». Placer la liste dans `manager.yaml` : la commande ne lit pas le fichier d'environnement du service. Chaque nom suit le motif `nom.service`, `nom.timer` ou `nom.socket` (instances `nom@instance.service` acceptées, modèles `nom@.service` refusés) ; un nom invalide empêche le démarrage. Ne lister que des unités dont l'arrêt est acceptable : lister `homelab-manager.service` permettrait à un opérateur d'arrêter le Manager.
 
 ### Alertes
 
@@ -335,7 +348,7 @@ La première release est `v2.3.0`, alignée sur la [spécification produit](docs
 
 ## État et limites connues
 
-- **Livré** : supervision système et Docker, historique, événements, comptes et rôles, sessions, politique de sécurité, journal d'audit, double authentification (TOTP et codes de secours), journaux système, services système en lecture, alertes avec silences et notifications (phase 4), vulnérabilités des paquets avec Grype (module V ; Debian, Ubuntu et Alpine), redémarrage et extinction (optionnels).
+- **Livré** : supervision système et Docker, historique, événements, comptes et rôles, sessions, politique de sécurité, journal d'audit, double authentification (TOTP et codes de secours), journaux système, services système avec actions en liste blanche (phase 5), alertes avec silences et notifications (phase 4), vulnérabilités des paquets avec Grype (module V ; Debian, Ubuntu et Alpine), redémarrage et extinction (optionnels).
 - **Spécifié, pas encore implémenté** : passkeys (WebAuthn) et jetons d'API, actions sur les services systemd, sauvegardes restic, tâches planifiées, lecture des paquets RPM (Fedora, Rocky Linux, AlmaLinux) pour le module V. Voir [docs/SPEC_ADMINISTRATION.md](docs/SPEC_ADMINISTRATION.md) et la [feuille de route](docs/superpowers/plans/2026-11-23-feuille-de-route-v3.md).
 - Historiques bruts ou agrégés, 2 000 points au plus par requête ; l'interface choisit le pas selon la période.
 - À l'intervalle par défaut (10 s), la base croît d'environ 300 Mo par jour jusqu'à la rétention : ≈ 2 Go pour 7 jours.

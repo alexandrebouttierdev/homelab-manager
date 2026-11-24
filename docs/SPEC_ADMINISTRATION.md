@@ -1,6 +1,6 @@
 # Spécification des modules d'administration — Homelab Manager
 
-Version 3.0 (brouillon) — 22 novembre 2026 — **partiellement implémenté** : comptes multiples et rôles (§§ 3.1–3.2, phase 1A), sessions, politique de sécurité et journal d'audit (§§ 3.4–3.5, phase 1B), coffre de secrets, TOTP et codes de secours (§§ 2.5, 3.3 hors WebAuthn, phase 1C) journaux système (§ 4, phase 2), consultation des services système (§ 5.1, phase 3) et redémarrage et extinction de la machine (§ 8 bis, module M), le 23 novembre 2026 ; règles, cycle de vie, indicateurs, silences et canaux des alertes (§§ 6.1 à 6.3, 6.4 sans action, phase 4), le 24 novembre 2026.
+Version 3.0 (brouillon) — 22 novembre 2026 — **partiellement implémenté** : comptes multiples et rôles (§§ 3.1–3.2, phase 1A), sessions, politique de sécurité et journal d'audit (§§ 3.4–3.5, phase 1B), coffre de secrets, TOTP et codes de secours (§§ 2.5, 3.3 hors WebAuthn, phase 1C) journaux système (§ 4, phase 2), consultation des services système (§ 5.1, phase 3), vulnérabilités des paquets (§ 8 ter, module V) et redémarrage et extinction de la machine (§ 8 bis, module M), le 23 novembre 2026 ; règles, cycle de vie, indicateurs, silences et canaux des alertes (§§ 6.1 à 6.3, 6.4 sans action, phase 4), le 24 novembre 2026.
 
 Ce document spécifie les modules annoncés « à venir » dans la navigation : utilisateurs et accès, journaux système, services système, alertes et notifications, sauvegardes, tâches planifiées, ainsi que le redémarrage et l'extinction de la machine (§ 8 bis, ajouté le 23 novembre 2026). Il s'appuie sur les maquettes de `maquette/` et en fixe le périmètre réel : une maquette montre une intention visuelle, ce document fait foi. Tant qu'un module n'est pas livré, il reste désactivé dans l'interface et ses routes n'existent pas.
 
@@ -51,7 +51,7 @@ La règle polkit est installée par l'administrateur et générée à partir de 
 |---|---|---|
 | `journalctl` | Lecture du journal (§ 4) | `exec` sans shell, arguments construits par le code à partir d'options validées, sortie JSON bornée (taille, nombre de lignes), délai maximal 10 s |
 | `restic` | Sauvegardes (§ 7) | Lancé uniquement par `homelab-backup@.service`, jamais par le Manager lui-même ; sortie `--json` |
-| `grype` | Vulnérabilités des paquets (§ 8 ter, prévu) | Lancé uniquement par `homelab-vulnscan.service`, jamais par le Manager lui-même ; commandes fixes dans le fichier d'unité, sortie `-o json` bornée, 15 min au plus, une seule exécution à la fois |
+| `grype` | Vulnérabilités des paquets (§ 8 ter) | Lancé uniquement par `homelab-vulnscan.service`, jamais par le Manager lui-même ; commandes fixes dans le fichier d'unité, sortie `-o json` bornée, 15 min au plus, une seule exécution à la fois |
 
 Tout autre programme exige une révision de ce document.
 
@@ -237,7 +237,9 @@ Ajouté le 23 novembre 2026 à la demande du propriétaire du projet : redémarr
 
 ## 8 ter. Vulnérabilités des paquets (module V)
 
-Ajouté le 24 novembre 2026 à la demande du propriétaire du projet : détecter les vulnérabilités connues (CVE et avis des distributions) des paquets système installés avec [Grype](https://github.com/anchore/grype) (Anchore, licence Apache 2.0), les consulter et en voir la synthèse sur le tableau de bord. **Spécifié, non implémenté** ; D-9 (machine du Manager seule), D-10 (mise à jour automatique de la base) et D-11 (unité systemd dédiée) sont tranchées : le plan détaillé peut être rédigé.
+Ajouté le 24 novembre 2026 à la demande du propriétaire du projet : détecter les vulnérabilités connues (CVE et avis des distributions) des paquets système installés avec [Grype](https://github.com/anchore/grype) (Anchore, licence Apache 2.0), les consulter et en voir la synthèse sur le tableau de bord. D-9 (machine du Manager seule), D-10 (mise à jour automatique de la base) et D-11 (unité systemd dédiée) sont tranchées.
+
+**Mise en œuvre (module V, 24 novembre 2026)** : livré pour Debian, Ubuntu et leurs dérivées (dpkg) et Alpine (apk) ; les distributions RPM sont reconnues et signalées « non prises en charge ». Écarts : les fichiers échangés avec l'unité sont dans `/var/lib/homelab-vulnscan/inventory/` et `result/` (répertoires `tmpfiles.d` en 2750, chacun lisible par le groupe de l'autre compte) et non dans le répertoire d'état du Manager, en 0700 ; la règle d'alerte prend une sévérité minimale et l'option « corrigeables seulement », sans règle par défaut. Grype figé à la version 0.121.3. Plan et bilan : `docs/superpowers/plans/2026-11-24-module-v-vulnerabilites.md` ; contrat : API_CONTRACTS.md § 4.9.
 
 ### 8 ter.1 Périmètre
 
@@ -289,7 +291,7 @@ Ajouté le 24 novembre 2026 à la demande du propriétaire du projet : détecter
 | 6 | Module B : dépôts, sauvegarde, rétention, restauration en quarantaine | Phases 1 et 4 |
 | 7 | Module C en lecture | Phase 2 |
 | 8 | WebAuthn, jetons d'API | Phase 1, HTTPS |
-| V | Module V : vulnérabilités des paquets (Grype) de la machine du Manager, placé après la phase 4 | Phase 4 (règle d'alerte) |
+| V | Module V : vulnérabilités des paquets (Grype) de la machine du Manager, placé après la phase 4. **Livré** (dpkg et apk ; RPM à venir) | Phase 4 (règle d'alerte) |
 
 Chaque phase livre son contrat dans API_CONTRACTS.md, ses tables dans DATA_MODEL.md, ses risques dans SECURITY.md, ses tests, et retire la mention « à venir » de son entrée de navigation.
 

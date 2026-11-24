@@ -38,6 +38,7 @@ Homelab Manager supervise **une seule machine Linux : celle qui l'héberge**. Le
 - Journal systemd en lecture seule : filtres, recherche, suivi en direct, export, champs sensibles masqués
 - Services, timers et sockets systemd en lecture seule (D-Bus) : états, ressources, détail, événements d'échec et de rétablissement
 - Alertes : règles sur les métriques, l'état des conteneurs, les unités en échec et les collecteurs, évaluées toutes les 15 s, acquittement, historique, silences et notifications (Telegram, Discord, Gotify, ntfy, e-mail, webhook signé)
+- Vulnérabilités connues des paquets système (Grype, unité dédiée) : analyses quotidiennes et à la demande, historique, synthèse sur le tableau de bord, règle d'alerte
 - Aucune valeur inventée : une donnée absente s'affiche comme indisponible
 
 </td>
@@ -334,8 +335,8 @@ La première release est `v2.3.0`, alignée sur la [spécification produit](docs
 
 ## État et limites connues
 
-- **Livré** : supervision système et Docker, historique, événements, comptes et rôles, sessions, politique de sécurité, journal d'audit, double authentification (TOTP et codes de secours), journaux système, services système en lecture, alertes avec silences et notifications (phase 4), redémarrage et extinction (optionnels).
-- **Spécifié, pas encore implémenté** : passkeys (WebAuthn) et jetons d'API, actions sur les services systemd, vulnérabilités des paquets (Grype), sauvegardes restic, tâches planifiées. Voir [docs/SPEC_ADMINISTRATION.md](docs/SPEC_ADMINISTRATION.md) et la [feuille de route](docs/superpowers/plans/2026-11-23-feuille-de-route-v3.md).
+- **Livré** : supervision système et Docker, historique, événements, comptes et rôles, sessions, politique de sécurité, journal d'audit, double authentification (TOTP et codes de secours), journaux système, services système en lecture, alertes avec silences et notifications (phase 4), vulnérabilités des paquets avec Grype (module V ; Debian, Ubuntu et Alpine), redémarrage et extinction (optionnels).
+- **Spécifié, pas encore implémenté** : passkeys (WebAuthn) et jetons d'API, actions sur les services systemd, sauvegardes restic, tâches planifiées, lecture des paquets RPM (Fedora, Rocky Linux, AlmaLinux) pour le module V. Voir [docs/SPEC_ADMINISTRATION.md](docs/SPEC_ADMINISTRATION.md) et la [feuille de route](docs/superpowers/plans/2026-11-23-feuille-de-route-v3.md).
 - Historiques bruts ou agrégés, 2 000 points au plus par requête ; l'interface choisit le pas selon la période.
 - À l'intervalle par défaut (10 s), la base croît d'environ 300 Mo par jour jusqu'à la rétention : ≈ 2 Go pour 7 jours.
 - Listes bornées, sans pagination ; images, volumes et réseaux Docker déduits des conteneurs.

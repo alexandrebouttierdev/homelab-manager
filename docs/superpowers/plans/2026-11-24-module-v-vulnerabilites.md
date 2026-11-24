@@ -72,3 +72,16 @@ Erreurs nouvelles : `409 SCAN_IN_PROGRESS`, `429 SCAN_RATE_LIMITED`, `503 VULNER
 7. **Interface** : client d'API, `src/lib/vulnerabilities.ts`, onglet « Vulnérabilités » de la page Machine (totaux, dernier et prochain scan, échec visible, « Analyser maintenant », tableau filtrable paginé, détail), section du tableau de bord.
 8. **Paramètres et alertes** : intervalle des scans dans les Paramètres ; type de règle `vulnerabilities` (domaine, évaluation, formulaire).
 9. **Recette** : Grype réel sur la machine de test (inventaire, base, scan, échec puis réussite), documents à jour, feuille de route, bilan dans ce plan.
+
+## Bilan (24 novembre 2026)
+
+VA et VB livrées en neuf commits (plan, domaine, adaptateurs, persistance, usecase et HTTP avec le déploiement, paramètres et règle d'alerte, interface, état). Écarts et constats :
+
+- **Comptes** : le compte `homelab-vulnscan` est créé par `adduser`, comme les autres comptes du README, plutôt que par un fichier `sysusers.d`.
+- **Données** : la colonne du déclencheur s'appelle `origin` (`trigger` est un mot réservé de SQLite) ; `severity_rank` trie par sévérité ; la migration `009` ajoute aussi `app_settings.vulnerability_scan_interval_hours`, ajout fait avant toute release de `009`.
+- **Paquets** : comme Syft, le lecteur dpkg garde tout paquet dont les fichiers sont sur le disque (hors `deinstall`, `not-installed`, `config-files`) et le paquet source même quand il porte le nom du paquet. Sur la base dpkg du conteneur de développement (Ubuntu 24.04, 837 paquets), l'inventaire donne exactement les mêmes PURL que Syft v1.57.1, et le décodeur de Syft (celui de `grype sbom:`) le relit sans perte.
+- **Démarrage de l'unité** : la fin du job de démarrage d'un service `oneshot` marque la fin du programme ; le Manager n'appelle que `StartUnit` et `GetUnit`. Le bus de test privé est partagé avec l'adaptateur systemd (`adapters/dbustest`).
+- **Règle d'alerte** : paramètres `vulnSeverity` et `fixableOnly` (au lieu de `severity`, déjà propre à la règle) ; gelée tant qu'aucun scan n'a réussi.
+- **Recette** (conteneur Linux de la session, Manager compilé, base neuve, chemins d'échange temporaires) : premier scan exactement 2 min après le démarrage ; inventaire réel de 837 paquets écrit en 0640 ; sans bus système, échec propre `vulnscan_not_installed` et nouvel essai planifié 15 min plus tard ; scan manuel d'un opérateur `202` puis `429` cinq minutes durant, audité ; intervalle refusé à l'opérateur (`403`), accepté pour l'administrateur et appliqué au prochain scan. Interface vérifiée dans Chromium en thème sombre et clair et sur téléphone avec un scan réussi et des constats insérés à la main dans la base de recette (aucun débordement horizontal) : échec de la dernière analyse visible à côté du dernier succès, tableau, détail et lien vers l'avis public, synthèse du tableau de bord, réglage de l'intervalle.
+- **Non vérifié** : un scan Grype réel de bout en bout. Le téléchargement de la base de Grype a été refusé dans l'environnement de développement ; l'unité, `tmpfiles.d`, la règle polkit, `ReadWritePaths` et Grype 0.121.3 sont à vérifier sur la machine Debian 13 de test (installation du README, puis « Analyser maintenant »). Lecteur RPM non livré.
+

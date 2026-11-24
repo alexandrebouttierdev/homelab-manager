@@ -149,7 +149,7 @@ Ordre de réalisation : 1A → M → 1B → 1C → 2 → 3 → 4 → V → 5 →
 - Dernières exécutions depuis les lignes `CRON[pid]` du journal (phase 2) ; code de sortie seulement pour les timers.
 - Inspecteur d'expression sans enregistrement.
 
-### V — Vulnérabilités des paquets (Grype)
+### V — Vulnérabilités des paquets (Grype) (livré)
 
 - Plan : [2026-11-24-module-v-vulnerabilites.md](./2026-11-24-module-v-vulnerabilites.md), livré en deux parties : VA (analyse, stockage, API, unité et règle polkit) puis VB (interface, tableau de bord, paramètres, règle d'alerte).
 

@@ -47,6 +47,9 @@ function alert(overrides: Partial<Alert> = {}): Alert {
     acknowledgedBy: null,
     resolvedAt: null,
     resolution: null,
+    targetKey: 'host:x',
+    silenced: false,
+    lastNotifiedAt: null,
     ...overrides,
   }
 }

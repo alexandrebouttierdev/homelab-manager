@@ -1,5 +1,4 @@
 import { Pencil, Plus, Trash2 } from 'lucide-react'
-import type { ReactNode } from 'react'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { Card, CardBody, CardHeader } from '../../components/ui/Card'
@@ -7,10 +6,8 @@ import { Table, TBody, TD, TH, THead, TR } from '../../components/ui/DataTable'
 import { ErrorState } from '../../components/ui/ErrorState'
 import { LoadingState } from '../../components/ui/LoadingState'
 import { Select } from '../../components/ui/Select'
+import { FormField as Field, inputClass } from './FormField'
 import { useAlertRulesPanel, type AlertRulesPanelModel } from './useAlertRulesPanel'
-
-const inputClass =
-  'h-9 w-full rounded-md border border-line bg-surface px-3 text-sm text-text-primary outline-none focus:border-accent'
 
 export function AlertRulesPanel() {
   const page = useAlertRulesPanel()
@@ -319,30 +316,5 @@ function RuleForm({ page }: { page: AlertRulesPanelModel }) {
         </form>
       </CardBody>
     </Card>
-  )
-}
-
-function Field({
-  id,
-  label,
-  error,
-  children,
-}: {
-  id: string
-  label: string
-  error?: string
-  children: ReactNode
-}) {
-  return (
-    <div>
-      <label
-        htmlFor={id}
-        className="mb-1.5 block font-mono text-[10px] uppercase tracking-wider text-text-secondary"
-      >
-        {label}
-      </label>
-      {children}
-      {error && <p className="mt-1 text-[11px] text-danger">{error}</p>}
-    </div>
   )
 }

@@ -15,6 +15,17 @@ import {
   type AlertRule,
 } from '../../lib/api/alerts'
 import { listContainers } from '../../lib/api/monitoring'
+import {
+  createChannel,
+  createSilence,
+  liftSilence,
+  listChannels,
+  listSilences,
+  testChannel,
+  updateChannel,
+  type NotificationChannel,
+  type Silence,
+} from '../../lib/api/notifications'
 import { RefreshProvider } from '../../lib/refresh'
 import { AlertsPage } from './AlertsPage'
 
@@ -29,6 +40,17 @@ vi.mock('../../lib/api/alerts', () => ({
 }))
 
 vi.mock('../../lib/api/monitoring', () => ({ listContainers: vi.fn() }))
+
+vi.mock('../../lib/api/notifications', () => ({
+  listSilences: vi.fn(),
+  createSilence: vi.fn(),
+  liftSilence: vi.fn(),
+  listChannels: vi.fn(),
+  createChannel: vi.fn(),
+  updateChannel: vi.fn(),
+  deleteChannel: vi.fn(),
+  testChannel: vi.fn(),
+}))
 
 const session = vi.hoisted(() => ({ role: 'viewer' as 'viewer' | 'operator' | 'admin' }))
 vi.mock('../../hooks/useSession', () => ({
@@ -73,6 +95,9 @@ function alert(overrides: Partial<Alert>): Alert {
     acknowledgedBy: null,
     resolvedAt: null,
     resolution: null,
+    targetKey: 'host:x',
+    silenced: false,
+    lastNotifiedAt: null,
     ...overrides,
   }
 }
@@ -127,6 +152,42 @@ const catalog = {
   collectors: ['system', 'docker', 'services'],
 }
 
+const silences: Silence[] = [
+  {
+    id: 'silence-1',
+    scope: 'rule',
+    ruleId: 'r',
+    ruleName: 'Disque presque plein',
+    targetKey: null,
+    reason: 'Migration du disque',
+    createdBy: 'otto',
+    startsAt: new Date(Date.now() - 60_000).toISOString(),
+    endsAt: new Date(Date.now() + 3_600_000).toISOString(),
+    liftedAt: null,
+    liftedBy: null,
+    active: true,
+  },
+]
+
+const channels: NotificationChannel[] = [
+  {
+    id: 'channel-1',
+    name: 'Téléphone',
+    type: 'ntfy',
+    enabled: true,
+    minSeverity: 'warning',
+    renotifyMinutes: 30,
+    settings: { serverUrl: 'https://ntfy.sh', topic: 'homelab' },
+    secrets: { accessToken: { defined: true, fingerprint: '3f9a0c1b7e42' } },
+    lastSentAt: null,
+    lastErrorAt: '2026-11-24T09:00:00Z',
+    lastError: 'http_status',
+    lastErrorStatus: 401,
+    createdAt: '2026-11-24T08:00:00Z',
+    updatedAt: '2026-11-24T08:00:00Z',
+  },
+]
+
 function renderPage() {
   render(
     <QueryClientProvider
@@ -165,6 +226,8 @@ describe('AlertsPage', () => {
     )
     vi.mocked(listAlertRules).mockResolvedValue({ rules, catalog })
     vi.mocked(listContainers).mockResolvedValue([])
+    vi.mocked(listSilences).mockResolvedValue(silences)
+    vi.mocked(listChannels).mockResolvedValue({ channels, secretsAvailable: true })
   })
   afterEach(() => vi.clearAllMocks())
 
@@ -265,5 +328,94 @@ describe('AlertsPage', () => {
     expect(await screen.findByText('Nom requis')).toBeInTheDocument()
     expect(screen.getByText('Seuil numérique requis')).toBeInTheDocument()
     expect(createAlertRule).not.toHaveBeenCalled()
+  })
+
+  it('lets an operator silence an alert and lift a silence, without the channels', async () => {
+    session.role = 'operator'
+    vi.mocked(listAlerts).mockImplementation((state) =>
+      Promise.resolve(
+        state === 'open' ? [openAlerts[0], { ...openAlerts[1], silenced: true }] : [],
+      ),
+    )
+    vi.mocked(createSilence).mockResolvedValue(silences[0])
+    vi.mocked(liftSilence).mockResolvedValue({ ...silences[0], active: false })
+    const user = userEvent.setup()
+    renderPage()
+
+    expect(await screen.findByText('Sous silence')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Canaux' })).not.toBeInTheDocument()
+    const silenceButtons = screen.getAllByRole('button', { name: 'Silence' })
+    expect(silenceButtons).toHaveLength(1)
+    await user.click(silenceButtons[0])
+    await user.click(screen.getByRole('button', { name: 'Poser le silence' }))
+    expect(await screen.findByText('Motif requis')).toBeInTheDocument()
+    await user.selectOptions(screen.getByLabelText('Durée'), '240')
+    await user.type(screen.getByLabelText('Motif'), 'Migration du disque')
+    await user.click(screen.getByRole('button', { name: 'Poser le silence' }))
+    await waitFor(() => expect(createSilence).toHaveBeenCalled())
+    expect(vi.mocked(createSilence).mock.calls[0][0]).toEqual({
+      scope: 'target',
+      ruleId: 'r',
+      targetKey: 'host:x',
+      durationMinutes: 240,
+      reason: 'Migration du disque',
+    })
+
+    await user.click(screen.getByRole('button', { name: 'Silences' }))
+    expect(await screen.findByText('Règle « Disque presque plein »')).toBeInTheDocument()
+    expect(screen.getByText(/^Encore /)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Lever' }))
+    await waitFor(() => expect(liftSilence).toHaveBeenCalled())
+    expect(vi.mocked(liftSilence).mock.calls[0][0]).toBe('silence-1')
+  })
+
+  it('lets an administrator test, create and edit channels without showing secrets', async () => {
+    session.role = 'admin'
+    vi.mocked(testChannel).mockResolvedValue(channels[0])
+    vi.mocked(createChannel).mockResolvedValue(channels[0])
+    vi.mocked(updateChannel).mockResolvedValue(channels[0])
+    const user = userEvent.setup()
+    renderPage()
+    await user.click(await screen.findByRole('button', { name: 'Canaux' }))
+
+    expect(await screen.findByText('Téléphone')).toBeInTheDocument()
+    expect(screen.getByText('défini · 3f9a0c1b7e42')).toBeInTheDocument()
+    expect(screen.getByText(/Réponse HTTP 401 du serveur/)).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Tester' }))
+    expect(await screen.findByText('Message de test envoyé.')).toBeInTheDocument()
+    expect(vi.mocked(testChannel).mock.calls[0][0]).toBe('channel-1')
+
+    await user.click(screen.getByRole('button', { name: 'Nouveau canal' }))
+    await user.selectOptions(screen.getByLabelText('Type'), 'gotify')
+    await user.type(screen.getByLabelText('Nom'), 'Gotify')
+    await user.type(screen.getByLabelText('URL du serveur'), 'ftp://x')
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }))
+    expect(await screen.findByText('URL http ou https')).toBeInTheDocument()
+    expect(screen.getByText("Jeton d'application requis")).toBeInTheDocument()
+    expect(createChannel).not.toHaveBeenCalled()
+    await user.clear(screen.getByLabelText('URL du serveur'))
+    await user.type(screen.getByLabelText('URL du serveur'), 'http://192.168.1.10:8080')
+    await user.type(screen.getByLabelText("Jeton d'application"), 'app-token')
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }))
+    await waitFor(() => expect(createChannel).toHaveBeenCalled())
+    expect(vi.mocked(createChannel).mock.calls[0][0]).toEqual({
+      name: 'Gotify',
+      type: 'gotify',
+      enabled: true,
+      minSeverity: 'warning',
+      renotifyMinutes: 30,
+      settings: { serverUrl: 'http://192.168.1.10:8080' },
+      secrets: { appToken: 'app-token' },
+    })
+
+    await user.click(await screen.findByRole('button', { name: 'Modifier le canal Téléphone' }))
+    expect(screen.getByLabelText('Type')).toHaveValue('ntfy')
+    expect(screen.getByLabelText("Jeton d'accès")).toHaveValue('')
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }))
+    await waitFor(() => expect(updateChannel).toHaveBeenCalled())
+    expect(vi.mocked(updateChannel).mock.calls[0]).toEqual([
+      'channel-1',
+      expect.objectContaining({ type: 'ntfy', secrets: {} }),
+    ])
   })
 })

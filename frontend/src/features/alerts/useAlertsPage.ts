@@ -6,17 +6,28 @@ import { useSession } from '../../hooks/useSession'
 import { formatMeanResolution, sortOpenAlerts, toAlertRow } from '../../lib/alerts'
 import { acknowledgeAlert, getAlertSummary, listAlerts } from '../../lib/api/alerts'
 import { useRefreshInterval } from '../../lib/refresh'
-import { canOperateAlerts } from '../../lib/roles'
+import { canManageAlerts, canOperateAlerts } from '../../lib/roles'
+import { silenceSubject } from '../../lib/notifications'
+import { alertsQueryKey } from './queryKeys'
+import { useSilenceForm } from './useSilenceForm'
 
-export type AlertsTab = 'alerts' | 'rules'
+export { alertsQueryKey }
+
+export type AlertsTab = 'alerts' | 'rules' | 'silences' | 'channels'
 export type AlertsView = 'open' | 'history'
 
-export const alertsTabs: ReadonlyArray<SegmentedOption<AlertsTab>> = [
-  { value: 'alerts', label: 'Alertes' },
-  { value: 'rules', label: 'Règles' },
-]
-
-export const alertsQueryKey = ['alerts'] as const
+/** Sections of AlertsPage; the channels are for administrators only. */
+export function useAlertsTabs() {
+  const { user } = useSession()
+  const [tab, setTab] = useState<AlertsTab>('alerts')
+  const options: ReadonlyArray<SegmentedOption<AlertsTab>> = [
+    { value: 'alerts', label: 'Alertes' },
+    { value: 'rules', label: 'Règles' },
+    { value: 'silences', label: 'Silences' },
+    ...(canManageAlerts(user?.role) ? [{ value: 'channels' as const, label: 'Canaux' }] : []),
+  ]
+  return { tab, setTab, options }
+}
 
 /** Logic and view model of the alerts tab of AlertsPage. */
 export function useAlertsPage() {
@@ -41,6 +52,7 @@ export function useAlertsPage() {
     enabled: view === 'history',
     refetchInterval: refreshInterval || false,
   })
+  const silence = useSilenceForm()
   const acknowledge = useMutation({
     mutationFn: acknowledgeAlert,
     onSettled: () => queryClient.invalidateQueries({ queryKey: alertsQueryKey }),
@@ -78,6 +90,12 @@ export function useAlertsPage() {
     acknowledge: (id: string) => acknowledge.mutate(id),
     acknowledgingId: acknowledge.isPending ? (acknowledge.variables ?? null) : null,
     acknowledgeError: acknowledge.error?.message ?? null,
+    canSilence: canOperateAlerts(user?.role),
+    silence,
+    startSilence: (id: string) => {
+      const alert = openQuery.data?.find((candidate) => candidate.id === id)
+      if (alert) silence.open(silenceSubject(alert))
+    },
     refresh: () => void queryClient.invalidateQueries({ queryKey: alertsQueryKey }),
   }
 }

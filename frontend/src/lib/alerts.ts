@@ -371,6 +371,10 @@ export type AlertRow = {
   link: AlertLink | null
   /** Only a firing alert can be acknowledged. */
   acknowledgeable: boolean
+  /** An active silence covers the open alert: it does not notify. */
+  silenced: boolean
+  /** An open alert that no silence covers yet can be silenced. */
+  silenceable: boolean
 }
 
 export function toAlertRow(alert: Alert, now: Date): AlertRow {
@@ -387,6 +391,8 @@ export function toAlertRow(alert: Alert, now: Date): AlertRow {
     resolution: resolutionLabel(alert.resolution),
     link: alertLink(alert),
     acknowledgeable: alert.state === 'firing',
+    silenced: alert.silenced,
+    silenceable: alert.state !== 'resolved' && !alert.silenced,
   }
 }
 

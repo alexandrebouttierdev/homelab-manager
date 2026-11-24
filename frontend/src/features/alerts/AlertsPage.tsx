@@ -1,5 +1,4 @@
-import { BellOff, CheckCircle2, History, RefreshCw } from 'lucide-react'
-import { useState } from 'react'
+import { BellOff, CheckCircle2, History, RefreshCw, VolumeX } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
@@ -13,20 +12,26 @@ import type { AlertRow } from '../../lib/alerts'
 import { cn } from '../../lib/cn'
 import { formatCount, formatDateTime, formatRelativeTime } from '../../lib/format'
 import { AlertRulesPanel } from './AlertRulesPanel'
-import { alertsTabs, useAlertsPage, type AlertsPageModel, type AlertsTab } from './useAlertsPage'
+import { ChannelsPanel } from './ChannelsPanel'
+import { SilenceForm } from './SilenceForm'
+import { SilencesPanel } from './SilencesPanel'
+import { useAlertsPage, useAlertsTabs, type AlertsPageModel } from './useAlertsPage'
 
 export function AlertsPage() {
-  const [tab, setTab] = useState<AlertsTab>('alerts')
+  const { tab, setTab, options } = useAlertsTabs()
 
   return (
     <div className="space-y-4">
       <PageHeader
         title="Alertes"
         breadcrumb={[{ label: 'Supervision' }, { label: 'Alertes' }]}
-        description="Règles évaluées toutes les 15 secondes sur les données déjà collectées. Aucune notification n'est encore envoyée : les alertes se consultent ici."
+        description="Règles évaluées toutes les 15 secondes sur les données déjà collectées, notifiées aux canaux configurés."
       />
-      <SegmentedTabs options={alertsTabs} value={tab} onChange={setTab} ariaLabel="Sections" />
-      {tab === 'alerts' ? <AlertsPanel /> : <AlertRulesPanel />}
+      <SegmentedTabs options={options} value={tab} onChange={setTab} ariaLabel="Sections" />
+      {tab === 'alerts' && <AlertsPanel />}
+      {tab === 'rules' && <AlertRulesPanel />}
+      {tab === 'silences' && <SilencesPanel />}
+      {tab === 'channels' && <ChannelsPanel />}
     </div>
   )
 }
@@ -84,6 +89,8 @@ function AlertsPanel() {
           {page.acknowledgeError}
         </p>
       )}
+
+      {page.silence.isOpen && <SilenceForm model={page.silence} />}
 
       {page.view === 'open' ? <OpenAlerts page={page} /> : <AlertHistory page={page} />}
     </div>
@@ -147,18 +154,34 @@ function OpenAlerts({ page }: { page: AlertsPageModel }) {
               {row.acknowledgedBy && (
                 <span className="ml-2 text-[11px] text-text-muted">par {row.acknowledgedBy}</span>
               )}
-            </TD>
-            <TD className="text-right">
-              {page.canAcknowledge && row.acknowledgeable && (
-                <Button
-                  size="sm"
-                  icon={<BellOff className="h-3.5 w-3.5" />}
-                  loading={page.acknowledgingId === row.id}
-                  onClick={() => page.acknowledge(row.id)}
-                >
-                  Acquitter
-                </Button>
+              {row.silenced && (
+                <Badge tone="neutral" className="ml-2">
+                  Sous silence
+                </Badge>
               )}
+            </TD>
+            <TD className="whitespace-nowrap text-right">
+              <div className="flex justify-end gap-1">
+                {page.canAcknowledge && row.acknowledgeable && (
+                  <Button
+                    size="sm"
+                    icon={<BellOff className="h-3.5 w-3.5" />}
+                    loading={page.acknowledgingId === row.id}
+                    onClick={() => page.acknowledge(row.id)}
+                  >
+                    Acquitter
+                  </Button>
+                )}
+                {page.canSilence && row.silenceable && (
+                  <Button
+                    size="sm"
+                    icon={<VolumeX className="h-3.5 w-3.5" />}
+                    onClick={() => page.startSilence(row.id)}
+                  >
+                    Silence
+                  </Button>
+                )}
+              </div>
             </TD>
           </TR>
         ))}

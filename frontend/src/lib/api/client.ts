@@ -61,6 +61,11 @@ export const errorMessages: Record<string, string> = {
   ALERT_ALREADY_RESOLVED: "L'alerte est déjà résolue.",
   DEFAULT_RULE: 'Une règle par défaut peut être désactivée, pas supprimée.',
   TOO_MANY_RULES: 'Nombre maximal de règles atteint (200).',
+  TOO_MANY_SILENCES: 'Nombre maximal de silences en vigueur atteint (100).',
+  TOO_MANY_CHANNELS: 'Nombre maximal de canaux de notification atteint (20).',
+  SECRETS_UNAVAILABLE:
+    'Secrets indisponibles : la clé du coffre est absente. Les canaux sans secret restent utilisables.',
+  NOTIFICATION_FAILED: "L'envoi de test a échoué : voir la dernière erreur du canal.",
   OWN_PASSWORD_RESET: 'Changez votre propre mot de passe dans Paramètres.',
   INVALID_SECOND_FACTOR: 'Code incorrect.',
   LOGIN_CHALLENGE_EXPIRED: 'Délai dépassé : reconnectez-vous avec votre mot de passe.',

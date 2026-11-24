@@ -30,7 +30,7 @@ import {
 import { listContainers } from '../../lib/api/monitoring'
 import { canManageAlerts } from '../../lib/roles'
 import { alertRuleSchema, type AlertRuleValues } from '../../schemas/alertRule'
-import { alertsQueryKey } from './useAlertsPage'
+import { alertsQueryKey } from './queryKeys'
 
 const rulesQueryKey = [...alertsQueryKey, 'rules'] as const
 

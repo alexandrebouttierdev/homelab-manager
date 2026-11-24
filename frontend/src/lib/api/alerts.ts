@@ -31,6 +31,8 @@ export type Alert = {
   ruleType: AlertRuleType
   severity: AlertSeverity
   state: AlertState
+  /** Stable key of the target, used by a target silence. */
+  targetKey: string
   target: AlertTarget
   value: number | null
   threshold: number | null
@@ -40,6 +42,9 @@ export type Alert = {
   acknowledgedBy: string | null
   resolvedAt: string | null
   resolution: AlertResolution | null
+  /** A silence in force covers the open alert: it does not notify. */
+  silenced: boolean
+  lastNotifiedAt: string | null
 }
 
 export type AlertSummary = {

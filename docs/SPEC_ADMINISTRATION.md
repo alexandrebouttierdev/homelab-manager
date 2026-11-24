@@ -175,7 +175,7 @@ Moteur intégré au Manager (règle 5), évalué sur les données qu'il collecte
 
 - Telegram (bot + chat), Discord (webhook), Gotify, ntfy, e-mail SMTP (STARTTLS ou TLS), webhook HTTP générique (JSON documenté, signature HMAC-SHA256 optionnelle).
 - Secrets chiffrés (§ 2.5) ; bouton « Tester » ; état du dernier envoi et dernière erreur ; routage par sévérité ; renotification d'une alerte non acquittée toutes les N minutes (défaut 30) ; regroupement des notifications à 1 par minute et par canal.
-- Les envois sortants sont la seule communication réseau du Manager vers l'extérieur ; ils sont optionnels et n'affectent pas la supervision s'ils échouent.
+- Les envois sortants sont, avec la mise à jour de la base de Grype (§ 8 ter.2), la seule communication réseau du Manager vers l'extérieur ; ils sont optionnels et n'affectent pas la supervision s'ils échouent.
 
 ### 6.4 Actions depuis une alerte
 
@@ -236,7 +236,7 @@ Ajouté le 23 novembre 2026 à la demande du propriétaire du projet : redémarr
 
 ## 8 ter. Vulnérabilités des paquets (module V)
 
-Ajouté le 24 novembre 2026 à la demande du propriétaire du projet : détecter les vulnérabilités connues (CVE et avis des distributions) des paquets système installés avec [Grype](https://github.com/anchore/grype) (Anchore, licence Apache 2.0), les consulter et en voir la synthèse sur le tableau de bord. **Spécifié, non implémenté** ; D-9 est tranchée (machine du Manager seule), D-10 et D-11 (§ 10) restent à trancher avant le plan détaillé.
+Ajouté le 24 novembre 2026 à la demande du propriétaire du projet : détecter les vulnérabilités connues (CVE et avis des distributions) des paquets système installés avec [Grype](https://github.com/anchore/grype) (Anchore, licence Apache 2.0), les consulter et en voir la synthèse sur le tableau de bord. **Spécifié, non implémenté** ; D-9 (machine du Manager seule) et D-10 (mise à jour automatique de la base) sont tranchées ; D-11 (§ 10) reste à trancher avant le plan détaillé.
 
 ### 8 ter.1 Périmètre
 
@@ -249,7 +249,7 @@ Ajouté le 24 novembre 2026 à la demande du propriétaire du projet : détecter
 
 - `grype` rejoint la liste du § 2.3 : `exec` sans shell, arguments fixes construits par le code (source `sbom:-`, sortie `-o json`, base et cache dans `/var/lib/homelab-manager/grype/`), aucune entrée utilisateur dans la ligne de commande, environnement minimal, sortie JSON bornée en taille et décodée strictement, délai maximal (15 min).
 - **Ressources** : un seul scan à la fois (verrou), priorité processeur et disque minimales ; proposition : exécution par une unité systemd dédiée et durcie (`CPUWeight=idle`, `IOSchedulingClass=idle`, `MemoryMax=`, `NoNewPrivileges=`, système en lecture seule) démarrée par le Manager (décision D-11).
-- **Base de vulnérabilités** : Grype télécharge et met à jour sa base (environ 100 Mo) depuis l'infrastructure d'Anchore. Un scan avec une base trop ancienne (au-delà de 5 jours, réglage de Grype) échoue au lieu de produire un résultat trompeur. Mise à jour automatique ou import manuel : décision D-10.
+- **Base de vulnérabilités** (décision D-10) : mise à jour automatique une fois par jour depuis l'infrastructure d'Anchore (environ 100 Mo, HTTPS, certificat vérifié), avant le scan périodique ; c'est, avec les notifications (§ 6.3), la seule communication sortante du Manager. Désactivable dans la configuration du service ; la base s'importe alors à la main (`grype db import`). Une mise à jour en échec n'empêche pas le scan tant que la base a moins de 5 jours (réglage de Grype) ; au-delà, le scan échoue (« base périmée ») au lieu de produire un résultat trompeur. La date de construction de la base est affichée avec chaque scan.
 - **Installation** : Grype n'est pas dans les dépôts Debian ; paquet `.deb` officiel des releases GitHub d'Anchore, somme de contrôle (et signature cosign) vérifiée, version figée publiée depuis au moins deux semaines, documentée dans le README. Sans Grype, le module est « indisponible » et le reste du Manager fonctionne.
 
 ### 8 ter.3 Scans
@@ -283,7 +283,7 @@ Ajouté le 24 novembre 2026 à la demande du propriétaire du projet : détecter
 | 6 | Module B : dépôts, sauvegarde, rétention, restauration en quarantaine | Phases 1 et 4 |
 | 7 | Module C en lecture | Phase 2 |
 | 8 | WebAuthn, jetons d'API | Phase 1, HTTPS |
-| V | Module V : vulnérabilités des paquets (Grype) de la machine du Manager, placé après la phase 4 | Phase 4 (règle d'alerte), décisions D-10 et D-11 |
+| V | Module V : vulnérabilités des paquets (Grype) de la machine du Manager, placé après la phase 4 | Phase 4 (règle d'alerte), décision D-11 |
 
 Chaque phase livre son contrat dans API_CONTRACTS.md, ses tables dans DATA_MODEL.md, ses risques dans SECURITY.md, ses tests, et retire la mention « à venir » de son entrée de navigation.
 
@@ -296,11 +296,11 @@ Chaque phase livre son contrat dans API_CONTRACTS.md, ses tables dans DATA_MODEL
 - **[D-5] Actions Docker** (démarrer, arrêter, redémarrer un conteneur) et **journaux de conteneur** (maquettes `d_tails_conteneur_*`, `journaux_docker_*`). La lecture des journaux est compatible avec les règles via une route en lecture seule du proxy ; les actions exigent d'élargir le proxy et une décision explicite. `exec` et la suppression restent exclus par les règles 1 et 3.
 - **[D-6] Préférences système** (maquette `param_tres_syst_me_*` : nom d'hôte, fuseau, langue). Modifient la machine ; hors de ce lot.
 
-- **[D-10] Mise à jour de la base de Grype.** Elle impose une communication sortante vers Anchore, aujourd'hui limitée aux notifications (§ 6.3). Proposition : mise à jour automatique quotidienne, désactivable, seule autre communication sortante autorisée ; sans elle, import manuel d'une base téléchargée ailleurs (`grype db import`) et scans refusés quand la base a plus de 5 jours.
 - **[D-11] Mode d'exécution de Grype.** Proposition : unité systemd dédiée et durcie, lancée par le Manager par D-Bus avec une règle polkit limitée à cette unité (modèle du § 2.1, partagé avec la phase 5), qui borne processeur, disque et mémoire ; à défaut, exécution directe par le Manager avec une priorité minimale.
 
 ### Décisions tranchées
 
+- **[D-10] Mise à jour de la base de Grype** — tranchée le 24 novembre 2026 par le propriétaire du projet : automatique, une fois par jour, vers l'infrastructure d'Anchore, désactivable ; seule communication sortante autorisée en plus des notifications (§ 8 ter.2).
 - **[D-9] Machines du module V** — tranchée le 24 novembre 2026 par le propriétaire du projet : Homelab Manager tourne sur une seule machine ; le module V n'analyse que celle-ci, sans agent ni hôte distant. La demande initiale (un agent Grype par machine supervisée) n'est pas retenue.
 
 - **[D-7] Rôle des actions d'alimentation** — tranchée le 23 novembre 2026 par le propriétaire du projet : `admin` uniquement, car elles interrompent tous les services. Les `operator` n'y ont pas accès, contrairement aux actions sur les services (§ 5.2).

@@ -114,7 +114,7 @@ Ordre de réalisation : 1A → M → 1B → 1C → 2 → 3 → 4 → 5 → 6 →
 - Tests : faux systemd exporté par godbus sur un bus privé (`dbus-daemon`, installé en CI), transitions d'état, SQLite réel, routes `httptest`, page et fonctions pures de l'interface.
 - Parcours vérifié dans le navigateur contre le Manager et un faux systemd sur un bus privé (macOS, sans vrai systemd) : inventaire, détail, événements d'échec puis de rétablissement, aucun doublon après redémarrage du Manager.
 
-### 4 — Alertes et notifications (plan détaillé rédigé)
+### 4 — Alertes et notifications (4A livrée)
 
 - Plan : [2026-11-24-phase-4-alertes-notifications.md](./2026-11-24-phase-4-alertes-notifications.md), livré en deux parties : 4A (moteur, règles, cycle de vie, interface, sans communication sortante) puis 4B (canaux, silences, regroupement, renotification).
 - Moteur évalué toutes les 15 s sur les derniers échantillons (aucune requête historique lourde) ; six types de règles (§ 6.1) ; règles par défaut désactivables.

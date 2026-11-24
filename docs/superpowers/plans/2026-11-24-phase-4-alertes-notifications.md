@@ -71,8 +71,8 @@ Erreurs nouvelles : `409 ALERT_ALREADY_RESOLVED`, `409 DEFAULT_RULE`, `409 TOO_M
 
 ## Données
 
-- `007_alerts.sql` (4A) : `alert_rules` (`id`, `name`, `type`, `severity`, `enabled`, `is_default`, `params` JSON, `created_at`, `updated_at`), `alerts` (`id`, `rule_id`, `rule_name`, `type`, `severity`, `target_key`, `target_label`, `state`, `value`, `threshold`, `fired_at`, `acknowledged_at`, `acknowledged_by`, `resolved_at`, `resolution`, `last_notified_at`), index unique partiel `(rule_id, target_key) WHERE state <> 'resolved'`, index sur `fired_at` et `resolved_at`. Règles par défaut insérées avec des UUID fixes.
-- `008_notifications.sql` (4B) : `alert_silences` (`id`, `scope` `rule`/`target`/`all`, `rule_id`, `target_key`, `reason`, `created_by`, `starts_at`, `ends_at`, `lifted_at`), `notification_channels` (`id`, `name`, `type`, `enabled`, `min_severity`, `renotify_minutes`, `settings` JSON non secret, `secrets` scellé, `last_sent_at`, `last_error_at`, `last_error`, `created_at`, `updated_at`).
+- `007_alerts.sql` (4A) : `alert_rules` (`id`, `name`, `type`, `severity`, `enabled`, `is_default`, `params` JSON, `created_at`, `updated_at`), `alerts` (`id`, `rule_id`, `rule_name`, `rule_type`, `severity`, `target_key`, `target` JSON, `state`, `value`, `threshold`, `observed`, `fired_at`, `acknowledged_at`, `acknowledged_by`, `resolved_at`, `resolution`), index unique partiel `(rule_id, target_key) WHERE state <> 'resolved'`, index sur `fired_at` et `resolved_at`. Règles par défaut insérées avec des UUID fixes.
+- `008_notifications.sql` (4B) : `alert_silences` (`id`, `scope` `rule`/`target`/`all`, `rule_id`, `target_key`, `reason`, `created_by`, `starts_at`, `ends_at`, `lifted_at`), colonne `last_notified_at` ajoutée à `alerts`, `notification_channels` (`id`, `name`, `type`, `enabled`, `min_severity`, `renotify_minutes`, `settings` JSON non secret, `secrets` scellé, `last_sent_at`, `last_error_at`, `last_error`, `created_at`, `updated_at`).
 - La feuille de route décale les migrations suivantes : sauvegardes `009`, WebAuthn et jetons `010`.
 
 ## Tâches
@@ -95,3 +95,14 @@ Erreurs nouvelles : `409 ALERT_ALREADY_RESOLVED`, `409 DEFAULT_RULE`, `409 TOO_M
 11. **HTTP et contrat 4B** : routes, DTO sans secret, `API_CONTRACTS.md` (§ 4.8, webhook documenté), `SECURITY.md` (seule communication sortante, secrets, adresses), `DATA_MODEL.md`.
 12. **Interface 4B** : onglets « Silences » (poser depuis une alerte, durée, motif, levée) et « Canaux » (formulaire par type, secrets « défini » avec empreinte, bouton « Tester », dernier envoi et dernière erreur).
 13. **Recette 4B dans la VM** : ntfy en conteneur et récepteur de webhook local (vérification de la signature), regroupement d'une rafale en un message, renotification, silence, clé maître absente ; documents à jour, feuille de route (phase 4 livrée), bilan dans ce plan.
+
+## Bilan 4A (24 novembre 2026)
+
+Livrée en six commits (domaine, persistance, usecase, HTTP, interface, état). Écarts et constats :
+
+- **Données** : `alerts` garde la cible en JSON (`target` : genre, métrique, labels, conteneur, unité, collecteur) pour les liens de l'interface, plutôt qu'un simple libellé ; `observed` porte l'état qui a déclenché une règle sans valeur numérique. `last_notified_at` ne sert qu'aux notifications : il arrive avec `008` en 4B.
+- **Résolutions** : en plus de celles prévues, `no_data` (série absente d'un cycle à jour depuis 5 min, par exemple un disque démonté) et `rule_changed` (type, sévérité ou paramètres modifiés ; un renommage garde les alertes). Une cible sortie de l'inventaire (conteneur supprimé, unité déchargée) est résolue aussitôt (`target_gone`).
+- **Sources gelées** : une source illisible ou périmée ne déclenche ni ne résout ; vérifié en arrêtant le proxy Docker : l'alerte d'un conteneur arrêté est restée ouverte pendant la panne, la collecte Docker est passée en alerte au bout de 2 min puis s'est résolue au rétablissement.
+- **Interface** : le formulaire édite un seul label par règle (l'API en accepte 5) ; les métriques sont proposées triées par leur nom français et restent valides quand le type change.
+- **Recette dans la machine OrbStack** (binaire et interface déployés, 29 vérifications) : 6 règles par défaut, règle par défaut non supprimable (`409`), unité `hm-demo` tuée → alerte critique `failed (signal)`, aucun doublon après un redémarrage du Manager, acquittement puis résolution au redémarrage de l'unité, `409` sur une alerte résolue ; règle sur `memory.available_percent` (métrique dérivée) déclenchée, renommée sans résolution, seuil changé → `rule_changed` sans nouveau déclenchement ; règle d'état de conteneur sur `crashy` ; supprimée → `rule_deleted` ; indicateurs, audit, Manager non root, aucune connexion sortante. Interface vérifiée dans le navigateur (alerte réelle avec lien vers l'unité, onglet Règles, affichage mobile).
+- **Non vérifié** : les règles par défaut de disque et de température sur des données réelles (la machine OrbStack, conteneur LXC, n'expose ni partition physique ni capteur) ; elles sont couvertes par les tests du moteur. Thème clair non revu.

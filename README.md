@@ -37,6 +37,7 @@ Homelab Manager supervise **une seule machine Linux : celle qui l'héberge**. Le
 - Événements de création, suppression, redémarrage et changement d'état
 - Journal systemd en lecture seule : filtres, recherche, suivi en direct, export, champs sensibles masqués
 - Services, timers et sockets systemd en lecture seule (D-Bus) : états, ressources, détail, événements d'échec et de rétablissement
+- Alertes : règles sur les métriques, l'état des conteneurs, les unités en échec et les collecteurs, évaluées toutes les 15 s, acquittement et historique (notifications en phase 4B)
 - Aucune valeur inventée : une donnée absente s'affiche comme indisponible
 
 </td>
@@ -235,6 +236,10 @@ Le Manager ne lance que `journalctl`, sans shell, avec des options construites �
 
 La page « Services système » liste les services, timers et sockets systemd chargés, pour tous les rôles, en lecture seule : état, démarrage, PID, mémoire, temps CPU, prochaine exécution des timers, et un détail (fichier d'unité, `ExecStart`, dépendances, limites, 50 dernières entrées du journal). Le Manager lit systemd sur le bus système D-Bus, sans privilège ni règle polkit, toutes les 30 secondes ; il n'appelle aucune méthode qui modifie une unité et n'exécute pas `systemctl`. Une unité qui passe en échec crée un événement `service.failed`, son retour à l'état actif un événement `service.recovered`, une seule fois même après un redémarrage du Manager. Sans bus système (hors Linux, conteneur), la page l'indique et le reste fonctionne. Les actions (démarrer, arrêter, redémarrer) viendront en phase 5.
 
+### Alertes
+
+La page « Alertes » montre les alertes ouvertes (les plus graves d'abord, avec un lien vers l'unité, le conteneur ou les métriques en cause), l'historique et des indicateurs sur 24 heures. Le Manager évalue ses règles toutes les 15 secondes sur les données qu'il collecte déjà, sans requête externe. Six règles sont fournies : disque utilisé à plus de 85 %, mémoire disponible sous 10 %, température au-dessus de 85 °C (seuil fixe : les seuils des capteurs ne sont pas collectés), collecte système ou Docker indisponible depuis 2 minutes, unité systemd en échec. Elles se modifient et se désactivent, sans se supprimer. Un administrateur ajoute ses propres règles ; un opérateur ou un administrateur acquitte une alerte, qui reste ouverte jusqu'à sa résolution. Une source illisible (Docker arrêté, systemd injoignable) ne déclenche ni ne résout les règles qui en dépendent. Aucune notification n'est encore envoyée : les canaux (Telegram, Discord, Gotify, ntfy, e-mail, webhook) et les silences arrivent en phase 4B.
+
 ### Double authentification
 
 Chaque utilisateur l'active dans « Configuration » › Double authentification : mot de passe actuel, QR code à scanner (Aegis, Google Authenticator, 1Password…), premier code, puis 10 codes de secours affichés une seule fois. La connexion demande ensuite un code après le mot de passe. Dans « Utilisateurs & accès » › Politique, un administrateur qui l'a lui-même activée peut l'exiger de tous les administrateurs : ceux qui ne l'ont pas encore ne peuvent plus que l'activer.
@@ -288,8 +293,8 @@ La première release est `v2.3.0`, alignée sur la [spécification produit](docs
 
 ## État et limites connues
 
-- **Livré** : supervision système et Docker, historique, événements, comptes et rôles, sessions, politique de sécurité, journal d'audit, double authentification (TOTP et codes de secours), journaux système, services système en lecture, redémarrage et extinction (optionnels).
-- **Spécifié, pas encore implémenté** : passkeys (WebAuthn) et jetons d'API, actions sur les services systemd, alertes et notifications, sauvegardes restic, tâches planifiées. Voir [docs/SPEC_ADMINISTRATION.md](docs/SPEC_ADMINISTRATION.md) et la [feuille de route](docs/superpowers/plans/2026-11-23-feuille-de-route-v3.md).
+- **Livré** : supervision système et Docker, historique, événements, comptes et rôles, sessions, politique de sécurité, journal d'audit, double authentification (TOTP et codes de secours), journaux système, services système en lecture, alertes sans notification (phase 4A), redémarrage et extinction (optionnels).
+- **Spécifié, pas encore implémenté** : passkeys (WebAuthn) et jetons d'API, actions sur les services systemd, notifications et silences d'alertes (phase 4B), sauvegardes restic, tâches planifiées. Voir [docs/SPEC_ADMINISTRATION.md](docs/SPEC_ADMINISTRATION.md) et la [feuille de route](docs/superpowers/plans/2026-11-23-feuille-de-route-v3.md).
 - Historiques bruts ou agrégés, 2 000 points au plus par requête ; l'interface choisit le pas selon la période.
 - À l'intervalle par défaut (10 s), la base croît d'environ 300 Mo par jour jusqu'à la rétention : ≈ 2 Go pour 7 jours.
 - Listes bornées, sans pagination ; images, volumes et réseaux Docker déduits des conteneurs.

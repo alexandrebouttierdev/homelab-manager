@@ -1,6 +1,6 @@
 # Spécification des modules d'administration — Homelab Manager
 
-Version 3.0 (brouillon) — 22 novembre 2026 — **partiellement implémenté** : comptes multiples et rôles (§§ 3.1–3.2, phase 1A), sessions, politique de sécurité et journal d'audit (§§ 3.4–3.5, phase 1B), coffre de secrets, TOTP et codes de secours (§§ 2.5, 3.3 hors WebAuthn, phase 1C) journaux système (§ 4, phase 2), consultation des services système (§ 5.1, phase 3), vulnérabilités des paquets (§ 8 ter, module V) et redémarrage et extinction de la machine (§ 8 bis, module M), le 23 novembre 2026 ; règles, cycle de vie, indicateurs, silences et canaux des alertes (§§ 6.1 à 6.4, phase 4) et actions sur les services système (§ 5.2, phase 5), le 24 novembre 2026.
+Version 3.0 (brouillon) — 22 novembre 2026 — **partiellement implémenté** : comptes multiples et rôles (§§ 3.1–3.2, phase 1A), sessions, politique de sécurité et journal d'audit (§§ 3.4–3.5, phase 1B), coffre de secrets, TOTP et codes de secours (§§ 2.5, 3.3 hors WebAuthn, phase 1C) journaux système (§ 4, phase 2), consultation des services système (§ 5.1, phase 3), vulnérabilités des paquets (§ 8 ter, module V) et redémarrage et extinction de la machine (§ 8 bis, module M), le 23 novembre 2026 ; règles, cycle de vie, indicateurs, silences et canaux des alertes (§§ 6.1 à 6.4, phase 4) actions sur les services système (§ 5.2, phase 5) et sauvegardes restic, incrément 6A (§ 7 : dépôt, sources, exclusions, sauvegardes manuelles et planifiées, historique, instantanés), le 24 novembre 2026.
 
 Ce document spécifie les modules annoncés « à venir » dans la navigation : utilisateurs et accès, journaux système, services système, alertes et notifications, sauvegardes, tâches planifiées, ainsi que le redémarrage et l'extinction de la machine (§ 8 bis, ajouté le 23 novembre 2026). Il s'appuie sur les maquettes de `maquette/` et en fixe le périmètre réel : une maquette montre une intention visuelle, ce document fait foi. Tant qu'un module n'est pas livré, il reste désactivé dans l'interface et ses routes n'existent pas.
 
@@ -189,11 +189,13 @@ Mise en œuvre (phase 5, 24 novembre 2026) : « Redémarrer » est proposé aux 
 
 Le Manager configure et pilote **restic** ; il ne réimplémente ni le chiffrement ni la déduplication.
 
+**Mise en œuvre (incrément 6A, 24 novembre 2026)** : dépôt local ou monté, rest-server et S3 (dont B2), initialisation avec mot de passe généré et affiché une fois, sources, exclusions, sauvegardes manuelles (`operator`) et planifiées par le Manager (D-12), historique des exécutions, liste des instantanés, page « Sauvegardes ». Écarts : le « script d'entrée » est un binaire Go, `homelab-backup-runner`, qui valide de nouveau le fichier de travail et lance restic sans shell (sources après `--`, exclusions par fichier, secrets par l'environnement de restic seul) ; les fichiers échangés sont dans `/var/lib/homelab-backup/jobs/` (Manager, 0700) et `runs/` (root, lisible par le groupe du Manager), comme pour le module V ; le mot de passe et les clés passent par un fichier à usage unique que le programme supprime après lecture ; l'unité, root, n'écrit que son cache, ses résultats, ses fichiers de travail et les points de montage usuels (`/mnt`, `/media`, `/srv`, `/var/backups`), un dépôt local ailleurs exigeant un complément d'unité. Restent pour 6B : rétention, vérification, diff, restauration en quarantaine, copies, déverrouillage, rattachement d'un dépôt existant, SFTP ; la règle d'alerte « Sauvegarde » suit l'incrément 6A. Plan : `docs/superpowers/plans/2026-11-24-phase-6-sauvegardes.md` ; contrat : API_CONTRACTS.md § 4.10.
+
 ### 7.1 Exécution
 
 - Les opérations restic s'exécutent dans `homelab-backup@<opération>.service`, unités root fournies par le projet et durcies (`ProtectSystem=strict`, `ProtectHome=read-only`, `ReadWritePaths=` limité au cache restic et au répertoire de restauration, `NoNewPrivileges`, `PrivateTmp`, réseau autorisé pour les dépôts distants). Opérations : `backup`, `check`, `forget-prune`, `restore`, `snapshots`, `diff`, `init`.
 - L'unité lit un fichier de travail JSON écrit par le Manager dans `/var/lib/homelab-manager/backup/jobs/` (opération, dépôt, chemins, options validées) et écrit sa progression et son résultat (`restic --json`) dans `/var/lib/homelab-manager/backup/runs/`. Le Manager ne passe aucun argument libre : le script d'entrée de l'unité traduit le fichier de travail en arguments restic selon un schéma fixe.
-- Planification par un timer `homelab-backup-schedule.timer` dont l'expression `OnCalendar` est générée à partir des réglages (quotidien, hebdomadaire, heure).
+- Planification réglée dans l'interface (quotidienne ou hebdomadaire, heure de la machine) et tenue par le Manager, qui démarre lui-même l'unité ; une sauvegarde manquée pendant un arrêt est lancée une fois au redémarrage (décision D-12). Le timer `homelab-backup-schedule.timer` initialement prévu n'est pas retenu.
 
 ### 7.2 Dépôts
 
@@ -291,7 +293,7 @@ Ajouté le 24 novembre 2026 à la demande du propriétaire du projet : détecter
 | 3 | Module S en lecture, événements `service.failed`. **Livré** | D-Bus |
 | 4 | Module A : règles, cycle de vie, canaux. **Livrée** : 4A (règles, cycle de vie, acquittement, indicateurs) et 4B (canaux, silences, regroupement, renotification) | Phases 1 et 3, secrets § 2.5 |
 | 5 | Module S, actions par polkit. **Livrée** (liste blanche, règle générée, « Redémarrer » depuis une alerte) | Phase 1 |
-| 6 | Module B : dépôts, sauvegarde, rétention, restauration en quarantaine | Phases 1 et 4 |
+| 6 | Module B : dépôts, sauvegarde, rétention, restauration en quarantaine. **6A livré** (dépôt, sources, exclusions, sauvegardes manuelles et planifiées, historique, instantanés) ; 6B à venir (rétention, vérification, restauration) | Phases 1 et 4 |
 | 7 | Module C en lecture | Phase 2 |
 | 8 | WebAuthn, jetons d'API | Phase 1, HTTPS |
 | V | Module V : vulnérabilités des paquets (Grype) de la machine du Manager, placé après la phase 4. **Livré** (dpkg et apk ; RPM à venir) | Phase 4 (règle d'alerte) |
@@ -309,6 +311,8 @@ Chaque phase livre son contrat dans API_CONTRACTS.md, ses tables dans DATA_MODEL
 
 
 ### Décisions tranchées
+
+- **[D-12] Planification des sauvegardes** — tranchée le 24 novembre 2026 par le propriétaire du projet : le Manager tient l'horaire réglé dans l'interface et démarre lui-même `homelab-backup@backup.service` par D-Bus ; une sauvegarde manquée pendant un arrêt du Manager est lancée une fois à son redémarrage. Pas de timer systemd généré (§ 7.1).
 
 - **[D-11] Exécution de Grype** — tranchée le 24 novembre 2026 par le propriétaire du projet : unité systemd dédiée et durcie `homelab-vulnscan.service`, démarrée par le Manager par D-Bus avec une règle polkit limitée au verbe `start` sur cette unité (§ 8 ter.2).
 - **[D-10] Mise à jour de la base de Grype** — tranchée le 24 novembre 2026 par le propriétaire du projet : automatique, une fois par jour, vers l'infrastructure d'Anchore, désactivable ; seule communication sortante autorisée en plus des notifications (§ 8 ter.2).

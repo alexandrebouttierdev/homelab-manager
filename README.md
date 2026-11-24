@@ -106,7 +106,7 @@ Chaque release publie, pour Linux `amd64` et `arm64`, une archive contenant les 
 3. **Installer les fichiers** :
 
    ```bash
-   sudo install -m 0755 bin/homelab-manager bin/homelab-docker-proxy /usr/local/bin/
+   sudo install -m 0755 bin/homelab-manager bin/homelab-docker-proxy bin/homelab-backup-runner /usr/local/bin/
    sudo mkdir -p /opt/homelab-manager/frontend /etc/homelab-manager
    sudo cp -R frontend/dist /opt/homelab-manager/frontend/
    sudo install -m 0644 deployments/config/manager.yaml /etc/homelab-manager/manager.yaml
@@ -323,6 +323,24 @@ sudo systemctl restart homelab-manager.service   # prend en compte ReadWritePath
 
 `polkitd` est nécessaire (`sudo apt install polkitd`). L'unité télécharge la base de Grype (environ 100 Mo) depuis `grype.anchore.io` avant un scan quand une base plus récente est publiée (une par jour) ; une base de plus de 5 jours fait échouer le scan plutôt que donner un résultat trompeur. Pour une machine sans accès à Internet, désactiver ce téléchargement (`sudo systemctl edit homelab-vulnscan.service`, puis `Environment=GRYPE_DB_AUTO_UPDATE=false` sous `[Service]`) et importer une base à la main : `sudo -u homelab-vulnscan env GRYPE_DB_CACHE_DIR=/var/cache/homelab-vulnscan/db grype db import <archive>`. Un scan en échec indique sa cause (Grype ou unité absents, règle polkit absente, délai dépassé, base injoignable ou périmée) ; le détail est dans `journalctl -u homelab-vulnscan`. Sans Grype, le reste du Manager fonctionne normalement.
 
+### Sauvegardes de la machine (restic)
+
+La page « Sauvegardes » sauvegarde les chemins choisis par un administrateur (par exemple `/etc`, `/var/lib/docker/volumes`, `/opt/stacks`) dans un dépôt [restic](https://restic.net/) chiffré : répertoire local ou monté (disque USB, partage NFS ou SMB déjà monté par le système), rest-server en HTTPS, ou bucket S3 compatible (dont Backblaze B2). restic ne tourne jamais dans le Manager : l'unité root dédiée `homelab-backup@.service` lance `homelab-backup-runner`, qui relit et valide le travail écrit par le Manager puis exécute restic sans shell, avec une priorité basse et 6 heures au plus. Les opérateurs lancent une sauvegarde à la demande ; la planification (quotidienne ou hebdomadaire, heure de la machine) est tenue par le Manager, qui rattrape une fois au redémarrage une sauvegarde manquée pendant un arrêt.
+
+Installation, une fois :
+
+```bash
+sudo apt install restic polkitd
+sudo install -m 0644 deployments/tmpfiles/homelab-backup.conf /etc/tmpfiles.d/
+sudo systemd-tmpfiles --create homelab-backup.conf
+sudo install -o root -g root -m 0644 deployments/polkit/50-homelab-manager-backup.rules /etc/polkit-1/rules.d/
+sudo systemctl daemon-reload && sudo systemctl restart homelab-manager
+```
+
+Puis, dans l'onglet « Configuration » (administrateurs) : choisir le dépôt, les sources, les exclusions et l'horaire, enregistrer, puis « Initialiser le dépôt ». Le Manager génère le mot de passe du dépôt et l'affiche **une seule fois** : le conserver hors ligne, car sans lui aucune restauration n'est possible si la machine est perdue (`restic -r <dépôt> restore …` le demande). Le mot de passe et les clés d'accès sont scellés par le coffre de secrets : sans clé du coffre, les sauvegardes sont indisponibles. Un dépôt local doit se trouver sous `/mnt`, `/media`, `/srv` ou `/var/backups`, seuls emplacements où l'unité peut écrire ; ailleurs, ajouter `ReadWritePaths=` par `sudo systemctl edit homelab-backup@.service`. Un administrateur du Manager peut ainsi sauvegarder n'importe quel fichier de la machine vers le dépôt choisi : réserver ce rôle en conséquence.
+
+Cette version (incrément 6A) sauvegarde et liste les instantanés ; la rétention (`forget`/`prune`), la vérification, la restauration en quarantaine, le rattachement d'un dépôt existant et SFTP viendront avec l'incrément 6B. D'ici là, restaurer et purger avec `restic` en ligne de commande.
+
 ### Sauvegarde et restauration
 
 La base tient dans un fichier, accompagné de `-wal` et `-shm` pendant l'exécution. Ne pas copier ces fichiers à chaud : utiliser la sauvegarde en ligne de SQLite (paquet `sqlite3`), qui produit un fichier cohérent sans arrêter le Manager :
@@ -348,7 +366,7 @@ La première release est `v2.3.0`, alignée sur la [spécification produit](docs
 
 ## État et limites connues
 
-- **Livré** : supervision système et Docker, historique, événements, comptes et rôles, sessions, politique de sécurité, journal d'audit, double authentification (TOTP et codes de secours), journaux système, services système avec actions en liste blanche (phase 5), alertes avec silences et notifications (phase 4), vulnérabilités des paquets avec Grype (module V ; Debian, Ubuntu et Alpine), redémarrage et extinction (optionnels).
+- **Livré** : supervision système et Docker, historique, événements, comptes et rôles, sessions, politique de sécurité, journal d'audit, double authentification (TOTP et codes de secours), journaux système, services système avec actions en liste blanche (phase 5), sauvegardes restic (phase 6, incrément 6A), alertes avec silences et notifications (phase 4), vulnérabilités des paquets avec Grype (module V ; Debian, Ubuntu et Alpine), redémarrage et extinction (optionnels).
 - **Spécifié, pas encore implémenté** : passkeys (WebAuthn) et jetons d'API, actions sur les services systemd, sauvegardes restic, tâches planifiées, lecture des paquets RPM (Fedora, Rocky Linux, AlmaLinux) pour le module V. Voir [docs/SPEC_ADMINISTRATION.md](docs/SPEC_ADMINISTRATION.md) et la [feuille de route](docs/superpowers/plans/2026-11-23-feuille-de-route-v3.md).
 - Historiques bruts ou agrégés, 2 000 points au plus par requête ; l'interface choisit le pas selon la période.
 - À l'intervalle par défaut (10 s), la base croît d'environ 300 Mo par jour jusqu'à la rétention : ≈ 2 Go pour 7 jours.

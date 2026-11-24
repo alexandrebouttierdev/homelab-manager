@@ -48,6 +48,10 @@ type Tx struct {
 	TotpSecret *TotpSecretClient
 	// User is the client for interacting with the User builders.
 	User *UserClient
+	// VulnerabilityFinding is the client for interacting with the VulnerabilityFinding builders.
+	VulnerabilityFinding *VulnerabilityFindingClient
+	// VulnerabilityScan is the client for interacting with the VulnerabilityScan builders.
+	VulnerabilityScan *VulnerabilityScanClient
 
 	// lazily loaded.
 	client     *Client
@@ -197,6 +201,8 @@ func (tx *Tx) init() {
 	tx.SystemMetricSample = NewSystemMetricSampleClient(tx.config)
 	tx.TotpSecret = NewTotpSecretClient(tx.config)
 	tx.User = NewUserClient(tx.config)
+	tx.VulnerabilityFinding = NewVulnerabilityFindingClient(tx.config)
+	tx.VulnerabilityScan = NewVulnerabilityScanClient(tx.config)
 }
 
 // txDriver wraps the given dialect.Tx with a nop dialect.Driver implementation.

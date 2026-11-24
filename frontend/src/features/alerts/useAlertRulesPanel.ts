@@ -29,6 +29,7 @@ import {
 } from '../../lib/api/alerts'
 import { listContainers } from '../../lib/api/monitoring'
 import { canManageAlerts } from '../../lib/roles'
+import { vulnSeverityLabel } from '../../lib/vulnerabilities'
 import { alertRuleSchema, type AlertRuleValues } from '../../schemas/alertRule'
 import { alertsQueryKey } from './queryKeys'
 
@@ -125,6 +126,10 @@ export function useAlertRulesPanel() {
       states: (catalog?.containerStates ?? []).map((value) => ({
         value,
         label: containerStateLabel(value),
+      })),
+      vulnSeverities: (catalog?.vulnerabilitySeverities ?? []).map((value) => ({
+        value,
+        label: `${vulnSeverityLabel(value)} et plus grave`,
       })),
       collectors: (catalog?.collectors ?? []).map((value) => ({
         value,

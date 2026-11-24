@@ -14,10 +14,12 @@ import (
 	"homelab-manager/backend/internal/adapters/journalctl"
 	logindadapter "homelab-manager/backend/internal/adapters/logind"
 	"homelab-manager/backend/internal/adapters/notify"
+	"homelab-manager/backend/internal/adapters/packages"
 	"homelab-manager/backend/internal/adapters/qrcode"
 	"homelab-manager/backend/internal/adapters/secretbox"
 	"homelab-manager/backend/internal/adapters/sqlite"
 	"homelab-manager/backend/internal/adapters/systemd"
+	"homelab-manager/backend/internal/adapters/vulnscan"
 	systemcollector "homelab-manager/backend/internal/collector/system"
 	httpdelivery "homelab-manager/backend/internal/delivery/http"
 	"homelab-manager/backend/internal/ports"
@@ -152,6 +154,7 @@ func main() {
 			sqlite.NewAuditRepository(database.Client()), monitoringUsecase, logger)
 		alertUsecase = usecase.NewAlertUsecase(alertRepository, usecase.AlertSources{
 			Metrics: monitoringRepository, Collectors: monitoringUsecase, Units: serviceUsecase, Retention: monitoringUsecase,
+			Vulnerabilities: sqlite.NewVulnerabilityRepository(database.Client()),
 		}, logger).WithNotifications(notificationUsecase, notificationRepository)
 		alertsDone = make(chan struct{})
 		go func() {
@@ -164,11 +167,31 @@ func main() {
 			notificationUsecase.Run(schedulerCtx)
 		}()
 	}
+	// Package vulnerabilities: the Manager writes the inventory, starts the
+	// homelab-vulnscan.service unit and reads its result; without Grype or
+	// the unit, scans fail with vulnscan_not_installed.
+	var vulnerabilityUsecase *usecase.VulnerabilityUsecase
+	var vulnerabilitiesDone chan struct{}
+	if database != nil {
+		vulnerabilityUsecase = usecase.NewVulnerabilityUsecase(
+			sqlite.NewVulnerabilityRepository(database.Client()), packages.New("/"),
+			vulnscan.NewScanner(vulnscan.Config{
+				Unit: vulnscan.DefaultUnit, InventoryPath: config.VulnscanInventoryPath, ResultPath: config.VulnscanResultPath,
+				Timeout: vulnscan.DefaultTimeout, Version: version,
+			}, vulnscan.NewUnitStarter(vulnscan.SystemBus)),
+			time.Duration(config.VulnerabilityScanIntervalHours)*time.Hour, logger,
+		).WithSettings(sqlite.NewSettingsRepository(database))
+		vulnerabilitiesDone = make(chan struct{})
+		go func() {
+			defer close(vulnerabilitiesDone)
+			vulnerabilityUsecase.Run(schedulerCtx)
+		}()
+	}
 	router := httpdelivery.NewRouter(logger, httpdelivery.Services{
 		Health: healthUsecase, Auth: authUsecase, Monitoring: monitoringUsecase,
 		Accounts: accountUsecase, Power: powerUsecase, Security: securityUsecase, Audit: auditUsecase,
 		SecondFactors: secondFactorUsecase, Journal: journalUsecase, Units: serviceUsecase, Alerts: alertUsecase,
-		Notifications: notificationUsecase,
+		Notifications: notificationUsecase, Vulnerabilities: vulnerabilityUsecase,
 	}, config.SessionSecure, config.WebRoot)
 
 	server := &http.Server{
@@ -227,6 +250,14 @@ func main() {
 			logger.Error("alert notifications did not stop before deadline")
 		}
 		notifier.CloseIdleConnections()
+	}
+	if vulnerabilitiesDone != nil {
+		// A running scan is recorded as interrupted, within a few seconds.
+		select {
+		case <-vulnerabilitiesDone:
+		case <-time.After(15 * time.Second):
+			logger.Error("vulnerability scans did not stop before deadline")
+		}
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

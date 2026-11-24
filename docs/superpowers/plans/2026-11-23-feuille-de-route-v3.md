@@ -37,10 +37,10 @@ Chaque incrément, quel qu'il soit :
 | **3** | Services système en lecture (D-Bus), événements `service.failed` / `service.recovered` | 1A, D-Bus | `006_failed_units.sql` | M |
 | **4** | Alertes et notifications : règles, cycle de vie, silences, canaux | 1C (secrets), 3 | `007_alerts.sql` (4A), `008_notifications.sql` (4B) | L |
 | **5** | Actions sur les services par polkit (`start`, `stop`, `restart`, `reload`) | 1B (audit), 3 | — | M |
-| **6** | Sauvegardes restic : dépôts, sources, exclusions, rétention, restauration en quarantaine | 1C, 4, 5 | `009_backups.sql` | XL |
+| **6** | Sauvegardes restic : dépôts, sources, exclusions, rétention, restauration en quarantaine | 1C, 4, 5 | `010_backups.sql` | XL |
 | **7** | Tâches planifiées en lecture (Cron et timers) | 2, 3 | — | S |
-| **8** | WebAuthn (passkeys, FIDO2) et jetons d'API en lecture | 1C, HTTPS | `010_webauthn_tokens.sql` | L |
-| **V** | Vulnérabilités des paquets (Grype) : scans automatiques et manuels, onglet de la page Machine, synthèse du tableau de bord, historique | 4 | prochain numéro libre à la livraison | L |
+| **8** | WebAuthn (passkeys, FIDO2) et jetons d'API en lecture | 1C, HTTPS | `011_webauthn_tokens.sql` | L |
+| **V** | Vulnérabilités des paquets (Grype) : scans automatiques et manuels, onglet de la page Machine, synthèse du tableau de bord, historique | 4 | `009_vulnerabilities.sql` | L |
 | *Option* | Dettes v2.1 : pagination par curseur, inventaire complet images/volumes/réseaux | Décision Q-4 | selon choix | M |
 
 Le coffre de secrets (§ 2.5 de la spécification) est avancé en **1C** et non en phase 4 : les secrets TOTP doivent être chiffrés (§ 3.6), ce qui en fait le premier consommateur.
@@ -149,7 +149,9 @@ Ordre de réalisation : 1A → M → 1B → 1C → 2 → 3 → 4 → V → 5 →
 - Dernières exécutions depuis les lignes `CRON[pid]` du journal (phase 2) ; code de sortie seulement pour les timers.
 - Inspecteur d'expression sans enregistrement.
 
-### V — Vulnérabilités des paquets (Grype)
+### V — Vulnérabilités des paquets (Grype) (livré)
+
+- Plan : [2026-11-24-module-v-vulnerabilites.md](./2026-11-24-module-v-vulnerabilites.md), livré en deux parties : VA (analyse, stockage, API, unité et règle polkit) puis VB (interface, tableau de bord, paramètres, règle d'alerte).
 
 - Spécification : SPEC_ADMINISTRATION.md § 8 ter. Machine du Manager seule, sans agent (D-9) ; base de Grype mise à jour automatiquement chaque jour, désactivable (D-10) ; Grype exécuté par l'unité dédiée et durcie `homelab-vulnscan.service`, démarrée par D-Bus avec une règle polkit limitée à cette unité (D-11) ; décisions tranchées le 24 novembre 2026.
 - Lecture des paquets en Go par gestionnaire (dpkg d'abord, puis RPM SQLite et apk), inventaire écrit pour l'unité, qui lance `grype sbom:` ; résultat JSON validé par le Manager ; un seul scan à la fois, délai de 15 min, ressources bornées par l'unité.

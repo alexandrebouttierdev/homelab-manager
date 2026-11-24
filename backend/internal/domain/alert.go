@@ -72,6 +72,9 @@ const (
 	AlertRuleContainerState  AlertRuleType = "container_state"
 	AlertRuleUnitFailed      AlertRuleType = "unit_failed"
 	AlertRuleCollector       AlertRuleType = "collector"
+	// AlertRuleVulnerabilities fires while the latest successful scan
+	// holds a matching finding (SPEC_ADMINISTRATION.md § 8 ter.5).
+	AlertRuleVulnerabilities AlertRuleType = "vulnerabilities"
 )
 
 // AlertOperator compares a metric value with the threshold.
@@ -159,10 +162,23 @@ type AlertRuleParams struct {
 	UnitPattern string `json:"unitPattern,omitempty"`
 	// Collector: collector rule, "system", "docker" or "services".
 	Collector string `json:"collector,omitempty"`
+	// VulnSeverity and FixableOnly: vulnerabilities rule, the minimum
+	// severity (critical, high, medium or low) and whether only findings
+	// with a fixed version count.
+	VulnSeverity VulnSeverity `json:"vulnSeverity,omitempty"`
+	FixableOnly  bool         `json:"fixableOnly,omitempty"`
 	// ForSeconds is how long the condition must hold (0 to 86 400). A
-	// failed unit fires at once.
+	// failed unit and a vulnerability fire at once.
 	ForSeconds int `json:"forSeconds,omitempty"`
 }
+
+// AlertVulnSeverities lists the minimum severities a vulnerabilities rule
+// accepts.
+var alertVulnSeverities = []VulnSeverity{VulnCritical, VulnHigh, VulnMedium, VulnLow}
+
+func AlertVulnSeverities() []VulnSeverity { return slices.Clone(alertVulnSeverities) }
+
+func hasVulnParams(p AlertRuleParams) bool { return p.VulnSeverity != "" || p.FixableOnly }
 
 func invalidRule(format string, args ...any) error {
 	return fmt.Errorf("%w: %s", ErrInvalidAlertRule, fmt.Sprintf(format, args...))
@@ -183,17 +199,17 @@ func (r AlertRule) Validate() error {
 	}
 	switch r.Type {
 	case AlertRuleHostMetric:
-		if p.ContainerID != nil || len(p.States) > 0 || p.UnitPattern != "" || p.Collector != "" {
+		if p.ContainerID != nil || len(p.States) > 0 || p.UnitPattern != "" || p.Collector != "" || hasVulnParams(p) {
 			return invalidRule("a host metric rule takes metric, labels, operator, threshold and forSeconds only")
 		}
 		return validateMetric(p, hostAlertMetrics, "host")
 	case AlertRuleContainerMetric:
-		if len(p.States) > 0 || p.UnitPattern != "" || p.Collector != "" {
+		if len(p.States) > 0 || p.UnitPattern != "" || p.Collector != "" || hasVulnParams(p) {
 			return invalidRule("a container metric rule takes containerId, metric, labels, operator, threshold and forSeconds only")
 		}
 		return validateMetric(p, containerAlertMetrics, "container")
 	case AlertRuleContainerState:
-		if p.Metric != "" || len(p.Labels) > 0 || p.Operator != "" || p.Threshold != nil || p.UnitPattern != "" || p.Collector != "" {
+		if p.Metric != "" || len(p.Labels) > 0 || p.Operator != "" || p.Threshold != nil || p.UnitPattern != "" || p.Collector != "" || hasVulnParams(p) {
 			return invalidRule("a container state rule takes containerId, states and forSeconds only")
 		}
 		if len(p.States) == 0 {
@@ -206,7 +222,7 @@ func (r AlertRule) Validate() error {
 		}
 		return nil
 	case AlertRuleUnitFailed:
-		if p.Metric != "" || len(p.Labels) > 0 || p.Operator != "" || p.Threshold != nil || p.ContainerID != nil || len(p.States) > 0 || p.Collector != "" || p.ForSeconds != 0 {
+		if p.Metric != "" || len(p.Labels) > 0 || p.Operator != "" || p.Threshold != nil || p.ContainerID != nil || len(p.States) > 0 || p.Collector != "" || p.ForSeconds != 0 || hasVulnParams(p) {
 			return invalidRule("a unit rule takes unitPattern only")
 		}
 		if len(p.UnitPattern) > maxPatternBytes || !unitPatternCharacters.MatchString(p.UnitPattern) {
@@ -217,15 +233,24 @@ func (r AlertRule) Validate() error {
 		}
 		return nil
 	case AlertRuleCollector:
-		if p.Metric != "" || len(p.Labels) > 0 || p.Operator != "" || p.Threshold != nil || p.ContainerID != nil || len(p.States) > 0 || p.UnitPattern != "" {
+		if p.Metric != "" || len(p.Labels) > 0 || p.Operator != "" || p.Threshold != nil || p.ContainerID != nil || len(p.States) > 0 || p.UnitPattern != "" || hasVulnParams(p) {
 			return invalidRule("a collector rule takes collector and forSeconds only")
 		}
 		if !slices.Contains(alertCollectors, p.Collector) {
 			return invalidRule("collector must be system, docker or services")
 		}
 		return nil
+	case AlertRuleVulnerabilities:
+		if p.Metric != "" || len(p.Labels) > 0 || p.Operator != "" || p.Threshold != nil || p.ContainerID != nil || len(p.States) > 0 ||
+			p.UnitPattern != "" || p.Collector != "" || p.ForSeconds != 0 {
+			return invalidRule("a vulnerabilities rule takes vulnSeverity and fixableOnly only")
+		}
+		if !slices.Contains(alertVulnSeverities, p.VulnSeverity) {
+			return invalidRule("vulnSeverity must be critical, high, medium or low")
+		}
+		return nil
 	default:
-		return invalidRule("type must be host_metric, container_metric, container_state, unit_failed or collector")
+		return invalidRule("type must be host_metric, container_metric, container_state, unit_failed, collector or vulnerabilities")
 	}
 }
 
@@ -299,6 +324,8 @@ const (
 	AlertTargetContainer AlertTargetKind = "container"
 	AlertTargetUnit      AlertTargetKind = "unit"
 	AlertTargetCollector AlertTargetKind = "collector"
+	// AlertTargetVulnerabilities is the packages of the machine.
+	AlertTargetVulnerabilities AlertTargetKind = "vulnerabilities"
 )
 
 // AlertTarget describes the target of an alert for display and links.
@@ -395,6 +422,18 @@ type AlertSnapshot struct {
 	Units            []SystemUnit
 	// Collectors maps "system", "docker" and "services" to their status.
 	Collectors map[string]string
+	// VulnerabilitiesKnown is false until a scan succeeded; then
+	// VulnerabilityCounts counts the present findings.
+	VulnerabilitiesKnown bool
+	VulnerabilityCounts  []VulnerabilityCount
+}
+
+// VulnerabilityCount counts the present findings of a severity, fixable or
+// not.
+type VulnerabilityCount struct {
+	Severity VulnSeverity
+	Fixable  bool
+	Count    int
 }
 
 // AlertEngineState is the memory of the engine between evaluations, keyed
@@ -598,6 +637,21 @@ func observe(rule AlertRule, snapshot AlertSnapshot) (observations []observation
 			})
 		}
 		return observations, true
+	case AlertRuleVulnerabilities:
+		if !snapshot.VulnerabilitiesKnown {
+			return nil, false
+		}
+		count := 0
+		for _, c := range snapshot.VulnerabilityCounts {
+			if c.Severity.AtLeast(p.VulnSeverity) && (c.Fixable || !p.FixableOnly) {
+				count += c.Count
+			}
+		}
+		value := float64(count)
+		return []observation{{
+			key: "vulnerabilities", target: AlertTarget{Kind: AlertTargetVulnerabilities},
+			holds: count > 0, value: &value,
+		}}, true
 	case AlertRuleCollector:
 		status, ok := snapshot.Collectors[p.Collector]
 		if !ok {

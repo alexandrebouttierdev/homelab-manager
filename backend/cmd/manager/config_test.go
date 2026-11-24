@@ -6,7 +6,8 @@ func TestConfigValidateCollectionBounds(t *testing.T) {
 	config := Config{
 		HTTPAddress: ":8080", AdminUsername: "admin", DatabasePath: "/var/lib/homelab-manager/homelab-manager.db", DockerProxySocket: "/run/homelab-docker-proxy/docker.sock",
 		SystemIntervalSeconds: 10, DockerStatsIntervalSeconds: 15,
-		DockerDiscoveryIntervalSeconds: 30, MetricsRetentionDays: 30,
+		DockerDiscoveryIntervalSeconds: 30, MetricsRetentionDays: 30, VulnerabilityScanIntervalHours: 24,
+		VulnscanInventoryPath: "/var/lib/homelab-vulnscan/inventory/inventory.json", VulnscanResultPath: "/var/lib/homelab-vulnscan/result/result.json",
 	}
 	if err := config.Validate(); err != nil {
 		t.Fatalf("valid configuration rejected: %v", err)
@@ -23,6 +24,9 @@ func TestConfigValidateCollectionBounds(t *testing.T) {
 		{"missing database path", func(c *Config) { c.DatabasePath = "" }},
 		{"missing proxy socket", func(c *Config) { c.DockerProxySocket = "" }},
 		{"administrator password too short", func(c *Config) { c.AdminPassword = "short" }},
+		{"scan interval too short", func(c *Config) { c.VulnerabilityScanIntervalHours = 5 }},
+		{"scan interval too long", func(c *Config) { c.VulnerabilityScanIntervalHours = 169 }},
+		{"relative inventory path", func(c *Config) { c.VulnscanInventoryPath = "inventory.json" }},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

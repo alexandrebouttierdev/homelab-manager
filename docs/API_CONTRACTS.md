@@ -83,8 +83,14 @@ Ce document est le contrat exact de l'API implémentée. Toute différence entre
 | `PUT /api/v1/notification-channels/{channelID}` | admin | Remplace un canal (§ 4.8) |
 | `DELETE /api/v1/notification-channels/{channelID}` | admin | Supprime un canal (§ 4.8) |
 | `POST /api/v1/notification-channels/{channelID}/test` | admin | Envoie un message de test (§ 4.8) |
+| `GET /api/v1/vulnerabilities/summary` | oui | Synthèse des vulnérabilités des paquets (§ 4.9) |
+| `PUT /api/v1/settings/vulnerability-scans` | admin | Modifie l'intervalle des scans de vulnérabilités (§ 4.9) |
+| `GET /api/v1/vulnerabilities` | oui | Constats filtrés et paginés (§ 4.9) |
+| `GET /api/v1/vulnerabilities/{findingID}` | oui | Un constat (§ 4.9) |
+| `GET /api/v1/vulnerabilities/scans` | oui | Derniers scans (§ 4.9) |
+| `POST /api/v1/vulnerabilities/scans` | `operator` | Lance un scan (§ 4.9) |
 
-Toutes les routes de supervision sont en lecture seule ; les seules écritures sont l'authentification, `PUT /api/v1/settings/retention`, la gestion des comptes, les demandes d'alimentation de la machine, les règles d'alerte, l'acquittement d'une alerte, les silences et les canaux de notification. La colonne « Session » indique `admin` pour les routes réservées au rôle administrateur, `operator` pour celles ouvertes aux opérateurs et administrateurs (§ 3.1). Une route inconnue sous `/api` répond `404 NOT_FOUND`, une méthode non prévue `405 METHOD_NOT_ALLOWED`, toujours au format d'erreur du § 8. Le journal système et les unités systemd ne sont lus qu'en lecture seule. Il n'existe aucune route d'Agent, d'hôte distant, de journaux de conteneurs, ni d'action Docker (création, suppression, démarrage, arrêt, restart, exec).
+Toutes les routes de supervision sont en lecture seule ; les seules écritures sont l'authentification, `PUT /api/v1/settings/retention`, la gestion des comptes, les demandes d'alimentation de la machine, les règles d'alerte, l'acquittement d'une alerte, les silences, les canaux de notification et le lancement d'un scan de vulnérabilités. La colonne « Session » indique `admin` pour les routes réservées au rôle administrateur, `operator` pour celles ouvertes aux opérateurs et administrateurs (§ 3.1). Une route inconnue sous `/api` répond `404 NOT_FOUND`, une méthode non prévue `405 METHOD_NOT_ALLOWED`, toujours au format d'erreur du § 8. Le journal système et les unités systemd ne sont lus qu'en lecture seule. Il n'existe aucune route d'Agent, d'hôte distant, de journaux de conteneurs, ni d'action Docker (création, suppression, démarrage, arrêt, restart, exec).
 
 ### Paramètres de chemin
 
@@ -126,7 +132,7 @@ Toutes les routes de supervision sont en lecture seule ; les seules écritures s
 
 Comptes de Homelab Manager uniquement : aucun compte Linux n'est lu ni modifié.
 
-**Rôles** — `viewer` : consultation et son propre mot de passe. `operator` : idem, plus l'acquittement des alertes (permission `alerts:operate` ; actions sur les services et sauvegardes dans les phases suivantes). `admin` : idem, plus `PUT /api/v1/settings/retention`, les routes `/api/v1/users` et la gestion des règles d'alerte (`alerts:manage`). Un rôle insuffisant reçoit `403 FORBIDDEN`.
+**Rôles** — `viewer` : consultation et son propre mot de passe. `operator` : idem, plus l'acquittement des alertes et les silences (permission `alerts:operate`), le lancement d'un scan de vulnérabilités (`vulnerabilities:scan`) ; actions sur les services et sauvegardes dans les phases suivantes). `admin` : idem, plus `PUT /api/v1/settings/retention`, les routes `/api/v1/users` et la gestion des règles d'alerte (`alerts:manage`). Un rôle insuffisant reçoit `403 FORBIDDEN`.
 
 **Mot de passe initial** — un compte créé par un administrateur a `mustChangePassword: true`. Tant qu'il ne l'a pas changé (`POST /api/v1/auth/password`), toutes les routes authentifiées sauf `/auth/session`, `/auth/logout` et `/auth/password` répondent `403 PASSWORD_CHANGE_REQUIRED`.
 
@@ -430,9 +436,10 @@ Moteur d'alertes intégré (SPEC_ADMINISTRATION.md § 6), évalué toutes les 15
 | `container_state` | `containerId` (facultatif), `states` (non vide, valeurs distinctes), `forSeconds` | L'état Docker du conteneur est l'un des `states` |
 | `unit_failed` | `unitPattern` (nom ou motif shell `*`, `?`, `[…]`) | Une unité de l'inventaire qui correspond est en `failed` ; immédiat |
 | `collector` | `collector` (`system`, `docker`, `services`), `forSeconds` | Le collecteur n'est ni `ok`, ni en démarrage (`starting`, `pending`) |
+| `vulnerabilities` | `vulnSeverity` (`critical`, `high`, `medium`, `low` : sévérité minimale), `fixableOnly` (facultatif) | Au moins un constat présent (§ 4.9) de cette sévérité ou plus grave, corrigeable si `fixableOnly` ; immédiat. Gelée tant qu'aucun scan n'a réussi. Une alerte par règle (cible `vulnerabilities`), `value` = nombre de constats |
 
 - `name` : 1 à 100 octets sans caractère de contrôle ; `severity` : `info`, `warning`, `critical` ; `operator` : `>`, `>=`, `<`, `<=` ; `threshold` : nombre fini ; `forSeconds` : 0 à 86 400 (durée pendant laquelle la condition doit rester vraie) ; `labels` : 5 au plus, clés parmi celles de la métrique, valeurs de 1 à 255 octets. Un paramètre qui n'appartient pas au type est refusé.
-- Métriques : celles du catalogue renvoyé par `GET /api/v1/alert-rules` (`catalog.hostMetrics` et `catalog.containerMetrics`, chacune avec ses labels), sous-ensemble des § 5.4 et § 5.5 sans compteurs cumulés ni totaux, plus `memory.available_percent` (hôte), dérivée par le moteur : `memory.available / memory.total × 100`. `catalog.containerStates` et `catalog.collectors` listent les autres valeurs acceptées.
+- Métriques : celles du catalogue renvoyé par `GET /api/v1/alert-rules` (`catalog.hostMetrics` et `catalog.containerMetrics`, chacune avec ses labels), sous-ensemble des § 5.4 et § 5.5 sans compteurs cumulés ni totaux, plus `memory.available_percent` (hôte), dérivée par le moteur : `memory.available / memory.total × 100`. `catalog.containerStates`, `catalog.collectors` et `catalog.vulnerabilitySeverities` listent les autres valeurs acceptées.
 - Six règles par défaut (`default: true`) : disque `filesystem.percent > 85` 5 min, mémoire `memory.available_percent < 10` 5 min (`warning`) ; température `temperature.celsius > 85` 2 min (`critical`, seuil fixe : les seuils des capteurs ne sont pas collectés) ; collecte système et collecte Docker indisponibles 2 min (`warning`) ; unité en échec, motif `*` (`critical`). Modifiables et désactivables, non supprimables.
 
 **Alerte** :
@@ -450,7 +457,7 @@ Moteur d'alertes intégré (SPEC_ADMINISTRATION.md § 6), évalué toutes les 15
 }
 ```
 
-- `target.kind` : `host`, `container`, `unit` ou `collector`. `value` et `threshold` : règles de métrique (valeur au déclenchement) ; `observed` : état qui a déclenché les autres règles (`exited`, `failed (exit-code)`, `unavailable`). `ruleName`, `ruleType` et `severity` sont copiés au déclenchement.
+- `target.kind` : `host`, `container`, `unit`, `collector` ou `vulnerabilities` (paquets de la machine). `value` et `threshold` : règles de métrique (valeur au déclenchement) ; `observed` : état qui a déclenché les autres règles (`exited`, `failed (exit-code)`, `unavailable`). `ruleName`, `ruleType` et `severity` sont copiés au déclenchement.
 - Cycle : `firing` → `acknowledged` (facultatif) → `resolved`. Une seule alerte ouverte par règle et par cible ; une condition de nouveau vraie après la résolution ouvre une nouvelle alerte. `resolution` : `condition_cleared` (condition fausse), `no_data` (série absente d'un cycle à jour depuis 5 min), `target_gone` (conteneur ou unité sorti de l'inventaire), `rule_disabled`, `rule_deleted`, `rule_changed` (type, sévérité ou paramètres modifiés ; un simple renommage garde les alertes).
 - `targetKey` : clé stable de la cible, reprise par un silence de portée `target`. `silenced` : un silence en vigueur couvre l'alerte ouverte (toujours `false` pour une alerte résolue) ; l'alerte reste listée, seules ses notifications sont suspendues. `lastNotifiedAt` : dernier message envoyé à son sujet, tous canaux confondus, `null` sinon.
 - Une source illisible ou périmée (aucun cycle hôte de moins de 5 min, collecte Docker hors `ok`, inventaire systemd hors `ok`) ne déclenche ni ne résout les règles qui en dépendent. Le début d'une condition qui n'a pas encore tenu sa durée est gardé en mémoire : après un redémarrage du Manager, la durée recommence ; les alertes ouvertes, elles, sont conservées.
@@ -539,6 +546,56 @@ Moteur d'alertes intégré (SPEC_ADMINISTRATION.md § 6), évalué toutes les 15
 ```
 
 `event` : `firing`, `resolved` ou `reminder` ; `target` omet les champs vides ; `notifications` est vide pour un test (`test: true`) ; `omitted` compte les notifications retirées du message. Avec `signingSecret` : en-têtes `X-Homelab-Timestamp` (secondes Unix) et `X-Homelab-Signature: sha256=<hex>`, HMAC-SHA256 du secret sur `<timestamp>.<corps brut>`. Le récepteur recalcule la signature sur le corps reçu, la compare en temps constant et refuse un horodatage trop ancien (5 min par exemple).
+
+### 4.9 Vulnérabilités des paquets
+
+Vulnérabilités connues des paquets système de la machine du Manager (SPEC_ADMINISTRATION.md § 8 ter), trouvées par Grype dans l'unité dédiée `homelab-vulnscan.service`. Une vulnérabilité listée est **identifiée**, pas mesurée comme exploitable. Sans base de données, ces routes répondent `503 VULNERABILITIES_UNAVAILABLE`.
+
+**Scan** :
+
+```json
+{
+  "id": "uuid", "trigger": "schedule", "requestedBy": null, "state": "succeeded", "failure": null,
+  "startedAt": "2026-11-24T10:00:00Z", "finishedAt": "2026-11-24T10:01:12Z",
+  "grypeVersion": "0.121.3", "dbBuiltAt": "2026-11-24T04:12:00Z",
+  "distro": { "id": "debian", "version": "13", "name": "Debian GNU/Linux 13 (trixie)" },
+  "packageCount": 412,
+  "totals": { "critical": 1, "high": 4, "medium": 12, "low": 30, "negligible": 55, "unknown": 2 },
+  "newCount": 3, "resolvedCount": 1
+}
+```
+
+- `trigger` : `startup` (premier scan, 2 min après le démarrage du Manager s'il n'existe aucun scan réussi), `schedule` (périodique), `retry` (nouvel essai unique 15 min après un échec), `manual`. `requestedBy` : compte d'un scan manuel.
+- `state` : `running`, `succeeded`, `failed`. `failure` : `unsupported_distro` (distribution non prise en charge), `inventory_failed` (base de paquets illisible), `vulnscan_not_installed` (unité ou systemd absents), `vulnscan_not_allowed` (règle polkit absente), `timeout` (15 min dépassées), `scan_failed` (Grype en échec, dont base injoignable ou de plus de 5 jours : le journal de l'unité donne le détail), `stale_result` (aucun résultat récent), `invalid_result`, `interrupted` (Manager arrêté pendant le scan).
+- `totals` : constats présents après un scan réussi, par sévérité ; `newCount` et `resolvedCount` : apparus et disparus par rapport au scan réussi précédent. `distro`, `grypeVersion` et `dbBuiltAt` sont `null` pour un scan qui n'a pas abouti.
+
+**Constat** (une vulnérabilité d'une version de paquet) :
+
+```json
+{
+  "id": "uuid", "vulnerabilityId": "CVE-2026-1000", "severity": "critical",
+  "package": "openssl", "version": "3.5.1-1", "packageType": "deb",
+  "fixState": "fixed", "fixedVersions": ["3.5.1-2"],
+  "description": "…", "urls": ["https://security-tracker.debian.org/tracker/CVE-2026-1000"],
+  "dataSource": "https://security-tracker.debian.org/tracker/CVE-2026-1000",
+  "firstSeenAt": "2026-11-20T10:01:12Z", "lastSeenAt": "2026-11-24T10:01:12Z", "resolvedAt": null
+}
+```
+
+- `severity` : `critical`, `high`, `medium`, `low`, `negligible`, `unknown`. `fixState` : `fixed` (une version corrige), `not-fixed`, `wont-fix`, `unknown`, d'après Grype. `description` (4 Kio au plus) et `dataSource` peuvent être `null` ; `urls` : 10 adresses `http`/`https` au plus.
+- Un constat est présent tant que `resolvedAt` est `null` ; un scan réussi qui ne le trouve plus le résout. La même vulnérabilité retrouvée plus tard ouvre un nouveau constat. Constats résolus et scans conservés 180 jours (le dernier scan réussi toujours).
+
+`GET /api/v1/vulnerabilities/summary` → `{ "totals": {…}, "total": 104, "fixable": 37, "latestScan": Scan | null, "lastSuccessfulScan": Scan | null, "running": false, "nextScanAt": "…" | null, "intervalHours": 24, "defaultIntervalHours": 24, "intervalSource": "config", "recent": [Constat × 5] }`. `intervalHours` : intervalle effectif des scans automatiques ; `defaultIntervalHours` : celui de la configuration (`vulnerability_scan_interval_hours`) ; `intervalSource` : `config`, ou `user` une fois l'intervalle choisi dans l'interface. `totals` et `fixable` comptent les constats présents ; `recent` : les 5 constats présents les plus récemment apparus ; `nextScanAt` est `null` pendant un scan. `latestScan` peut être un échec plus récent que `lastSuccessfulScan` : l'interface affiche les deux dates.
+
+`GET /api/v1/vulnerabilities[?state=present|resolved&severity=critical,high&fixable=true&q=…&limit=…&offset=…]` → `{ "findings": [...], "total": 104, "limit": 100, "offset": 0 }`. `state` par défaut `present` (tri : sévérité puis apparition la plus récente) ; `resolved` trie par résolution la plus récente. `severity` : liste séparée par des virgules ; `q` : 100 caractères au plus, cherché sans casse dans l'identifiant et le nom du paquet ; `limit` 1 à 500 (défaut 100) ; `offset` 0 à 100 000. Tout autre paramètre, ou un paramètre répété → `400 VALIDATION_ERROR`.
+
+`GET /api/v1/vulnerabilities/{findingID}` → `{ "finding": Constat }` ou `404 NOT_FOUND`.
+
+`GET /api/v1/vulnerabilities/scans[?limit=…]` → `{ "scans": [...] }`, du plus récent au plus ancien, `limit` 1 à 100 (défaut 20).
+
+`POST /api/v1/vulnerabilities/scans` (sans corps, `operator` ou `admin`) → `202 { "scan": Scan }` (`state: running`) ; le scan s'exécute en arrière-plan (une minute environ, 15 au plus). Un scan déjà en cours, automatique ou manuel : `409 SCAN_IN_PROGRESS` ; moins de 5 min après le précédent scan manuel : `429 SCAN_RATE_LIMITED`. Audité (`vulnerability_scan` / UUID / `start`).
+
+`PUT /api/v1/settings/vulnerability-scans` avec `{ "intervalHours": 48 }` (`admin`, de 6 à 168, champs inconnus refusés) → `200 { "intervalHours": 48, "defaultIntervalHours": 24, "intervalSource": "user" }` ; appliqué aussitôt (le prochain scan est recalculé depuis la fin du dernier) et audité (`settings` / `vulnerability_scan_interval_hours` / `update`) dans la même transaction. Hors bornes : `400 VALIDATION_ERROR`.
 
 ## 5. Métriques
 
@@ -762,6 +819,10 @@ Les routes sont versionnées sous `/api/v1`. Un changement incompatible (champ s
 | `SECRETS_UNAVAILABLE` | 503 | Clé maître absente : secrets des canaux indisponibles |
 | `NOTIFICATION_FAILED` | 502 | Envoi de test en échec (code et statut seulement) |
 | `ALERTS_UNAVAILABLE` | 503 | Moteur d'alertes arrêté (base de données indisponible) |
+| `SCAN_IN_PROGRESS` | 409 | Un scan de vulnérabilités est déjà en cours |
+| `SCAN_RATE_LIMITED` | 429 | Scan manuel moins de 5 min après le précédent |
+| `VULNERABILITIES_UNAVAILABLE` | 503 | Module des vulnérabilités arrêté (base de données indisponible) |
+| `VULNERABILITIES_FAILED` | 500 | Lecture ou lancement des scans en échec |
 | `ALERTS_FAILED` | 500 | Lecture ou écriture des alertes en échec |
 | `INTERNAL_ERROR` | 500 | Autre erreur serveur |
 

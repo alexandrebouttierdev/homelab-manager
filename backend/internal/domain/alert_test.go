@@ -357,3 +357,54 @@ func TestRoleAlertPermissions(t *testing.T) {
 		}
 	}
 }
+
+func TestVulnerabilitiesRule(t *testing.T) {
+	rule := AlertRule{ID: uuid.New(), Name: "Vulnérabilités critiques", Type: AlertRuleVulnerabilities, Severity: AlertCritical, Enabled: true,
+		Params: AlertRuleParams{VulnSeverity: VulnHigh, FixableOnly: true}}
+	if err := rule.Validate(); err != nil {
+		t.Fatalf("Validate() = %v", err)
+	}
+	for name, params := range map[string]AlertRuleParams{
+		"no severity":       {},
+		"negligible":        {VulnSeverity: VulnNegligible},
+		"with a duration":   {VulnSeverity: VulnHigh, ForSeconds: 60},
+		"with a metric":     {VulnSeverity: VulnHigh, Metric: "cpu.percent"},
+		"vuln on collector": {Collector: "docker", VulnSeverity: VulnHigh},
+	} {
+		invalid := rule
+		invalid.Params = params
+		if name == "vuln on collector" {
+			invalid.Type = AlertRuleCollector
+		}
+		if err := invalid.Validate(); !errors.Is(err, ErrInvalidAlertRule) {
+			t.Errorf("%s: Validate() = %v", name, err)
+		}
+	}
+	counts := []VulnerabilityCount{
+		{Severity: VulnCritical, Fixable: false, Count: 2},
+		{Severity: VulnHigh, Fixable: true, Count: 3},
+		{Severity: VulnMedium, Fixable: true, Count: 7},
+	}
+	frozen := EvaluateAlerts([]AlertRule{rule}, AlertSnapshot{}, nil, AlertEngineState{}, alertNow)
+	if len(frozen.Fired) != 0 {
+		t.Fatal("a vulnerabilities rule fired before any successful scan")
+	}
+	result := EvaluateAlerts([]AlertRule{rule}, AlertSnapshot{VulnerabilitiesKnown: true, VulnerabilityCounts: counts}, nil, AlertEngineState{}, alertNow)
+	if len(result.Fired) != 1 || *result.Fired[0].Value != 3 || result.Fired[0].Target.Kind != AlertTargetVulnerabilities || result.Fired[0].TargetKey != "vulnerabilities" {
+		t.Fatalf("fired = %+v, want one alert counting the 3 fixable high findings", result.Fired)
+	}
+	rule.Params.FixableOnly = false
+	result = EvaluateAlerts([]AlertRule{rule}, AlertSnapshot{VulnerabilitiesKnown: true, VulnerabilityCounts: counts}, nil, AlertEngineState{}, alertNow)
+	if *result.Fired[0].Value != 5 {
+		t.Fatalf("count = %v, want 5 critical and high findings", *result.Fired[0].Value)
+	}
+	open := result.Fired
+	cleared := EvaluateAlerts([]AlertRule{rule}, AlertSnapshot{VulnerabilitiesKnown: true}, open, AlertEngineState{}, alertNow.Add(time.Hour))
+	if len(cleared.Resolved) != 1 || cleared.Resolved[0].Resolution != ResolutionConditionCleared {
+		t.Fatalf("resolved = %+v", cleared.Resolved)
+	}
+	message := RenderNotification("nas", NotificationBatch{Notifications: []Notification{{Event: NotifyFiring, Alert: open[0]}}}, alertNow, 0)
+	if !strings.Contains(message.Body, "Paquets de la machine · 5 vulnérabilités") {
+		t.Fatalf("message = %q", message.Body)
+	}
+}

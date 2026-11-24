@@ -18,6 +18,8 @@ const (
 	FieldSingletonKey = "singleton_key"
 	// FieldMetricsRetentionDays holds the string denoting the metrics_retention_days field in the database.
 	FieldMetricsRetentionDays = "metrics_retention_days"
+	// FieldVulnerabilityScanIntervalHours holds the string denoting the vulnerability_scan_interval_hours field in the database.
+	FieldVulnerabilityScanIntervalHours = "vulnerability_scan_interval_hours"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
 	FieldUpdatedAt = "updated_at"
 	// Table holds the table name of the appsetting in the database.
@@ -29,6 +31,7 @@ var Columns = []string{
 	FieldID,
 	FieldSingletonKey,
 	FieldMetricsRetentionDays,
+	FieldVulnerabilityScanIntervalHours,
 	FieldUpdatedAt,
 }
 
@@ -69,6 +72,11 @@ func BySingletonKey(opts ...sql.OrderTermOption) OrderOption {
 // ByMetricsRetentionDays orders the results by the metrics_retention_days field.
 func ByMetricsRetentionDays(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldMetricsRetentionDays, opts...).ToFunc()
+}
+
+// ByVulnerabilityScanIntervalHours orders the results by the vulnerability_scan_interval_hours field.
+func ByVulnerabilityScanIntervalHours(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldVulnerabilityScanIntervalHours, opts...).ToFunc()
 }
 
 // ByUpdatedAt orders the results by the updated_at field.

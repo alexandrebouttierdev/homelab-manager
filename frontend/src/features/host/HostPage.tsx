@@ -32,6 +32,9 @@ import { CollectorRow } from '../../components/ui/CollectorRow'
 import { collectorStatusLabel, collectorStatusTone } from '../../lib/collectors'
 import { metricLabel, metricLabels, useHostPage } from './useHostPage'
 import { PowerCard } from './PowerCard'
+import { SegmentedTabs } from '../../components/ui/SegmentedTabs'
+import { useHostTabs } from './useHostTabs'
+import { VulnerabilitiesPanel } from './VulnerabilitiesPanel'
 
 export function HostPage() {
   const {
@@ -56,6 +59,7 @@ export function HostPage() {
     settingsInfo,
     temperatureAlert,
   } = useHostPage()
+  const tabs = useHostTabs()
 
   return (
     <div className="space-y-4">
@@ -96,286 +100,305 @@ export function HostPage() {
         }
       />
 
-      {(host.isError || current.isError) && (
-        <ErrorState
-          message={(host.error ?? current.error)?.message ?? 'Informations système indisponibles.'}
-          onRetry={() => {
-            void queryClient.invalidateQueries()
-          }}
-        />
-      )}
+      <SegmentedTabs
+        options={tabs.options}
+        value={tabs.tab}
+        onChange={tabs.setTab}
+        ariaLabel="Sections"
+      />
 
-      {(host.isLoading || current.isLoading) && !host.isError && !current.isError && (
-        <LoadingState label="Chargement des informations système…" rows={2} />
-      )}
-
-      {hostInfo && !host.isError && (
+      {tabs.tab === 'vulnerabilities' ? (
+        <VulnerabilitiesPanel />
+      ) : (
         <>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-            <MetricCard
-              label="Processeur"
-              title={cores ? `${Math.round(cores)} cœurs logiques` : 'Processeur'}
-              value={formatPercent(cpu)}
-              badge={<Badge tone="info">CPU</Badge>}
-              hint={`Charge 1/5/15 : ${load1?.toFixed(2) ?? '—'} · ${load5?.toFixed(2) ?? '—'} · ${load15?.toFixed(2) ?? '—'}`}
-            >
-              <ProgressBar value={cpu} tone="cpu" label="Utilisation CPU" />
-            </MetricCard>
-
-            <MetricCard
-              label="Mémoire vive"
-              title={memoryTotal ? `${formatBytes(memoryTotal)} installés` : 'Mémoire'}
-              value={formatBytes(memoryUsed)}
-              unit={memoryTotal ? `/ ${formatBytes(memoryTotal)}` : undefined}
-              badge={<Badge tone="accent">{formatPercent(memoryPercent)}</Badge>}
-              hint={`Disponible ${formatBytes(memoryAvailable)}`}
-            >
-              <ProgressBar value={memoryPercent} tone="ram" label="Utilisation mémoire" />
-            </MetricCard>
-
-            <MetricCard
-              label="Stockage"
-              title={`${filesystems.entries.length} système(s) de fichiers`}
-              value={formatBytes(filesystems.used)}
-              unit={filesystems.total > 0 ? `/ ${formatBytes(filesystems.total)}` : undefined}
-              badge={<Badge tone="success">{formatPercent(filesystems.percent)}</Badge>}
-              hint={
-                filesystems.total > 0
-                  ? `${formatBytes(filesystems.available)} disponibles`
-                  : 'Aucune mesure'
+          {(host.isError || current.isError) && (
+            <ErrorState
+              message={
+                (host.error ?? current.error)?.message ?? 'Informations système indisponibles.'
               }
-            >
-              <ProgressBar
-                value={filesystems.percent}
-                tone="success"
-                label="Utilisation du stockage"
-              />
-            </MetricCard>
-
-            <MetricCard
-              label="Températures"
-              title={temperatures.length > 0 ? 'Capteurs locaux' : 'Aucun capteur'}
-              value={temperatures[0] ? formatMetricValue(temperatures[0].value, 'celsius') : '—'}
-              badge={
-                <Badge tone={temperatureAlert ? 'warning' : 'neutral'}>
-                  {temperatures.length} capteur(s)
-                </Badge>
-              }
-              hint={
-                temperatures[0]
-                  ? `Maximum : ${temperatures[0].sensor}`
-                  : 'Le matériel n’expose aucun capteur lisible.'
-              }
+              onRetry={() => {
+                void queryClient.invalidateQueries()
+              }}
             />
-          </div>
+          )}
 
-          <div className="grid items-start gap-4 xl:grid-cols-3">
-            <Card className="xl:col-span-2">
-              <CardHeader
-                title="Identité de l'hôte"
-                subtitle="Informations lues localement"
-                icon={<Server className="h-3.5 w-3.5" />}
-              />
-              <CardBody>
-                <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-                  <Info label="Nom d'hôte" value={hostInfo.hostname || '—'} mono />
-                  <Info
-                    label="Distribution"
-                    value={`${hostInfo.os.distribution || '—'} ${hostInfo.os.version || ''}`.trim()}
+          {(host.isLoading || current.isLoading) && !host.isError && !current.isError && (
+            <LoadingState label="Chargement des informations système…" rows={2} />
+          )}
+
+          {hostInfo && !host.isError && (
+            <>
+              <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                <MetricCard
+                  label="Processeur"
+                  title={cores ? `${Math.round(cores)} cœurs logiques` : 'Processeur'}
+                  value={formatPercent(cpu)}
+                  badge={<Badge tone="info">CPU</Badge>}
+                  hint={`Charge 1/5/15 : ${load1?.toFixed(2) ?? '—'} · ${load5?.toFixed(2) ?? '—'} · ${load15?.toFixed(2) ?? '—'}`}
+                >
+                  <ProgressBar value={cpu} tone="cpu" label="Utilisation CPU" />
+                </MetricCard>
+
+                <MetricCard
+                  label="Mémoire vive"
+                  title={memoryTotal ? `${formatBytes(memoryTotal)} installés` : 'Mémoire'}
+                  value={formatBytes(memoryUsed)}
+                  unit={memoryTotal ? `/ ${formatBytes(memoryTotal)}` : undefined}
+                  badge={<Badge tone="accent">{formatPercent(memoryPercent)}</Badge>}
+                  hint={`Disponible ${formatBytes(memoryAvailable)}`}
+                >
+                  <ProgressBar value={memoryPercent} tone="ram" label="Utilisation mémoire" />
+                </MetricCard>
+
+                <MetricCard
+                  label="Stockage"
+                  title={`${filesystems.entries.length} système(s) de fichiers`}
+                  value={formatBytes(filesystems.used)}
+                  unit={filesystems.total > 0 ? `/ ${formatBytes(filesystems.total)}` : undefined}
+                  badge={<Badge tone="success">{formatPercent(filesystems.percent)}</Badge>}
+                  hint={
+                    filesystems.total > 0
+                      ? `${formatBytes(filesystems.available)} disponibles`
+                      : 'Aucune mesure'
+                  }
+                >
+                  <ProgressBar
+                    value={filesystems.percent}
+                    tone="success"
+                    label="Utilisation du stockage"
                   />
-                  <Info label="Noyau" value={hostInfo.kernelVersion || '—'} mono />
-                  <Info label="Démarrage" value={formatDateTime(hostInfo.bootTime)} />
-                  <Info label="Uptime" value={formatUptime(hostInfo.uptimeSeconds)} />
-                  <Info
-                    label="Dernière collecte"
-                    value={
-                      hostInfo.collector.lastSuccessAt
-                        ? formatRelativeTime(hostInfo.collector.lastSuccessAt)
-                        : 'Aucune'
+                </MetricCard>
+
+                <MetricCard
+                  label="Températures"
+                  title={temperatures.length > 0 ? 'Capteurs locaux' : 'Aucun capteur'}
+                  value={
+                    temperatures[0] ? formatMetricValue(temperatures[0].value, 'celsius') : '—'
+                  }
+                  badge={
+                    <Badge tone={temperatureAlert ? 'warning' : 'neutral'}>
+                      {temperatures.length} capteur(s)
+                    </Badge>
+                  }
+                  hint={
+                    temperatures[0]
+                      ? `Maximum : ${temperatures[0].sensor}`
+                      : 'Le matériel n’expose aucun capteur lisible.'
+                  }
+                />
+              </div>
+
+              <div className="grid items-start gap-4 xl:grid-cols-3">
+                <Card className="xl:col-span-2">
+                  <CardHeader
+                    title="Identité de l'hôte"
+                    subtitle="Informations lues localement"
+                    icon={<Server className="h-3.5 w-3.5" />}
+                  />
+                  <CardBody>
+                    <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                      <Info label="Nom d'hôte" value={hostInfo.hostname || '—'} mono />
+                      <Info
+                        label="Distribution"
+                        value={`${hostInfo.os.distribution || '—'} ${hostInfo.os.version || ''}`.trim()}
+                      />
+                      <Info label="Noyau" value={hostInfo.kernelVersion || '—'} mono />
+                      <Info label="Démarrage" value={formatDateTime(hostInfo.bootTime)} />
+                      <Info label="Uptime" value={formatUptime(hostInfo.uptimeSeconds)} />
+                      <Info
+                        label="Dernière collecte"
+                        value={
+                          hostInfo.collector.lastSuccessAt
+                            ? formatRelativeTime(hostInfo.collector.lastSuccessAt)
+                            : 'Aucune'
+                        }
+                      />
+                    </dl>
+                  </CardBody>
+                  <CardFooter className="flex flex-wrap items-center justify-between gap-2 font-mono text-[10px] text-text-muted">
+                    <span className="flex items-center gap-1.5">
+                      <Clock3 className="h-3 w-3" /> Uptime calculé depuis l'heure de démarrage.
+                    </span>
+                    <Link
+                      to="/metrics"
+                      className="inline-flex items-center gap-1 text-text-secondary hover:text-text-primary"
+                    >
+                      <Activity className="h-3 w-3" /> Historique des métriques
+                    </Link>
+                  </CardFooter>
+                </Card>
+
+                <Card>
+                  <CardHeader
+                    title="Collecteurs"
+                    subtitle="État de la supervision"
+                    icon={<ShieldCheck className="h-3.5 w-3.5" />}
+                  />
+                  <CardBody className="space-y-3">
+                    <CollectorRow
+                      name="Système"
+                      status={systemStatus?.status}
+                      lastSuccessAt={systemStatus?.lastSuccessAt}
+                    />
+                    <CollectorRow
+                      name="Docker"
+                      status={dockerStatus?.status}
+                      lastSuccessAt={dockerStatus?.lastSuccessAt}
+                    />
+                    <div className="rounded-md border border-line/70 bg-surface/50 px-3 py-2.5 font-mono text-[10px] text-text-muted">
+                      <p>
+                        Intervalle système : {settingsInfo?.systemCollectIntervalSeconds ?? '—'} s
+                      </p>
+                      <p className="mt-1">
+                        Rétention : {settingsInfo?.metricsRetentionDays ?? '—'} jours
+                      </p>
+                    </div>
+                  </CardBody>
+                  <CardFooter>
+                    <Link
+                      to="/settings"
+                      className="text-[11px] text-text-secondary transition-colors hover:text-text-primary"
+                    >
+                      Voir la configuration effective
+                    </Link>
+                  </CardFooter>
+                </Card>
+              </div>
+
+              <div className="grid items-start gap-4 xl:grid-cols-2">
+                <Card>
+                  <CardHeader
+                    title="Systèmes de fichiers"
+                    subtitle="Capacité et occupation"
+                    icon={<HardDrive className="h-3.5 w-3.5" />}
+                    actions={
+                      <Link
+                        to="/storage"
+                        className="text-[11px] text-text-secondary transition-colors hover:text-text-primary"
+                      >
+                        Détails
+                      </Link>
                     }
                   />
-                </dl>
-              </CardBody>
-              <CardFooter className="flex flex-wrap items-center justify-between gap-2 font-mono text-[10px] text-text-muted">
-                <span className="flex items-center gap-1.5">
-                  <Clock3 className="h-3 w-3" /> Uptime calculé depuis l'heure de démarrage.
-                </span>
-                <Link
-                  to="/metrics"
-                  className="inline-flex items-center gap-1 text-text-secondary hover:text-text-primary"
-                >
-                  <Activity className="h-3 w-3" /> Historique des métriques
-                </Link>
-              </CardFooter>
-            </Card>
-
-            <Card>
-              <CardHeader
-                title="Collecteurs"
-                subtitle="État de la supervision"
-                icon={<ShieldCheck className="h-3.5 w-3.5" />}
-              />
-              <CardBody className="space-y-3">
-                <CollectorRow
-                  name="Système"
-                  status={systemStatus?.status}
-                  lastSuccessAt={systemStatus?.lastSuccessAt}
-                />
-                <CollectorRow
-                  name="Docker"
-                  status={dockerStatus?.status}
-                  lastSuccessAt={dockerStatus?.lastSuccessAt}
-                />
-                <div className="rounded-md border border-line/70 bg-surface/50 px-3 py-2.5 font-mono text-[10px] text-text-muted">
-                  <p>Intervalle système : {settingsInfo?.systemCollectIntervalSeconds ?? '—'} s</p>
-                  <p className="mt-1">
-                    Rétention : {settingsInfo?.metricsRetentionDays ?? '—'} jours
-                  </p>
-                </div>
-              </CardBody>
-              <CardFooter>
-                <Link
-                  to="/settings"
-                  className="text-[11px] text-text-secondary transition-colors hover:text-text-primary"
-                >
-                  Voir la configuration effective
-                </Link>
-              </CardFooter>
-            </Card>
-          </div>
-
-          <div className="grid items-start gap-4 xl:grid-cols-2">
-            <Card>
-              <CardHeader
-                title="Systèmes de fichiers"
-                subtitle="Capacité et occupation"
-                icon={<HardDrive className="h-3.5 w-3.5" />}
-                actions={
-                  <Link
-                    to="/storage"
-                    className="text-[11px] text-text-secondary transition-colors hover:text-text-primary"
-                  >
-                    Détails
-                  </Link>
-                }
-              />
-              <CardBody className="space-y-3">
-                {filesystems.entries.length === 0 && (
-                  <p className="text-sm text-text-muted">Aucun système de fichiers mesuré.</p>
-                )}
-                {filesystems.entries.slice(0, 5).map((entry) => (
-                  <div key={entry.mountpoint} className="space-y-1.5">
-                    <div className="flex items-center justify-between gap-2 font-mono text-[11px]">
-                      <span className="truncate text-text-primary">{entry.mountpoint}</span>
-                      <span className="text-text-muted">
-                        {formatBytes(entry.used)} / {formatBytes(entry.total)}
-                      </span>
-                    </div>
-                    <ProgressBar
-                      value={entry.percent}
-                      tone={entry.percent != null && entry.percent > 90 ? 'warning' : 'success'}
-                      label={`Occupation ${entry.mountpoint}`}
-                    />
-                  </div>
-                ))}
-              </CardBody>
-            </Card>
-
-            <Card>
-              <CardHeader
-                title="Capteurs de température"
-                subtitle="Valeurs les plus récentes"
-                icon={<Thermometer className="h-3.5 w-3.5" />}
-              />
-              <CardBody>
-                {temperatures.length === 0 ? (
-                  <EmptyState
-                    icon={Thermometer}
-                    title="Aucun capteur disponible"
-                    description="Le matériel ou le noyau n'expose aucun capteur de température lisible."
-                    className="border-0 bg-transparent py-6"
-                  />
-                ) : (
-                  <div className="space-y-2">
-                    {temperatures.map((sensor) => (
-                      <div
-                        key={sensor.sensor}
-                        className="flex items-center justify-between gap-3 rounded-md border border-line/70 bg-surface/50 px-3 py-2"
-                      >
-                        <span className="truncate font-mono text-xs text-text-secondary">
-                          {sensor.sensor}
-                        </span>
-                        <Badge
-                          tone={
-                            sensor.value >= 80
-                              ? 'danger'
-                              : sensor.value >= 65
-                                ? 'warning'
-                                : 'success'
-                          }
-                        >
-                          {formatMetricValue(sensor.value, 'celsius')}
-                        </Badge>
+                  <CardBody className="space-y-3">
+                    {filesystems.entries.length === 0 && (
+                      <p className="text-sm text-text-muted">Aucun système de fichiers mesuré.</p>
+                    )}
+                    {filesystems.entries.slice(0, 5).map((entry) => (
+                      <div key={entry.mountpoint} className="space-y-1.5">
+                        <div className="flex items-center justify-between gap-2 font-mono text-[11px]">
+                          <span className="truncate text-text-primary">{entry.mountpoint}</span>
+                          <span className="text-text-muted">
+                            {formatBytes(entry.used)} / {formatBytes(entry.total)}
+                          </span>
+                        </div>
+                        <ProgressBar
+                          value={entry.percent}
+                          tone={entry.percent != null && entry.percent > 90 ? 'warning' : 'success'}
+                          label={`Occupation ${entry.mountpoint}`}
+                        />
                       </div>
                     ))}
-                  </div>
-                )}
-              </CardBody>
-            </Card>
-          </div>
+                  </CardBody>
+                </Card>
 
-          <Card>
-            <CardHeader
-              title="Dernières mesures de l'hôte"
-              subtitle={`${metrics.length} série(s) · échantillons bruts`}
-              icon={<MemoryStick className="h-3.5 w-3.5" />}
-            />
-            <CardBody className="p-0">
-              {metrics.length === 0 ? (
-                <p className="p-4 text-sm text-text-muted">Aucune mesure disponible.</p>
-              ) : (
-                <Table minWidthClassName="min-w-[760px]" className="rounded-none border-0">
-                  <THead>
-                    <tr>
-                      <TH>Métrique</TH>
-                      <TH>Étiquettes</TH>
-                      <TH>Valeur</TH>
-                      <TH>Horodatage</TH>
-                    </tr>
-                  </THead>
-                  <TBody>
-                    {metrics.slice(0, 80).map((sample) => (
-                      <TR
-                        key={`${sample.name}-${JSON.stringify(sample.labels)}-${sample.recordedAt}`}
-                      >
-                        <TD className="font-mono text-xs text-text-primary">
-                          {metricLabel(sample.name)}
-                        </TD>
-                        <TD className="font-mono text-[10px] text-text-muted">
-                          {metricLabels(sample)}
-                        </TD>
-                        <TD className="font-mono text-xs">
-                          {formatMetricValue(sample.value, sample.unit)}
-                        </TD>
-                        <TD className="font-mono text-[10px]">
-                          {formatDateTime(sample.recordedAt)}
-                        </TD>
-                      </TR>
-                    ))}
-                  </TBody>
-                </Table>
-              )}
-            </CardBody>
-            <CardFooter className="flex flex-wrap items-center justify-between gap-2 font-mono text-[10px] text-text-muted">
-              <span className="flex items-center gap-1.5">
-                <Cpu className="h-3 w-3" /> {metrics.length} séries distinctes
-              </span>
-              <span>Les valeurs indisponibles ne sont jamais remplacées par zéro.</span>
-            </CardFooter>
-          </Card>
+                <Card>
+                  <CardHeader
+                    title="Capteurs de température"
+                    subtitle="Valeurs les plus récentes"
+                    icon={<Thermometer className="h-3.5 w-3.5" />}
+                  />
+                  <CardBody>
+                    {temperatures.length === 0 ? (
+                      <EmptyState
+                        icon={Thermometer}
+                        title="Aucun capteur disponible"
+                        description="Le matériel ou le noyau n'expose aucun capteur de température lisible."
+                        className="border-0 bg-transparent py-6"
+                      />
+                    ) : (
+                      <div className="space-y-2">
+                        {temperatures.map((sensor) => (
+                          <div
+                            key={sensor.sensor}
+                            className="flex items-center justify-between gap-3 rounded-md border border-line/70 bg-surface/50 px-3 py-2"
+                          >
+                            <span className="truncate font-mono text-xs text-text-secondary">
+                              {sensor.sensor}
+                            </span>
+                            <Badge
+                              tone={
+                                sensor.value >= 80
+                                  ? 'danger'
+                                  : sensor.value >= 65
+                                    ? 'warning'
+                                    : 'success'
+                              }
+                            >
+                              {formatMetricValue(sensor.value, 'celsius')}
+                            </Badge>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </CardBody>
+                </Card>
+              </div>
+
+              <Card>
+                <CardHeader
+                  title="Dernières mesures de l'hôte"
+                  subtitle={`${metrics.length} série(s) · échantillons bruts`}
+                  icon={<MemoryStick className="h-3.5 w-3.5" />}
+                />
+                <CardBody className="p-0">
+                  {metrics.length === 0 ? (
+                    <p className="p-4 text-sm text-text-muted">Aucune mesure disponible.</p>
+                  ) : (
+                    <Table minWidthClassName="min-w-[760px]" className="rounded-none border-0">
+                      <THead>
+                        <tr>
+                          <TH>Métrique</TH>
+                          <TH>Étiquettes</TH>
+                          <TH>Valeur</TH>
+                          <TH>Horodatage</TH>
+                        </tr>
+                      </THead>
+                      <TBody>
+                        {metrics.slice(0, 80).map((sample) => (
+                          <TR
+                            key={`${sample.name}-${JSON.stringify(sample.labels)}-${sample.recordedAt}`}
+                          >
+                            <TD className="font-mono text-xs text-text-primary">
+                              {metricLabel(sample.name)}
+                            </TD>
+                            <TD className="font-mono text-[10px] text-text-muted">
+                              {metricLabels(sample)}
+                            </TD>
+                            <TD className="font-mono text-xs">
+                              {formatMetricValue(sample.value, sample.unit)}
+                            </TD>
+                            <TD className="font-mono text-[10px]">
+                              {formatDateTime(sample.recordedAt)}
+                            </TD>
+                          </TR>
+                        ))}
+                      </TBody>
+                    </Table>
+                  )}
+                </CardBody>
+                <CardFooter className="flex flex-wrap items-center justify-between gap-2 font-mono text-[10px] text-text-muted">
+                  <span className="flex items-center gap-1.5">
+                    <Cpu className="h-3 w-3" /> {metrics.length} séries distinctes
+                  </span>
+                  <span>Les valeurs indisponibles ne sont jamais remplacées par zéro.</span>
+                </CardFooter>
+              </Card>
+            </>
+          )}
+          {hostInfo?.hostname && <PowerCard hostname={hostInfo.hostname} />}
         </>
       )}
-      {hostInfo?.hostname && <PowerCard hostname={hostInfo.hostname} />}
     </div>
   )
 }

@@ -278,7 +278,29 @@ function RuleForm({ page }: { page: AlertRulesPanelModel }) {
             </Field>
           )}
 
-          {type !== 'unit_failed' && (
+          {type === 'vulnerabilities' && (
+            <>
+              <Field id="ruleVulnSeverity" label="Sévérité minimale">
+                <Select
+                  id="ruleVulnSeverity"
+                  containerClassName="w-full"
+                  {...register('vulnSeverity')}
+                >
+                  {options.vulnSeverities.map((option) => (
+                    <option key={option.value} value={option.value}>
+                      {option.label}
+                    </option>
+                  ))}
+                </Select>
+              </Field>
+              <label className="flex items-center gap-2 self-end text-sm">
+                <input type="checkbox" {...register('fixableOnly')} />
+                Corrigeables seulement
+              </label>
+            </>
+          )}
+
+          {type !== 'unit_failed' && type !== 'vulnerabilities' && (
             <Field id="ruleDuration" label="Pendant (minutes)" error={errors.forMinutes?.message}>
               <input
                 id="ruleDuration"

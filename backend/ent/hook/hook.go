@@ -224,6 +224,30 @@ func (f UserFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error)
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.UserMutation", m)
 }
 
+// The VulnerabilityFindingFunc type is an adapter to allow the use of ordinary
+// function as VulnerabilityFinding mutator.
+type VulnerabilityFindingFunc func(context.Context, *ent.VulnerabilityFindingMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f VulnerabilityFindingFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.VulnerabilityFindingMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.VulnerabilityFindingMutation", m)
+}
+
+// The VulnerabilityScanFunc type is an adapter to allow the use of ordinary
+// function as VulnerabilityScan mutator.
+type VulnerabilityScanFunc func(context.Context, *ent.VulnerabilityScanMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f VulnerabilityScanFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.VulnerabilityScanMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.VulnerabilityScanMutation", m)
+}
+
 // Condition is a hook condition function.
 type Condition func(context.Context, ent.Mutation) bool
 

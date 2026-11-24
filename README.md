@@ -38,6 +38,7 @@ Homelab Manager supervise **une seule machine Linux : celle qui l'héberge**. Le
 - Journal systemd en lecture seule : filtres, recherche, suivi en direct, export, champs sensibles masqués
 - Services, timers et sockets systemd en lecture seule (D-Bus) : états, ressources, détail, événements d'échec et de rétablissement
 - Alertes : règles sur les métriques, l'état des conteneurs, les unités en échec et les collecteurs, évaluées toutes les 15 s, acquittement, historique, silences et notifications (Telegram, Discord, Gotify, ntfy, e-mail, webhook signé)
+- Vulnérabilités connues des paquets système (Grype, unité dédiée) : analyses quotidiennes et à la demande, historique, synthèse sur le tableau de bord, règle d'alerte
 - Aucune valeur inventée : une donnée absente s'affiche comme indisponible
 
 </td>
@@ -74,7 +75,7 @@ Navigateur ── HTTPS, même origine ──▶ homelab-manager (Go, Chi, Ent)
 |---|---|
 | `backend/` | Module Go unique : API REST Chi v5, Ent/SQLite (`modernc.org/sqlite`, sans CGO), collecte Linux et Docker, architecture hexagonale |
 | `frontend/` | React, TypeScript strict, Vite, React Router, TanStack Query, React Hook Form, Zod, Tailwind CSS, ECharts |
-| `deployments/` | Unités systemd (Manager, proxy Docker), configuration, règle polkit |
+| `deployments/` | Unités systemd (Manager, proxy Docker, scan de vulnérabilités), configuration, règles polkit, `tmpfiles.d` |
 | `scripts/` | Développement, vérification complète, construction des releases |
 | `docs/` | Spécification, architecture, contrat d'API, données, sécurité, tests, règles de code |
 
@@ -276,6 +277,39 @@ sudo install -o root -g root -m 0644 deployments/polkit/50-homelab-manager-power
 
 puis mettre `power_actions_enabled: true` dans `/etc/homelab-manager/manager.yaml` et redémarrer `homelab-manager.service`. La règle n'autorise que le redémarrage et l'extinction, par le seul compte `homelab-manager`, et respecte les verrous d'inhibition. Seuls les administrateurs voient la carte « Alimentation » de la page Machine ; la confirmation demande de saisir le nom de la machine. Après une extinction, il faut un accès physique (ou Wake-on-LAN configuré hors de Homelab Manager) pour rallumer la machine.
 
+### Vulnérabilités des paquets (Grype)
+
+Le Manager recherche les vulnérabilités connues (CVE et avis des distributions) des paquets système de sa machine avec [Grype](https://github.com/anchore/grype) : il lit lui-même la liste des paquets (Debian, Ubuntu et dérivées, Alpine ; Fedora, Rocky Linux et AlmaLinux sont reconnues mais pas encore prises en charge), puis fait analyser cet inventaire par l'unité dédiée `homelab-vulnscan.service`, qu'il démarre par D-Bus. Grype ne tourne jamais dans le Manager : il s'exécute sous son propre compte, avec des commandes fixes, une priorité minimale, 1 Gio de mémoire et 15 minutes au plus. Un scan a lieu 2 minutes après le premier démarrage, puis toutes les 24 heures (`vulnerability_scan_interval_hours`, de 6 à 168), et à la demande (rôle opérateur au moins, API `POST /api/v1/vulnerabilities/scans`). Une vulnérabilité listée est connue pour la version installée, pas forcément exploitable sur la machine.
+
+Installation, une fois (Grype n'est pas dans les dépôts Debian : paquet officiel d'Anchore, version figée **0.121.3**) :
+
+```bash
+GRYPE_VERSION=0.121.3
+ARCH=amd64   # ou arm64
+BASE=https://github.com/anchore/grype/releases/download/v$GRYPE_VERSION
+curl -fsSLO "$BASE/grype_${GRYPE_VERSION}_linux_${ARCH}.deb"
+curl -fsSLO "$BASE/grype_${GRYPE_VERSION}_checksums.txt"
+curl -fsSLO "$BASE/grype_${GRYPE_VERSION}_checksums.txt.sigstore.json"
+# Signature des sommes (cosign, facultatif mais recommandé), puis somme du paquet :
+cosign verify-blob "grype_${GRYPE_VERSION}_checksums.txt" \
+  --bundle "grype_${GRYPE_VERSION}_checksums.txt.sigstore.json" \
+  --certificate-identity-regexp '^https://github.com/anchore/grype/' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+sha256sum -c --ignore-missing "grype_${GRYPE_VERSION}_checksums.txt"
+sudo apt install "./grype_${GRYPE_VERSION}_linux_${ARCH}.deb"
+
+# Compte de l'unité, répertoires d'échange, règle polkit (start de cette seule unité)
+sudo adduser --system --group --no-create-home homelab-vulnscan
+sudo install -m 0644 deployments/tmpfiles/homelab-vulnscan.conf /etc/tmpfiles.d/
+sudo systemd-tmpfiles --create /etc/tmpfiles.d/homelab-vulnscan.conf
+sudo install -o root -g root -m 0644 deployments/polkit/50-homelab-manager-vulnscan.rules /etc/polkit-1/rules.d/
+sudo install -m 0644 deployments/systemd/homelab-vulnscan.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl restart homelab-manager.service   # prend en compte ReadWritePaths=
+```
+
+`polkitd` est nécessaire (`sudo apt install polkitd`). L'unité télécharge la base de Grype (environ 100 Mo) depuis `grype.anchore.io` avant un scan quand une base plus récente est publiée (une par jour) ; une base de plus de 5 jours fait échouer le scan plutôt que donner un résultat trompeur. Pour une machine sans accès à Internet, désactiver ce téléchargement (`sudo systemctl edit homelab-vulnscan.service`, puis `Environment=GRYPE_DB_AUTO_UPDATE=false` sous `[Service]`) et importer une base à la main : `sudo -u homelab-vulnscan env GRYPE_DB_CACHE_DIR=/var/cache/homelab-vulnscan/db grype db import <archive>`. Un scan en échec indique sa cause (Grype ou unité absents, règle polkit absente, délai dépassé, base injoignable ou périmée) ; le détail est dans `journalctl -u homelab-vulnscan`. Sans Grype, le reste du Manager fonctionne normalement.
+
 ### Sauvegarde et restauration
 
 La base tient dans un fichier, accompagné de `-wal` et `-shm` pendant l'exécution. Ne pas copier ces fichiers à chaud : utiliser la sauvegarde en ligne de SQLite (paquet `sqlite3`), qui produit un fichier cohérent sans arrêter le Manager :
@@ -301,8 +335,8 @@ La première release est `v2.3.0`, alignée sur la [spécification produit](docs
 
 ## État et limites connues
 
-- **Livré** : supervision système et Docker, historique, événements, comptes et rôles, sessions, politique de sécurité, journal d'audit, double authentification (TOTP et codes de secours), journaux système, services système en lecture, alertes avec silences et notifications (phase 4), redémarrage et extinction (optionnels).
-- **Spécifié, pas encore implémenté** : passkeys (WebAuthn) et jetons d'API, actions sur les services systemd, vulnérabilités des paquets (Grype), sauvegardes restic, tâches planifiées. Voir [docs/SPEC_ADMINISTRATION.md](docs/SPEC_ADMINISTRATION.md) et la [feuille de route](docs/superpowers/plans/2026-11-23-feuille-de-route-v3.md).
+- **Livré** : supervision système et Docker, historique, événements, comptes et rôles, sessions, politique de sécurité, journal d'audit, double authentification (TOTP et codes de secours), journaux système, services système en lecture, alertes avec silences et notifications (phase 4), vulnérabilités des paquets avec Grype (module V ; Debian, Ubuntu et Alpine), redémarrage et extinction (optionnels).
+- **Spécifié, pas encore implémenté** : passkeys (WebAuthn) et jetons d'API, actions sur les services systemd, sauvegardes restic, tâches planifiées, lecture des paquets RPM (Fedora, Rocky Linux, AlmaLinux) pour le module V. Voir [docs/SPEC_ADMINISTRATION.md](docs/SPEC_ADMINISTRATION.md) et la [feuille de route](docs/superpowers/plans/2026-11-23-feuille-de-route-v3.md).
 - Historiques bruts ou agrégés, 2 000 points au plus par requête ; l'interface choisit le pas selon la période.
 - À l'intervalle par défaut (10 s), la base croît d'environ 300 Mo par jour jusqu'à la rétention : ≈ 2 Go pour 7 jours.
 - Listes bornées, sans pagination ; images, volumes et réseaux Docker déduits des conteneurs.

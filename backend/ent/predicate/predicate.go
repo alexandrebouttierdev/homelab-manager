@@ -59,3 +59,9 @@ type TotpSecret func(*sql.Selector)
 
 // User is the predicate function for user builders.
 type User func(*sql.Selector)
+
+// VulnerabilityFinding is the predicate function for vulnerabilityfinding builders.
+type VulnerabilityFinding func(*sql.Selector)
+
+// VulnerabilityScan is the predicate function for vulnerabilityscan builders.
+type VulnerabilityScan func(*sql.Selector)

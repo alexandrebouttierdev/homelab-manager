@@ -21,6 +21,7 @@ export const alertRuleSchema = z
       'container_state',
       'unit_failed',
       'collector',
+      'vulnerabilities',
     ]),
     severity: z.enum(['info', 'warning', 'critical']),
     enabled: z.boolean(),
@@ -34,6 +35,8 @@ export const alertRuleSchema = z
     unitPattern: z.string(),
     collector: z.string(),
     forMinutes: z.string(),
+    vulnSeverity: z.enum(['critical', 'high', 'medium', 'low']),
+    fixableOnly: z.boolean(),
   })
   .superRefine((values, ctx) => {
     const metricRule = values.type === 'host_metric' || values.type === 'container_metric'
@@ -55,7 +58,7 @@ export const alertRuleSchema = z
       })
     if (values.type === 'collector' && !values.collector)
       ctx.addIssue({ code: 'custom', path: ['collector'], message: 'Collecteur requis' })
-    if (values.type !== 'unit_failed') {
+    if (values.type !== 'unit_failed' && values.type !== 'vulnerabilities') {
       const minutes = parseDecimal(values.forMinutes)
       if (minutes === null || minutes < 0 || minutes > 1440)
         ctx.addIssue({

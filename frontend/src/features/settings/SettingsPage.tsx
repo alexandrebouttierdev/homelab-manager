@@ -21,6 +21,7 @@ import { cn } from '../../lib/cn'
 import { useTheme, type Theme } from '../../lib/theme'
 import { APP_VERSION } from '../../lib/version'
 import { RetentionForm } from './RetentionForm'
+import { ScanIntervalForm } from './ScanIntervalForm'
 import { CollectorRow } from '../../components/ui/CollectorRow'
 import { useSession, useSignOut } from '../../hooks/useSession'
 import { useChangePassword } from './useChangePassword'
@@ -96,6 +97,7 @@ export function SettingsPage() {
             </Card>
 
             <RetentionForm settings={settings} />
+            <ScanIntervalForm />
 
             <Card>
               <CardHeader

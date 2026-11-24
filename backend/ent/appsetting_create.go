@@ -41,6 +41,20 @@ func (_c *AppSettingCreate) SetNillableMetricsRetentionDays(v *int) *AppSettingC
 	return _c
 }
 
+// SetVulnerabilityScanIntervalHours sets the "vulnerability_scan_interval_hours" field.
+func (_c *AppSettingCreate) SetVulnerabilityScanIntervalHours(v int) *AppSettingCreate {
+	_c.mutation.SetVulnerabilityScanIntervalHours(v)
+	return _c
+}
+
+// SetNillableVulnerabilityScanIntervalHours sets the "vulnerability_scan_interval_hours" field if the given value is not nil.
+func (_c *AppSettingCreate) SetNillableVulnerabilityScanIntervalHours(v *int) *AppSettingCreate {
+	if v != nil {
+		_c.SetVulnerabilityScanIntervalHours(*v)
+	}
+	return _c
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_c *AppSettingCreate) SetUpdatedAt(v time.Time) *AppSettingCreate {
 	_c.mutation.SetUpdatedAt(v)
@@ -169,6 +183,10 @@ func (_c *AppSettingCreate) createSpec() (*AppSetting, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.MetricsRetentionDays(); ok {
 		_spec.SetField(appsetting.FieldMetricsRetentionDays, field.TypeInt, value)
 		_node.MetricsRetentionDays = &value
+	}
+	if value, ok := _c.mutation.VulnerabilityScanIntervalHours(); ok {
+		_spec.SetField(appsetting.FieldVulnerabilityScanIntervalHours, field.TypeInt, value)
+		_node.VulnerabilityScanIntervalHours = &value
 	}
 	if value, ok := _c.mutation.UpdatedAt(); ok {
 		_spec.SetField(appsetting.FieldUpdatedAt, field.TypeTime, value)

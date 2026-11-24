@@ -22,6 +22,8 @@ type AppSetting struct {
 	SingletonKey string `json:"singleton_key,omitempty"`
 	// MetricsRetentionDays holds the value of the "metrics_retention_days" field.
 	MetricsRetentionDays *int `json:"metrics_retention_days,omitempty"`
+	// VulnerabilityScanIntervalHours holds the value of the "vulnerability_scan_interval_hours" field.
+	VulnerabilityScanIntervalHours *int `json:"vulnerability_scan_interval_hours,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
 	UpdatedAt    time.Time `json:"updated_at,omitempty"`
 	selectValues sql.SelectValues
@@ -32,7 +34,7 @@ func (*AppSetting) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case appsetting.FieldMetricsRetentionDays:
+		case appsetting.FieldMetricsRetentionDays, appsetting.FieldVulnerabilityScanIntervalHours:
 			values[i] = new(sql.NullInt64)
 		case appsetting.FieldSingletonKey:
 			values[i] = new(sql.NullString)
@@ -73,6 +75,13 @@ func (_m *AppSetting) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.MetricsRetentionDays = new(int)
 				*_m.MetricsRetentionDays = int(value.Int64)
+			}
+		case appsetting.FieldVulnerabilityScanIntervalHours:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field vulnerability_scan_interval_hours", values[i])
+			} else if value.Valid {
+				_m.VulnerabilityScanIntervalHours = new(int)
+				*_m.VulnerabilityScanIntervalHours = int(value.Int64)
 			}
 		case appsetting.FieldUpdatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -121,6 +130,11 @@ func (_m *AppSetting) String() string {
 	builder.WriteString(", ")
 	if v := _m.MetricsRetentionDays; v != nil {
 		builder.WriteString("metrics_retention_days=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.VulnerabilityScanIntervalHours; v != nil {
+		builder.WriteString("vulnerability_scan_interval_hours=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
 	}
 	builder.WriteString(", ")

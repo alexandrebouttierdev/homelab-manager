@@ -1,10 +1,16 @@
 import { requestJSON } from './client'
+import type { VulnSeverity } from './vulnerabilities'
 
 /** Alerts and alert rules (API_CONTRACTS.md § 4.8). */
 export type AlertSeverity = 'info' | 'warning' | 'critical'
 export type AlertState = 'firing' | 'acknowledged' | 'resolved'
 export type AlertRuleType =
-  'host_metric' | 'container_metric' | 'container_state' | 'unit_failed' | 'collector'
+  | 'host_metric'
+  | 'container_metric'
+  | 'container_state'
+  | 'unit_failed'
+  | 'collector'
+  | 'vulnerabilities'
 export type AlertOperator = '>' | '>=' | '<' | '<='
 export type AlertResolution =
   | 'condition_cleared'
@@ -15,7 +21,7 @@ export type AlertResolution =
   | 'rule_changed'
 
 export type AlertTarget = {
-  kind: 'host' | 'container' | 'unit' | 'collector'
+  kind: 'host' | 'container' | 'unit' | 'collector' | 'vulnerabilities'
   metric: string | null
   labels: Record<string, string>
   containerId: string | null
@@ -63,6 +69,9 @@ export type AlertRuleParams = {
   states?: string[]
   unitPattern?: string
   collector?: string
+  /** Vulnerabilities rule: minimum severity and fixable findings only. */
+  vulnSeverity?: VulnSeverity
+  fixableOnly?: boolean
   forSeconds: number
 }
 
@@ -84,6 +93,7 @@ export type AlertCatalog = {
   containerMetrics: Record<string, string[]>
   containerStates: string[]
   collectors: string[]
+  vulnerabilitySeverities: VulnSeverity[]
 }
 
 export type AlertRuleInput = {

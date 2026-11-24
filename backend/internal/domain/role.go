@@ -26,16 +26,18 @@ const (
 	PermOperateAlerts Permission = "alerts:operate"
 	// PermManageAlerts covers alert rules and notification channels.
 	PermManageAlerts Permission = "alerts:manage"
+	// PermScanVulnerabilities covers starting a vulnerability scan.
+	PermScanVulnerabilities Permission = "vulnerabilities:scan"
 )
 
 // rolePermissions is the single source of the role policy. Operators gain
 // their service and backup permissions with phases 5 and 6.
 var rolePermissions = map[Role]map[Permission]bool{
 	RoleViewer:   {},
-	RoleOperator: {PermOperateAlerts: true},
+	RoleOperator: {PermOperateAlerts: true, PermScanVulnerabilities: true},
 	RoleAdmin: {
 		PermManageSettings: true, PermManageUsers: true, PermManagePower: true, PermViewAudit: true,
-		PermOperateAlerts: true, PermManageAlerts: true,
+		PermOperateAlerts: true, PermManageAlerts: true, PermScanVulnerabilities: true,
 	},
 }
 

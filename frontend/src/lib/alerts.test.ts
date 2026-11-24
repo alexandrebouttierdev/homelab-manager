@@ -346,6 +346,7 @@ describe('metric fields', () => {
     containerMetrics: { 'memory.percent': [], 'network.errors': ['interface'] },
     containerStates: [],
     collectors: [],
+    vulnerabilitySeverities: [],
   }
 
   it('keeps a metric and a label that exist', () => {
@@ -373,5 +374,33 @@ describe('metric fields', () => {
         labelKey: 'y',
       },
     )
+  })
+})
+
+describe('vulnerabilities rule', () => {
+  it('describes, converts and links a vulnerabilities rule', () => {
+    const rule = {
+      type: 'vulnerabilities' as const,
+      params: { vulnSeverity: 'high' as const, fixableOnly: true, forSeconds: 0 },
+    }
+    expect(describeRule(rule)).toBe(
+      'Une vulnérabilité élevée ou plus grave, corrigeable, est présente',
+    )
+    const values = {
+      ...emptyRuleValues,
+      name: 'Vulnérabilités',
+      type: 'vulnerabilities' as const,
+      vulnSeverity: 'high' as const,
+      fixableOnly: true,
+    }
+    expect(alertRuleInput(values).params).toEqual({
+      vulnSeverity: 'high',
+      fixableOnly: true,
+      forSeconds: 0,
+    })
+    expect(alertRuleInput({ ...values, fixableOnly: false }).params).toEqual({
+      vulnSeverity: 'high',
+      forSeconds: 0,
+    })
   })
 })

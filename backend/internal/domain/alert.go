@@ -333,6 +333,11 @@ type Alert struct {
 	AcknowledgedBy string
 	ResolvedAt     *time.Time
 	Resolution     AlertResolution
+	// LastNotifiedAt is the last message about the alert, on any channel:
+	// it spaces the reminders across a restart.
+	LastNotifiedAt *time.Time
+	// Silenced is computed at reading: an active silence covers the alert.
+	Silenced bool
 }
 
 // Open reports whether the alert is not resolved yet.

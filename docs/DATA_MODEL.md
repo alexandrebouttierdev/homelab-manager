@@ -69,7 +69,7 @@ Modèle logique d'Ent et SQLite. Il décrit un hôte unique et ses conteneurs lo
 
 ### AuditLog
 - UUID, acteur local, cible (`target_type`, `target_id`), action, request ID, résultat, timestamp.
-- Écrit dans la même transaction que la modification qu'il trace : modification de la rétention (`settings` / `metrics_retention_days` / `update`) et des comptes (`user` / UUID du compte / `create`, `update`, `delete`). Les autres modules d'administration v3 y journaliseront chaque action (SPEC_ADMINISTRATION.md § 2.2).
+- Écrit dans la même transaction que la modification qu'il trace : modification de la rétention (`settings` / `metrics_retention_days` / `update`) et des comptes (`user` / UUID du compte / `create`, `update`, `delete`), des règles d'alerte (`alert_rule` / UUID / `create`, `update`, `delete`) et l'acquittement d'une alerte (`alert` / UUID / `acknowledge`). Les autres modules d'administration v3 y journaliseront chaque action (SPEC_ADMINISTRATION.md § 2.2).
 
 ### AppSetting
 - Ligne singleton (`singleton_key = 'local'`) des réglages modifiés depuis l'interface : `metrics_retention_days` (NULL = valeur de la configuration du service, contrainte `CHECK` 1–365), `updated_at`.

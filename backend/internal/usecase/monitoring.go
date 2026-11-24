@@ -123,6 +123,13 @@ func (u *MonitoringUsecase) loadRetention(ctx context.Context) {
 	}
 }
 
+// Retention returns the effective retention of metrics, events and
+// resolved alerts.
+func (u *MonitoringUsecase) Retention() time.Duration {
+	retention, _ := u.retention()
+	return retention
+}
+
 // retention returns the effective retention and whether it was chosen from
 // the interface.
 func (u *MonitoringUsecase) retention() (time.Duration, bool) {

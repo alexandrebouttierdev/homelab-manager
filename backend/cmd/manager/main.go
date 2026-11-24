@@ -64,6 +64,7 @@ func main() {
 	// failedUnits stays a nil interface without a database: the service
 	// inventory is then served without events.
 	var failedUnits ports.FailedUnitRepository
+	var monitoringRepository *sqlite.MonitoringRepository
 	schedulerCtx, cancelScheduler := context.WithCancel(context.Background())
 	defer cancelScheduler()
 	if database != nil {
@@ -104,7 +105,7 @@ func main() {
 			}
 		}
 		failedUnits = sqlite.NewSystemUnitRepository(client)
-		monitoringRepository := sqlite.NewMonitoringRepository(database)
+		monitoringRepository = sqlite.NewMonitoringRepository(database)
 		dockerClient := dockerengine.NewClient(config.DockerProxySocket)
 		dockerClientCloser = dockerClient
 		monitoringUsecase = usecase.NewMonitoringUsecase(
@@ -132,6 +133,20 @@ func main() {
 		defer close(servicesDone)
 		serviceUsecase.Run(schedulerCtx)
 	}()
+	// The alert engine evaluates the data stored by the collections: it
+	// needs the database.
+	var alertUsecase *usecase.AlertUsecase
+	var alertsDone chan struct{}
+	if database != nil {
+		alertUsecase = usecase.NewAlertUsecase(sqlite.NewAlertRepository(database.Client()), usecase.AlertSources{
+			Metrics: monitoringRepository, Collectors: monitoringUsecase, Units: serviceUsecase, Retention: monitoringUsecase,
+		}, logger)
+		alertsDone = make(chan struct{})
+		go func() {
+			defer close(alertsDone)
+			alertUsecase.Run(schedulerCtx)
+		}()
+	}
 	router := httpdelivery.NewRouter(logger, httpdelivery.Services{
 		Health: healthUsecase, Auth: authUsecase, Monitoring: monitoringUsecase,
 		Accounts: accountUsecase, Power: powerUsecase, Security: securityUsecase, Audit: auditUsecase,
@@ -178,6 +193,13 @@ func main() {
 	case <-servicesDone:
 	case <-time.After(10 * time.Second):
 		logger.Error("system units collection did not stop before deadline")
+	}
+	if alertsDone != nil {
+		select {
+		case <-alertsDone:
+		case <-time.After(10 * time.Second):
+			logger.Error("alert evaluation did not stop before deadline")
+		}
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()

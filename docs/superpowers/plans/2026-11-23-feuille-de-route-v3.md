@@ -40,11 +40,12 @@ Chaque incrément, quel qu'il soit :
 | **6** | Sauvegardes restic : dépôts, sources, exclusions, rétention, restauration en quarantaine | 1C, 4, 5 | `009_backups.sql` | XL |
 | **7** | Tâches planifiées en lecture (Cron et timers) | 2, 3 | — | S |
 | **8** | WebAuthn (passkeys, FIDO2) et jetons d'API en lecture | 1C, HTTPS | `010_webauthn_tokens.sql` | L |
+| **V** | Vulnérabilités des paquets (Grype) : scans automatiques et manuels, onglet de la page Machine, synthèse du tableau de bord, historique | 4, décisions D-9 à D-11 | prochain numéro libre à la livraison | L |
 | *Option* | Dettes v2.1 : pagination par curseur, inventaire complet images/volumes/réseaux | Décision Q-4 | selon choix | M |
 
 Le coffre de secrets (§ 2.5 de la spécification) est avancé en **1C** et non en phase 4 : les secrets TOTP doivent être chiffrés (§ 3.6), ce qui en fait le premier consommateur.
 
-Ordre de réalisation : 1A → M → 1B → 1C → 2 → 3 → 4 → 5 → 6 → 7 → 8. Les phases 2 et 3 sont indépendantes de 1B et 1C et peuvent être avancées si le second facteur n'est pas prioritaire ; 7 peut suivre 2 et 3 sans attendre 4–6.
+Ordre de réalisation : 1A → M → 1B → 1C → 2 → 3 → 4 → V → 5 → 6 → 7 → 8. Le module V, demandé le 24 novembre 2026, est placé juste après la phase 4 ; il ne dépend que d'elle (règle d'alerte) et de ses trois décisions. Les phases 2 et 3 sont indépendantes de 1B et 1C et peuvent être avancées si le second facteur n'est pas prioritaire ; 7 peut suivre 2 et 3 sans attendre 4–6.
 
 ## 4. Détail des incréments
 
@@ -147,6 +148,15 @@ Ordre de réalisation : 1A → M → 1B → 1C → 2 → 3 → 4 → 5 → 6 →
 - Traduction française des expressions, prochaines exécutions dans le fuseau de la machine (analyseur `robfig/cron/v3` ou interne testé), masquage `password=` / `token=`.
 - Dernières exécutions depuis les lignes `CRON[pid]` du journal (phase 2) ; code de sortie seulement pour les timers.
 - Inspecteur d'expression sans enregistrement.
+
+### V — Vulnérabilités des paquets (Grype)
+
+- Spécification : SPEC_ADMINISTRATION.md § 8 ter ; décisions D-9 (machine du Manager seule, sans agent), D-10 (mise à jour de la base de Grype, communication sortante), D-11 (unité systemd dédiée ou exécution directe) à trancher avant le plan détaillé.
+- Lecture des paquets en Go par gestionnaire (dpkg d'abord, puis RPM SQLite et apk), inventaire transmis à `grype sbom:-`, sortie JSON validée ; un seul scan à la fois, délai de 15 min, ressources bornées.
+- Scans au premier démarrage puis périodiques (24 h par défaut, réglable), manuels (`operator`, audités) ; états, dernier et prochain scan, nouvelle tentative après un échec ; jamais d'ancien résultat présenté comme récent.
+- Tables `vulnerability_scans` et `vulnerability_findings` (unicité, première et dernière détection, disparition), comparaison entre deux scans, rétention dédiée.
+- Onglet « Vulnérabilités » de la page Machine (totaux, tableau filtrable et paginé, détail, lien vers la fiche publique, bouton « Analyser maintenant »), section du tableau de bord, type de règle d'alerte « vulnérabilités ».
+- Installation de Grype documentée (paquet `.deb` officiel, somme de contrôle vérifiée, version figée) ; module indisponible sans lui.
 
 ### 8 — WebAuthn et jetons d'API
 

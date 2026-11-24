@@ -50,6 +50,7 @@ La règle polkit est installée par l'administrateur et générée à partir de 
 |---|---|---|
 | `journalctl` | Lecture du journal (§ 4) | `exec` sans shell, arguments construits par le code à partir d'options validées, sortie JSON bornée (taille, nombre de lignes), délai maximal 10 s |
 | `restic` | Sauvegardes (§ 7) | Lancé uniquement par `homelab-backup@.service`, jamais par le Manager lui-même ; sortie `--json` |
+| `grype` | Vulnérabilités des paquets (§ 8 ter, prévu) | `exec` sans shell, arguments fixes, inventaire des paquets sur l'entrée standard, sortie JSON bornée, délai maximal 15 min, un seul à la fois ; mode d'exécution selon D-11 |
 
 Tout autre programme exige une révision de ce document.
 
@@ -233,6 +234,42 @@ Ajouté le 23 novembre 2026 à la demande du propriétaire du projet : redémarr
 - **Arrêt propre** : logind arrête les services, dont le Manager, qui attend ses collecteurs puis ferme la base ; Docker arrête les conteneurs selon sa configuration. Au redémarrage, systemd relance le Manager ; l'interface signale l'indisponibilité pendant l'intervalle.
 - **Exclus** : arrêt programmé ou annulable (décision D-8, tranchée le 23 novembre 2026), veille, hibernation, redémarrage vers le firmware, `kexec`, réveil par le réseau (Wake-on-LAN).
 
+## 8 ter. Vulnérabilités des paquets (module V)
+
+Ajouté le 24 novembre 2026 à la demande du propriétaire du projet : détecter les vulnérabilités connues (CVE et avis des distributions) des paquets système installés avec [Grype](https://github.com/anchore/grype) (Anchore, licence Apache 2.0), les consulter et en voir la synthèse sur le tableau de bord. **Spécifié, non implémenté** ; trois décisions (D-9 à D-11, § 10) sont à trancher avant le plan détaillé.
+
+### 8 ter.1 Périmètre
+
+- **Machine** : celle du Manager (règle du projet : une seule machine, aucun agent ni hôte distant). La demande initiale prévoit un agent par machine supervisée ; c'est la décision D-9. Le modèle de données porte l'identifiant de l'hôte pour ne pas fermer cette porte.
+- **Distributions** : détection par `/etc/os-release` (`ID`, `VERSION_ID`, `ID_LIKE`). Debian 13, cible de déploiement, d'abord ; Ubuntu (même format de paquets), puis Fedora, Rocky Linux, AlmaLinux (base RPM SQLite) et Alpine (`/lib/apk/db/installed`). Un lecteur par gestionnaire de paquets derrière un port unique : ajouter une distribution = ajouter un lecteur et ses tests. Une distribution non reconnue est signalée comme telle, sans scan.
+- **Paquets** : lus par le Manager en Go, sans privilège (fichiers de base de paquets lisibles par tous), puis transmis à Grype sous forme d'inventaire (SBOM au format JSON de Syft) sur son entrée standard (`grype sbom:-`). Grype ne parcourt donc pas le système de fichiers : scan rapide, sans accès root, limité aux paquets système. Les dépendances embarquées dans des binaires ou des images Docker sont hors périmètre de ce module.
+- **Résultat présenté comme une vulnérabilité identifiée**, jamais comme une exploitabilité mesurée : une vulnérabilité d'un paquet installé peut ne pas être atteignable dans la configuration de la machine.
+
+### 8 ter.2 Exécution de Grype
+
+- `grype` rejoint la liste du § 2.3 : `exec` sans shell, arguments fixes construits par le code (source `sbom:-`, sortie `-o json`, base et cache dans `/var/lib/homelab-manager/grype/`), aucune entrée utilisateur dans la ligne de commande, environnement minimal, sortie JSON bornée en taille et décodée strictement, délai maximal (15 min).
+- **Ressources** : un seul scan à la fois (verrou), priorité processeur et disque minimales ; proposition : exécution par une unité systemd dédiée et durcie (`CPUWeight=idle`, `IOSchedulingClass=idle`, `MemoryMax=`, `NoNewPrivileges=`, système en lecture seule) démarrée par le Manager (décision D-11).
+- **Base de vulnérabilités** : Grype télécharge et met à jour sa base (environ 100 Mo) depuis l'infrastructure d'Anchore. Un scan avec une base trop ancienne (au-delà de 5 jours, réglage de Grype) échoue au lieu de produire un résultat trompeur. Mise à jour automatique ou import manuel : décision D-10.
+- **Installation** : Grype n'est pas dans les dépôts Debian ; paquet `.deb` officiel des releases GitHub d'Anchore, somme de contrôle (et signature cosign) vérifiée, version figée publiée depuis au moins deux semaines, documentée dans le README. Sans Grype, le module est « indisponible » et le reste du Manager fonctionne.
+
+### 8 ter.3 Scans
+
+- Automatiques : un premier scan au démarrage du Manager s'il n'en existe aucun, puis périodiques (défaut 24 h, réglable de 6 h à 7 jours dans les Paramètres) ; manuel depuis l'interface (rôle `operator` au moins, audité).
+- États : `pending`, `running`, `succeeded`, `failed` (avec la cause : Grype absent, base injoignable ou périmée, délai dépassé, sortie invalide), date du dernier scan réussi et du prochain scan prévu. Un scan demandé pendant un autre est refusé (`409 SCAN_IN_PROGRESS`) ; un échec est retenté une fois après 15 min, puis au cycle suivant.
+- Un échec n'efface pas le dernier résultat réussi, mais l'interface affiche clairement sa date et l'échec du scan suivant : jamais d'ancien résultat présenté comme récent.
+
+### 8 ter.4 Données
+
+- `vulnerability_scans` : début, fin, état, cause d'échec, version de Grype, date de construction de sa base, distribution et version, nombre de paquets, totaux par sévérité.
+- `vulnerability_findings` : une ligne par vulnérabilité, paquet et version (unicité), avec identifiant (CVE, GHSA ou avis de distribution), sévérité (`critical`, `high`, `medium`, `low`, `negligible`, `unknown`), paquet, version installée, versions corrigées et état de correction, description, URL de référence fournies par Grype, date de publication quand la source la fournit (souvent absente du résultat de Grype), première et dernière détection, date de disparition.
+- Comparaison entre deux scans réussis : nouvelles vulnérabilités, vulnérabilités disparues (paquet corrigé ou retiré), évolution des totaux. Les constats disparus et l'historique des scans suivent une rétention dédiée (proposition : 180 jours), les constats présents sont toujours conservés.
+
+### 8 ter.5 Interface
+
+- **Page Machine, onglet « Vulnérabilités »** : totaux (total, critiques, élevées, moyennes, faibles, inconnues), dernier scan (date, état, nombre trouvé) et prochain scan, bouton « Analyser maintenant » ; tableau CVE, sévérité, paquet, version installée, version corrigée, publication, état (`corrigeable`, `non corrigée`, `ne sera pas corrigée`, `inconnu`, d'après Grype), trié par sévérité, recherche par identifiant ou paquet, filtres par sévérité, pagination côté serveur ; détail d'une vulnérabilité (description, versions, références) avec lien vers la fiche publique quand l'URL vient d'une source reconnue (NVD, avis Debian, Ubuntu, Red Hat, Alpine, GitHub).
+- **Tableau de bord** : totaux par sévérité, dernières vulnérabilités détectées (identifiant, paquet, sévérité, date) menant à l'onglet ; état distinct « aucune analyse encore » et « aucune vulnérabilité ». La répartition par machine n'a de sens qu'avec plusieurs machines (D-9).
+- **Alertes** : un type de règle « vulnérabilités » (par exemple, au moins une critique corrigeable) s'ajoute au module A.
+
 ## 9. Ordre de réalisation
 
 | Phase | Contenu | Prérequis |
@@ -246,6 +283,7 @@ Ajouté le 23 novembre 2026 à la demande du propriétaire du projet : redémarr
 | 6 | Module B : dépôts, sauvegarde, rétention, restauration en quarantaine | Phases 1 et 4 |
 | 7 | Module C en lecture | Phase 2 |
 | 8 | WebAuthn, jetons d'API | Phase 1, HTTPS |
+| V | Module V : vulnérabilités des paquets (Grype), placé après la phase 4 | Phase 4 (règle d'alerte), décisions D-9 à D-11 |
 
 Chaque phase livre son contrat dans API_CONTRACTS.md, ses tables dans DATA_MODEL.md, ses risques dans SECURITY.md, ses tests, et retire la mention « à venir » de son entrée de navigation.
 
@@ -257,6 +295,10 @@ Chaque phase livre son contrat dans API_CONTRACTS.md, ses tables dans DATA_MODEL
 - **[D-4] Portées d'action pour les jetons d'API** (ex. redémarrer une unité depuis Home Assistant).
 - **[D-5] Actions Docker** (démarrer, arrêter, redémarrer un conteneur) et **journaux de conteneur** (maquettes `d_tails_conteneur_*`, `journaux_docker_*`). La lecture des journaux est compatible avec les règles via une route en lecture seule du proxy ; les actions exigent d'élargir le proxy et une décision explicite. `exec` et la suppression restent exclus par les règles 1 et 3.
 - **[D-6] Préférences système** (maquette `param_tres_syst_me_*` : nom d'hôte, fuseau, langue). Modifient la machine ; hors de ce lot.
+
+- **[D-9] Machines supervisées par le module V.** La demande initiale prévoit un agent Grype sur chaque machine supervisée, alors que le projet n'en supervise qu'une, sans agent (règles du projet). Proposition : livrer le module pour la machine du Manager ; un mode multi-machine exigerait de réviser la règle (agents, authentification et chiffrement de leurs échanges, inscription des machines) dans une version ultérieure.
+- **[D-10] Mise à jour de la base de Grype.** Elle impose une communication sortante vers Anchore, aujourd'hui limitée aux notifications (§ 6.3). Proposition : mise à jour automatique quotidienne, désactivable, seule autre communication sortante autorisée ; sans elle, import manuel d'une base téléchargée ailleurs (`grype db import`) et scans refusés quand la base a plus de 5 jours.
+- **[D-11] Mode d'exécution de Grype.** Proposition : unité systemd dédiée et durcie, lancée par le Manager par D-Bus avec une règle polkit limitée à cette unité (modèle du § 2.1, partagé avec la phase 5), qui borne processeur, disque et mémoire ; à défaut, exécution directe par le Manager avec une priorité minimale.
 
 ### Décisions tranchées
 

@@ -55,10 +55,12 @@ const systemItems: NavItem[] = [
   { label: 'Services système', to: '/services', icon: Wrench },
 ]
 
-const activityItems: NavItem[] = [{ label: 'Événements', to: '/events', icon: Gauge }]
+const activityItems: NavItem[] = [
+  { label: 'Alertes', to: '/alerts', icon: Bell },
+  { label: 'Événements', to: '/events', icon: Gauge },
+]
 
 const soonItems: SoonItem[] = [
-  { label: 'Alertes', icon: Bell },
   { label: 'Sauvegardes', icon: DatabaseBackup },
   { label: 'Tâches Cron', icon: CalendarClock },
 ]

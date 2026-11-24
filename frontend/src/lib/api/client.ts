@@ -56,6 +56,11 @@ export const errorMessages: Record<string, string> = {
   SYSTEMD_UNAVAILABLE:
     "Services système indisponibles : systemd n'est pas joignable sur le bus système de la machine.",
   SYSTEMD_READ_FAILED: "L'unité systemd n'a pas pu être lue.",
+  ALERTS_UNAVAILABLE: "Alertes indisponibles : la base de données du Manager n'est pas accessible.",
+  ALERTS_FAILED: "Les alertes n'ont pas pu être lues ou enregistrées.",
+  ALERT_ALREADY_RESOLVED: "L'alerte est déjà résolue.",
+  DEFAULT_RULE: 'Une règle par défaut peut être désactivée, pas supprimée.',
+  TOO_MANY_RULES: 'Nombre maximal de règles atteint (200).',
   OWN_PASSWORD_RESET: 'Changez votre propre mot de passe dans Paramètres.',
   INVALID_SECOND_FACTOR: 'Code incorrect.',
   LOGIN_CHALLENGE_EXPIRED: 'Délai dépassé : reconnectez-vous avec votre mot de passe.',

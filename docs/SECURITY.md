@@ -56,6 +56,16 @@ Un mode direct sur socket rootful ne peut être retenu qu'en décision explicite
 - Alertes (phase 4A) : évaluées dans le Manager sur les données déjà collectées, sans commande ni requête externe ; aucune communication sortante (les notifications arrivent en 4B). Consultation pour tous les rôles ; acquittement réservé à `alerts:operate` (`operator`, `admin`), règles à `alerts:manage` (`admin`), vérifiés côté serveur. Les règles n'acceptent que des valeurs de listes blanches (métriques, labels, états, collecteurs) et un motif d'unité borné ; aucune ne déclenche d'action. Chaque modification de règle et chaque acquittement sont audités dans la même transaction. Nombre de règles (200), historique et durée d'évaluation (10 s) bornés ; les alertes résolues suivent la rétention.
 - Gestion séparée des erreurs Docker/SQLite ; ne pas exposer chemin local, secrets ou détails internes.
 
+## Vulnérabilités connues des dépendances
+
+Audits (docs/CODE_RULES.md § 6) : `npm audit` et `npm audit --omit=dev`, OSV-Scanner et `govulncheck`, enchaînés par `scripts/audit.sh`. Une vulnérabilité qui ne peut pas être corrigée immédiatement est inscrite ici : identifiant, paquet et version, gravité, atteignabilité, mesure de réduction, date de réexamen.
+
+| Identifiant | Paquet | Gravité | Atteignable | Mesure | Réexamen |
+|---|---|---|---|---|---|
+| — | — | — | — | Aucune vulnérabilité connue non corrigée | — |
+
+Dernier audit, 24 novembre 2026 : `npm audit` et `npm audit --omit=dev` réussis (0 vulnérabilité) ; OSV-Scanner et `govulncheck` non exécutés, outils non installés sur le poste de développement ni dans la CI.
+
 ## Système et déploiement
 
 - Service systemd Manager sous utilisateur dédié sans groupe `docker` lorsqu'un proxy est utilisé.

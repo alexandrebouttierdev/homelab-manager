@@ -1,8 +1,8 @@
 # Règles de code — Homelab Manager
 
-Version 2.1 — 22 novembre 2026
+Version 2.2 — 24 novembre 2026 (audits de sécurité des dépendances, bonnes pratiques React, règles générales de sécurité)
 
-Ces règles s'appliquent à toute contribution, humaine ou assistée par un agent (voir [AGENTS.md](../AGENTS.md)). Une règle « doit » est vérifiée en revue ; les outils automatiques sont indiqués quand ils existent. Les exigences d'architecture et de sécurité sont dans ARCHITECTURE.md et SECURITY.md ; ce document fixe la façon d'écrire le code.
+Ces règles s'appliquent à toute contribution, humaine ou assistée par un agent (voir [AGENTS.md](../AGENTS.md)), à chaque création de fichier, modification, ajout ou mise à jour de dépendance, refactorisation, correction de bug et revue de code. Ce sont des exigences, pas des recommandations : une contribution qui ne les respecte pas n'est pas terminée. Une règle « doit » est vérifiée en revue ; les outils automatiques sont indiqués quand ils existent. Les exigences d'architecture et de sécurité sont dans ARCHITECTURE.md et SECURITY.md ; ce document fixe la façon d'écrire le code.
 
 ## 1. Langues
 
@@ -25,7 +25,31 @@ L'interface ne montre jamais un message d'erreur brut de l'API : elle traduit le
 | Frontend | Lint, types, tests, build | `npm run lint`, `npm run typecheck`, `npm run test`, `npm run build` |
 | Release | Calcul de version et notes | `scripts/release/release_test.sh` (dépôt Git jetable) |
 
-Corriger le formatage : `gofmt -w backend` et `npm --prefix frontend run format`. Un avertissement du linter est traité comme une erreur.
+Corriger le formatage : `gofmt -w backend` et `npm --prefix frontend run format`. Un avertissement du linter est traité comme une erreur. Utiliser la version de Node de la CI (22) : une version plus ancienne fait échouer ESLint sans rapport avec le code.
+
+### 2.1 Contrôles selon les fichiers modifiés
+
+`scripts/verify.sh` s'exécute pour toute modification. S'y ajoutent, selon ce qui change :
+
+| Modification | Contrôles supplémentaires obligatoires |
+|---|---|
+| Composant, page ou hook React | Règles du § 4 (en particulier § 4.7), thèmes clair et sombre et affichage mobile pour une page nouvelle ou modifiée |
+| `frontend/package.json` ou `frontend/package-lock.json` | `npm audit` et `npm audit --omit=dev` (§ 6.2), OSV-Scanner (§ 6.3) |
+| `backend/go.mod`, `backend/go.sum`, ou code Go qui appelle une dépendance pour la première fois | `govulncheck ./...` (§ 6.4), OSV-Scanner (§ 6.3) |
+| Toute contribution avant une release, et au moins une fois par phase | `scripts/audit.sh` complet (§ 6.5) |
+
+### 2.2 Rapporter un contrôle
+
+Un contrôle est rapporté avec son résultat réel, dans l'une de ces catégories, jamais arrondi :
+
+| Catégorie | Sens |
+|---|---|
+| **Réussi** | L'outil s'est exécuté jusqu'au bout et ne signale rien |
+| **Problèmes détectés** | L'outil s'est exécuté et signale des erreurs ou des vulnérabilités : les lister avec leur gravité |
+| **Outil indisponible** | L'outil n'est pas installé ou ne peut pas joindre sa base (réseau) : le dire et indiquer comment l'installer |
+| **Non exécuté** | Le contrôle n'a pas été lancé (hors périmètre de la modification, ou impossible) : le dire et pourquoi |
+
+Ne jamais écrire qu'un audit est propre s'il n'a pas été exécuté, s'il a échoué ou si son outil manque. L'absence de vulnérabilité détectée n'est pas une garantie de sécurité.
 
 ## 3. Backend Go
 
@@ -127,6 +151,49 @@ Les pages et composants (`.tsx` de `src/app`, `src/components`, `src/features`) 
 - Vitest + React Testing Library ; tester le comportement visible (textes, rôles), pas l'implémentation.
 - Tout schéma Zod, toute fonction de `src/lib/`, tout utilitaire de `src/hooks/` et tout client d'API ont des tests. La logique d'un hook de page se teste par les fonctions pures qu'il appelle ; un hook à comportement propre (enchaînement d'actions, navigation) se teste avec `renderHook`.
 
+### 4.7 Bonnes pratiques React
+
+Références : [react.dev/learn](https://react.dev/learn), [Règles de React](https://react.dev/reference/rules), [API de référence](https://react.dev/reference/react). Elles complètent les §§ 4.1 à 4.6 sans les remplacer.
+
+**Composants et hooks**
+
+- Composants fonctionnels uniquement ; pas de composant de classe.
+- Règles des hooks : appelés au premier niveau d'un composant ou d'un hook `use…`, jamais dans une condition, une boucle, un rappel ni après un `return` anticipé. Contrôle : `eslint-plugin-react-hooks` (configuration recommandée, règles du compilateur React incluses).
+- Rendu pur : un composant ou un hook ne produit aucun effet de bord pendant le rendu (requête, écriture dans le stockage, mutation d'une variable extérieure, lecture de `ref.current`). `StrictMode` reste activé (`src/main.tsx`) pour révéler les rendus impurs.
+- Props et état sont immuables : jamais de mutation directe (`push`, `sort`, `splice`, affectation d'un champ) ; créer un nouvel objet ou tableau (`[...list].sort(…)`, `{ ...value, champ }`).
+- Un composant a une responsabilité ; au-delà d'environ 200 lignes ou de plusieurs blocs indépendants, le découper en sous-composants du même fichier ou de son dossier de domaine. Pas d'abstraction générique avant un deuxième usage réel.
+
+**Effets**
+
+- `useEffect` sert uniquement à synchroniser avec un système extérieur (abonnement, minuterie, API du navigateur). Une valeur dérivée se calcule pendant le rendu (dans le hook, avec `useMemo` si le calcul est coûteux), jamais par un effet qui appelle `setState`. Une réaction à une action utilisateur va dans le gestionnaire d'événement ou le `onSuccess` d'une mutation.
+- Tout effet qui s'abonne, démarre une minuterie ou lance une requête renvoie une fonction de nettoyage (désabonnement, `clearInterval`, `AbortController`).
+- Tableaux de dépendances complets : `react-hooks/exhaustive-deps` ne se désactive pas. Si une dépendance pose problème, restructurer (déplacer la fonction dans l'effet, dériver la valeur) plutôt que l'omettre.
+
+**Performances**
+
+- `useMemo`, `useCallback` et `React.memo` seulement quand ils servent : calcul coûteux, référence stable exigée par un enfant mémorisé ou par les dépendances d'un autre hook. Ne pas les ajouter par principe.
+- Éviter les re-rendus inutiles par la structure : état placé au plus près de son usage, clés de requête stables, objets et tableaux du modèle de vue mémorisés dans le hook quand ils sont recalculés à partir de données serveur.
+
+**Listes**
+
+- Chaque élément d'une liste a une `key` stable et unique issue des données (identifiant, nom d'unité, curseur) ; jamais l'index d'un tableau qui peut être trié, filtré ou modifié, jamais une valeur aléatoire.
+
+**TypeScript**
+
+- Types explicites pour les DTO (`src/lib/api/`), les props et les modèles de vue exportés (`ReturnType<typeof use…>`) ; unions de chaînes plutôt que `string` quand les valeurs sont connues ; `as const` pour les listes d'options.
+- Pas d'assertion non nulle (`!`) ni de `as` pour faire taire le compilateur ; rétrécir le type (garde, `if`, valeur par défaut).
+
+**États et erreurs**
+
+- Toute donnée chargée traite ses trois états : chargement (`LoadingState`), erreur avec nouvel essai (`ErrorState`) et vide (`EmptyState`) ; toute mutation affiche son attente (`loading`, bouton désactivé) et son échec (`role="alert"`).
+- Cas limites prévus : liste vide, valeur absente (`null` affiché « — », jamais 0), donnée périmée, droit insuffisant (action masquée, le serveur décide).
+
+**Accessibilité**
+
+- Éléments sémantiques : `button` pour une action, `Link` pour une navigation, tableaux avec en-têtes `TH`, titres hiérarchisés.
+- Tout contrôle est utilisable au clavier et a un nom accessible (libellé visible, `label` associé ou `aria-label`) ; un bouton bascule porte `aria-pressed` ; un champ en erreur affiche le message près du champ.
+- Ne pas transmettre une information par la couleur seule : un badge de sévérité ou d'état porte aussi un texte.
+
 ## 5. API et documentation
 
 - `docs/API_CONTRACTS.md` est le contrat exact : toute route, paramètre, borne, DTO ou code d'erreur ajouté ou modifié l'est dans le même commit que le code.
@@ -135,9 +202,40 @@ Les pages et composants (`.tsx` de `src/app`, `src/components`, `src/features`) 
 
 ## 6. Dépendances
 
+### 6.1 Choix d'une dépendance
+
 - Toute nouvelle dépendance (Go ou npm) est justifiée dans la description du commit : usage, alternatives écartées, impact (taille, maintenance, sécurité).
-- Version figée ; version publiée depuis au moins deux semaines.
+- Versions résolues figées par `frontend/package-lock.json` et `backend/go.sum`, toujours versionnés ; la CI installe avec `npm ci`. Version publiée depuis au moins deux semaines.
 - Préférer la bibliothèque standard et le code interne court et testé à une dépendance pour quelques lignes.
+- Avant d'ajouter une dépendance, vérifier sa provenance et sa légitimité : nom exact du paquet (pas de typosquat), dépôt source et éditeur reconnus, maintenance active (publication récente, anomalies traitées), licence compatible, nombre de dépendances transitives. Refuser un paquet abandonné, une version obsolète ou dépréciée, ou un paquet qui exécute des scripts d'installation sans raison.
+- Retirer une dépendance devenue inutile dans le même commit que le dernier code qui l'utilisait.
+
+### 6.2 npm audit
+
+- Depuis `frontend/` : `npm audit` (toutes les dépendances) et `npm audit --omit=dev` (celles livrées dans l'interface). Les deux s'exécutent pour toute modification de `package.json` ou `package-lock.json`, et avant une release.
+- Examiner les vulnérabilités directes et transitives (`npm audit` indique le chemin). Une vulnérabilité de gravité critique ou élevée bloque la livraison tant qu'elle n'est pas corrigée ou documentée (§ 6.6).
+- Corriger par une montée de version ciblée de la dépendance concernée, puis relancer `scripts/verify.sh`. Interdit : `npm audit fix --force`, changer arbitrairement des versions pour faire disparaître une alerte, `overrides` sans justification écrite dans le commit.
+
+### 6.3 OSV-Scanner
+
+- Audit complémentaire de tous les manifestes et lockfiles du dépôt (`package-lock.json`, `go.mod`) : `osv-scanner scan source -r .` à la racine. Il ne remplace pas `npm audit` ni `govulncheck`, et réciproquement : chacun s'exécute.
+- Examiner chaque résultat et sa gravité ; ne pas masquer un résultat (fichier d'ignorés, filtre) pour obtenir un audit propre. Un résultat ignoré l'est dans `osv-scanner.toml` à la racine avec sa raison et sa date de réexamen, et figure au § 6.6.
+- Documentation : [google.github.io/osv-scanner](https://google.github.io/osv-scanner/).
+
+### 6.4 govulncheck
+
+- Depuis `backend/` : `govulncheck ./...`, pour toute modification de `go.mod` ou `go.sum`, tout premier appel à une dépendance, toute montée de version de Go et avant une release.
+- Il signale les vulnérabilités réellement atteignables depuis le code (chemin d'appel) : examiner ce chemin. Une vulnérabilité atteignable est corrigée (montée de version de la dépendance ou de Go, puis `govulncheck` et `scripts/verify.sh` relancés) ; une vulnérabilité seulement présente dans le module, non atteignable, est notée et réexaminée à la mise à jour suivante.
+- Documentation : [go.dev/doc/security/vuln](https://go.dev/doc/security/vuln/).
+
+### 6.5 Script d'audit
+
+- `scripts/audit.sh` enchaîne `npm audit`, `npm audit --omit=dev`, OSV-Scanner et `govulncheck` et rapporte chacun dans les catégories du § 2.2. Code de sortie : 0 si tout est réussi, 1 si des vulnérabilités sont détectées, 2 si un outil est indisponible ou a échoué. Il interroge des bases en ligne ; il n'est donc pas inclus dans `scripts/verify.sh`, qui reste exécutable hors ligne.
+- Installation des outils (outils de développement, hors dépendances du projet) : `go install golang.org/x/vuln/cmd/govulncheck@latest` ; OSV-Scanner par `brew install osv-scanner` (macOS) ou `go install github.com/google/osv-scanner/v2/cmd/osv-scanner@latest`.
+
+### 6.6 Vulnérabilités non corrigées
+
+Une vulnérabilité qui ne peut pas être corrigée immédiatement (pas de version corrigée, correction incompatible) est documentée dans `docs/SECURITY.md` § « Vulnérabilités connues des dépendances » : identifiant (CVE, GHSA ou GO-), paquet et version, gravité, atteignabilité, mesure de réduction, date de réexamen. Elle n'est jamais passée sous silence.
 
 ## 7. Git
 
@@ -147,3 +245,14 @@ Les pages et composants (`.tsx` de `src/app`, `src/components`, `src/features`) 
 - Messages au format Conventional Commits, en anglais : `type(scope): résumé à l'impératif`, avec `type` ∈ `feat`, `fix`, `refactor`, `perf`, `test`, `docs`, `chore`, `build` ; corps expliquant le pourquoi.
 - Un commit = un changement cohérent, avec ses tests et sa documentation, qui passe `scripts/verify.sh`.
 - Ne jamais versionner : `.env`, bases SQLite (`*.db`, `-wal`, `-shm`), binaires, `dist/`, secrets.
+
+## 8. Sécurité du code
+
+Ces règles valent pour toutes les technologies du projet ; les exigences propres au produit sont dans SECURITY.md.
+
+- Aucun secret (mot de passe, clé d'API, jeton, clé de chiffrement) dans le code, les tests, la configuration versionnée ou les messages de commit ; les secrets viennent de systemd (`ImportCredential=`) ou de fichiers hors dépôt. Les tests utilisent des valeurs fictives générées.
+- Aucune donnée sensible dans les journaux, les erreurs renvoyées ni l'interface : mot de passe, cookie, jeton, secret, variable d'environnement, ligne de commande d'un processus (§ 3.5, API_CONTRACTS.md § 8).
+- Toute donnée externe est validée côté serveur avant usage : requête HTTP (corps strict, paramètres bornés), réponse Docker ou D-Bus, sortie de `journalctl`, fichier lu. La validation de l'interface (Zod) n'est jamais une protection.
+- Moindre privilège : le Manager ne tourne jamais en root ; chaque accès (groupe, socket, règle polkit, permission de rôle) est le plus étroit possible et justifié dans SECURITY.md.
+- Ne jamais désactiver une protection pour contourner un problème : contrôle d'origine, vérification TLS, durcissement systemd, règle ESLint, `-race`, test qui échoue. Corriger la cause.
+- Ne jamais masquer une erreur, une alerte de sécurité ou un résultat d'audit sans justification écrite (commentaire au plus près du code, ou § 6.6).

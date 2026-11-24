@@ -56,6 +56,10 @@ export const errorMessages: Record<string, string> = {
   SYSTEMD_UNAVAILABLE:
     "Services système indisponibles : systemd n'est pas joignable sur le bus système de la machine.",
   SYSTEMD_READ_FAILED: "L'unité systemd n'a pas pu être lue.",
+  CRON_UNAVAILABLE: 'Tâches planifiées indisponibles.',
+  CRON_READ_FAILED: "Les tâches planifiées n'ont pas pu être lues.",
+  CRON_EXPRESSION_INVALID:
+    'Expression Cron invalide : 5 champs (minute, heure, jour, mois, jour de semaine) ou une macro (@daily…).',
   BACKUPS_UNAVAILABLE:
     "Sauvegardes indisponibles : la base de données du Manager n'est pas accessible.",
   BACKUPS_FAILED: "Les sauvegardes n'ont pas pu être lues ou lancées.",

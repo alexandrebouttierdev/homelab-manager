@@ -343,6 +343,10 @@ Puis, dans l'onglet « Configuration » (administrateurs) : choisir le dépôt, 
 
 **Restauration** : dans « Instantanés », un administrateur choisit un instantané et, au besoin, des chemins, simule puis restaure. Les fichiers arrivent dans `/var/lib/homelab-backup/restore/<identifiant>/`, accessible à root seulement, jamais à leur emplacement d'origine : les recopier ensuite à la main (`sudo cp -a …`) et supprimer le répertoire. **Rattacher un dépôt existant** (réinstallation, autre machine) : enregistrer son emplacement puis saisir son mot de passe dans la carte « Initialiser le dépôt ». Le diff entre instantanés, la copie vers un second dépôt et SFTP ne sont pas encore proposés.
 
+### Tâches planifiées
+
+La page « Tâches planifiées » montre, pour tous les rôles et en lecture seule, les tâches Cron du système (`/etc/crontab`, `/etc/cron.d`) avec leur planification en français, leurs cinq prochaines exécutions dans le fuseau de la machine et leur dernière exécution lue dans le journal ; les scripts de `/etc/cron.hourly`, `daily`, `weekly` et `monthly` avec la ligne qui les lance (ou anacron) ; les timers systemd avec le résultat de leur dernier passage. Les valeurs de `password=`, `token=` et motifs voisins sont masquées. Un inspecteur calcule les prochaines exécutions d'une expression, sans rien enregistrer. Rien n'est créé, modifié ni lancé : ce serait exécuter du code en root. Les crontabs des comptes (`crontab -e`) ne sont pas lisibles sans privilège et n'apparaissent pas. Le paquet `cron` n'est pas toujours installé (conteneurs, images minimales) : l'onglet Cron reste alors vide, les timers suffisent.
+
 ### Sauvegarde et restauration
 
 La base tient dans un fichier, accompagné de `-wal` et `-shm` pendant l'exécution. Ne pas copier ces fichiers à chaud : utiliser la sauvegarde en ligne de SQLite (paquet `sqlite3`), qui produit un fichier cohérent sans arrêter le Manager :
@@ -368,7 +372,7 @@ La première release est `v2.3.0`, alignée sur la [spécification produit](docs
 
 ## État et limites connues
 
-- **Livré** : supervision système et Docker, historique, événements, comptes et rôles, sessions, politique de sécurité, journal d'audit, double authentification (TOTP et codes de secours), journaux système, services système avec actions en liste blanche (phase 5), sauvegardes restic (phase 6, incrément 6A), alertes avec silences et notifications (phase 4), vulnérabilités des paquets avec Grype (module V ; Debian, Ubuntu et Alpine), redémarrage et extinction (optionnels).
+- **Livré** : supervision système et Docker, historique, événements, comptes et rôles, sessions, politique de sécurité, journal d'audit, double authentification (TOTP et codes de secours), journaux système, services système avec actions en liste blanche (phase 5), sauvegardes restic (phase 6), tâches planifiées en lecture (phase 7), alertes avec silences et notifications (phase 4), vulnérabilités des paquets avec Grype (module V ; Debian, Ubuntu et Alpine), redémarrage et extinction (optionnels).
 - **Spécifié, pas encore implémenté** : passkeys (WebAuthn) et jetons d'API, actions sur les services systemd, sauvegardes restic, tâches planifiées, lecture des paquets RPM (Fedora, Rocky Linux, AlmaLinux) pour le module V. Voir [docs/SPEC_ADMINISTRATION.md](docs/SPEC_ADMINISTRATION.md) et la [feuille de route](docs/superpowers/plans/2026-11-23-feuille-de-route-v3.md).
 - Historiques bruts ou agrégés, 2 000 points au plus par requête ; l'interface choisit le pas selon la période.
 - À l'intervalle par défaut (10 s), la base croît d'environ 300 Mo par jour jusqu'à la rétention : ≈ 2 Go pour 7 jours.
@@ -382,7 +386,7 @@ La première release est `v2.3.0`, alignée sur la [spécification produit](docs
 | Document | Contenu |
 |---|---|
 | [Spécification produit](docs/PRODUCT_SPEC.md) | Périmètre, décisions, état |
-| [Modules d'administration](docs/SPEC_ADMINISTRATION.md) | Comptes, sessions, alimentation, modules v3 à venir |
+| [Modules d'administration](docs/SPEC_ADMINISTRATION.md) | Comptes, sessions, alimentation, modules v3 |
 | [Architecture](docs/ARCHITECTURE.md) | Couches, collecte, planification |
 | [Contrats API](docs/API_CONTRACTS.md) | Routes, DTO, codes d'erreur exacts |
 | [Modèle de données](docs/DATA_MODEL.md) | Tables SQLite, migrations |

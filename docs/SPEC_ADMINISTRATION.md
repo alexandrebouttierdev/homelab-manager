@@ -1,6 +1,6 @@
 # Spécification des modules d'administration — Homelab Manager
 
-Version 3.0 (brouillon) — 22 novembre 2026 — **partiellement implémenté** : comptes multiples et rôles (§§ 3.1–3.2, phase 1A), sessions, politique de sécurité et journal d'audit (§§ 3.4–3.5, phase 1B), coffre de secrets, TOTP et codes de secours (§§ 2.5, 3.3 hors WebAuthn, phase 1C) journaux système (§ 4, phase 2), consultation des services système (§ 5.1, phase 3), vulnérabilités des paquets (§ 8 ter, module V) et redémarrage et extinction de la machine (§ 8 bis, module M), le 23 novembre 2026 ; règles, cycle de vie, indicateurs, silences et canaux des alertes (§§ 6.1 à 6.4, phase 4) actions sur les services système (§ 5.2, phase 5) et sauvegardes restic, incrément 6A (§ 7 : dépôt, sources, exclusions, sauvegardes manuelles et planifiées, historique, instantanés), le 24 novembre 2026.
+Version 3.0 (brouillon) — 22 novembre 2026 — **partiellement implémenté** : comptes multiples et rôles (§§ 3.1–3.2, phase 1A), sessions, politique de sécurité et journal d'audit (§§ 3.4–3.5, phase 1B), coffre de secrets, TOTP et codes de secours (§§ 2.5, 3.3 hors WebAuthn, phase 1C) journaux système (§ 4, phase 2), consultation des services système (§ 5.1, phase 3), vulnérabilités des paquets (§ 8 ter, module V) et redémarrage et extinction de la machine (§ 8 bis, module M), le 23 novembre 2026 ; règles, cycle de vie, indicateurs, silences et canaux des alertes (§§ 6.1 à 6.4, phase 4), actions sur les services système (§ 5.2, phase 5), sauvegardes restic (§ 7, phase 6 : incréments 6A et 6B) et tâches planifiées en lecture (§ 8, phase 7), le 24 novembre 2026.
 
 Ce document spécifie les modules annoncés « à venir » dans la navigation : utilisateurs et accès, journaux système, services système, alertes et notifications, sauvegardes, tâches planifiées, ainsi que le redémarrage et l'extinction de la machine (§ 8 bis, ajouté le 23 novembre 2026). Il s'appuie sur les maquettes de `maquette/` et en fixe le périmètre réel : une maquette montre une intention visuelle, ce document fait foi. Tant qu'un module n'est pas livré, il reste désactivé dans l'interface et ses routes n'existent pas.
 
@@ -221,6 +221,8 @@ Le Manager configure et pilote **restic** ; il ne réimplémente ni le chiffreme
 
 **Consultation uniquement** dans cette version : créer, modifier, suspendre ou lancer une tâche Cron revient à exécuter du code arbitraire en root (règle 3) [D-1].
 
+**Mise en œuvre (phase 7, 24 novembre 2026)** : analyseur d'expressions interne, testé, sans dépendance (`robfig/cron` non retenu) ; inventaire de `/etc/crontab`, `/etc/cron.d` et des scripts run-parts avec la ligne qui les lance et la mention d'anacron ; timers de l'inventaire des unités avec le résultat du service déclenché ; dernières exécutions lues dans les lignes `CRON` du journal (par l'identifiant : les tâches tournent dans une session PAM, hors de `cron.service`) ; masquage étendu à `passwd=`, `pwd=`, `secret=` et `api_key=` ; inspecteur sans enregistrement. Page « Tâches planifiées ». Contrat : API_CONTRACTS.md § 4.11.
+
 - Inventaire : `/etc/crontab`, `/etc/cron.d/*`, scripts de `/etc/cron.hourly|daily|weekly|monthly`, et timers systemd (module S). Les crontabs utilisateurs (`/var/spool/cron/crontabs`) ne sont pas lisibles sans privilège et ne sont pas affichées.
 - Pour chaque entrée : expression, traduction en français (« tous les jours à 03:00 »), utilisateur d'exécution, commande affichée telle quelle (masquage des motifs `password=`, `token=`), fichier source, prochaines exécutions calculées dans le fuseau de la machine.
 - Dernières exécutions : lignes `CRON[pid]` du journal (module J). Cron ne journalise pas le code de sortie : il n'est affiché que pour les timers systemd. Le « taux de succès » de la maquette n'est donc pas calculable pour Cron et n'est pas retenu.
@@ -294,7 +296,7 @@ Ajouté le 24 novembre 2026 à la demande du propriétaire du projet : détecter
 | 4 | Module A : règles, cycle de vie, canaux. **Livrée** : 4A (règles, cycle de vie, acquittement, indicateurs) et 4B (canaux, silences, regroupement, renotification) | Phases 1 et 3, secrets § 2.5 |
 | 5 | Module S, actions par polkit. **Livrée** (liste blanche, règle générée, « Redémarrer » depuis une alerte) | Phase 1 |
 | 6 | Module B : dépôts, sauvegarde, rétention, restauration en quarantaine. **6A et 6B livrés** (dépôt, sources, exclusions, sauvegardes manuelles et planifiées, historique, instantanés, rétention, vérification, restauration en quarantaine, rattachement, déverrouillage) ; restent diff, copies et SFTP | Phases 1 et 4 |
-| 7 | Module C en lecture | Phase 2 |
+| 7 | Module C en lecture. **Livré** | Phase 2 |
 | 8 | WebAuthn, jetons d'API | Phase 1, HTTPS |
 | V | Module V : vulnérabilités des paquets (Grype) de la machine du Manager, placé après la phase 4. **Livré** (dpkg et apk ; RPM à venir) | Phase 4 (règle d'alerte) |
 

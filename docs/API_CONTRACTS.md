@@ -91,6 +91,8 @@ Ce document est le contrat exact de l'API implémentée. Toute différence entre
 | `GET /api/v1/vulnerabilities/{findingID}` | oui | Un constat (§ 4.9) |
 | `GET /api/v1/vulnerabilities/scans` | oui | Derniers scans (§ 4.9) |
 | `POST /api/v1/vulnerabilities/scans` | `operator` | Lance un scan (§ 4.9) |
+| `GET /api/v1/cron` | oui | Tâches Cron du système, scripts run-parts et timers (§ 4.11) |
+| `GET /api/v1/cron/inspect` | oui | Inspecteur d'expression Cron, sans enregistrement (§ 4.11) |
 | `GET /api/v1/backups/summary` | oui | État des sauvegardes (§ 4.10) |
 | `GET /api/v1/backups/config` | oui | Configuration, sans secret (§ 4.10) |
 | `PUT /api/v1/backups/config` | admin | Dépôt, sources, exclusions, planification (§ 4.10) |
@@ -693,6 +695,43 @@ Exécution :
 
 `GET /api/v1/backups/summary` (tous les rôles) → `{ "configured": true, "initialized": true, "running": Exécution | null, "lastRun": Exécution | null, "lastSuccess": Exécution | null, "lastCheck": Exécution | null, "nextRunAt": "…" | null }`. `lastRun` et `lastSuccess` ne portent que sur les sauvegardes, `lastCheck` est la dernière vérification réussie ; `nextRunAt` : prochaine sauvegarde planifiée, `null` si la planification est désactivée ou si le dépôt n'est pas prêt.
 
+### 4.11 Tâches planifiées
+
+Lecture seule (SPEC_ADMINISTRATION.md § 8, phase 7), ouverte à tous les rôles : rien n'est créé, modifié ni lancé (D-1). Le Manager lit `/etc/crontab`, `/etc/cron.d/*` (noms acceptés par cron : lettres, chiffres, `_` et `-` ; un fichier comme `x.dpkg-old` est ignoré, comme le fait cron) et les scripts exécutables de `/etc/cron.hourly`, `daily`, `weekly` et `monthly`, lisibles par tous ; les crontabs des comptes (`/var/spool/cron/crontabs`) ne sont pas lisibles sans privilège et ne sont pas lues. 64 Kio au plus par fichier, 1 000 lignes au plus en tout. Les expressions sont analysées par le Manager (cinq champs avec listes, plages, pas et noms, ou `@yearly`, `@monthly`, `@weekly`, `@daily`, `@hourly`, `@reboot` ; jour du mois et jour de semaine tous deux restreints : l'un ou l'autre, comme Vixie cron).
+
+`GET /api/v1/cron` :
+
+```json
+{
+  "timeZone": "CET",
+  "entries": [
+    { "source": "/etc/crontab", "line": 7, "expression": "17 * * * *", "user": "root",
+      "command": "cd / && run-parts --report /etc/cron.hourly", "valid": true, "error": null,
+      "description": "Toutes les heures, à la minute 17",
+      "nextRuns": ["2026-11-24T20:17:00+01:00", "…"], "lastRun": "2026-11-24T19:17:01Z" }
+  ],
+  "directories": [
+    { "period": "daily", "path": "/etc/cron.daily", "scripts": ["apt-compat", "dpkg"], "scheduledBy": { "…": "entrée ci-dessus" } }
+  ],
+  "anacron": false, "unreadable": [],
+  "timers": [
+    { "name": "apt-daily.timer", "description": "Daily apt download activities", "activeState": "active",
+      "nextElapse": "…", "lastTrigger": "…", "service": "apt-daily.service", "serviceResult": "success" }
+  ],
+  "timersAvailable": true, "journalAvailable": true
+}
+```
+
+- `command` : telle qu'écrite, jamais exécutée ; la valeur de `password=`, `passwd=`, `pwd=`, `token=`, `secret=` et `api_key=` (ou `apikey=`, `api-key=`) est remplacée par `••••`. 4 Kio au plus.
+- `valid: false` : expression illisible, `error` en donne la raison ; `description` est alors `null` et `nextRuns` vide. `description` : la planification en français, ou « Selon l'expression « … » » quand elle n'a pas de formulation courte.
+- `nextRuns` : les 5 prochaines exécutions dans le fuseau de la machine (`timeZone`), dans les cinq ans ; vide pour `@reboot` ou une date impossible.
+- `lastRun` : dernière ligne `(compte) CMD (commande)` de l'identifiant `CRON` dans les 500 dernières du journal (module J), `null` sinon ; cron ne journalise pas le code de sortie. `journalAvailable: false` si le journal ne peut pas être lu.
+- `directories` : un élément par répertoire présent, ses scripts exécutables triés ; `scheduledBy` : la ligne qui le lance par `run-parts`, `null` sinon. `anacron: true` si `/etc/anacrontab` existe : anacron lance alors les scripts quotidiens, hebdomadaires et mensuels.
+- `timers` : timers de l'inventaire des unités (§ 4.7) ; `serviceResult` : résultat du dernier passage du service déclenché (`success`, `exit-code`…), `null` s'il est inconnu. `timersAvailable: false` tant qu'aucune collecte des unités n'a réussi.
+- `unreadable` : fichiers ou répertoires présents mais illisibles (droits, taille).
+
+`GET /api/v1/cron/inspect?expression=0%209%20*%20*%201-5` → `200 { "description": "Du lundi au vendredi à 09:00", "nextRuns": [5 dates] }`. Rien n'est enregistré. Expression invalide (200 octets au plus) : `400 CRON_EXPRESSION_INVALID` ; autre paramètre ou paramètre répété : `400 VALIDATION_ERROR`.
+
 ## 5. Métriques
 
 ### 5.1 Échantillon
@@ -907,6 +946,9 @@ Les routes sont versionnées sous `/api/v1`. Un changement incompatible (champ s
 | `JOURNAL_READ_FAILED` | 500 | Lecture du journal système en échec |
 | `SYSTEMD_UNAVAILABLE` | 503 | systemd injoignable ou aucun inventaire des unités |
 | `SYSTEMD_READ_FAILED` | 500 | Lecture d'une unité systemd en échec |
+| `CRON_EXPRESSION_INVALID` | 400 | Expression Cron invalide (inspecteur) |
+| `CRON_READ_FAILED` | 500 | Lecture des crontabs en échec |
+| `CRON_UNAVAILABLE` | 503 | Module des tâches planifiées indisponible |
 | `BACKUPS_UNAVAILABLE` | 503 | Module des sauvegardes arrêté (base de données indisponible) |
 | `BACKUPS_FAILED` | 500 | Lecture ou lancement des sauvegardes en échec |
 | `BACKUP_NOT_CONFIGURED` | 409 | Aucun dépôt de sauvegarde |

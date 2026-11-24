@@ -18,6 +18,16 @@ type SystemUnitReader interface {
 	Unit(ctx context.Context, name string) (domain.SystemUnitDetail, error)
 }
 
+// UnitController starts, stops, restarts or reloads one unit
+// (SPEC_ADMINISTRATION.md § 5.2). The caller checks the allow list first;
+// polkit checks it again.
+type UnitController interface {
+	// Act requests the verb and returns the unit state once stable. Its
+	// failures are *domain.UnitActionError; a unit that ends failed is
+	// returned with domain.ActionUnitFailed. The context bounds the action.
+	Act(ctx context.Context, name string, verb domain.UnitVerb) (domain.UnitStableState, error)
+}
+
 // FailedUnitRepository keeps the set of units recorded as failed, so that
 // a failure is reported once across restarts of the Manager.
 type FailedUnitRepository interface {

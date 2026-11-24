@@ -10,6 +10,7 @@ import (
 
 	"go.uber.org/zap"
 
+	"homelab-manager/backend/internal/adapters/sqlite"
 	"homelab-manager/backend/internal/domain"
 	"homelab-manager/backend/internal/usecase"
 )
@@ -217,5 +218,141 @@ func TestSystemUnitsWithoutSystemd(t *testing.T) {
 	response = call(router, http.MethodGet, "/api/v1/system/units/ssh.service", "", admin)
 	if response.Code != http.StatusServiceUnavailable || !strings.Contains(response.Body.String(), `"code":"SYSTEMD_UNAVAILABLE"`) {
 		t.Fatalf("detail = %d %s", response.Code, response.Body)
+	}
+}
+
+// stableController answers every action at once with an active unit.
+type stableController struct{}
+
+func (stableController) Act(context.Context, string, domain.UnitVerb) (domain.UnitStableState, error) {
+	return domain.UnitStableState{ActiveState: "active", SubState: "running"}, nil
+}
+
+// newUnitActionsRouter serves the actions on nginx.service only.
+func newUnitActionsRouter(t *testing.T) http.Handler {
+	t.Helper()
+	services, database := newTestServices(t, nil)
+	allowed, err := domain.NewManageableUnits([]string{"nginx.service", "getty@tty1.service"})
+	if err != nil {
+		t.Fatal(err)
+	}
+	actions := usecase.NewUnitActionUsecase(stableController{}, sqlite.NewAuditRepository(database.Client()), allowed, zap.NewNop())
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		actions.Run(ctx)
+	}()
+	t.Cleanup(func() {
+		cancel()
+		<-done
+	})
+	services.UnitActions = actions
+	router := NewRouter(zap.NewNop(), services, false, "")
+	// Run sets its context in its own goroutine: probe the instance unit
+	// until an action is accepted, then wait for it to end.
+	for deadline := time.Now().Add(5 * time.Second); ; {
+		_, err := actions.Request(context.Background(), domain.User{Username: "probe"}, "getty@tty1.service", domain.UnitStart, "")
+		if err == nil {
+			break
+		}
+		if !errors.Is(err, domain.ErrUnitActionsUnavailable) || time.Now().After(deadline) {
+			t.Fatalf("unit actions never started: %v", err)
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	for deadline := time.Now().Add(5 * time.Second); ; {
+		if last, _, _ := actions.Last("getty@tty1.service"); last.State != domain.ActionRunning {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("the probe action never ended")
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	return router
+}
+
+func TestUnitActionRoutes(t *testing.T) {
+	resetLoginRateLimit(t)
+	router := newUnitActionsRouter(t)
+	admin := signIn(t, router, "admin", "admin-password-1")
+	operator := signInWithRole(t, router, admin, "olivia", "operator")
+	viewer := signInWithRole(t, router, admin, "vera", "viewer")
+
+	response := call(router, http.MethodGet, "/api/v1/system/units", "", viewer)
+	if !strings.Contains(response.Body.String(), `"manageableUnits":["getty@tty1.service","nginx.service"]`) {
+		t.Fatalf("list = %s, want the allow list", response.Body)
+	}
+	if response := call(router, http.MethodPost, "/api/v1/system/units/nginx.service/actions", `{"action":"restart"}`, viewer); response.Code != http.StatusForbidden {
+		t.Fatalf("viewer action = %d, want 403", response.Code)
+	}
+	if response := call(router, http.MethodGet, "/api/v1/system/units/nginx.service/actions/last", "", viewer); response.Code != http.StatusNotFound {
+		t.Fatalf("last before any action = %d, want 404", response.Code)
+	}
+
+	response = call(router, http.MethodPost, "/api/v1/system/units/nginx.service/actions", `{"action":"restart"}`, operator)
+	if response.Code != http.StatusAccepted || !strings.Contains(response.Body.String(), `"state":"running"`) ||
+		!strings.Contains(response.Body.String(), `"requestedBy":"olivia"`) {
+		t.Fatalf("operator action = %d %s", response.Code, response.Body)
+	}
+	var last struct {
+		Action struct {
+			Unit, Action, State string
+			Failure             *string
+			FinishedAt          *string
+			Final               *struct{ ActiveState, SubState string }
+		} `json:"action"`
+	}
+	for deadline := time.Now().Add(5 * time.Second); last.Action.State != "succeeded"; {
+		if time.Now().After(deadline) {
+			t.Fatalf("action never ended: %+v", last)
+		}
+		response = call(router, http.MethodGet, "/api/v1/system/units/nginx.service/actions/last", "", viewer)
+		decodeBody(t, response, &last)
+	}
+	if last.Action.Failure != nil || last.Action.FinishedAt == nil || last.Action.Final == nil || last.Action.Final.ActiveState != "active" {
+		t.Fatalf("last = %+v", last.Action)
+	}
+	// The escaped instance name is decoded once.
+	if response := call(router, http.MethodPost, "/api/v1/system/units/getty%40tty1.service/actions", `{"action":"start"}`, admin); response.Code != http.StatusAccepted {
+		t.Fatalf("instance action = %d %s", response.Code, response.Body)
+	}
+	audit := call(router, http.MethodGet, "/api/v1/audit?action=restart", "", admin).Body.String()
+	if !strings.Contains(audit, `"targetType":"system_unit"`) || !strings.Contains(audit, `"outcome":"requested"`) {
+		t.Fatalf("audit = %s", audit)
+	}
+}
+
+func TestUnitActionRouteErrors(t *testing.T) {
+	resetLoginRateLimit(t)
+	router := newUnitActionsRouter(t)
+	admin := signIn(t, router, "admin", "admin-password-1")
+	for _, tc := range []struct {
+		path, body string
+		status     int
+		code       string
+	}{
+		{"/api/v1/system/units/nginx.service/actions", `{"action":"enable"}`, http.StatusBadRequest, "VALIDATION_ERROR"},
+		{"/api/v1/system/units/nginx.service/actions", `{"action":"start","extra":1}`, http.StatusBadRequest, "VALIDATION_ERROR"},
+		{"/api/v1/system/units/nginx.mount/actions", `{"action":"start"}`, http.StatusBadRequest, "VALIDATION_ERROR"},
+		{"/api/v1/system/units/ssh.service/actions", `{"action":"stop"}`, http.StatusConflict, "UNIT_NOT_MANAGEABLE"},
+	} {
+		response := call(router, http.MethodPost, tc.path, tc.body, admin)
+		if response.Code != tc.status || !strings.Contains(response.Body.String(), `"code":"`+tc.code+`"`) {
+			t.Errorf("%s %s = %d %s, want %d %s", tc.path, tc.body, response.Code, response.Body, tc.status, tc.code)
+		}
+	}
+}
+
+func TestUnitActionsUnavailableWithoutTheUsecase(t *testing.T) {
+	resetLoginRateLimit(t)
+	router := newServicesRouter(t, &fakeUnits{units: sampleUnits()})
+	admin := signIn(t, router, "admin", "admin-password-1")
+	if response := call(router, http.MethodPost, "/api/v1/system/units/nginx.service/actions", `{"action":"start"}`, admin); response.Code != http.StatusServiceUnavailable {
+		t.Fatalf("action = %d, want 503", response.Code)
+	}
+	if response := call(router, http.MethodGet, "/api/v1/system/units", "", admin); !strings.Contains(response.Body.String(), `"manageableUnits":[]`) {
+		t.Fatalf("list = %s, want an empty allow list", response.Body)
 	}
 }

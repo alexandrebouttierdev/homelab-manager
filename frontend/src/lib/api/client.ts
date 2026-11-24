@@ -39,7 +39,7 @@ export const errorMessages: Record<string, string> = {
   HOSTNAME_MISMATCH: 'Le nom saisi ne correspond pas au nom de la machine.',
   POWER_ACTIONS_DISABLED:
     "Le redémarrage et l'extinction sont désactivés dans la configuration du Manager.",
-  ACTION_IN_PROGRESS: 'Une action est déjà en cours.',
+  ACTION_IN_PROGRESS: 'Une action est déjà en cours sur cette cible.',
   POWER_ACTION_REFUSED:
     "La machine a refusé : règle polkit absente, ou une opération en cours (sauvegarde, mise à jour) bloque l'arrêt.",
   POWER_ACTION_FAILED: "La demande n'a pas pu être transmise à la machine.",
@@ -56,6 +56,19 @@ export const errorMessages: Record<string, string> = {
   SYSTEMD_UNAVAILABLE:
     "Services système indisponibles : systemd n'est pas joignable sur le bus système de la machine.",
   SYSTEMD_READ_FAILED: "L'unité systemd n'a pas pu être lue.",
+  BACKUPS_UNAVAILABLE:
+    "Sauvegardes indisponibles : la base de données du Manager n'est pas accessible.",
+  BACKUPS_FAILED: "Les sauvegardes n'ont pas pu être lues ou lancées.",
+  BACKUP_NOT_CONFIGURED: "Aucun dépôt de sauvegarde n'est configuré.",
+  BACKUP_NOT_INITIALIZED: "Le dépôt n'est pas encore initialisé.",
+  BACKUP_ALREADY_INITIALIZED: 'Le dépôt est déjà initialisé.',
+  BACKUP_IN_PROGRESS: 'Une opération de sauvegarde est déjà en cours.',
+  UNIT_NOT_MANAGEABLE:
+    "Cette unité n'est pas dans la liste des unités gérables de la configuration du Manager.",
+  UNIT_ACTION_RATE_LIMITED: "Trop d'actions sur les services en une minute. Réessayez plus tard.",
+  UNIT_ACTIONS_UNAVAILABLE:
+    "Actions sur les services indisponibles : la base de données du Manager n'est pas accessible.",
+  UNIT_ACTION_FAILED: "L'action n'a pas pu être demandée.",
   ALERTS_UNAVAILABLE: "Alertes indisponibles : la base de données du Manager n'est pas accessible.",
   ALERTS_FAILED: "Les alertes n'ont pas pu être lues ou enregistrées.",
   ALERT_ALREADY_RESOLVED: "L'alerte est déjà résolue.",

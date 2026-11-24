@@ -399,9 +399,19 @@ export type AlertRow = {
   silenced: boolean
   /** An open alert that no silence covers yet can be silenced. */
   silenceable: boolean
+  /** Unit an open unit_failed alert offers to restart: in the allow list only (§ 6.4). */
+  restartUnit: string | null
 }
 
-export function toAlertRow(alert: Alert, now: Date): AlertRow {
+/** The unit of an open alert that can be restarted from the alert (SPEC_ADMINISTRATION.md § 6.4). */
+export function alertRestartUnit(alert: Alert, manageable: string[]): string | null {
+  const unit = alert.target.kind === 'unit' ? alert.target.unit : null
+  if (!unit || alert.state === 'resolved' || !manageable.includes(unit)) return null
+  return unit
+}
+
+/** manageable is the allow list of the service actions, [] when the user cannot act. */
+export function toAlertRow(alert: Alert, now: Date, manageable: string[] = []): AlertRow {
   return {
     id: alert.id,
     ruleName: alert.ruleName,
@@ -417,6 +427,7 @@ export function toAlertRow(alert: Alert, now: Date): AlertRow {
     acknowledgeable: alert.state === 'firing',
     silenced: alert.silenced,
     silenceable: alert.state !== 'resolved' && !alert.silenced,
+    restartUnit: alertRestartUnit(alert, manageable),
   }
 }
 

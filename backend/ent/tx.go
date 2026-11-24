@@ -22,6 +22,12 @@ type Tx struct {
 	AppSetting *AppSettingClient
 	// AuditLog is the client for interacting with the AuditLog builders.
 	AuditLog *AuditLogClient
+	// BackupConfig is the client for interacting with the BackupConfig builders.
+	BackupConfig *BackupConfigClient
+	// BackupRun is the client for interacting with the BackupRun builders.
+	BackupRun *BackupRunClient
+	// BackupSnapshot is the client for interacting with the BackupSnapshot builders.
+	BackupSnapshot *BackupSnapshotClient
 	// Container is the client for interacting with the Container builders.
 	Container *ContainerClient
 	// ContainerMetricSample is the client for interacting with the ContainerMetricSample builders.
@@ -188,6 +194,9 @@ func (tx *Tx) init() {
 	tx.AlertSilence = NewAlertSilenceClient(tx.config)
 	tx.AppSetting = NewAppSettingClient(tx.config)
 	tx.AuditLog = NewAuditLogClient(tx.config)
+	tx.BackupConfig = NewBackupConfigClient(tx.config)
+	tx.BackupRun = NewBackupRunClient(tx.config)
+	tx.BackupSnapshot = NewBackupSnapshotClient(tx.config)
 	tx.Container = NewContainerClient(tx.config)
 	tx.ContainerMetricSample = NewContainerMetricSampleClient(tx.config)
 	tx.Event = NewEventClient(tx.config)

@@ -1,7 +1,8 @@
-// Package systemd reads the systemd manager over the system D-Bus, without
-// privilege: ListUnits, GetUnit and property reads only. No method that
-// starts, stops, enables or reloads anything is called
-// (SPEC_ADMINISTRATION.md § 2.1).
+// Package systemd talks to the systemd manager over the system D-Bus. The
+// Reader reads without privilege: ListUnits, GetUnit and property reads
+// only. The Controller (controller.go) adds the four verbs of
+// SPEC_ADMINISTRATION.md § 5.2, granted by polkit for the allow list only;
+// nothing enables, masks or reloads the systemd configuration (§ 2.1).
 package systemd
 
 import (

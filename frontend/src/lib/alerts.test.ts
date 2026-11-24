@@ -3,6 +3,7 @@ import type { Alert, AlertRule } from './api/alerts'
 import {
   alertDurationSeconds,
   alertLink,
+  alertRestartUnit,
   alertRuleInput,
   alertValueText,
   describeRule,
@@ -306,6 +307,20 @@ describe('alert rows', () => {
       resolution: '—',
     })
     expect(toAlertRow(alert({ state: 'acknowledged' }), new Date()).acknowledgeable).toBe(false)
+    expect(row.restartUnit).toBeNull()
+  })
+
+  it('offers to restart the unit of an open alert, in the allow list only', () => {
+    const failed = alert({
+      ruleType: 'unit_failed',
+      target: { ...alert().target, kind: 'unit', metric: null, labels: {}, unit: 'backup.service' },
+    })
+    expect(alertRestartUnit(failed, ['backup.service'])).toBe('backup.service')
+    expect(alertRestartUnit(failed, ['nginx.service'])).toBeNull()
+    expect(alertRestartUnit(failed, [])).toBeNull()
+    expect(alertRestartUnit({ ...failed, state: 'resolved' }, ['backup.service'])).toBeNull()
+    expect(alertRestartUnit(alert(), ['backup.service'])).toBeNull()
+    expect(toAlertRow(failed, new Date(), ['backup.service']).restartUnit).toBe('backup.service')
   })
 
   it('prepares a rule row and its toggle', () => {

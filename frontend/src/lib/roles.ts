@@ -42,3 +42,18 @@ export function canOperateAlerts(role: Role | undefined): boolean {
 export function canManageAlerts(role: Role | undefined): boolean {
   return role === 'admin'
 }
+
+/** Start, stop, restart and reload the units of the allow list: operators and administrators. */
+export function canManageServices(role: Role | undefined): boolean {
+  return role === 'operator' || role === 'admin'
+}
+
+/** Start a backup: operators and administrators. */
+export function canRunBackups(role: Role | undefined): boolean {
+  return role === 'operator' || role === 'admin'
+}
+
+/** Repository, sources, exclusions and schedule: administrators. */
+export function canManageBackups(role: Role | undefined): boolean {
+  return role === 'admin'
+}

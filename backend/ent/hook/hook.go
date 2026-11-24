@@ -68,6 +68,42 @@ func (f AuditLogFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, er
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AuditLogMutation", m)
 }
 
+// The BackupConfigFunc type is an adapter to allow the use of ordinary
+// function as BackupConfig mutator.
+type BackupConfigFunc func(context.Context, *ent.BackupConfigMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f BackupConfigFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.BackupConfigMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.BackupConfigMutation", m)
+}
+
+// The BackupRunFunc type is an adapter to allow the use of ordinary
+// function as BackupRun mutator.
+type BackupRunFunc func(context.Context, *ent.BackupRunMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f BackupRunFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.BackupRunMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.BackupRunMutation", m)
+}
+
+// The BackupSnapshotFunc type is an adapter to allow the use of ordinary
+// function as BackupSnapshot mutator.
+type BackupSnapshotFunc func(context.Context, *ent.BackupSnapshotMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f BackupSnapshotFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.BackupSnapshotMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.BackupSnapshotMutation", m)
+}
+
 // The ContainerFunc type is an adapter to allow the use of ordinary
 // function as Container mutator.
 type ContainerFunc func(context.Context, *ent.ContainerMutation) (ent.Value, error)

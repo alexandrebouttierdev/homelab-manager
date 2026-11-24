@@ -1,10 +1,10 @@
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query'
-import { render, screen, within } from '@testing-library/react'
+import { render, screen, waitFor, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
-import { afterEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { SystemUnit, UnitDetail, UnitInventory } from '../../lib/api/services'
-import { getUnit, listUnits } from '../../lib/api/services'
+import { getLastUnitAction, getUnit, listUnits, requestUnitAction } from '../../lib/api/services'
 import { RefreshProvider } from '../../lib/refresh'
 import { ServicesPage } from './ServicesPage'
 
@@ -12,6 +12,18 @@ vi.mock('../../lib/api/services', async (importOriginal) => ({
   ...(await importOriginal<typeof import('../../lib/api/services')>()),
   listUnits: vi.fn(),
   getUnit: vi.fn(),
+  requestUnitAction: vi.fn(),
+  getLastUnitAction: vi.fn(),
+}))
+
+const session = vi.hoisted(() => ({ role: 'viewer' as 'viewer' | 'operator' | 'admin' }))
+vi.mock('../../hooks/useSession', () => ({
+  sessionQueryKey: ['session'],
+  useSession: () => ({
+    user: { id: 'u', username: 'olivia', displayName: 'Olivia', role: session.role },
+    isPending: false,
+    unauthenticated: false,
+  }),
 }))
 
 function unit(name: string, activeState: string, overrides: Partial<SystemUnit> = {}): SystemUnit {
@@ -44,6 +56,7 @@ const inventory: UnitInventory = {
     unit('backup.timer', 'active', { type: 'timer', triggers: ['backup.service'] }),
     unit('backup.service', 'failed', { result: 'exit-code' }),
   ],
+  manageableUnits: [],
 }
 
 const detail: UnitDetail = {
@@ -112,6 +125,9 @@ function unitNames() {
 }
 
 describe('ServicesPage', () => {
+  beforeEach(() => {
+    session.role = 'viewer'
+  })
   afterEach(() => vi.clearAllMocks())
 
   it('lists the units failed first, filters them and opens a detail', async () => {
@@ -163,11 +179,62 @@ describe('ServicesPage', () => {
       collectedAt: null,
       counts: { total: 0, active: 0, failed: 0, activeTimers: 0 },
       units: [],
+      manageableUnits: [],
     })
     renderPage()
     expect(await screen.findByText(/systemd n'est pas joignable/)).toBeInTheDocument()
     expect(screen.getByText('systemd indisponible')).toBeInTheDocument()
     expect(screen.queryByText("Aucune unité pour l'instant")).not.toBeInTheDocument()
     expect(screen.queryByText('Timers actifs')).not.toBeInTheDocument()
+  })
+
+  it('lets an operator restart a unit of the allow list after confirmation', async () => {
+    session.role = 'operator'
+    vi.mocked(listUnits).mockResolvedValue({ ...inventory, manageableUnits: ['ssh.service'] })
+    vi.mocked(getUnit).mockResolvedValue(detail)
+    const running = {
+      unit: 'ssh.service',
+      action: 'restart' as const,
+      state: 'running' as const,
+      failure: null,
+      requestedBy: 'olivia',
+      requestedAt: '2026-11-24T10:00:00Z',
+      finishedAt: null,
+      final: null,
+    }
+    vi.mocked(requestUnitAction).mockResolvedValue(running)
+    vi.mocked(getLastUnitAction).mockResolvedValue({
+      ...running,
+      state: 'succeeded',
+      finishedAt: '2026-11-24T10:00:03Z',
+      final: { activeState: 'active', subState: 'running' },
+    })
+    const user = userEvent.setup()
+    renderPage('/services?unit=ssh.service')
+
+    await user.click(await screen.findByRole('button', { name: 'Redémarrer' }))
+    expect(screen.getByText(/Redémarrer ssh\.service \?/)).toBeInTheDocument()
+    expect(requestUnitAction).not.toHaveBeenCalled()
+    await user.click(screen.getByRole('button', { name: 'Confirmer : Redémarrer' }))
+    await waitFor(() => expect(requestUnitAction).toHaveBeenCalledWith('ssh.service', 'restart'))
+    expect(await screen.findByText('ssh.service redémarrée (état : active).')).toBeInTheDocument()
+    expect(getLastUnitAction).toHaveBeenCalledWith('ssh.service')
+  })
+
+  it('shows no action to a viewer', async () => {
+    vi.mocked(listUnits).mockResolvedValue({ ...inventory, manageableUnits: ['ssh.service'] })
+    vi.mocked(getUnit).mockResolvedValue(detail)
+    renderPage('/services?unit=ssh.service')
+    expect(await screen.findByText('/usr/sbin/sshd -D')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Redémarrer' })).not.toBeInTheDocument()
+  })
+
+  it('shows no action on a unit outside the allow list', async () => {
+    session.role = 'operator'
+    vi.mocked(listUnits).mockResolvedValue(inventory)
+    vi.mocked(getUnit).mockResolvedValue(detail)
+    renderPage('/services?unit=ssh.service')
+    expect(await screen.findByText('/usr/sbin/sshd -D')).toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: 'Redémarrer' })).not.toBeInTheDocument()
   })
 })

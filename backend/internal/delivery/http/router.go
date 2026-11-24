@@ -43,6 +43,9 @@ type Services struct {
 	Journal *usecase.JournalUsecase
 	// Units serves the systemd units inventory; nil means unavailable.
 	Units *usecase.ServiceUsecase
+	// UnitActions starts, stops, restarts and reloads the units of the
+	// allow list; nil (no database, hence no audit) answers 503.
+	UnitActions *usecase.UnitActionUsecase
 	// Alerts evaluates the alert rules; nil (no database) answers 503.
 	Alerts *usecase.AlertUsecase
 	// Notifications sends the alerts and manages silences and channels;
@@ -51,6 +54,8 @@ type Services struct {
 	// Vulnerabilities scans the system packages; nil (no database) answers
 	// 503.
 	Vulnerabilities *usecase.VulnerabilityUsecase
+	// Backups configures and runs restic; nil (no database) answers 503.
+	Backups *usecase.BackupUsecase
 }
 
 func NewRouter(logger *zap.Logger, services Services, sessionSecure bool, webRoot string) http.Handler {
@@ -63,6 +68,8 @@ func NewRouter(logger *zap.Logger, services Services, sessionSecure bool, webRoo
 	}
 	units, alerts, notifications := services.Units, services.Alerts, services.Notifications
 	vulnerabilities := services.Vulnerabilities
+	unitActions := services.UnitActions
+	backups := services.Backups
 	if units == nil {
 		// Never run: its inventory stays pending and its detail unavailable.
 		units = usecase.NewServiceUsecase(nil, nil, nil, logger)
@@ -155,8 +162,13 @@ func NewRouter(logger *zap.Logger, services Services, sessionSecure bool, webRoo
 						system.Get("/export", exportJournalHandler(logger, journal))
 					})
 					active.Route("/system/units", func(system chi.Router) {
-						system.Get("/", listUnitsHandler(units))
+						system.Get("/", listUnitsHandler(units, unitActions))
 						system.Get("/{unitName}", unitDetailHandler(logger, units))
+						system.Route("/{unitName}/actions", func(actions chi.Router) {
+							actions.Use(requireUnitActions(unitActions))
+							actions.With(requirePermission(deny, domain.PermManageServices)).Post("/", requestUnitActionHandler(unitActions))
+							actions.Get("/last", lastUnitActionHandler(unitActions))
+						})
 					})
 					active.Route("/alerts", func(list chi.Router) {
 						list.Use(requireAlerts(alerts))
@@ -201,6 +213,17 @@ func NewRouter(logger *zap.Logger, services Services, sessionSecure bool, webRoo
 						vulns.Get("/scans", listScansHandler(vulnerabilities))
 						vulns.With(requirePermission(deny, domain.PermScanVulnerabilities)).Post("/scans", requestScanHandler(vulnerabilities))
 						vulns.Get("/{findingID}", findingHandler(vulnerabilities))
+					})
+					active.Route("/backups", func(backup chi.Router) {
+						backup.Use(requireBackups(backups))
+						backup.Get("/summary", backupSummaryHandler(backups))
+						backup.Get("/config", backupConfigHandler(backups))
+						backup.With(requirePermission(deny, domain.PermManageBackups)).Put("/config", updateBackupConfigHandler(backups))
+						backup.With(requirePermission(deny, domain.PermManageBackups)).Post("/repository/init", initBackupRepositoryHandler(backups))
+						backup.Get("/runs", listBackupRunsHandler(backups))
+						backup.With(requirePermission(deny, domain.PermRunBackups)).Post("/runs", requestBackupHandler(backups))
+						backup.Get("/runs/{runID}", backupRunHandler(backups))
+						backup.Get("/snapshots", listBackupSnapshotsHandler(backups))
 					})
 					active.Route("/machine/power", func(machine chi.Router) {
 						machine.Use(requirePermission(deny, domain.PermManagePower))

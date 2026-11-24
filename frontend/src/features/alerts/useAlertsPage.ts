@@ -5,9 +5,11 @@ import { loadState } from '../../hooks/loadState'
 import { useSession } from '../../hooks/useSession'
 import { formatMeanResolution, sortOpenAlerts, toAlertRow } from '../../lib/alerts'
 import { acknowledgeAlert, getAlertSummary, listAlerts } from '../../lib/api/alerts'
+import { listUnits } from '../../lib/api/services'
 import { useRefreshInterval } from '../../lib/refresh'
-import { canManageAlerts, canOperateAlerts } from '../../lib/roles'
+import { canManageAlerts, canManageServices, canOperateAlerts } from '../../lib/roles'
 import { silenceSubject } from '../../lib/notifications'
+import { useUnitAction } from '../services/useUnitAction'
 import { alertsQueryKey } from './queryKeys'
 import { useSilenceForm } from './useSilenceForm'
 
@@ -52,6 +54,16 @@ export function useAlertsPage() {
     enabled: view === 'history',
     refetchInterval: refreshInterval || false,
   })
+  // The allow list of the service actions, read for the users who may act.
+  const canRestart = canManageServices(user?.role)
+  const unitsQuery = useQuery({
+    queryKey: ['system', 'units'],
+    queryFn: listUnits,
+    enabled: canRestart,
+    staleTime: 30_000,
+  })
+  const manageable = unitsQuery.data?.manageableUnits
+  const unitAction = useUnitAction()
   const silence = useSilenceForm()
   const acknowledge = useMutation({
     mutationFn: acknowledgeAlert,
@@ -60,8 +72,9 @@ export function useAlertsPage() {
 
   const openRows = useMemo(() => {
     const now = new Date()
-    return sortOpenAlerts(openQuery.data ?? []).map((alert) => toAlertRow(alert, now))
-  }, [openQuery.data])
+    const restartable = canRestart ? (manageable ?? []) : []
+    return sortOpenAlerts(openQuery.data ?? []).map((alert) => toAlertRow(alert, now, restartable))
+  }, [openQuery.data, canRestart, manageable])
   const historyRows = useMemo(() => {
     const now = new Date()
     return (historyQuery.data ?? []).map((alert) => toAlertRow(alert, now))
@@ -96,6 +109,8 @@ export function useAlertsPage() {
       const alert = openQuery.data?.find((candidate) => candidate.id === id)
       if (alert) silence.open(silenceSubject(alert))
     },
+    unitAction,
+    restart: (unit: string) => unitAction.choose({ unit, verb: 'restart', label: 'Redémarrer' }),
     refresh: () => void queryClient.invalidateQueries({ queryKey: alertsQueryKey }),
   }
 }

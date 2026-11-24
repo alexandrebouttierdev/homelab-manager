@@ -7,6 +7,8 @@ import (
 	"strings"
 	"time"
 
+	"homelab-manager/backend/internal/domain"
+
 	"github.com/spf13/viper"
 )
 
@@ -30,6 +32,11 @@ type Config struct {
 	VulnerabilityScanIntervalHours int
 	VulnscanInventoryPath          string
 	VulnscanResultPath             string
+	BackupJobsDir                  string
+	BackupRunsDir                  string
+	// ManageableUnits is the allow list of the service actions
+	// (systemd_manageable_units), validated by LoadConfig.
+	ManageableUnits domain.ManageableUnits
 }
 
 func LoadConfig() (Config, error) {
@@ -65,6 +72,14 @@ func LoadConfig() (Config, error) {
 	v.SetDefault("vulnerability_scan_interval_hours", 24)
 	v.SetDefault("vulnscan_inventory_path", "/var/lib/homelab-vulnscan/inventory/inventory.json")
 	v.SetDefault("vulnscan_result_path", "/var/lib/homelab-vulnscan/result/result.json")
+	// Units the operators may start, stop, restart and reload; empty by
+	// default. HOMELAB_SYSTEMD_MANAGEABLE_UNITS separates them by spaces.
+	// They also need the rule printed by "homelab-manager polkit-rule".
+	v.SetDefault("systemd_manageable_units", []string{})
+	// Backups (phase 6): directories exchanged with homelab-backup@.service,
+	// created by deployments/tmpfiles/homelab-backup.conf.
+	v.SetDefault("backup_jobs_dir", "/var/lib/homelab-backup/jobs")
+	v.SetDefault("backup_runs_dir", "/var/lib/homelab-backup/runs")
 
 	if err := v.ReadInConfig(); err != nil {
 		var notFound viper.ConfigFileNotFoundError
@@ -93,10 +108,17 @@ func LoadConfig() (Config, error) {
 		VulnerabilityScanIntervalHours: v.GetInt("vulnerability_scan_interval_hours"),
 		VulnscanInventoryPath:          v.GetString("vulnscan_inventory_path"),
 		VulnscanResultPath:             v.GetString("vulnscan_result_path"),
+		BackupJobsDir:                  v.GetString("backup_jobs_dir"),
+		BackupRunsDir:                  v.GetString("backup_runs_dir"),
 	}
 	if config.TLSCertFile != "" {
 		config.SessionSecure = true
 	}
+	manageable, err := domain.NewManageableUnits(v.GetStringSlice("systemd_manageable_units"))
+	if err != nil {
+		return Config{}, fmt.Errorf("systemd_manageable_units: %w", err)
+	}
+	config.ManageableUnits = manageable
 	if err := config.Validate(); err != nil {
 		return Config{}, err
 	}
@@ -153,6 +175,9 @@ func (c Config) Validate() error {
 	}
 	if !filepath.IsAbs(c.VulnscanInventoryPath) || !filepath.IsAbs(c.VulnscanResultPath) {
 		return fmt.Errorf("vulnscan inventory and result paths must be absolute")
+	}
+	if !filepath.IsAbs(c.BackupJobsDir) || !filepath.IsAbs(c.BackupRunsDir) {
+		return fmt.Errorf("backup jobs and runs directories must be absolute")
 	}
 	return nil
 }

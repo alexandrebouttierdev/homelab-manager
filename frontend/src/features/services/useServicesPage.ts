@@ -2,8 +2,10 @@ import { useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { useSearchParams } from 'react-router-dom'
 import { loadState } from '../../hooks/loadState'
+import { useSession } from '../../hooks/useSession'
 import { getUnit, listUnits } from '../../lib/api/services'
 import { useRefreshInterval } from '../../lib/refresh'
+import { canManageServices } from '../../lib/roles'
 import {
   filterUnits,
   isUnitTypeFilter,
@@ -14,6 +16,8 @@ import {
   type UnitStateFilter,
   type UnitTypeFilter,
 } from '../../lib/services'
+import { unitActionChoices } from '../../lib/unitActions'
+import { useUnitAction } from './useUnitAction'
 
 /** Logic and view model of ServicesPage. The selected unit lives in the URL (?unit=). */
 export function useServicesPage() {
@@ -23,6 +27,8 @@ export function useServicesPage() {
   const [search, setSearch] = useState('')
   const [params, setParams] = useSearchParams()
   const selectedName = params.get('unit')
+  const { user } = useSession()
+  const unitAction = useUnitAction()
 
   const inventoryQuery = useQuery({
     queryKey: ['system', 'units'],
@@ -47,8 +53,21 @@ export function useServicesPage() {
     () => oldestFirst(detailQuery.data?.journal.entries ?? []),
     [detailQuery.data],
   )
+  const detailUnit = detailQuery.data?.unit
+  const manageable = inventory?.manageableUnits
+  const actionChoices = useMemo(
+    () =>
+      detailUnit && canManageServices(user?.role)
+        ? unitActionChoices(detailUnit, manageable ?? [])
+        : [],
+    [detailUnit, manageable, user?.role],
+  )
 
   const select = (name: string | null) => {
+    if (name !== selectedName) {
+      unitAction.cancel()
+      unitAction.dismiss()
+    }
     setParams(name ? { unit: name } : {}, { replace: true })
   }
 
@@ -95,7 +114,10 @@ export function useServicesPage() {
       state: loadState(detailQuery),
       data: detailQuery.data ?? null,
       journal,
+      /** Start, stop, restart, reload or run: operators, units of the allow list. */
+      actions: actionChoices,
     },
+    unitAction,
   }
 }
 

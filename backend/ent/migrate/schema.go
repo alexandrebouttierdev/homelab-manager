@@ -102,6 +102,80 @@ var (
 		Columns:    AuditLogsColumns,
 		PrimaryKey: []*schema.Column{AuditLogsColumns[0]},
 	}
+	// BackupConfigsColumns holds the columns for the "backup_configs" table.
+	BackupConfigsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "singleton_key", Type: field.TypeString, Unique: true},
+		{Name: "repository_type", Type: field.TypeString, Nullable: true},
+		{Name: "repository_location", Type: field.TypeString, Nullable: true},
+		{Name: "sealed_credentials", Type: field.TypeString, Size: 2147483647, Default: ""},
+		{Name: "initialized_at", Type: field.TypeTime, Nullable: true},
+		{Name: "sources", Type: field.TypeJSON},
+		{Name: "excludes", Type: field.TypeJSON},
+		{Name: "exclude_caches", Type: field.TypeBool, Default: true},
+		{Name: "exclude_if_present", Type: field.TypeString, Default: ""},
+		{Name: "schedule_enabled", Type: field.TypeBool, Default: false},
+		{Name: "schedule_frequency", Type: field.TypeString, Default: "daily"},
+		{Name: "schedule_weekday", Type: field.TypeInt, Default: 0},
+		{Name: "schedule_hour", Type: field.TypeInt, Default: 3},
+		{Name: "schedule_minute", Type: field.TypeInt, Default: 0},
+		{Name: "updated_at", Type: field.TypeTime},
+		{Name: "updated_by", Type: field.TypeString, Default: ""},
+	}
+	// BackupConfigsTable holds the schema information for the "backup_configs" table.
+	BackupConfigsTable = &schema.Table{
+		Name:       "backup_configs",
+		Columns:    BackupConfigsColumns,
+		PrimaryKey: []*schema.Column{BackupConfigsColumns[0]},
+	}
+	// BackupRunsColumns holds the columns for the "backup_runs" table.
+	BackupRunsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "operation", Type: field.TypeString},
+		{Name: "origin", Type: field.TypeString},
+		{Name: "requested_by", Type: field.TypeString, Nullable: true},
+		{Name: "state", Type: field.TypeString},
+		{Name: "failure", Type: field.TypeString, Nullable: true},
+		{Name: "message", Type: field.TypeString, Size: 2147483647, Default: ""},
+		{Name: "warning", Type: field.TypeBool, Default: false},
+		{Name: "snapshot_id", Type: field.TypeString, Default: ""},
+		{Name: "files_new", Type: field.TypeInt64, Nullable: true},
+		{Name: "files_changed", Type: field.TypeInt64, Nullable: true},
+		{Name: "files_unmodified", Type: field.TypeInt64, Nullable: true},
+		{Name: "dirs_new", Type: field.TypeInt64, Nullable: true},
+		{Name: "dirs_changed", Type: field.TypeInt64, Nullable: true},
+		{Name: "dirs_unmodified", Type: field.TypeInt64, Nullable: true},
+		{Name: "data_added", Type: field.TypeInt64, Nullable: true},
+		{Name: "total_files_processed", Type: field.TypeInt64, Nullable: true},
+		{Name: "total_bytes_processed", Type: field.TypeInt64, Nullable: true},
+		{Name: "duration_seconds", Type: field.TypeFloat64, Nullable: true},
+		{Name: "started_at", Type: field.TypeTime},
+		{Name: "finished_at", Type: field.TypeTime, Nullable: true},
+	}
+	// BackupRunsTable holds the schema information for the "backup_runs" table.
+	BackupRunsTable = &schema.Table{
+		Name:       "backup_runs",
+		Columns:    BackupRunsColumns,
+		PrimaryKey: []*schema.Column{BackupRunsColumns[0]},
+	}
+	// BackupSnapshotsColumns holds the columns for the "backup_snapshots" table.
+	BackupSnapshotsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString},
+		{Name: "short_id", Type: field.TypeString},
+		{Name: "taken_at", Type: field.TypeTime},
+		{Name: "hostname", Type: field.TypeString, Default: ""},
+		{Name: "paths", Type: field.TypeJSON},
+		{Name: "tags", Type: field.TypeJSON},
+		{Name: "total_files", Type: field.TypeInt64, Default: 0},
+		{Name: "total_bytes", Type: field.TypeInt64, Default: 0},
+		{Name: "data_added", Type: field.TypeInt64, Default: 0},
+	}
+	// BackupSnapshotsTable holds the schema information for the "backup_snapshots" table.
+	BackupSnapshotsTable = &schema.Table{
+		Name:       "backup_snapshots",
+		Columns:    BackupSnapshotsColumns,
+		PrimaryKey: []*schema.Column{BackupSnapshotsColumns[0]},
+	}
 	// ContainersColumns holds the columns for the "containers" table.
 	ContainersColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -409,6 +483,9 @@ var (
 		AlertSilencesTable,
 		AppSettingsTable,
 		AuditLogsTable,
+		BackupConfigsTable,
+		BackupRunsTable,
+		BackupSnapshotsTable,
 		ContainersTable,
 		ContainerMetricSamplesTable,
 		EventsTable,

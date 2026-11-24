@@ -30,6 +30,7 @@ Le Manager s'exécute sous le compte `homelab-manager`. Chaque besoin privilégi
 | Lire l'état des unités et timers | D-Bus système, sans privilège | Lecture des propriétés publiques |
 | Démarrer, arrêter, redémarrer, recharger des unités | D-Bus + règle **polkit** | Uniquement les unités de la liste blanche, uniquement ces 4 verbes |
 | Exécuter une sauvegarde, un contrôle, une restauration | Unités systemd fournies `homelab-backup@.service`, démarrées via polkit | Uniquement ces instances, qui lisent leur configuration dans le répertoire d'état du Manager |
+| Analyser les vulnérabilités des paquets (§ 8 ter) | Unité systemd fournie `homelab-vulnscan.service`, démarrée via polkit | Uniquement le verbe `start` sur cette unité, qui lit l'inventaire écrit par le Manager |
 | Lire les crontabs système | Lecture de `/etc/crontab`, `/etc/cron.d`, `/etc/cron.*` (lisibles par tous) | Lecture seule |
 | Redémarrer ou éteindre la machine (§ 8 bis) | D-Bus `systemd-logind` + règle **polkit** dédiée | Uniquement `org.freedesktop.login1.reboot`, `power-off` et leurs variantes `-multiple-sessions` ; jamais `-ignore-inhibit` ; inactif tant que `power_actions_enabled` est faux |
 
@@ -50,7 +51,7 @@ La règle polkit est installée par l'administrateur et générée à partir de 
 |---|---|---|
 | `journalctl` | Lecture du journal (§ 4) | `exec` sans shell, arguments construits par le code à partir d'options validées, sortie JSON bornée (taille, nombre de lignes), délai maximal 10 s |
 | `restic` | Sauvegardes (§ 7) | Lancé uniquement par `homelab-backup@.service`, jamais par le Manager lui-même ; sortie `--json` |
-| `grype` | Vulnérabilités des paquets (§ 8 ter, prévu) | `exec` sans shell, arguments fixes, inventaire des paquets sur l'entrée standard, sortie JSON bornée, délai maximal 15 min, un seul à la fois ; mode d'exécution selon D-11 |
+| `grype` | Vulnérabilités des paquets (§ 8 ter, prévu) | Lancé uniquement par `homelab-vulnscan.service`, jamais par le Manager lui-même ; commandes fixes dans le fichier d'unité, sortie `-o json` bornée, 15 min au plus, une seule exécution à la fois |
 
 Tout autre programme exige une révision de ce document.
 
@@ -236,20 +237,25 @@ Ajouté le 23 novembre 2026 à la demande du propriétaire du projet : redémarr
 
 ## 8 ter. Vulnérabilités des paquets (module V)
 
-Ajouté le 24 novembre 2026 à la demande du propriétaire du projet : détecter les vulnérabilités connues (CVE et avis des distributions) des paquets système installés avec [Grype](https://github.com/anchore/grype) (Anchore, licence Apache 2.0), les consulter et en voir la synthèse sur le tableau de bord. **Spécifié, non implémenté** ; D-9 (machine du Manager seule) et D-10 (mise à jour automatique de la base) sont tranchées ; D-11 (§ 10) reste à trancher avant le plan détaillé.
+Ajouté le 24 novembre 2026 à la demande du propriétaire du projet : détecter les vulnérabilités connues (CVE et avis des distributions) des paquets système installés avec [Grype](https://github.com/anchore/grype) (Anchore, licence Apache 2.0), les consulter et en voir la synthèse sur le tableau de bord. **Spécifié, non implémenté** ; D-9 (machine du Manager seule), D-10 (mise à jour automatique de la base) et D-11 (unité systemd dédiée) sont tranchées : le plan détaillé peut être rédigé.
 
 ### 8 ter.1 Périmètre
 
 - **Machine** : uniquement celle du Manager, sans agent ni hôte distant (décision D-9, tranchée le 24 novembre 2026). Les scans sont faits par le Manager lui-même.
 - **Distributions** : détection par `/etc/os-release` (`ID`, `VERSION_ID`, `ID_LIKE`). Debian 13, cible de déploiement, d'abord ; Ubuntu (même format de paquets), puis Fedora, Rocky Linux, AlmaLinux (base RPM SQLite) et Alpine (`/lib/apk/db/installed`). Un lecteur par gestionnaire de paquets derrière un port unique : ajouter une distribution = ajouter un lecteur et ses tests. Une distribution non reconnue est signalée comme telle, sans scan.
-- **Paquets** : lus par le Manager en Go, sans privilège (fichiers de base de paquets lisibles par tous), puis transmis à Grype sous forme d'inventaire (SBOM au format JSON de Syft) sur son entrée standard (`grype sbom:-`). Grype ne parcourt donc pas le système de fichiers : scan rapide, sans accès root, limité aux paquets système. Les dépendances embarquées dans des binaires ou des images Docker sont hors périmètre de ce module.
+- **Paquets** : lus par le Manager en Go, sans privilège (fichiers de base de paquets lisibles par tous), puis transmis à Grype sous forme d'inventaire (SBOM au format JSON de Syft, `grype sbom:<fichier>`, § 8 ter.2). Grype ne parcourt donc pas le système de fichiers : scan rapide, sans accès root, limité aux paquets système. Les dépendances embarquées dans des binaires ou des images Docker sont hors périmètre de ce module.
 - **Résultat présenté comme une vulnérabilité identifiée**, jamais comme une exploitabilité mesurée : une vulnérabilité d'un paquet installé peut ne pas être atteignable dans la configuration de la machine.
 
 ### 8 ter.2 Exécution de Grype
 
-- `grype` rejoint la liste du § 2.3 : `exec` sans shell, arguments fixes construits par le code (source `sbom:-`, sortie `-o json`, base et cache dans `/var/lib/homelab-manager/grype/`), aucune entrée utilisateur dans la ligne de commande, environnement minimal, sortie JSON bornée en taille et décodée strictement, délai maximal (15 min).
-- **Ressources** : un seul scan à la fois (verrou), priorité processeur et disque minimales ; proposition : exécution par une unité systemd dédiée et durcie (`CPUWeight=idle`, `IOSchedulingClass=idle`, `MemoryMax=`, `NoNewPrivileges=`, système en lecture seule) démarrée par le Manager (décision D-11).
-- **Base de vulnérabilités** (décision D-10) : mise à jour automatique une fois par jour depuis l'infrastructure d'Anchore (environ 100 Mo, HTTPS, certificat vérifié), avant le scan périodique ; c'est, avec les notifications (§ 6.3), la seule communication sortante du Manager. Désactivable dans la configuration du service ; la base s'importe alors à la main (`grype db import`). Une mise à jour en échec n'empêche pas le scan tant que la base a moins de 5 jours (réglage de Grype) ; au-delà, le scan échoue (« base périmée ») au lieu de produire un résultat trompeur. La date de construction de la base est affichée avec chaque scan.
+- **Unité dédiée** (décision D-11) : Grype n'est jamais lancé par le Manager lui-même, seulement par l'unité fournie `homelab-vulnscan.service` (`Type=oneshot`), sur le modèle de `homelab-backup@.service` (§ 7.1). Déroulement d'un scan :
+  1. le Manager lit `/etc/os-release` et la base de paquets, puis écrit l'inventaire (SBOM) dans `/var/lib/homelab-manager/vulnscan/inventory.json` ;
+  2. il démarre l'unité par D-Bus (`StartUnit`), autorisé par une règle polkit qui n'accorde au compte `homelab-manager` que le verbe `start` sur cette seule unité ;
+  3. l'unité met à jour la base si c'est permis (D-10), lance `grype sbom:…/inventory.json -o json --file …/result.json` et se termine ; ses commandes sont écrites dans le fichier d'unité, aucune donnée du Manager ni d'un utilisateur ne s'y ajoute ;
+  4. le Manager suit l'état de l'unité par D-Bus jusqu'à sa fin (15 min au plus, `TimeoutStartSec=`), puis lit `result.json`, borné en taille et décodé strictement.
+- **Durcissement de l'unité** : compte système dédié `homelab-vulnscan`, sans shell ; `CPUWeight=idle`, `IOSchedulingClass=idle`, `MemoryMax=`, `Nice=19` ; `ProtectSystem=strict`, `ProtectHome=yes`, `PrivateTmp=yes`, `NoNewPrivileges=yes`, `CapabilityBoundingSet=` vide ; écriture permise seulement dans son répertoire de base (`/var/cache/homelab-vulnscan`) et dans le fichier de résultat ; réseau limité au téléchargement de la base (aucune écoute). Une seule exécution à la fois : systemd refuse de démarrer une unité déjà active, et le Manager tient aussi son propre verrou.
+- Le Manager n'a donc ni à lancer `grype`, ni à accéder au réseau pour ce module : il produit l'inventaire, démarre l'unité et lit le résultat. Le mécanisme D-Bus et polkit de démarrage d'une unité est livré avec ce module et réutilisé par la phase 5.
+- **Base de vulnérabilités** (décision D-10) : mise à jour automatique une fois par jour depuis l'infrastructure d'Anchore (environ 100 Mo, HTTPS, certificat vérifié), avant le scan, par l'unité dédiée et non par le Manager ; c'est, avec les notifications (§ 6.3), la seule communication sortante liée au Manager. Désactivable dans la configuration du service ; la base s'importe alors à la main (`grype db import`). Une mise à jour en échec n'empêche pas le scan tant que la base a moins de 5 jours (réglage de Grype) ; au-delà, le scan échoue (« base périmée ») au lieu de produire un résultat trompeur. La date de construction de la base est affichée avec chaque scan.
 - **Installation** : Grype n'est pas dans les dépôts Debian ; paquet `.deb` officiel des releases GitHub d'Anchore, somme de contrôle (et signature cosign) vérifiée, version figée publiée depuis au moins deux semaines, documentée dans le README. Sans Grype, le module est « indisponible » et le reste du Manager fonctionne.
 
 ### 8 ter.3 Scans
@@ -283,7 +289,7 @@ Ajouté le 24 novembre 2026 à la demande du propriétaire du projet : détecter
 | 6 | Module B : dépôts, sauvegarde, rétention, restauration en quarantaine | Phases 1 et 4 |
 | 7 | Module C en lecture | Phase 2 |
 | 8 | WebAuthn, jetons d'API | Phase 1, HTTPS |
-| V | Module V : vulnérabilités des paquets (Grype) de la machine du Manager, placé après la phase 4 | Phase 4 (règle d'alerte), décision D-11 |
+| V | Module V : vulnérabilités des paquets (Grype) de la machine du Manager, placé après la phase 4 | Phase 4 (règle d'alerte) |
 
 Chaque phase livre son contrat dans API_CONTRACTS.md, ses tables dans DATA_MODEL.md, ses risques dans SECURITY.md, ses tests, et retire la mention « à venir » de son entrée de navigation.
 
@@ -296,10 +302,10 @@ Chaque phase livre son contrat dans API_CONTRACTS.md, ses tables dans DATA_MODEL
 - **[D-5] Actions Docker** (démarrer, arrêter, redémarrer un conteneur) et **journaux de conteneur** (maquettes `d_tails_conteneur_*`, `journaux_docker_*`). La lecture des journaux est compatible avec les règles via une route en lecture seule du proxy ; les actions exigent d'élargir le proxy et une décision explicite. `exec` et la suppression restent exclus par les règles 1 et 3.
 - **[D-6] Préférences système** (maquette `param_tres_syst_me_*` : nom d'hôte, fuseau, langue). Modifient la machine ; hors de ce lot.
 
-- **[D-11] Mode d'exécution de Grype.** Proposition : unité systemd dédiée et durcie, lancée par le Manager par D-Bus avec une règle polkit limitée à cette unité (modèle du § 2.1, partagé avec la phase 5), qui borne processeur, disque et mémoire ; à défaut, exécution directe par le Manager avec une priorité minimale.
 
 ### Décisions tranchées
 
+- **[D-11] Exécution de Grype** — tranchée le 24 novembre 2026 par le propriétaire du projet : unité systemd dédiée et durcie `homelab-vulnscan.service`, démarrée par le Manager par D-Bus avec une règle polkit limitée au verbe `start` sur cette unité (§ 8 ter.2).
 - **[D-10] Mise à jour de la base de Grype** — tranchée le 24 novembre 2026 par le propriétaire du projet : automatique, une fois par jour, vers l'infrastructure d'Anchore, désactivable ; seule communication sortante autorisée en plus des notifications (§ 8 ter.2).
 - **[D-9] Machines du module V** — tranchée le 24 novembre 2026 par le propriétaire du projet : Homelab Manager tourne sur une seule machine ; le module V n'analyse que celle-ci, sans agent ni hôte distant. La demande initiale (un agent Grype par machine supervisée) n'est pas retenue.
 

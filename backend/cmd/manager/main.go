@@ -62,6 +62,7 @@ func main() {
 	var authUsecase *usecase.AuthUsecase
 	var accountUsecase *usecase.AccountUsecase
 	var powerUsecase *usecase.PowerUsecase
+	var apiTokenUsecase *usecase.APITokenUsecase
 	var securityUsecase *usecase.SecurityUsecase
 	var auditUsecase *usecase.AuditUsecase
 	var secondFactorUsecase *usecase.SecondFactorUsecase
@@ -111,6 +112,7 @@ func main() {
 			secondFactorUsecase = usecase.NewSecondFactorUsecase(authRepository, factorRepository, box, qrcode.New(), hasher)
 			accountUsecase = usecase.NewAccountUsecase(sqlite.NewAccountRepository(client), authRepository, hasher).
 				WithAudit(auditRepository)
+			apiTokenUsecase = usecase.NewAPITokenUsecase(sqlite.NewAPITokenRepository(client), authRepository, logger)
 			powerUsecase = usecase.NewPowerUsecase(logindadapter.New(), auditRepository, os.Hostname, config.PowerActionsEnabled)
 			if config.PowerActionsEnabled {
 				logger.Info("Reboot and power off are enabled; they also require the polkit rule")
@@ -237,7 +239,7 @@ func main() {
 		SecondFactors: secondFactorUsecase, Journal: journalUsecase, Units: serviceUsecase, UnitActions: unitActionUsecase,
 		Alerts:        alertUsecase,
 		Notifications: notificationUsecase, Vulnerabilities: vulnerabilityUsecase, Backups: backupUsecase,
-		Cron: cronUsecase,
+		Cron: cronUsecase, Tokens: apiTokenUsecase,
 	}, config.SessionSecure, config.WebRoot)
 
 	server := &http.Server{

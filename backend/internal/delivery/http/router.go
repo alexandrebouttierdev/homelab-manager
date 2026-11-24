@@ -58,6 +58,9 @@ type Services struct {
 	Backups *usecase.BackupUsecase
 	// Cron reads the scheduled tasks; nil answers 503.
 	Cron *usecase.CronUsecase
+	// Tokens manages and authenticates the API tokens; nil (no database)
+	// refuses every bearer token.
+	Tokens *usecase.APITokenUsecase
 }
 
 func NewRouter(logger *zap.Logger, services Services, sessionSecure bool, webRoot string) http.Handler {
@@ -73,6 +76,7 @@ func NewRouter(logger *zap.Logger, services Services, sessionSecure bool, webRoo
 	unitActions := services.UnitActions
 	backups := services.Backups
 	cron := services.Cron
+	tokens := services.Tokens
 	if units == nil {
 		// Never run: its inventory stays pending and its detail unavailable.
 		units = usecase.NewServiceUsecase(nil, nil, nil, logger)
@@ -107,7 +111,8 @@ func NewRouter(logger *zap.Logger, services Services, sessionSecure bool, webRoo
 		r.With(sameOrigin, loginRateLimit).Post("/auth/login/second-factor", completeSecondFactorHandler(auth, sessionSecure))
 		r.Get("/auth/session", sessionHandler(auth))
 		r.Group(func(protected chi.Router) {
-			protected.Use(requireSession(auth))
+			protected.Use(requireSession(auth, tokens))
+			protected.Use(tokenScopeGate)
 			protected.Use(sameOrigin)
 			protected.Post("/auth/logout", logoutHandler(auth, sessionSecure))
 			protected.Post("/auth/password", changePasswordHandler(auth, sessionSecure))
@@ -229,6 +234,12 @@ func NewRouter(logger *zap.Logger, services Services, sessionSecure bool, webRoo
 						backup.With(requirePermission(deny, domain.PermRunBackups)).Post("/runs", requestBackupHandler(backups))
 						backup.Get("/runs/{runID}", backupRunHandler(backups))
 						backup.Get("/snapshots", listBackupSnapshotsHandler(backups))
+					})
+					active.Route("/auth/tokens", func(apiTokens chi.Router) {
+						apiTokens.Use(requireAPITokens(tokens))
+						apiTokens.Get("/", listAPITokensHandler(tokens, deny))
+						apiTokens.Post("/", createAPITokenHandler(tokens))
+						apiTokens.Delete("/{tokenID}", revokeAPITokenHandler(tokens))
 					})
 					active.Route("/cron", func(tasks chi.Router) {
 						tasks.Use(func(next http.Handler) http.Handler {

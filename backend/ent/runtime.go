@@ -6,6 +6,7 @@ import (
 	"homelab-manager/backend/ent/alert"
 	"homelab-manager/backend/ent/alertrule"
 	"homelab-manager/backend/ent/alertsilence"
+	"homelab-manager/backend/ent/apitoken"
 	"homelab-manager/backend/ent/appsetting"
 	"homelab-manager/backend/ent/auditlog"
 	"homelab-manager/backend/ent/backupconfig"
@@ -36,6 +37,16 @@ import (
 // (default values, validators, hooks and policies) and stitches it
 // to their package variables.
 func init() {
+	apitokenFields := schema.APIToken{}.Fields()
+	_ = apitokenFields
+	// apitokenDescName is the schema descriptor for name field.
+	apitokenDescName := apitokenFields[2].Descriptor()
+	// apitoken.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	apitoken.NameValidator = apitokenDescName.Validators[0].(func(string) error)
+	// apitokenDescID is the schema descriptor for id field.
+	apitokenDescID := apitokenFields[0].Descriptor()
+	// apitoken.DefaultID holds the default value on creation for the id field.
+	apitoken.DefaultID = apitokenDescID.Default.(func() uuid.UUID)
 	alertFields := schema.Alert{}.Fields()
 	_ = alertFields
 	// alertDescRuleName is the schema descriptor for rule_name field.

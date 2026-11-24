@@ -222,6 +222,7 @@ func newTestServices(t *testing.T, controller ports.PowerController) (Services, 
 		Security:      security,
 		Audit:         usecase.NewAuditUsecase(auditRepository, auditRepository),
 		SecondFactors: usecase.NewSecondFactorUsecase(authRepository, factorRepository, box, qrcode.New(), hasher),
+		Tokens:        usecase.NewAPITokenUsecase(sqlite.NewAPITokenRepository(database.Client()), authRepository, zap.NewNop()),
 	}
 	return services, database
 }

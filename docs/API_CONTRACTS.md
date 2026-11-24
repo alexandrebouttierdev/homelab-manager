@@ -132,7 +132,7 @@ Toutes les routes de supervision sont en lecture seule ; les seules écritures s
 
 Comptes de Homelab Manager uniquement : aucun compte Linux n'est lu ni modifié.
 
-**Rôles** — `viewer` : consultation et son propre mot de passe. `operator` : idem, plus l'acquittement des alertes et les silences (permission `alerts:operate`), le lancement d'un scan de vulnérabilités (`vulnerabilities:scan`) ; actions sur les services et sauvegardes dans les phases suivantes). `admin` : idem, plus `PUT /api/v1/settings/retention`, les routes `/api/v1/users` et la gestion des règles d'alerte (`alerts:manage`). Un rôle insuffisant reçoit `403 FORBIDDEN`.
+**Rôles** — `viewer` : consultation et son propre mot de passe. `operator` : idem, plus l'acquittement des alertes et les silences (permission `alerts:operate`), le lancement d'un scan de vulnérabilités (`vulnerabilities:scan`) et les actions sur les unités de la liste blanche (`services:manage`, § 4.7) ; sauvegardes dans une phase suivante. `admin` : idem, plus `PUT /api/v1/settings/retention`, les routes `/api/v1/users` et la gestion des règles d'alerte (`alerts:manage`). Un rôle insuffisant reçoit `403 FORBIDDEN`.
 
 **Mot de passe initial** — un compte créé par un administrateur a `mustChangePassword: true`. Tant qu'il ne l'a pas changé (`POST /api/v1/auth/password`), toutes les routes authentifiées sauf `/auth/session`, `/auth/logout` et `/auth/password` répondent `403 PASSWORD_CHANGE_REQUIRED`.
 

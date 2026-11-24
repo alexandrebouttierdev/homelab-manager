@@ -45,6 +45,9 @@ type Services struct {
 	Units *usecase.ServiceUsecase
 	// Alerts evaluates the alert rules; nil (no database) answers 503.
 	Alerts *usecase.AlertUsecase
+	// Notifications sends the alerts and manages silences and channels;
+	// nil (no database) answers 503.
+	Notifications *usecase.NotificationUsecase
 }
 
 func NewRouter(logger *zap.Logger, services Services, sessionSecure bool, webRoot string) http.Handler {
@@ -55,7 +58,7 @@ func NewRouter(logger *zap.Logger, services Services, sessionSecure bool, webRoo
 	if journal == nil {
 		journal = usecase.NewJournalUsecase(nil)
 	}
-	units, alerts := services.Units, services.Alerts
+	units, alerts, notifications := services.Units, services.Alerts, services.Notifications
 	if units == nil {
 		// Never run: its inventory stays pending and its detail unavailable.
 		units = usecase.NewServiceUsecase(nil, nil, nil, logger)
@@ -166,6 +169,24 @@ func NewRouter(logger *zap.Logger, services Services, sessionSecure bool, webRoo
 							manage.Put("/{ruleID}", updateAlertRuleHandler(alerts))
 							manage.Delete("/{ruleID}", deleteAlertRuleHandler(alerts))
 						})
+					})
+					active.Route("/alert-silences", func(silences chi.Router) {
+						silences.Use(requireNotifications(notifications))
+						silences.Get("/", listSilencesHandler(notifications))
+						silences.Group(func(operate chi.Router) {
+							operate.Use(requirePermission(deny, domain.PermOperateAlerts))
+							operate.Post("/", createSilenceHandler(notifications))
+							operate.Delete("/{silenceID}", liftSilenceHandler(notifications))
+						})
+					})
+					active.Route("/notification-channels", func(channels chi.Router) {
+						channels.Use(requireNotifications(notifications))
+						channels.Use(requirePermission(deny, domain.PermManageAlerts))
+						channels.Get("/", listChannelsHandler(notifications))
+						channels.Post("/", createChannelHandler(notifications))
+						channels.Put("/{channelID}", updateChannelHandler(notifications))
+						channels.Delete("/{channelID}", deleteChannelHandler(notifications))
+						channels.Post("/{channelID}/test", testChannelHandler(notifications))
 					})
 					active.Route("/machine/power", func(machine chi.Router) {
 						machine.Use(requirePermission(deny, domain.PermManagePower))

@@ -68,6 +68,7 @@ type alertDTO struct {
 	RuleType       string         `json:"ruleType"`
 	Severity       string         `json:"severity"`
 	State          string         `json:"state"`
+	TargetKey      string         `json:"targetKey"`
 	Target         alertTargetDTO `json:"target"`
 	Value          *float64       `json:"value"`
 	Threshold      *float64       `json:"threshold"`
@@ -77,6 +78,8 @@ type alertDTO struct {
 	AcknowledgedBy *string        `json:"acknowledgedBy"`
 	ResolvedAt     *time.Time     `json:"resolvedAt"`
 	Resolution     *string        `json:"resolution"`
+	Silenced       bool           `json:"silenced"`
+	LastNotifiedAt *time.Time     `json:"lastNotifiedAt"`
 }
 
 type alertCatalogDTO struct {
@@ -122,10 +125,11 @@ func toAlertDTO(alert domain.Alert) alertDTO {
 	}
 	return alertDTO{
 		ID: alert.ID.String(), RuleID: alert.RuleID.String(), RuleName: alert.RuleName, RuleType: string(alert.RuleType),
-		Severity: string(alert.Severity), State: string(alert.State), Target: target,
+		Severity: string(alert.Severity), State: string(alert.State), TargetKey: alert.TargetKey, Target: target,
 		Value: alert.Value, Threshold: alert.Threshold, Observed: optional(alert.Observed), FiredAt: alert.FiredAt,
 		AcknowledgedAt: alert.AcknowledgedAt, AcknowledgedBy: optional(alert.AcknowledgedBy),
 		ResolvedAt: alert.ResolvedAt, Resolution: optional(string(alert.Resolution)),
+		Silenced: alert.Silenced, LastNotifiedAt: alert.LastNotifiedAt,
 	}
 }
 

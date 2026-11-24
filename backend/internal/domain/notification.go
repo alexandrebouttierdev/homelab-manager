@@ -422,21 +422,36 @@ func plainAddress(value string) bool {
 	return err == nil && parsed.Name == "" && parsed.Address == value
 }
 
-// ValidateChannelSecrets checks the complete set of secrets of a channel:
-// required secrets defined, unknown ones refused, values well formed.
-func ValidateChannelSecrets(c NotificationChannel, secrets ChannelSecrets) error {
+// ValidateChannelSecretNames checks which secrets a channel holds: no
+// unknown one, the required ones present, the SMTP password with a
+// username only. It needs no secret value.
+func ValidateChannelSecretNames(c NotificationChannel, names []string) error {
 	accepted := channelSecrets[c.Type]
-	for name, value := range secrets {
+	for _, name := range names {
 		if _, ok := accepted[name]; !ok {
 			return invalidChannel("a %s channel has no secret %q", c.Type, name)
 		}
-		if value == "" || len(value) > maxSecretBytes || !utf8.ValidString(value) || strings.IndexFunc(value, unicode.IsControl) >= 0 {
-			return invalidChannel("secret %s must be 1 to %d bytes without control characters", name, maxSecretBytes)
-		}
 	}
 	for name, required := range accepted {
-		if _, ok := secrets[name]; required && !ok {
+		if required && !slices.Contains(names, name) {
 			return invalidChannel("secret %s is required", name)
+		}
+	}
+	if c.Type == ChannelSMTP && slices.Contains(names, SecretPassword) != (c.Settings.Username != "") {
+		return invalidChannel("username and password go together")
+	}
+	return nil
+}
+
+// ValidateChannelSecrets checks the complete set of secrets of a channel:
+// the names as ValidateChannelSecretNames, and the values well formed.
+func ValidateChannelSecrets(c NotificationChannel, secrets ChannelSecrets) error {
+	if err := ValidateChannelSecretNames(c, slices.Sorted(maps.Keys(secrets))); err != nil {
+		return err
+	}
+	for name, value := range secrets {
+		if value == "" || len(value) > maxSecretBytes || !utf8.ValidString(value) || strings.IndexFunc(value, unicode.IsControl) >= 0 {
+			return invalidChannel("secret %s must be 1 to %d bytes without control characters", name, maxSecretBytes)
 		}
 	}
 	switch c.Type {
@@ -449,10 +464,6 @@ func ValidateChannelSecrets(c NotificationChannel, secrets ChannelSecrets) error
 		if err != nil || parsed.Scheme != "https" || !slices.Contains(discordHosts, parsed.Hostname()) ||
 			!strings.HasPrefix(parsed.Path, "/api/webhooks/") || parsed.Port() != "" {
 			return invalidChannel("webhookUrl must be a Discord webhook URL")
-		}
-	case ChannelSMTP:
-		if _, ok := secrets[SecretPassword]; ok != (c.Settings.Username != "") {
-			return invalidChannel("username and password go together")
 		}
 	case ChannelWebhook:
 		if value, ok := secrets[SecretSigningSecret]; ok && len(value) < minSigningSecretBytes {

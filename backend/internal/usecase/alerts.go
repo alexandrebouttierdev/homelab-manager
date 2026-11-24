@@ -51,6 +51,18 @@ type RetentionReader interface {
 	Retention() time.Duration
 }
 
+// AlertTransitionSink receives the alerts fired and resolved by each
+// evaluation (NotificationUsecase); it must not block.
+type AlertTransitionSink interface {
+	AlertTransitions(fired, resolved []domain.Alert)
+}
+
+// ActiveSilenceReader gives the silences in force, to mark the silenced
+// alerts.
+type ActiveSilenceReader interface {
+	ActiveSilences(ctx context.Context, now time.Time) ([]domain.AlertSilence, error)
+}
+
 // AlertSources are the read-only views the engine evaluates.
 type AlertSources struct {
 	Metrics    AlertMetricsReader
@@ -70,6 +82,9 @@ type AlertUsecase struct {
 	now     func() time.Time
 
 	interval time.Duration
+	// sink and silences are nil until WithNotifications.
+	sink     AlertTransitionSink
+	silences ActiveSilenceReader
 
 	mu sync.Mutex
 	// state is the memory of the engine: lost on restart, the durations
@@ -79,6 +94,13 @@ type AlertUsecase struct {
 
 func NewAlertUsecase(repo ports.AlertRepository, sources AlertSources, logger *zap.Logger) *AlertUsecase {
 	return &AlertUsecase{repo: repo, sources: sources, logger: logger, now: time.Now, interval: domain.AlertEvaluationInterval}
+}
+
+// WithNotifications sends the transitions of each evaluation to sink and
+// marks the alerts covered by a silence.
+func (u *AlertUsecase) WithNotifications(sink AlertTransitionSink, silences ActiveSilenceReader) *AlertUsecase {
+	u.sink, u.silences = sink, silences
+	return u
 }
 
 // Run evaluates at once, then every 15 s, and purges resolved alerts at
@@ -129,6 +151,45 @@ func (u *AlertUsecase) evaluate(ctx context.Context) {
 	for _, alert := range result.Fired {
 		u.logger.Info("alert fired", zap.String("rule", alert.RuleName), zap.String("target", alert.TargetKey), zap.String("severity", string(alert.Severity)))
 	}
+	if u.sink != nil && (len(result.Fired) > 0 || len(result.Resolved) > 0) {
+		u.sink.AlertTransitions(result.Fired, resolvedAlerts(open, result.Resolved))
+	}
+}
+
+// resolvedAlerts applies the resolutions of an evaluation to the open
+// alerts they concern.
+func resolvedAlerts(open []domain.Alert, changes []domain.AlertResolutionChange) []domain.Alert {
+	byID := make(map[uuid.UUID]domain.Alert, len(open))
+	for _, alert := range open {
+		byID[alert.ID] = alert
+	}
+	resolved := make([]domain.Alert, 0, len(changes))
+	for _, change := range changes {
+		alert, ok := byID[change.ID]
+		if !ok {
+			continue
+		}
+		at := change.At
+		alert.State, alert.ResolvedAt, alert.Resolution = domain.AlertResolved, &at, change.Resolution
+		resolved = append(resolved, alert)
+	}
+	return resolved
+}
+
+// markSilenced sets Silenced on the open alerts an active silence covers.
+func (u *AlertUsecase) markSilenced(ctx context.Context, alerts []domain.Alert) error {
+	if u.silences == nil {
+		return nil
+	}
+	now := u.now().UTC()
+	silences, err := u.silences.ActiveSilences(ctx, now)
+	if err != nil {
+		return err
+	}
+	for i := range alerts {
+		alerts[i].Silenced = alerts[i].Open() && domain.Silenced(alerts[i], silences, now)
+	}
+	return nil
 }
 
 // snapshot reads every source; a source that cannot be read, or whose
@@ -266,11 +327,26 @@ func (u *AlertUsecase) Alerts(ctx context.Context, filter domain.AlertFilter) ([
 	if err != nil {
 		return nil, err
 	}
-	return u.repo.Alerts(ctx, filter)
+	alerts, err := u.repo.Alerts(ctx, filter)
+	if err != nil {
+		return nil, err
+	}
+	if err := u.markSilenced(ctx, alerts); err != nil {
+		return nil, err
+	}
+	return alerts, nil
 }
 
 func (u *AlertUsecase) Alert(ctx context.Context, id uuid.UUID) (domain.Alert, error) {
-	return u.repo.Alert(ctx, id)
+	alert, err := u.repo.Alert(ctx, id)
+	if err != nil {
+		return domain.Alert{}, err
+	}
+	alerts := []domain.Alert{alert}
+	if err := u.markSilenced(ctx, alerts); err != nil {
+		return domain.Alert{}, err
+	}
+	return alerts[0], nil
 }
 
 func (u *AlertUsecase) Summary(ctx context.Context) (domain.AlertSummary, error) {
@@ -280,7 +356,15 @@ func (u *AlertUsecase) Summary(ctx context.Context) (domain.AlertSummary, error)
 // Acknowledge stops the renotification of an open alert; it stays open
 // until its resolution.
 func (u *AlertUsecase) Acknowledge(ctx context.Context, actor domain.User, id uuid.UUID, requestID string) (domain.Alert, error) {
-	return u.repo.AcknowledgeAlert(ctx, id, actor.Username, u.now().UTC(), alertAudit(actor, auditTargetAlert, id, "acknowledge", requestID))
+	alert, err := u.repo.AcknowledgeAlert(ctx, id, actor.Username, u.now().UTC(), alertAudit(actor, auditTargetAlert, id, "acknowledge", requestID))
+	if err != nil {
+		return domain.Alert{}, err
+	}
+	alerts := []domain.Alert{alert}
+	if err := u.markSilenced(ctx, alerts); err != nil {
+		return domain.Alert{}, err
+	}
+	return alerts[0], nil
 }
 
 func alertAudit(actor domain.User, targetType string, id uuid.UUID, action, requestID string) domain.AuditEntry {

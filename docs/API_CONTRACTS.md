@@ -75,8 +75,16 @@ Ce document est le contrat exact de l'API implémentée. Toute différence entre
 | `POST /api/v1/alert-rules` | admin | Crée une règle (§ 4.8) |
 | `PUT /api/v1/alert-rules/{ruleID}` | admin | Remplace une règle (§ 4.8) |
 | `DELETE /api/v1/alert-rules/{ruleID}` | admin | Supprime une règle qui n'est pas une règle par défaut (§ 4.8) |
+| `GET /api/v1/alert-silences` | oui | Silences en vigueur et récents (§ 4.8) |
+| `POST /api/v1/alert-silences` | `operator` | Pose un silence (§ 4.8) |
+| `DELETE /api/v1/alert-silences/{silenceID}` | `operator` | Lève un silence avant son terme (§ 4.8) |
+| `GET /api/v1/notification-channels` | admin | Canaux de notification, sans leurs secrets (§ 4.8) |
+| `POST /api/v1/notification-channels` | admin | Crée un canal (§ 4.8) |
+| `PUT /api/v1/notification-channels/{channelID}` | admin | Remplace un canal (§ 4.8) |
+| `DELETE /api/v1/notification-channels/{channelID}` | admin | Supprime un canal (§ 4.8) |
+| `POST /api/v1/notification-channels/{channelID}/test` | admin | Envoie un message de test (§ 4.8) |
 
-Toutes les routes de supervision sont en lecture seule ; les seules écritures sont l'authentification, `PUT /api/v1/settings/retention`, la gestion des comptes, les demandes d'alimentation de la machine, les règles d'alerte et l'acquittement d'une alerte. La colonne « Session » indique `admin` pour les routes réservées au rôle administrateur, `operator` pour celles ouvertes aux opérateurs et administrateurs (§ 3.1). Une route inconnue sous `/api` répond `404 NOT_FOUND`, une méthode non prévue `405 METHOD_NOT_ALLOWED`, toujours au format d'erreur du § 8. Le journal système et les unités systemd ne sont lus qu'en lecture seule. Il n'existe aucune route d'Agent, d'hôte distant, de journaux de conteneurs, ni d'action Docker (création, suppression, démarrage, arrêt, restart, exec).
+Toutes les routes de supervision sont en lecture seule ; les seules écritures sont l'authentification, `PUT /api/v1/settings/retention`, la gestion des comptes, les demandes d'alimentation de la machine, les règles d'alerte, l'acquittement d'une alerte, les silences et les canaux de notification. La colonne « Session » indique `admin` pour les routes réservées au rôle administrateur, `operator` pour celles ouvertes aux opérateurs et administrateurs (§ 3.1). Une route inconnue sous `/api` répond `404 NOT_FOUND`, une méthode non prévue `405 METHOD_NOT_ALLOWED`, toujours au format d'erreur du § 8. Le journal système et les unités systemd ne sont lus qu'en lecture seule. Il n'existe aucune route d'Agent, d'hôte distant, de journaux de conteneurs, ni d'action Docker (création, suppression, démarrage, arrêt, restart, exec).
 
 ### Paramètres de chemin
 
@@ -402,7 +410,7 @@ Lecture seule des unités systemd par D-Bus (SPEC_ADMINISTRATION.md § 5.1), ouv
 
 ### 4.8 Alertes
 
-Moteur d'alertes intégré (SPEC_ADMINISTRATION.md § 6), évalué toutes les 15 s sur les données déjà collectées, sans requête d'historique. Phase 4A : aucune notification n'est envoyée ; les canaux et les silences arrivent avec la phase 4B. Sans base de données, toutes ces routes répondent `503 ALERTS_UNAVAILABLE`.
+Moteur d'alertes intégré (SPEC_ADMINISTRATION.md § 6), évalué toutes les 15 s sur les données déjà collectées, sans requête d'historique ; notifications par canaux (phase 4B), seule communication sortante du Manager. Sans base de données, toutes ces routes répondent `503 ALERTS_UNAVAILABLE`.
 
 **Règle** :
 
@@ -437,12 +445,14 @@ Moteur d'alertes intégré (SPEC_ADMINISTRATION.md § 6), évalué toutes les 15
               "containerId": null, "containerName": null, "unit": null, "collector": null },
   "value": 91.5, "threshold": 85, "observed": null,
   "firedAt": "2026-11-24T10:05:00Z", "acknowledgedAt": null, "acknowledgedBy": null,
-  "resolvedAt": null, "resolution": null
+  "resolvedAt": null, "resolution": null,
+  "targetKey": "host:filesystem.percent{device=sda1,mountpoint=/}", "silenced": false, "lastNotifiedAt": "2026-11-24T10:05:04Z"
 }
 ```
 
 - `target.kind` : `host`, `container`, `unit` ou `collector`. `value` et `threshold` : règles de métrique (valeur au déclenchement) ; `observed` : état qui a déclenché les autres règles (`exited`, `failed (exit-code)`, `unavailable`). `ruleName`, `ruleType` et `severity` sont copiés au déclenchement.
 - Cycle : `firing` → `acknowledged` (facultatif) → `resolved`. Une seule alerte ouverte par règle et par cible ; une condition de nouveau vraie après la résolution ouvre une nouvelle alerte. `resolution` : `condition_cleared` (condition fausse), `no_data` (série absente d'un cycle à jour depuis 5 min), `target_gone` (conteneur ou unité sorti de l'inventaire), `rule_disabled`, `rule_deleted`, `rule_changed` (type, sévérité ou paramètres modifiés ; un simple renommage garde les alertes).
+- `targetKey` : clé stable de la cible, reprise par un silence de portée `target`. `silenced` : un silence en vigueur couvre l'alerte ouverte (toujours `false` pour une alerte résolue) ; l'alerte reste listée, seules ses notifications sont suspendues. `lastNotifiedAt` : dernier message envoyé à son sujet, tous canaux confondus, `null` sinon.
 - Une source illisible ou périmée (aucun cycle hôte de moins de 5 min, collecte Docker hors `ok`, inventaire systemd hors `ok`) ne déclenche ni ne résout les règles qui en dépendent. Le début d'une condition qui n'a pas encore tenu sa durée est gardé en mémoire : après un redémarrage du Manager, la durée recommence ; les alertes ouvertes, elles, sont conservées.
 
 `GET /api/v1/alerts[?state=open|resolved|all&from=…&to=…&limit=…]` → `{ "alerts": [...] }`, de la plus récente à la plus ancienne (`firedAt`). `state` par défaut `all` ; `from` et `to` RFC 3339 facultatifs, intervalle `[from, to)` sur `firedAt` ; `limit` 1 à 1 000, défaut 200. Tout autre paramètre, ou un paramètre répété → `400 VALIDATION_ERROR`.
@@ -454,6 +464,81 @@ Moteur d'alertes intégré (SPEC_ADMINISTRATION.md § 6), évalué toutes les 15
 `GET /api/v1/alert-rules` → `{ "rules": [...], "catalog": { "hostMetrics": { "filesystem.percent": ["mountpoint", "device"], … }, "containerMetrics": { … }, "containerStates": [...], "collectors": [...] } }`, règles par défaut d'abord puis par nom.
 
 `POST /api/v1/alert-rules` avec `{ "name", "type", "severity", "enabled", "params" }` (`enabled` obligatoire, champs inconnus refusés) → `201 { "rule": Règle }` ; `PUT /api/v1/alert-rules/{ruleID}` avec le même corps → `200 { "rule": Règle }` (une règle par défaut le reste) ; `DELETE /api/v1/alert-rules/{ruleID}` → `200 { "deleted": true }`, ses alertes ouvertes sont résolues (`rule_deleted`). Règle invalide : `400 VALIDATION_ERROR` avec le motif ; règle par défaut supprimée : `409 DEFAULT_RULE` ; au-delà de 200 règles : `409 TOO_MANY_RULES`. Chaque modification est auditée (`alert_rule` / UUID / `create`, `update`, `delete`) dans la même transaction.
+
+**Silence** :
+
+```json
+{
+  "id": "uuid", "scope": "target", "ruleId": "6f1c2a10-7a4e-4c4b-9a51-000000000001", "ruleName": "Disque presque plein",
+  "targetKey": "host:filesystem.percent{device=sda1,mountpoint=/}", "reason": "Migration du disque",
+  "createdBy": "otto", "startsAt": "2026-11-24T10:00:00Z", "endsAt": "2026-11-24T12:00:00Z",
+  "liftedAt": null, "liftedBy": null, "active": true
+}
+```
+
+- `scope` : `rule` (toutes les alertes d'une règle, `ruleId` seul), `target` (l'alerte d'une règle sur une cible, `ruleId` et `targetKey`) ou `all` (toutes les alertes, ni `ruleId` ni `targetKey`). Un silence suspend les notifications des alertes qu'il couvre, y compris les résolutions et les renotifications ; il ne change ni leur état ni leur affichage.
+- `ruleName` : nom actuel de la règle, `null` pour un silence global ou une règle supprimée. `active` : en vigueur à la lecture.
+
+`GET /api/v1/alert-silences` → `{ "silences": [...] }` : silences en vigueur puis terminés depuis moins de 7 jours, du plus récent au plus ancien, 200 au plus.
+
+`POST /api/v1/alert-silences` avec `{ "scope", "ruleId", "targetKey", "durationMinutes", "reason" }` (`operator` ou `admin`, champs inconnus refusés) → `201 { "silence": Silence }`. Le silence commence aussitôt ; `durationMinutes` de 15 à 10 080 (7 jours) ; `reason` de 1 à 200 caractères sans caractère de contrôle ; `targetKey` de 1 à 512 octets ; `ruleId` en UUID minuscule d'une règle existante (sinon `404 NOT_FOUND`). Au-delà de 100 silences en vigueur : `409 TOO_MANY_SILENCES`. Audité (`alert_silence` / UUID / `create`).
+
+`DELETE /api/v1/alert-silences/{silenceID}` (`operator` ou `admin`) → `200 { "silence": Silence }`, levé à l'instant (`liftedAt`, `liftedBy`). Un silence déjà terminé est renvoyé inchangé, sans audit. Audité (`alert_silence` / UUID / `lift`).
+
+**Canal de notification** (réservé à `admin`) :
+
+```json
+{
+  "id": "uuid", "name": "Téléphone", "type": "ntfy", "enabled": true, "minSeverity": "warning", "renotifyMinutes": 30,
+  "settings": { "serverUrl": "https://ntfy.example.org", "topic": "homelab" },
+  "secrets": { "accessToken": { "defined": true, "fingerprint": "3f9a0c1b7e42" } },
+  "lastSentAt": "2026-11-24T10:05:04Z", "lastErrorAt": null, "lastError": null, "lastErrorStatus": null,
+  "createdAt": "2026-11-24T09:00:00Z", "updatedAt": "2026-11-24T09:00:00Z"
+}
+```
+
+| `type` | `settings` | `secrets` |
+|---|---|---|
+| `telegram` | `chatId` (nombre, éventuellement négatif, ou `@canal`) | `botToken` (obligatoire) |
+| `discord` | — | `webhookUrl` (obligatoire, `https://discord.com/api/webhooks/…` ou `discordapp.com`) |
+| `gotify` | `serverUrl` | `appToken` (obligatoire) |
+| `ntfy` | `serverUrl`, `topic` (1 à 64 lettres, chiffres, `-`, `_`) | `accessToken` (facultatif) |
+| `smtp` | `host`, `port` (1 à 65 535), `security` (`starttls` ou `tls`), `username` (facultatif), `from`, `to` (1 à 10 adresses distinctes) | `password` (avec `username` seulement) |
+| `webhook` | `url` | `signingSecret` (facultatif, 16 octets au moins) |
+
+- `name` : 1 à 100 octets sans caractère de contrôle ; `minSeverity` : sévérité minimale transmise ; `renotifyMinutes` : 0 (jamais) ou 5 à 1 440, intervalle de renotification d'une alerte `firing` non acquittée et hors silence. Un réglage qui n'appartient pas au type est refusé. Adresses (`serverUrl`, `url`) : `http` ou `https`, sans identifiants, requête ni fragment, 2 048 octets au plus ; les adresses privées sont permises. Adresses électroniques sans nom affiché. Secrets : 1 à 1 024 octets sans caractère de contrôle. 20 canaux au plus (`409 TOO_MANY_CHANNELS`).
+- Les secrets ne sont jamais renvoyés : `secrets` liste chaque secret du type avec `defined` et `fingerprint` (12 premiers caractères hexadécimaux du SHA-256), `null` si le secret n'est pas défini ou si la clé maître manque. Sans clé maître (`secretsAvailable: false`), créer ou modifier un secret et tester un canal qui en a répondent `503 SECRETS_UNAVAILABLE` ; un canal sans secret reste utilisable.
+- `lastSentAt` : dernier envoi réussi ; `lastErrorAt`, `lastError` et `lastErrorStatus` : dernier échec, conservé après un succès. `lastError` : `timeout`, `connection_failed`, `tls_failed`, `redirect_refused`, `http_status` (statut HTTP dans `lastErrorStatus`), `smtp_rejected` (code SMTP dans `lastErrorStatus`), `secrets_unavailable` ou `failed`. Aucune adresse, aucun jeton ni réponse du serveur n'est conservé.
+
+`GET /api/v1/notification-channels` → `{ "channels": [...], "secretsAvailable": true }`, par nom.
+
+`POST /api/v1/notification-channels` avec `{ "name", "type", "enabled", "minSeverity", "renotifyMinutes", "settings", "secrets" }` (`enabled` et `renotifyMinutes` obligatoires, champs inconnus refusés) → `201 { "channel": Canal }`. `PUT /api/v1/notification-channels/{channelID}` avec le même corps → `200 { "channel": Canal }` ; le type ne change pas (`400`). Dans `secrets`, une clé absente garde la valeur enregistrée, `null` supprime le secret, une chaîne le remplace. `DELETE /api/v1/notification-channels/{channelID}` → `200 { "deleted": true }`. Audités (`notification_channel` / UUID / `create`, `update`, `delete`) dans la même transaction.
+
+`POST /api/v1/notification-channels/{channelID}/test` (sans corps) envoie aussitôt un message de test, même à un canal désactivé, et enregistre son résultat. Succès : `200 { "channel": Canal }`. Échec : `502 NOTIFICATION_FAILED` avec le code et le statut seulement (le canal relu porte `lastError`). Audité (`notification_channel` / UUID / `test`, `outcome` `success` ou `failure`).
+
+**Envois** :
+
+- Le moteur transmet chaque déclenchement et chaque résolution (sauf celles dues à une modification de règle) à une file bornée (1 000 transitions, au-delà elles sont comptées et journalisées). Toutes les 5 s, chaque transition est routée vers les canaux activés dont la sévérité minimale est atteinte, hors silence. Chaque canal envoie au plus un message par minute : les transitions arrivées entre-temps sont regroupées (200 au plus par canal, les plus anciennes au-delà sont comptées « … et N autres notifications »).
+- Renotification : une fois par minute, une alerte `firing` (non acquittée), hors silence, dont le dernier message sur ce canal date d'au moins `renotifyMinutes` (à défaut, `lastNotifiedAt` ou `firedAt`) est renvoyée comme « toujours active ». Une alerte déclenchée pendant un silence est donc notifiée à la fin du silence si elle est toujours active et si le canal renotifie (`renotifyMinutes` > 0).
+- Chaque envoi : 10 s au plus, TLS 1.2 au moins avec certificat vérifié, aucune redirection suivie, réponse lue sur 64 Kio au plus puis ignorée. Un échec est noté sur le canal, sans nouvel essai ; la supervision n'en dépend pas.
+- Messages en français : titre `<machine> · <sévérité> · <règle>` (un seul élément) ou `<machine> · 2 déclenchées, 1 résolue`, puis un bloc par notification (événement, sévérité, règle ; cible, valeur et seuil ou état observé, durée). Telegram : `POST https://api.telegram.org/bot<jeton>/sendMessage` (4 096 caractères au plus). Discord : `POST` sur l'URL du webhook, mentions désactivées (2 000 caractères). Gotify : `POST <serverUrl>/message`, en-tête `X-Gotify-Key`, priorité 2, 5 ou 8. ntfy : publication JSON sur `<serverUrl>` (`topic`, `title`, `message`, `priority` 3, 4 ou 5), `Authorization: Bearer` avec un jeton. SMTP : `STARTTLS` exigé ou TLS immédiat, `AUTH PLAIN` avec un utilisateur, texte en `quoted-printable`, sujet encodé.
+- Webhook : `POST` JSON, `Content-Type: application/json`, `User-Agent: Homelab-Manager` :
+
+```json
+{
+  "version": 1, "host": "nas", "sentAt": "2026-11-24T10:05:04Z", "test": false, "omitted": 0,
+  "notifications": [
+    { "event": "firing", "alert": {
+        "id": "uuid", "ruleId": "uuid", "ruleName": "Disque presque plein", "ruleType": "host_metric",
+        "severity": "warning", "state": "firing", "targetKey": "host:filesystem.percent{device=sda1,mountpoint=/}",
+        "target": { "kind": "host", "metric": "filesystem.percent", "labels": { "device": "sda1", "mountpoint": "/" } },
+        "value": 91.5, "threshold": 85, "observed": null, "firedAt": "2026-11-24T10:05:00Z",
+        "acknowledgedAt": null, "resolvedAt": null, "resolution": null } }
+  ]
+}
+```
+
+`event` : `firing`, `resolved` ou `reminder` ; `target` omet les champs vides ; `notifications` est vide pour un test (`test: true`) ; `omitted` compte les notifications retirées du message. Avec `signingSecret` : en-têtes `X-Homelab-Timestamp` (secondes Unix) et `X-Homelab-Signature: sha256=<hex>`, HMAC-SHA256 du secret sur `<timestamp>.<corps brut>`. Le récepteur recalcule la signature sur le corps reçu, la compare en temps constant et refuse un horodatage trop ancien (5 min par exemple).
 
 ## 5. Métriques
 
@@ -672,6 +757,10 @@ Les routes sont versionnées sous `/api/v1`. Un changement incompatible (champ s
 | `ALERT_ALREADY_RESOLVED` | 409 | Acquittement d'une alerte résolue |
 | `DEFAULT_RULE` | 409 | Suppression d'une règle d'alerte par défaut |
 | `TOO_MANY_RULES` | 409 | Plus de 200 règles d'alerte |
+| `TOO_MANY_SILENCES` | 409 | Plus de 100 silences en vigueur |
+| `TOO_MANY_CHANNELS` | 409 | Plus de 20 canaux de notification |
+| `SECRETS_UNAVAILABLE` | 503 | Clé maître absente : secrets des canaux indisponibles |
+| `NOTIFICATION_FAILED` | 502 | Envoi de test en échec (code et statut seulement) |
 | `ALERTS_UNAVAILABLE` | 503 | Moteur d'alertes arrêté (base de données indisponible) |
 | `ALERTS_FAILED` | 500 | Lecture ou écriture des alertes en échec |
 | `INTERNAL_ERROR` | 500 | Autre erreur serveur |

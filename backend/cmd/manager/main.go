@@ -13,6 +13,7 @@ import (
 	"homelab-manager/backend/internal/adapters/dockerengine"
 	"homelab-manager/backend/internal/adapters/journalctl"
 	logindadapter "homelab-manager/backend/internal/adapters/logind"
+	"homelab-manager/backend/internal/adapters/notify"
 	"homelab-manager/backend/internal/adapters/qrcode"
 	"homelab-manager/backend/internal/adapters/secretbox"
 	"homelab-manager/backend/internal/adapters/sqlite"
@@ -64,6 +65,9 @@ func main() {
 	// failedUnits stays a nil interface without a database: the service
 	// inventory is then served without events.
 	var failedUnits ports.FailedUnitRepository
+	// secretBox seals the TOTP secrets and the notification secrets; nil
+	// without a master key.
+	var secretBox ports.SecretBox
 	var monitoringRepository *sqlite.MonitoringRepository
 	schedulerCtx, cancelScheduler := context.WithCancel(context.Background())
 	defer cancelScheduler()
@@ -86,6 +90,7 @@ func main() {
 		securityRepository := sqlite.NewSecurityRepository(client)
 		factorRepository := sqlite.NewSecondFactorRepository(client)
 		box := loadSecretBox(logger, config.SecretsKeyPath(os.Getenv("CREDENTIALS_DIRECTORY")))
+		secretBox = box
 		security := usecase.NewSecurityUsecase(securityRepository).WithSecondFactors(factorRepository)
 		// Without its policy the Manager cannot tell which networks may use
 		// the interface: authentication stays unavailable rather than open.
@@ -136,21 +141,34 @@ func main() {
 	// The alert engine evaluates the data stored by the collections: it
 	// needs the database.
 	var alertUsecase *usecase.AlertUsecase
-	var alertsDone chan struct{}
+	var notificationUsecase *usecase.NotificationUsecase
+	var alertsDone, notificationsDone chan struct{}
+	var notifier *notify.Notifier
 	if database != nil {
-		alertUsecase = usecase.NewAlertUsecase(sqlite.NewAlertRepository(database.Client()), usecase.AlertSources{
+		alertRepository := sqlite.NewAlertRepository(database.Client())
+		notificationRepository := sqlite.NewNotificationRepository(database.Client())
+		notifier = notify.New()
+		notificationUsecase = usecase.NewNotificationUsecase(notificationRepository, alertRepository, secretBox, notifier,
+			sqlite.NewAuditRepository(database.Client()), monitoringUsecase, logger)
+		alertUsecase = usecase.NewAlertUsecase(alertRepository, usecase.AlertSources{
 			Metrics: monitoringRepository, Collectors: monitoringUsecase, Units: serviceUsecase, Retention: monitoringUsecase,
-		}, logger)
+		}, logger).WithNotifications(notificationUsecase, notificationRepository)
 		alertsDone = make(chan struct{})
 		go func() {
 			defer close(alertsDone)
 			alertUsecase.Run(schedulerCtx)
+		}()
+		notificationsDone = make(chan struct{})
+		go func() {
+			defer close(notificationsDone)
+			notificationUsecase.Run(schedulerCtx)
 		}()
 	}
 	router := httpdelivery.NewRouter(logger, httpdelivery.Services{
 		Health: healthUsecase, Auth: authUsecase, Monitoring: monitoringUsecase,
 		Accounts: accountUsecase, Power: powerUsecase, Security: securityUsecase, Audit: auditUsecase,
 		SecondFactors: secondFactorUsecase, Journal: journalUsecase, Units: serviceUsecase, Alerts: alertUsecase,
+		Notifications: notificationUsecase,
 	}, config.SessionSecure, config.WebRoot)
 
 	server := &http.Server{
@@ -201,6 +219,15 @@ func main() {
 			logger.Error("alert evaluation did not stop before deadline")
 		}
 	}
+	if notificationsDone != nil {
+		// A send in progress ends within its 10 s timeout.
+		select {
+		case <-notificationsDone:
+		case <-time.After(15 * time.Second):
+			logger.Error("alert notifications did not stop before deadline")
+		}
+		notifier.CloseIdleConnections()
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := server.Shutdown(ctx); err != nil {
@@ -217,11 +244,11 @@ func main() {
 }
 
 // loadSecretBox opens the secrets box with the master key. Without a key the
-// Manager keeps running: TOTP is unavailable, recovery codes still work
-// (SPEC_ADMINISTRATION.md § 2.5).
+// Manager keeps running: TOTP and the notification channels with secrets
+// are unavailable, recovery codes still work (SPEC_ADMINISTRATION.md § 2.5).
 func loadSecretBox(logger *zap.Logger, path string) ports.SecretBox {
 	if path == "" {
-		logger.Warn("No secrets key configured: TOTP is unavailable, recovery codes still work")
+		logger.Warn("No secrets key configured: TOTP and notification secrets are unavailable, recovery codes still work")
 		return nil
 	}
 	key, err := secretbox.LoadKeyFile(path)

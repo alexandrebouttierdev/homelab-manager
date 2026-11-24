@@ -5,6 +5,7 @@ package ent
 import (
 	"homelab-manager/backend/ent/alert"
 	"homelab-manager/backend/ent/alertrule"
+	"homelab-manager/backend/ent/alertsilence"
 	"homelab-manager/backend/ent/appsetting"
 	"homelab-manager/backend/ent/auditlog"
 	"homelab-manager/backend/ent/container"
@@ -13,6 +14,7 @@ import (
 	"homelab-manager/backend/ent/failedunit"
 	"homelab-manager/backend/ent/hostinfo"
 	"homelab-manager/backend/ent/loginfailure"
+	"homelab-manager/backend/ent/notificationchannel"
 	"homelab-manager/backend/ent/recoverycode"
 	"homelab-manager/backend/ent/schema"
 	"homelab-manager/backend/ent/securitypolicy"
@@ -101,6 +103,24 @@ func init() {
 	alertruleDescID := alertruleFields[0].Descriptor()
 	// alertrule.DefaultID holds the default value on creation for the id field.
 	alertrule.DefaultID = alertruleDescID.Default.(func() uuid.UUID)
+	alertsilenceFields := schema.AlertSilence{}.Fields()
+	_ = alertsilenceFields
+	// alertsilenceDescScope is the schema descriptor for scope field.
+	alertsilenceDescScope := alertsilenceFields[1].Descriptor()
+	// alertsilence.ScopeValidator is a validator for the "scope" field. It is called by the builders before save.
+	alertsilence.ScopeValidator = alertsilenceDescScope.Validators[0].(func(string) error)
+	// alertsilenceDescReason is the schema descriptor for reason field.
+	alertsilenceDescReason := alertsilenceFields[4].Descriptor()
+	// alertsilence.ReasonValidator is a validator for the "reason" field. It is called by the builders before save.
+	alertsilence.ReasonValidator = alertsilenceDescReason.Validators[0].(func(string) error)
+	// alertsilenceDescCreatedBy is the schema descriptor for created_by field.
+	alertsilenceDescCreatedBy := alertsilenceFields[5].Descriptor()
+	// alertsilence.CreatedByValidator is a validator for the "created_by" field. It is called by the builders before save.
+	alertsilence.CreatedByValidator = alertsilenceDescCreatedBy.Validators[0].(func(string) error)
+	// alertsilenceDescID is the schema descriptor for id field.
+	alertsilenceDescID := alertsilenceFields[0].Descriptor()
+	// alertsilence.DefaultID holds the default value on creation for the id field.
+	alertsilence.DefaultID = alertsilenceDescID.Default.(func() uuid.UUID)
 	appsettingFields := schema.AppSetting{}.Fields()
 	_ = appsettingFields
 	// appsettingDescSingletonKey is the schema descriptor for singleton_key field.
@@ -247,6 +267,52 @@ func init() {
 	loginfailureDescConsecutiveFailures := loginfailureFields[1].Descriptor()
 	// loginfailure.DefaultConsecutiveFailures holds the default value on creation for the consecutive_failures field.
 	loginfailure.DefaultConsecutiveFailures = loginfailureDescConsecutiveFailures.Default.(int)
+	notificationchannelFields := schema.NotificationChannel{}.Fields()
+	_ = notificationchannelFields
+	// notificationchannelDescName is the schema descriptor for name field.
+	notificationchannelDescName := notificationchannelFields[1].Descriptor()
+	// notificationchannel.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	notificationchannel.NameValidator = notificationchannelDescName.Validators[0].(func(string) error)
+	// notificationchannelDescType is the schema descriptor for type field.
+	notificationchannelDescType := notificationchannelFields[2].Descriptor()
+	// notificationchannel.TypeValidator is a validator for the "type" field. It is called by the builders before save.
+	notificationchannel.TypeValidator = notificationchannelDescType.Validators[0].(func(string) error)
+	// notificationchannelDescEnabled is the schema descriptor for enabled field.
+	notificationchannelDescEnabled := notificationchannelFields[3].Descriptor()
+	// notificationchannel.DefaultEnabled holds the default value on creation for the enabled field.
+	notificationchannel.DefaultEnabled = notificationchannelDescEnabled.Default.(bool)
+	// notificationchannelDescMinSeverity is the schema descriptor for min_severity field.
+	notificationchannelDescMinSeverity := notificationchannelFields[4].Descriptor()
+	// notificationchannel.MinSeverityValidator is a validator for the "min_severity" field. It is called by the builders before save.
+	notificationchannel.MinSeverityValidator = notificationchannelDescMinSeverity.Validators[0].(func(string) error)
+	// notificationchannelDescRenotifyMinutes is the schema descriptor for renotify_minutes field.
+	notificationchannelDescRenotifyMinutes := notificationchannelFields[5].Descriptor()
+	// notificationchannel.DefaultRenotifyMinutes holds the default value on creation for the renotify_minutes field.
+	notificationchannel.DefaultRenotifyMinutes = notificationchannelDescRenotifyMinutes.Default.(int)
+	// notificationchannelDescSettings is the schema descriptor for settings field.
+	notificationchannelDescSettings := notificationchannelFields[6].Descriptor()
+	// notificationchannel.DefaultSettings holds the default value on creation for the settings field.
+	notificationchannel.DefaultSettings = notificationchannelDescSettings.Default.(string)
+	// notificationchannelDescSecrets is the schema descriptor for secrets field.
+	notificationchannelDescSecrets := notificationchannelFields[7].Descriptor()
+	// notificationchannel.DefaultSecrets holds the default value on creation for the secrets field.
+	notificationchannel.DefaultSecrets = notificationchannelDescSecrets.Default.(string)
+	// notificationchannelDescSecretNames is the schema descriptor for secret_names field.
+	notificationchannelDescSecretNames := notificationchannelFields[8].Descriptor()
+	// notificationchannel.DefaultSecretNames holds the default value on creation for the secret_names field.
+	notificationchannel.DefaultSecretNames = notificationchannelDescSecretNames.Default.(string)
+	// notificationchannelDescCreatedAt is the schema descriptor for created_at field.
+	notificationchannelDescCreatedAt := notificationchannelFields[13].Descriptor()
+	// notificationchannel.DefaultCreatedAt holds the default value on creation for the created_at field.
+	notificationchannel.DefaultCreatedAt = notificationchannelDescCreatedAt.Default.(func() time.Time)
+	// notificationchannelDescUpdatedAt is the schema descriptor for updated_at field.
+	notificationchannelDescUpdatedAt := notificationchannelFields[14].Descriptor()
+	// notificationchannel.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	notificationchannel.DefaultUpdatedAt = notificationchannelDescUpdatedAt.Default.(func() time.Time)
+	// notificationchannelDescID is the schema descriptor for id field.
+	notificationchannelDescID := notificationchannelFields[0].Descriptor()
+	// notificationchannel.DefaultID holds the default value on creation for the id field.
+	notificationchannel.DefaultID = notificationchannelDescID.Default.(func() uuid.UUID)
 	recoverycodeFields := schema.RecoveryCode{}.Fields()
 	_ = recoverycodeFields
 	// recoverycodeDescCreatedAt is the schema descriptor for created_at field.

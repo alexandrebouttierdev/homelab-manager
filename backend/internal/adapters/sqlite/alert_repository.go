@@ -319,7 +319,7 @@ func alertDomain(record *ent.Alert) (domain.Alert, error) {
 		ID: record.ID, RuleID: record.RuleID, RuleName: record.RuleName, RuleType: domain.AlertRuleType(record.RuleType),
 		Severity: domain.AlertSeverity(record.Severity), TargetKey: record.TargetKey, State: domain.AlertState(record.State),
 		Value: record.Value, Threshold: record.Threshold, Observed: record.Observed, FiredAt: record.FiredAt,
-		AcknowledgedAt: record.AcknowledgedAt, ResolvedAt: record.ResolvedAt,
+		AcknowledgedAt: record.AcknowledgedAt, ResolvedAt: record.ResolvedAt, LastNotifiedAt: record.LastNotifiedAt,
 	}
 	if record.AcknowledgedBy != nil {
 		alert.AcknowledgedBy = *record.AcknowledgedBy

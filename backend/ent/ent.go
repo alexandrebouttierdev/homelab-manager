@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"homelab-manager/backend/ent/alert"
 	"homelab-manager/backend/ent/alertrule"
+	"homelab-manager/backend/ent/alertsilence"
 	"homelab-manager/backend/ent/appsetting"
 	"homelab-manager/backend/ent/auditlog"
 	"homelab-manager/backend/ent/container"
@@ -16,6 +17,7 @@ import (
 	"homelab-manager/backend/ent/failedunit"
 	"homelab-manager/backend/ent/hostinfo"
 	"homelab-manager/backend/ent/loginfailure"
+	"homelab-manager/backend/ent/notificationchannel"
 	"homelab-manager/backend/ent/recoverycode"
 	"homelab-manager/backend/ent/securitypolicy"
 	"homelab-manager/backend/ent/session"
@@ -90,6 +92,7 @@ func checkColumn(t, c string) error {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
 			alert.Table:                 alert.ValidColumn,
 			alertrule.Table:             alertrule.ValidColumn,
+			alertsilence.Table:          alertsilence.ValidColumn,
 			appsetting.Table:            appsetting.ValidColumn,
 			auditlog.Table:              auditlog.ValidColumn,
 			container.Table:             container.ValidColumn,
@@ -98,6 +101,7 @@ func checkColumn(t, c string) error {
 			failedunit.Table:            failedunit.ValidColumn,
 			hostinfo.Table:              hostinfo.ValidColumn,
 			loginfailure.Table:          loginfailure.ValidColumn,
+			notificationchannel.Table:   notificationchannel.ValidColumn,
 			recoverycode.Table:          recoverycode.ValidColumn,
 			securitypolicy.Table:        securitypolicy.ValidColumn,
 			session.Table:               session.ValidColumn,

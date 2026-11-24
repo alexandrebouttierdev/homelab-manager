@@ -13,6 +13,7 @@ import (
 
 	"homelab-manager/backend/ent/alert"
 	"homelab-manager/backend/ent/alertrule"
+	"homelab-manager/backend/ent/alertsilence"
 	"homelab-manager/backend/ent/appsetting"
 	"homelab-manager/backend/ent/auditlog"
 	"homelab-manager/backend/ent/container"
@@ -21,6 +22,7 @@ import (
 	"homelab-manager/backend/ent/failedunit"
 	"homelab-manager/backend/ent/hostinfo"
 	"homelab-manager/backend/ent/loginfailure"
+	"homelab-manager/backend/ent/notificationchannel"
 	"homelab-manager/backend/ent/recoverycode"
 	"homelab-manager/backend/ent/securitypolicy"
 	"homelab-manager/backend/ent/session"
@@ -44,6 +46,8 @@ type Client struct {
 	Alert *AlertClient
 	// AlertRule is the client for interacting with the AlertRule builders.
 	AlertRule *AlertRuleClient
+	// AlertSilence is the client for interacting with the AlertSilence builders.
+	AlertSilence *AlertSilenceClient
 	// AppSetting is the client for interacting with the AppSetting builders.
 	AppSetting *AppSettingClient
 	// AuditLog is the client for interacting with the AuditLog builders.
@@ -60,6 +64,8 @@ type Client struct {
 	HostInfo *HostInfoClient
 	// LoginFailure is the client for interacting with the LoginFailure builders.
 	LoginFailure *LoginFailureClient
+	// NotificationChannel is the client for interacting with the NotificationChannel builders.
+	NotificationChannel *NotificationChannelClient
 	// RecoveryCode is the client for interacting with the RecoveryCode builders.
 	RecoveryCode *RecoveryCodeClient
 	// SecurityPolicy is the client for interacting with the SecurityPolicy builders.
@@ -85,6 +91,7 @@ func (c *Client) init() {
 	c.Schema = migrate.NewSchema(c.driver)
 	c.Alert = NewAlertClient(c.config)
 	c.AlertRule = NewAlertRuleClient(c.config)
+	c.AlertSilence = NewAlertSilenceClient(c.config)
 	c.AppSetting = NewAppSettingClient(c.config)
 	c.AuditLog = NewAuditLogClient(c.config)
 	c.Container = NewContainerClient(c.config)
@@ -93,6 +100,7 @@ func (c *Client) init() {
 	c.FailedUnit = NewFailedUnitClient(c.config)
 	c.HostInfo = NewHostInfoClient(c.config)
 	c.LoginFailure = NewLoginFailureClient(c.config)
+	c.NotificationChannel = NewNotificationChannelClient(c.config)
 	c.RecoveryCode = NewRecoveryCodeClient(c.config)
 	c.SecurityPolicy = NewSecurityPolicyClient(c.config)
 	c.Session = NewSessionClient(c.config)
@@ -193,6 +201,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		config:                cfg,
 		Alert:                 NewAlertClient(cfg),
 		AlertRule:             NewAlertRuleClient(cfg),
+		AlertSilence:          NewAlertSilenceClient(cfg),
 		AppSetting:            NewAppSettingClient(cfg),
 		AuditLog:              NewAuditLogClient(cfg),
 		Container:             NewContainerClient(cfg),
@@ -201,6 +210,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		FailedUnit:            NewFailedUnitClient(cfg),
 		HostInfo:              NewHostInfoClient(cfg),
 		LoginFailure:          NewLoginFailureClient(cfg),
+		NotificationChannel:   NewNotificationChannelClient(cfg),
 		RecoveryCode:          NewRecoveryCodeClient(cfg),
 		SecurityPolicy:        NewSecurityPolicyClient(cfg),
 		Session:               NewSessionClient(cfg),
@@ -228,6 +238,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		config:                cfg,
 		Alert:                 NewAlertClient(cfg),
 		AlertRule:             NewAlertRuleClient(cfg),
+		AlertSilence:          NewAlertSilenceClient(cfg),
 		AppSetting:            NewAppSettingClient(cfg),
 		AuditLog:              NewAuditLogClient(cfg),
 		Container:             NewContainerClient(cfg),
@@ -236,6 +247,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		FailedUnit:            NewFailedUnitClient(cfg),
 		HostInfo:              NewHostInfoClient(cfg),
 		LoginFailure:          NewLoginFailureClient(cfg),
+		NotificationChannel:   NewNotificationChannelClient(cfg),
 		RecoveryCode:          NewRecoveryCodeClient(cfg),
 		SecurityPolicy:        NewSecurityPolicyClient(cfg),
 		Session:               NewSessionClient(cfg),
@@ -271,10 +283,10 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
-		c.Alert, c.AlertRule, c.AppSetting, c.AuditLog, c.Container,
+		c.Alert, c.AlertRule, c.AlertSilence, c.AppSetting, c.AuditLog, c.Container,
 		c.ContainerMetricSample, c.Event, c.FailedUnit, c.HostInfo, c.LoginFailure,
-		c.RecoveryCode, c.SecurityPolicy, c.Session, c.SystemMetricSample,
-		c.TotpSecret, c.User,
+		c.NotificationChannel, c.RecoveryCode, c.SecurityPolicy, c.Session,
+		c.SystemMetricSample, c.TotpSecret, c.User,
 	} {
 		n.Use(hooks...)
 	}
@@ -284,10 +296,10 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
-		c.Alert, c.AlertRule, c.AppSetting, c.AuditLog, c.Container,
+		c.Alert, c.AlertRule, c.AlertSilence, c.AppSetting, c.AuditLog, c.Container,
 		c.ContainerMetricSample, c.Event, c.FailedUnit, c.HostInfo, c.LoginFailure,
-		c.RecoveryCode, c.SecurityPolicy, c.Session, c.SystemMetricSample,
-		c.TotpSecret, c.User,
+		c.NotificationChannel, c.RecoveryCode, c.SecurityPolicy, c.Session,
+		c.SystemMetricSample, c.TotpSecret, c.User,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -300,6 +312,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.Alert.mutate(ctx, m)
 	case *AlertRuleMutation:
 		return c.AlertRule.mutate(ctx, m)
+	case *AlertSilenceMutation:
+		return c.AlertSilence.mutate(ctx, m)
 	case *AppSettingMutation:
 		return c.AppSetting.mutate(ctx, m)
 	case *AuditLogMutation:
@@ -316,6 +330,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.HostInfo.mutate(ctx, m)
 	case *LoginFailureMutation:
 		return c.LoginFailure.mutate(ctx, m)
+	case *NotificationChannelMutation:
+		return c.NotificationChannel.mutate(ctx, m)
 	case *RecoveryCodeMutation:
 		return c.RecoveryCode.mutate(ctx, m)
 	case *SecurityPolicyMutation:
@@ -596,6 +612,139 @@ func (c *AlertRuleClient) mutate(ctx context.Context, m *AlertRuleMutation) (Val
 		return (&AlertRuleDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown AlertRule mutation op: %q", m.Op())
+	}
+}
+
+// AlertSilenceClient is a client for the AlertSilence schema.
+type AlertSilenceClient struct {
+	config
+}
+
+// NewAlertSilenceClient returns a client for the AlertSilence from the given config.
+func NewAlertSilenceClient(c config) *AlertSilenceClient {
+	return &AlertSilenceClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `alertsilence.Hooks(f(g(h())))`.
+func (c *AlertSilenceClient) Use(hooks ...Hook) {
+	c.hooks.AlertSilence = append(c.hooks.AlertSilence, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `alertsilence.Intercept(f(g(h())))`.
+func (c *AlertSilenceClient) Intercept(interceptors ...Interceptor) {
+	c.inters.AlertSilence = append(c.inters.AlertSilence, interceptors...)
+}
+
+// Create returns a builder for creating a AlertSilence entity.
+func (c *AlertSilenceClient) Create() *AlertSilenceCreate {
+	mutation := newAlertSilenceMutation(c.config, OpCreate)
+	return &AlertSilenceCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of AlertSilence entities.
+func (c *AlertSilenceClient) CreateBulk(builders ...*AlertSilenceCreate) *AlertSilenceCreateBulk {
+	return &AlertSilenceCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *AlertSilenceClient) MapCreateBulk(slice any, setFunc func(*AlertSilenceCreate, int)) *AlertSilenceCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &AlertSilenceCreateBulk{err: fmt.Errorf("calling to AlertSilenceClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*AlertSilenceCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &AlertSilenceCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for AlertSilence.
+func (c *AlertSilenceClient) Update() *AlertSilenceUpdate {
+	mutation := newAlertSilenceMutation(c.config, OpUpdate)
+	return &AlertSilenceUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *AlertSilenceClient) UpdateOne(_m *AlertSilence) *AlertSilenceUpdateOne {
+	mutation := newAlertSilenceMutation(c.config, OpUpdateOne, withAlertSilence(_m))
+	return &AlertSilenceUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *AlertSilenceClient) UpdateOneID(id uuid.UUID) *AlertSilenceUpdateOne {
+	mutation := newAlertSilenceMutation(c.config, OpUpdateOne, withAlertSilenceID(id))
+	return &AlertSilenceUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for AlertSilence.
+func (c *AlertSilenceClient) Delete() *AlertSilenceDelete {
+	mutation := newAlertSilenceMutation(c.config, OpDelete)
+	return &AlertSilenceDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *AlertSilenceClient) DeleteOne(_m *AlertSilence) *AlertSilenceDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *AlertSilenceClient) DeleteOneID(id uuid.UUID) *AlertSilenceDeleteOne {
+	builder := c.Delete().Where(alertsilence.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &AlertSilenceDeleteOne{builder}
+}
+
+// Query returns a query builder for AlertSilence.
+func (c *AlertSilenceClient) Query() *AlertSilenceQuery {
+	return &AlertSilenceQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeAlertSilence},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a AlertSilence entity by its id.
+func (c *AlertSilenceClient) Get(ctx context.Context, id uuid.UUID) (*AlertSilence, error) {
+	return c.Query().Where(alertsilence.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *AlertSilenceClient) GetX(ctx context.Context, id uuid.UUID) *AlertSilence {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *AlertSilenceClient) Hooks() []Hook {
+	return c.hooks.AlertSilence
+}
+
+// Interceptors returns the client interceptors.
+func (c *AlertSilenceClient) Interceptors() []Interceptor {
+	return c.inters.AlertSilence
+}
+
+func (c *AlertSilenceClient) mutate(ctx context.Context, m *AlertSilenceMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&AlertSilenceCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&AlertSilenceUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&AlertSilenceUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&AlertSilenceDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown AlertSilence mutation op: %q", m.Op())
 	}
 }
 
@@ -1727,6 +1876,139 @@ func (c *LoginFailureClient) mutate(ctx context.Context, m *LoginFailureMutation
 	}
 }
 
+// NotificationChannelClient is a client for the NotificationChannel schema.
+type NotificationChannelClient struct {
+	config
+}
+
+// NewNotificationChannelClient returns a client for the NotificationChannel from the given config.
+func NewNotificationChannelClient(c config) *NotificationChannelClient {
+	return &NotificationChannelClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `notificationchannel.Hooks(f(g(h())))`.
+func (c *NotificationChannelClient) Use(hooks ...Hook) {
+	c.hooks.NotificationChannel = append(c.hooks.NotificationChannel, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `notificationchannel.Intercept(f(g(h())))`.
+func (c *NotificationChannelClient) Intercept(interceptors ...Interceptor) {
+	c.inters.NotificationChannel = append(c.inters.NotificationChannel, interceptors...)
+}
+
+// Create returns a builder for creating a NotificationChannel entity.
+func (c *NotificationChannelClient) Create() *NotificationChannelCreate {
+	mutation := newNotificationChannelMutation(c.config, OpCreate)
+	return &NotificationChannelCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of NotificationChannel entities.
+func (c *NotificationChannelClient) CreateBulk(builders ...*NotificationChannelCreate) *NotificationChannelCreateBulk {
+	return &NotificationChannelCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *NotificationChannelClient) MapCreateBulk(slice any, setFunc func(*NotificationChannelCreate, int)) *NotificationChannelCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &NotificationChannelCreateBulk{err: fmt.Errorf("calling to NotificationChannelClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*NotificationChannelCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &NotificationChannelCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for NotificationChannel.
+func (c *NotificationChannelClient) Update() *NotificationChannelUpdate {
+	mutation := newNotificationChannelMutation(c.config, OpUpdate)
+	return &NotificationChannelUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *NotificationChannelClient) UpdateOne(_m *NotificationChannel) *NotificationChannelUpdateOne {
+	mutation := newNotificationChannelMutation(c.config, OpUpdateOne, withNotificationChannel(_m))
+	return &NotificationChannelUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *NotificationChannelClient) UpdateOneID(id uuid.UUID) *NotificationChannelUpdateOne {
+	mutation := newNotificationChannelMutation(c.config, OpUpdateOne, withNotificationChannelID(id))
+	return &NotificationChannelUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for NotificationChannel.
+func (c *NotificationChannelClient) Delete() *NotificationChannelDelete {
+	mutation := newNotificationChannelMutation(c.config, OpDelete)
+	return &NotificationChannelDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *NotificationChannelClient) DeleteOne(_m *NotificationChannel) *NotificationChannelDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *NotificationChannelClient) DeleteOneID(id uuid.UUID) *NotificationChannelDeleteOne {
+	builder := c.Delete().Where(notificationchannel.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &NotificationChannelDeleteOne{builder}
+}
+
+// Query returns a query builder for NotificationChannel.
+func (c *NotificationChannelClient) Query() *NotificationChannelQuery {
+	return &NotificationChannelQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeNotificationChannel},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a NotificationChannel entity by its id.
+func (c *NotificationChannelClient) Get(ctx context.Context, id uuid.UUID) (*NotificationChannel, error) {
+	return c.Query().Where(notificationchannel.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *NotificationChannelClient) GetX(ctx context.Context, id uuid.UUID) *NotificationChannel {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *NotificationChannelClient) Hooks() []Hook {
+	return c.hooks.NotificationChannel
+}
+
+// Interceptors returns the client interceptors.
+func (c *NotificationChannelClient) Interceptors() []Interceptor {
+	return c.inters.NotificationChannel
+}
+
+func (c *NotificationChannelClient) mutate(ctx context.Context, m *NotificationChannelMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&NotificationChannelCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&NotificationChannelUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&NotificationChannelUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&NotificationChannelDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown NotificationChannel mutation op: %q", m.Op())
+	}
+}
+
 // RecoveryCodeClient is a client for the RecoveryCode schema.
 type RecoveryCodeClient struct {
 	config
@@ -2560,13 +2842,15 @@ func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error)
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		Alert, AlertRule, AppSetting, AuditLog, Container, ContainerMetricSample, Event,
-		FailedUnit, HostInfo, LoginFailure, RecoveryCode, SecurityPolicy, Session,
-		SystemMetricSample, TotpSecret, User []ent.Hook
+		Alert, AlertRule, AlertSilence, AppSetting, AuditLog, Container,
+		ContainerMetricSample, Event, FailedUnit, HostInfo, LoginFailure,
+		NotificationChannel, RecoveryCode, SecurityPolicy, Session, SystemMetricSample,
+		TotpSecret, User []ent.Hook
 	}
 	inters struct {
-		Alert, AlertRule, AppSetting, AuditLog, Container, ContainerMetricSample, Event,
-		FailedUnit, HostInfo, LoginFailure, RecoveryCode, SecurityPolicy, Session,
-		SystemMetricSample, TotpSecret, User []ent.Interceptor
+		Alert, AlertRule, AlertSilence, AppSetting, AuditLog, Container,
+		ContainerMetricSample, Event, FailedUnit, HostInfo, LoginFailure,
+		NotificationChannel, RecoveryCode, SecurityPolicy, Session, SystemMetricSample,
+		TotpSecret, User []ent.Interceptor
 	}
 )

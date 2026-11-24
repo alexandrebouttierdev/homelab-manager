@@ -12,6 +12,9 @@ type Alert func(*sql.Selector)
 // AlertRule is the predicate function for alertrule builders.
 type AlertRule func(*sql.Selector)
 
+// AlertSilence is the predicate function for alertsilence builders.
+type AlertSilence func(*sql.Selector)
+
 // AppSetting is the predicate function for appsetting builders.
 type AppSetting func(*sql.Selector)
 
@@ -35,6 +38,9 @@ type HostInfo func(*sql.Selector)
 
 // LoginFailure is the predicate function for loginfailure builders.
 type LoginFailure func(*sql.Selector)
+
+// NotificationChannel is the predicate function for notificationchannel builders.
+type NotificationChannel func(*sql.Selector)
 
 // RecoveryCode is the predicate function for recoverycode builders.
 type RecoveryCode func(*sql.Selector)

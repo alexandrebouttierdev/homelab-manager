@@ -28,5 +28,6 @@ func (Alert) Fields() []ent.Field {
 		field.String("acknowledged_by").Optional().Nillable(),
 		field.Time("resolved_at").Optional().Nillable(),
 		field.String("resolution").Optional().Nillable(),
+		field.Time("last_notified_at").Optional().Nillable(),
 	}
 }

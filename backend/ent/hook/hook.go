@@ -32,6 +32,18 @@ func (f AlertRuleFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, e
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AlertRuleMutation", m)
 }
 
+// The AlertSilenceFunc type is an adapter to allow the use of ordinary
+// function as AlertSilence mutator.
+type AlertSilenceFunc func(context.Context, *ent.AlertSilenceMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f AlertSilenceFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.AlertSilenceMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AlertSilenceMutation", m)
+}
+
 // The AppSettingFunc type is an adapter to allow the use of ordinary
 // function as AppSetting mutator.
 type AppSettingFunc func(context.Context, *ent.AppSettingMutation) (ent.Value, error)
@@ -126,6 +138,18 @@ func (f LoginFailureFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.LoginFailureMutation", m)
+}
+
+// The NotificationChannelFunc type is an adapter to allow the use of ordinary
+// function as NotificationChannel mutator.
+type NotificationChannelFunc func(context.Context, *ent.NotificationChannelMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f NotificationChannelFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.NotificationChannelMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.NotificationChannelMutation", m)
 }
 
 // The RecoveryCodeFunc type is an adapter to allow the use of ordinary

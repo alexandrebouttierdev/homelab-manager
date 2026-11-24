@@ -26,6 +26,7 @@ var (
 		{Name: "acknowledged_by", Type: field.TypeString, Nullable: true},
 		{Name: "resolved_at", Type: field.TypeTime, Nullable: true},
 		{Name: "resolution", Type: field.TypeString, Nullable: true},
+		{Name: "last_notified_at", Type: field.TypeTime, Nullable: true},
 	}
 	// AlertsTable holds the schema information for the "alerts" table.
 	AlertsTable = &schema.Table{
@@ -50,6 +51,25 @@ var (
 		Name:       "alert_rules",
 		Columns:    AlertRulesColumns,
 		PrimaryKey: []*schema.Column{AlertRulesColumns[0]},
+	}
+	// AlertSilencesColumns holds the columns for the "alert_silences" table.
+	AlertSilencesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "scope", Type: field.TypeString},
+		{Name: "rule_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "target_key", Type: field.TypeString, Nullable: true},
+		{Name: "reason", Type: field.TypeString},
+		{Name: "created_by", Type: field.TypeString},
+		{Name: "starts_at", Type: field.TypeTime},
+		{Name: "ends_at", Type: field.TypeTime},
+		{Name: "lifted_at", Type: field.TypeTime, Nullable: true},
+		{Name: "lifted_by", Type: field.TypeString, Nullable: true},
+	}
+	// AlertSilencesTable holds the schema information for the "alert_silences" table.
+	AlertSilencesTable = &schema.Table{
+		Name:       "alert_silences",
+		Columns:    AlertSilencesColumns,
+		PrimaryKey: []*schema.Column{AlertSilencesColumns[0]},
 	}
 	// AppSettingsColumns holds the columns for the "app_settings" table.
 	AppSettingsColumns = []*schema.Column{
@@ -196,6 +216,30 @@ var (
 		Columns:    LoginFailuresColumns,
 		PrimaryKey: []*schema.Column{LoginFailuresColumns[0]},
 	}
+	// NotificationChannelsColumns holds the columns for the "notification_channels" table.
+	NotificationChannelsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "name", Type: field.TypeString},
+		{Name: "type", Type: field.TypeString},
+		{Name: "enabled", Type: field.TypeBool, Default: true},
+		{Name: "min_severity", Type: field.TypeString},
+		{Name: "renotify_minutes", Type: field.TypeInt, Default: 30},
+		{Name: "settings", Type: field.TypeString, Size: 2147483647, Default: "{}"},
+		{Name: "secrets", Type: field.TypeString, Size: 2147483647, Default: ""},
+		{Name: "secret_names", Type: field.TypeString, Size: 2147483647, Default: "[]"},
+		{Name: "last_sent_at", Type: field.TypeTime, Nullable: true},
+		{Name: "last_error_at", Type: field.TypeTime, Nullable: true},
+		{Name: "last_error", Type: field.TypeString, Nullable: true},
+		{Name: "last_error_status", Type: field.TypeInt, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// NotificationChannelsTable holds the schema information for the "notification_channels" table.
+	NotificationChannelsTable = &schema.Table{
+		Name:       "notification_channels",
+		Columns:    NotificationChannelsColumns,
+		PrimaryKey: []*schema.Column{NotificationChannelsColumns[0]},
+	}
 	// RecoveryCodesColumns holds the columns for the "recovery_codes" table.
 	RecoveryCodesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -305,6 +349,7 @@ var (
 	Tables = []*schema.Table{
 		AlertsTable,
 		AlertRulesTable,
+		AlertSilencesTable,
 		AppSettingsTable,
 		AuditLogsTable,
 		ContainersTable,
@@ -313,6 +358,7 @@ var (
 		FailedUnitsTable,
 		HostInfosTable,
 		LoginFailuresTable,
+		NotificationChannelsTable,
 		RecoveryCodesTable,
 		SecurityPoliciesTable,
 		SessionsTable,

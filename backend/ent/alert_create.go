@@ -175,6 +175,20 @@ func (_c *AlertCreate) SetNillableResolution(v *string) *AlertCreate {
 	return _c
 }
 
+// SetLastNotifiedAt sets the "last_notified_at" field.
+func (_c *AlertCreate) SetLastNotifiedAt(v time.Time) *AlertCreate {
+	_c.mutation.SetLastNotifiedAt(v)
+	return _c
+}
+
+// SetNillableLastNotifiedAt sets the "last_notified_at" field if the given value is not nil.
+func (_c *AlertCreate) SetNillableLastNotifiedAt(v *time.Time) *AlertCreate {
+	if v != nil {
+		_c.SetLastNotifiedAt(*v)
+	}
+	return _c
+}
+
 // SetID sets the "id" field.
 func (_c *AlertCreate) SetID(v uuid.UUID) *AlertCreate {
 	_c.mutation.SetID(v)
@@ -386,6 +400,10 @@ func (_c *AlertCreate) createSpec() (*Alert, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Resolution(); ok {
 		_spec.SetField(alert.FieldResolution, field.TypeString, value)
 		_node.Resolution = &value
+	}
+	if value, ok := _c.mutation.LastNotifiedAt(); ok {
+		_spec.SetField(alert.FieldLastNotifiedAt, field.TypeTime, value)
+		_node.LastNotifiedAt = &value
 	}
 	return _node, _spec
 }

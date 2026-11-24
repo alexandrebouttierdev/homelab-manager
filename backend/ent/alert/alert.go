@@ -42,6 +42,8 @@ const (
 	FieldResolvedAt = "resolved_at"
 	// FieldResolution holds the string denoting the resolution field in the database.
 	FieldResolution = "resolution"
+	// FieldLastNotifiedAt holds the string denoting the last_notified_at field in the database.
+	FieldLastNotifiedAt = "last_notified_at"
 	// Table holds the table name of the alert in the database.
 	Table = "alerts"
 )
@@ -64,6 +66,7 @@ var Columns = []string{
 	FieldAcknowledgedBy,
 	FieldResolvedAt,
 	FieldResolution,
+	FieldLastNotifiedAt,
 }
 
 // ValidColumn reports if the column name is valid (part of the table columns).
@@ -176,4 +179,9 @@ func ByResolvedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByResolution orders the results by the resolution field.
 func ByResolution(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldResolution, opts...).ToFunc()
+}
+
+// ByLastNotifiedAt orders the results by the last_notified_at field.
+func ByLastNotifiedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldLastNotifiedAt, opts...).ToFunc()
 }

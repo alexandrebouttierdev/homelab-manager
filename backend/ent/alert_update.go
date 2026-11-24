@@ -289,6 +289,26 @@ func (_u *AlertUpdate) ClearResolution() *AlertUpdate {
 	return _u
 }
 
+// SetLastNotifiedAt sets the "last_notified_at" field.
+func (_u *AlertUpdate) SetLastNotifiedAt(v time.Time) *AlertUpdate {
+	_u.mutation.SetLastNotifiedAt(v)
+	return _u
+}
+
+// SetNillableLastNotifiedAt sets the "last_notified_at" field if the given value is not nil.
+func (_u *AlertUpdate) SetNillableLastNotifiedAt(v *time.Time) *AlertUpdate {
+	if v != nil {
+		_u.SetLastNotifiedAt(*v)
+	}
+	return _u
+}
+
+// ClearLastNotifiedAt clears the value of the "last_notified_at" field.
+func (_u *AlertUpdate) ClearLastNotifiedAt() *AlertUpdate {
+	_u.mutation.ClearLastNotifiedAt()
+	return _u
+}
+
 // Mutation returns the AlertMutation object of the builder.
 func (_u *AlertUpdate) Mutation() *AlertMutation {
 	return _u.mutation
@@ -431,6 +451,12 @@ func (_u *AlertUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.ResolutionCleared() {
 		_spec.ClearField(alert.FieldResolution, field.TypeString)
+	}
+	if value, ok := _u.mutation.LastNotifiedAt(); ok {
+		_spec.SetField(alert.FieldLastNotifiedAt, field.TypeTime, value)
+	}
+	if _u.mutation.LastNotifiedAtCleared() {
+		_spec.ClearField(alert.FieldLastNotifiedAt, field.TypeTime)
 	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
@@ -712,6 +738,26 @@ func (_u *AlertUpdateOne) ClearResolution() *AlertUpdateOne {
 	return _u
 }
 
+// SetLastNotifiedAt sets the "last_notified_at" field.
+func (_u *AlertUpdateOne) SetLastNotifiedAt(v time.Time) *AlertUpdateOne {
+	_u.mutation.SetLastNotifiedAt(v)
+	return _u
+}
+
+// SetNillableLastNotifiedAt sets the "last_notified_at" field if the given value is not nil.
+func (_u *AlertUpdateOne) SetNillableLastNotifiedAt(v *time.Time) *AlertUpdateOne {
+	if v != nil {
+		_u.SetLastNotifiedAt(*v)
+	}
+	return _u
+}
+
+// ClearLastNotifiedAt clears the value of the "last_notified_at" field.
+func (_u *AlertUpdateOne) ClearLastNotifiedAt() *AlertUpdateOne {
+	_u.mutation.ClearLastNotifiedAt()
+	return _u
+}
+
 // Mutation returns the AlertMutation object of the builder.
 func (_u *AlertUpdateOne) Mutation() *AlertMutation {
 	return _u.mutation
@@ -884,6 +930,12 @@ func (_u *AlertUpdateOne) sqlSave(ctx context.Context) (_node *Alert, err error)
 	}
 	if _u.mutation.ResolutionCleared() {
 		_spec.ClearField(alert.FieldResolution, field.TypeString)
+	}
+	if value, ok := _u.mutation.LastNotifiedAt(); ok {
+		_spec.SetField(alert.FieldLastNotifiedAt, field.TypeTime, value)
+	}
+	if _u.mutation.LastNotifiedAtCleared() {
+		_spec.ClearField(alert.FieldLastNotifiedAt, field.TypeTime)
 	}
 	_node = &Alert{config: _u.config}
 	_spec.Assign = _node.assignValues

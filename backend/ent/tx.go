@@ -16,6 +16,8 @@ type Tx struct {
 	Alert *AlertClient
 	// AlertRule is the client for interacting with the AlertRule builders.
 	AlertRule *AlertRuleClient
+	// AlertSilence is the client for interacting with the AlertSilence builders.
+	AlertSilence *AlertSilenceClient
 	// AppSetting is the client for interacting with the AppSetting builders.
 	AppSetting *AppSettingClient
 	// AuditLog is the client for interacting with the AuditLog builders.
@@ -32,6 +34,8 @@ type Tx struct {
 	HostInfo *HostInfoClient
 	// LoginFailure is the client for interacting with the LoginFailure builders.
 	LoginFailure *LoginFailureClient
+	// NotificationChannel is the client for interacting with the NotificationChannel builders.
+	NotificationChannel *NotificationChannelClient
 	// RecoveryCode is the client for interacting with the RecoveryCode builders.
 	RecoveryCode *RecoveryCodeClient
 	// SecurityPolicy is the client for interacting with the SecurityPolicy builders.
@@ -177,6 +181,7 @@ func (tx *Tx) Client() *Client {
 func (tx *Tx) init() {
 	tx.Alert = NewAlertClient(tx.config)
 	tx.AlertRule = NewAlertRuleClient(tx.config)
+	tx.AlertSilence = NewAlertSilenceClient(tx.config)
 	tx.AppSetting = NewAppSettingClient(tx.config)
 	tx.AuditLog = NewAuditLogClient(tx.config)
 	tx.Container = NewContainerClient(tx.config)
@@ -185,6 +190,7 @@ func (tx *Tx) init() {
 	tx.FailedUnit = NewFailedUnitClient(tx.config)
 	tx.HostInfo = NewHostInfoClient(tx.config)
 	tx.LoginFailure = NewLoginFailureClient(tx.config)
+	tx.NotificationChannel = NewNotificationChannelClient(tx.config)
 	tx.RecoveryCode = NewRecoveryCodeClient(tx.config)
 	tx.SecurityPolicy = NewSecurityPolicyClient(tx.config)
 	tx.Session = NewSessionClient(tx.config)

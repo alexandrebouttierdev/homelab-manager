@@ -47,8 +47,10 @@ type Alert struct {
 	// ResolvedAt holds the value of the "resolved_at" field.
 	ResolvedAt *time.Time `json:"resolved_at,omitempty"`
 	// Resolution holds the value of the "resolution" field.
-	Resolution   *string `json:"resolution,omitempty"`
-	selectValues sql.SelectValues
+	Resolution *string `json:"resolution,omitempty"`
+	// LastNotifiedAt holds the value of the "last_notified_at" field.
+	LastNotifiedAt *time.Time `json:"last_notified_at,omitempty"`
+	selectValues   sql.SelectValues
 }
 
 // scanValues returns the types for scanning values from sql.Rows.
@@ -60,7 +62,7 @@ func (*Alert) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullFloat64)
 		case alert.FieldRuleName, alert.FieldRuleType, alert.FieldSeverity, alert.FieldTargetKey, alert.FieldTarget, alert.FieldState, alert.FieldObserved, alert.FieldAcknowledgedBy, alert.FieldResolution:
 			values[i] = new(sql.NullString)
-		case alert.FieldFiredAt, alert.FieldAcknowledgedAt, alert.FieldResolvedAt:
+		case alert.FieldFiredAt, alert.FieldAcknowledgedAt, alert.FieldResolvedAt, alert.FieldLastNotifiedAt:
 			values[i] = new(sql.NullTime)
 		case alert.FieldID, alert.FieldRuleID:
 			values[i] = new(uuid.UUID)
@@ -181,6 +183,13 @@ func (_m *Alert) assignValues(columns []string, values []any) error {
 				_m.Resolution = new(string)
 				*_m.Resolution = value.String
 			}
+		case alert.FieldLastNotifiedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field last_notified_at", values[i])
+			} else if value.Valid {
+				_m.LastNotifiedAt = new(time.Time)
+				*_m.LastNotifiedAt = value.Time
+			}
 		default:
 			_m.selectValues.Set(columns[i], values[i])
 		}
@@ -272,6 +281,11 @@ func (_m *Alert) String() string {
 	if v := _m.Resolution; v != nil {
 		builder.WriteString("resolution=")
 		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.LastNotifiedAt; v != nil {
+		builder.WriteString("last_notified_at=")
+		builder.WriteString(v.Format(time.ANSIC))
 	}
 	builder.WriteByte(')')
 	return builder.String()

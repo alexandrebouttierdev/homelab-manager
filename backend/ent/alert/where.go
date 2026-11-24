@@ -130,6 +130,11 @@ func Resolution(v string) predicate.Alert {
 	return predicate.Alert(sql.FieldEQ(FieldResolution, v))
 }
 
+// LastNotifiedAt applies equality check predicate on the "last_notified_at" field. It's identical to LastNotifiedAtEQ.
+func LastNotifiedAt(v time.Time) predicate.Alert {
+	return predicate.Alert(sql.FieldEQ(FieldLastNotifiedAt, v))
+}
+
 // RuleIDEQ applies the EQ predicate on the "rule_id" field.
 func RuleIDEQ(v uuid.UUID) predicate.Alert {
 	return predicate.Alert(sql.FieldEQ(FieldRuleID, v))
@@ -1013,6 +1018,56 @@ func ResolutionEqualFold(v string) predicate.Alert {
 // ResolutionContainsFold applies the ContainsFold predicate on the "resolution" field.
 func ResolutionContainsFold(v string) predicate.Alert {
 	return predicate.Alert(sql.FieldContainsFold(FieldResolution, v))
+}
+
+// LastNotifiedAtEQ applies the EQ predicate on the "last_notified_at" field.
+func LastNotifiedAtEQ(v time.Time) predicate.Alert {
+	return predicate.Alert(sql.FieldEQ(FieldLastNotifiedAt, v))
+}
+
+// LastNotifiedAtNEQ applies the NEQ predicate on the "last_notified_at" field.
+func LastNotifiedAtNEQ(v time.Time) predicate.Alert {
+	return predicate.Alert(sql.FieldNEQ(FieldLastNotifiedAt, v))
+}
+
+// LastNotifiedAtIn applies the In predicate on the "last_notified_at" field.
+func LastNotifiedAtIn(vs ...time.Time) predicate.Alert {
+	return predicate.Alert(sql.FieldIn(FieldLastNotifiedAt, vs...))
+}
+
+// LastNotifiedAtNotIn applies the NotIn predicate on the "last_notified_at" field.
+func LastNotifiedAtNotIn(vs ...time.Time) predicate.Alert {
+	return predicate.Alert(sql.FieldNotIn(FieldLastNotifiedAt, vs...))
+}
+
+// LastNotifiedAtGT applies the GT predicate on the "last_notified_at" field.
+func LastNotifiedAtGT(v time.Time) predicate.Alert {
+	return predicate.Alert(sql.FieldGT(FieldLastNotifiedAt, v))
+}
+
+// LastNotifiedAtGTE applies the GTE predicate on the "last_notified_at" field.
+func LastNotifiedAtGTE(v time.Time) predicate.Alert {
+	return predicate.Alert(sql.FieldGTE(FieldLastNotifiedAt, v))
+}
+
+// LastNotifiedAtLT applies the LT predicate on the "last_notified_at" field.
+func LastNotifiedAtLT(v time.Time) predicate.Alert {
+	return predicate.Alert(sql.FieldLT(FieldLastNotifiedAt, v))
+}
+
+// LastNotifiedAtLTE applies the LTE predicate on the "last_notified_at" field.
+func LastNotifiedAtLTE(v time.Time) predicate.Alert {
+	return predicate.Alert(sql.FieldLTE(FieldLastNotifiedAt, v))
+}
+
+// LastNotifiedAtIsNil applies the IsNil predicate on the "last_notified_at" field.
+func LastNotifiedAtIsNil() predicate.Alert {
+	return predicate.Alert(sql.FieldIsNull(FieldLastNotifiedAt))
+}
+
+// LastNotifiedAtNotNil applies the NotNil predicate on the "last_notified_at" field.
+func LastNotifiedAtNotNil() predicate.Alert {
+	return predicate.Alert(sql.FieldNotNull(FieldLastNotifiedAt))
 }
 
 // And groups predicates with the AND operator between them.

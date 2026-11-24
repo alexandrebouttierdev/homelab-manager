@@ -14,6 +14,11 @@ power_actions_enabled: false
 # Clé maître du coffre de secrets (TOTP). Vide : la clé importée par systemd
 # (ImportCredential=homelab-manager-secrets-key, voir README).
 secrets_key_file: ""
+# Passkeys et clés FIDO2 (phase 8B) : nom de domaine de l'interface (pas une
+# adresse IP) et ses adresses exactes en HTTPS. Vide : WebAuthn désactivé.
+webauthn_rp_id: ""
+webauthn_rp_name: "Homelab Manager"
+webauthn_origins: []
 # Vulnérabilités des paquets (module V) : intervalle des scans automatiques
 # (6 à 168 h) et fichiers échangés avec l'unité homelab-vulnscan.service
 # (créés par deployments/tmpfiles/homelab-vulnscan.conf, voir README).

@@ -26,6 +26,8 @@ type pendingLogin struct {
 	userID    uuid.UUID
 	expiresAt time.Time
 	attempts  int
+	// webauthn is the session of the key ceremony in progress, if any.
+	webauthn []byte
 }
 
 // loginChallenges keeps the pending logins in memory, keyed by the hash of
@@ -88,4 +90,28 @@ func (c *loginChallenges) remove(token string) {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	delete(c.pending, sha256Hex(token))
+}
+
+// setSession attaches a key ceremony to a pending login.
+func (c *loginChallenges) setSession(token string, session []byte) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	login, ok := c.pending[sha256Hex(token)]
+	if ok {
+		login.webauthn = session
+	}
+	return ok
+}
+
+// takeSession returns the key ceremony of a pending login and clears it.
+func (c *loginChallenges) takeSession(token string) []byte {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	login, ok := c.pending[sha256Hex(token)]
+	if !ok {
+		return nil
+	}
+	session := login.webauthn
+	login.webauthn = nil
+	return session
 }

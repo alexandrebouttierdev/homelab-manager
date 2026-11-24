@@ -109,6 +109,7 @@ func NewRouter(logger *zap.Logger, services Services, sessionSecure bool, webRoo
 		})
 		r.With(sameOrigin, loginRateLimit).Post("/auth/login", loginHandler(auth, sessionSecure))
 		r.With(sameOrigin, loginRateLimit).Post("/auth/login/second-factor", completeSecondFactorHandler(auth, sessionSecure))
+		r.With(sameOrigin, loginRateLimit).Post("/auth/login/second-factor/webauthn", beginWebAuthnLoginHandler(auth, sessionSecure))
 		r.Get("/auth/session", sessionHandler(auth))
 		r.Group(func(protected chi.Router) {
 			protected.Use(requireSession(auth, tokens))
@@ -123,6 +124,9 @@ func NewRouter(logger *zap.Logger, services Services, sessionSecure bool, webRoo
 				changed.Post("/auth/second-factor/totp/confirm", confirmTOTPHandler(factors))
 				changed.Post("/auth/second-factor/recovery-codes", regenerateRecoveryCodesHandler(factors))
 				changed.Post("/auth/second-factor/disable", disableSecondFactorHandler(factors))
+				changed.Post("/auth/second-factor/webauthn", beginWebAuthnHandler(factors))
+				changed.Post("/auth/second-factor/webauthn/confirm", confirmWebAuthnHandler(factors))
+				changed.Post("/auth/second-factor/webauthn/{keyID}/delete", deleteWebAuthnHandler(factors))
 				changed.Group(func(active chi.Router) {
 					active.Use(requireSecondFactorEnrolled)
 					active.Get("/dashboard", dashboardHandler(monitoring))

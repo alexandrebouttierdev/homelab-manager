@@ -1,6 +1,6 @@
 # Spécification des modules d'administration — Homelab Manager
 
-Version 3.0 (brouillon) — 22 novembre 2026 — **partiellement implémenté** : comptes multiples et rôles (§§ 3.1–3.2, phase 1A), sessions, politique de sécurité et journal d'audit (§§ 3.4–3.5, phase 1B), coffre de secrets, TOTP et codes de secours (§§ 2.5, 3.3 hors WebAuthn, phase 1C) journaux système (§ 4, phase 2), consultation des services système (§ 5.1, phase 3), vulnérabilités des paquets (§ 8 ter, module V) et redémarrage et extinction de la machine (§ 8 bis, module M), le 23 novembre 2026 ; règles, cycle de vie, indicateurs, silences et canaux des alertes (§§ 6.1 à 6.4, phase 4), actions sur les services système (§ 5.2, phase 5), sauvegardes restic (§ 7, phase 6 : incréments 6A et 6B) tâches planifiées en lecture (§ 8, phase 7) et jetons d'API (§ 3.5, phase 8A), le 24 novembre 2026.
+Version 3.0 (brouillon) — 22 novembre 2026 — **partiellement implémenté** : comptes multiples et rôles (§§ 3.1–3.2, phase 1A), sessions, politique de sécurité et journal d'audit (§§ 3.4–3.5, phase 1B), coffre de secrets, TOTP et codes de secours (§§ 2.5, 3.3 hors WebAuthn, phase 1C) journaux système (§ 4, phase 2), consultation des services système (§ 5.1, phase 3), vulnérabilités des paquets (§ 8 ter, module V) et redémarrage et extinction de la machine (§ 8 bis, module M), le 23 novembre 2026 ; règles, cycle de vie, indicateurs, silences et canaux des alertes (§§ 6.1 à 6.4, phase 4), actions sur les services système (§ 5.2, phase 5), sauvegardes restic (§ 7, phase 6 : incréments 6A et 6B) tâches planifiées en lecture (§ 8, phase 7) et jetons d'API (§ 3.5, phase 8A), le 24 novembre 2026 ; WebAuthn comme second facteur (§ 3.3, phase 8B), le 25 novembre 2026.
 
 Ce document spécifie les modules annoncés « à venir » dans la navigation : utilisateurs et accès, journaux système, services système, alertes et notifications, sauvegardes, tâches planifiées, ainsi que le redémarrage et l'extinction de la machine (§ 8 bis, ajouté le 23 novembre 2026). Il s'appuie sur les maquettes de `maquette/` et en fixe le périmètre réel : une maquette montre une intention visuelle, ce document fait foi. Tant qu'un module n'est pas livré, il reste désactivé dans l'interface et ses routes n'existent pas.
 
@@ -98,7 +98,8 @@ Uniquement les comptes de Homelab Manager (règle 2).
 - **TOTP** (RFC 6238, SHA-1, 6 chiffres, période 30 s, tolérance ±1 période, code non réutilisable dans sa fenêtre) avec enrôlement par QR code et vérification d'un premier code.
 - **WebAuthn** (passkeys et clés FIDO2) : plusieurs clés par compte, nom libre, date d'enrôlement et de dernier usage ; vérification de l'utilisateur requise. L'identifiant de partie dépendante (`RP ID`) est le nom d'hôte de l'interface et doit être configuré (`webauthn_rp_id`, `webauthn_origins`) ; WebAuthn exige HTTPS sauf sur `localhost`.
 - **Codes de secours** : 10 codes à usage unique, affichés une seule fois, stockés hachés.
-- La connexion se fait en deux étapes : mot de passe (ou passkey seule si le compte l'autorise), puis second facteur si le compte en a un. Le bouton « Clé SSH » de la maquette est exclu.
+- La connexion se fait en deux étapes : mot de passe, puis second facteur si le compte en a un. Le bouton « Clé SSH » de la maquette est exclu.
+- *Livré en phase 8B* : jusqu'à 10 clés par compte, attestation non demandée (`none`), vérification de l'utilisateur exigée, refus d'un compteur de signatures qui recule ; la première clé d'un compte sans second facteur lui donne des codes de secours. La connexion par passkey seule, sans mot de passe, n'est pas implémentée.
 
 ### 3.4 Politique de sécurité (réglable par un administrateur)
 
@@ -297,7 +298,7 @@ Ajouté le 24 novembre 2026 à la demande du propriétaire du projet : détecter
 | 5 | Module S, actions par polkit. **Livrée** (liste blanche, règle générée, « Redémarrer » depuis une alerte) | Phase 1 |
 | 6 | Module B : dépôts, sauvegarde, rétention, restauration en quarantaine. **6A et 6B livrés** (dépôt, sources, exclusions, sauvegardes manuelles et planifiées, historique, instantanés, rétention, vérification, restauration en quarantaine, rattachement, déverrouillage) ; restent diff, copies et SFTP | Phases 1 et 4 |
 | 7 | Module C en lecture. **Livré** | Phase 2 |
-| 8 | WebAuthn, jetons d'API. **Jetons livrés (8A)** ; WebAuthn (8B) à venir | Phase 1, HTTPS |
+| 8 | WebAuthn, jetons d'API. **Livré** (8A : jetons ; 8B : WebAuthn comme second facteur) | Phase 1, HTTPS |
 | V | Module V : vulnérabilités des paquets (Grype) de la machine du Manager, placé après la phase 4. **Livré** (dpkg et apk ; RPM à venir) | Phase 4 (règle d'alerte) |
 
 Chaque phase livre son contrat dans API_CONTRACTS.md, ses tables dans DATA_MODEL.md, ses risques dans SECURITY.md, ses tests, et retire la mention « à venir » de son entrée de navigation.

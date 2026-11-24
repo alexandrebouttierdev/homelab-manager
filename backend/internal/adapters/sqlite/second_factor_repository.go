@@ -8,13 +8,17 @@ import (
 	"homelab-manager/backend/ent"
 	"homelab-manager/backend/ent/recoverycode"
 	"homelab-manager/backend/ent/totpsecret"
+	"homelab-manager/backend/ent/webauthncredential"
 	"homelab-manager/backend/internal/domain"
 	"homelab-manager/backend/internal/ports"
 
 	"github.com/google/uuid"
 )
 
-var _ ports.SecondFactorRepository = (*SecondFactorRepository)(nil)
+var (
+	_ ports.SecondFactorRepository = (*SecondFactorRepository)(nil)
+	_ ports.WebAuthnRepository     = (*SecondFactorRepository)(nil)
+)
 
 // SecondFactorRepository stores TOTP secrets (sealed) and recovery codes
 // (hashed).
@@ -93,6 +97,9 @@ func (r *SecondFactorRepository) DisableSecondFactor(ctx context.Context, userID
 		if _, err := tx.RecoveryCode.Delete().Where(recoverycode.UserID(userID)).Exec(ctx); err != nil {
 			return fmt.Errorf("delete recovery codes: %w", err)
 		}
+		if _, err := tx.WebauthnCredential.Delete().Where(webauthncredential.UserID(userID)).Exec(ctx); err != nil {
+			return fmt.Errorf("delete security keys: %w", err)
+		}
 		audit.TargetID = userID.String()
 		return writeAudit(ctx, tx, audit)
 	})
@@ -143,10 +150,96 @@ func (r *SecondFactorRepository) RemainingRecoveryCodes(ctx context.Context, use
 	return count, nil
 }
 
+// HasSecondFactor reports a confirmed TOTP secret or a security key.
 func (r *SecondFactorRepository) HasSecondFactor(ctx context.Context, userID uuid.UUID) (bool, error) {
 	exists, err := r.client.TotpSecret.Query().Where(totpsecret.ID(userID), totpsecret.ConfirmedAtNotNil()).Exist(ctx)
 	if err != nil {
 		return false, fmt.Errorf("check second factor: %w", err)
 	}
-	return exists, nil
+	if exists {
+		return true, nil
+	}
+	keys, err := r.client.WebauthnCredential.Query().Where(webauthncredential.UserID(userID)).Exist(ctx)
+	if err != nil {
+		return false, fmt.Errorf("check security keys: %w", err)
+	}
+	return keys, nil
+}
+
+func (r *SecondFactorRepository) WebAuthnCredentials(ctx context.Context, userID uuid.UUID) ([]domain.WebAuthnCredential, error) {
+	records, err := r.client.WebauthnCredential.Query().Where(webauthncredential.UserID(userID)).
+		Order(ent.Asc(webauthncredential.FieldCreatedAt)).All(ctx)
+	if err != nil {
+		return nil, fmt.Errorf("list security keys: %w", err)
+	}
+	credentials := make([]domain.WebAuthnCredential, 0, len(records))
+	for _, record := range records {
+		credentials = append(credentials, domain.WebAuthnCredential{
+			ID: record.ID, UserID: record.UserID, Name: record.Name, CredentialID: record.CredentialID,
+			Data: record.Data, CreatedAt: record.CreatedAt.UTC(), LastUsedAt: utcPointer(record.LastUsedAt),
+		})
+	}
+	return credentials, nil
+}
+
+func (r *SecondFactorRepository) AddWebAuthnCredential(ctx context.Context, credential domain.WebAuthnCredential, recoveryHashes []string, audit domain.AuditEntry) error {
+	return withTx(ctx, r.client, func(tx *ent.Tx) error {
+		count, err := tx.WebauthnCredential.Query().Where(webauthncredential.UserID(credential.UserID)).Count(ctx)
+		if err != nil {
+			return fmt.Errorf("count security keys: %w", err)
+		}
+		if count >= domain.MaxWebAuthnCredentials {
+			return domain.ErrTooManyWebAuthnKeys
+		}
+		if err := tx.WebauthnCredential.Create().SetID(credential.ID).SetUserID(credential.UserID).
+			SetName(credential.Name).SetCredentialID(credential.CredentialID).SetData(credential.Data).
+			SetCreatedAt(credential.CreatedAt.UTC()).Exec(ctx); err != nil {
+			if ent.IsConstraintError(err) {
+				return domain.ErrWebAuthnKeyExists
+			}
+			return fmt.Errorf("store security key: %w", err)
+		}
+		if recoveryHashes != nil {
+			if err := replaceRecoveryCodes(ctx, tx, credential.UserID, recoveryHashes); err != nil {
+				return err
+			}
+		}
+		return writeAudit(ctx, tx, audit)
+	})
+}
+
+func (r *SecondFactorRepository) UseWebAuthnCredential(ctx context.Context, id uuid.UUID, data []byte, at time.Time) error {
+	if err := r.client.WebauthnCredential.UpdateOneID(id).SetData(data).SetLastUsedAt(at.UTC()).Exec(ctx); err != nil {
+		return fmt.Errorf("record security key use: %w", err)
+	}
+	return nil
+}
+
+func (r *SecondFactorRepository) DeleteWebAuthnCredential(ctx context.Context, userID, id uuid.UUID, audit domain.AuditEntry) error {
+	return withTx(ctx, r.client, func(tx *ent.Tx) error {
+		deleted, err := tx.WebauthnCredential.Delete().
+			Where(webauthncredential.ID(id), webauthncredential.UserID(userID)).Exec(ctx)
+		if err != nil {
+			return fmt.Errorf("delete security key: %w", err)
+		}
+		if deleted == 0 {
+			return domain.ErrWebAuthnKeyNotFound
+		}
+		keys, err := tx.WebauthnCredential.Query().Where(webauthncredential.UserID(userID)).Exist(ctx)
+		if err != nil {
+			return fmt.Errorf("count security keys: %w", err)
+		}
+		totp, err := tx.TotpSecret.Query().Where(totpsecret.ID(userID), totpsecret.ConfirmedAtNotNil()).Exist(ctx)
+		if err != nil {
+			return fmt.Errorf("check TOTP: %w", err)
+		}
+		// Recovery codes only stand in for a second factor: with none left,
+		// they go too.
+		if !keys && !totp {
+			if _, err := tx.RecoveryCode.Delete().Where(recoverycode.UserID(userID)).Exec(ctx); err != nil {
+				return fmt.Errorf("delete recovery codes: %w", err)
+			}
+		}
+		return writeAudit(ctx, tx, audit)
+	})
 }

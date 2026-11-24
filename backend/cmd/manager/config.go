@@ -3,6 +3,8 @@ package main
 import (
 	"errors"
 	"fmt"
+	"net"
+	"net/url"
 	"path/filepath"
 	"strings"
 	"time"
@@ -37,6 +39,10 @@ type Config struct {
 	// ManageableUnits is the allow list of the service actions
 	// (systemd_manageable_units), validated by LoadConfig.
 	ManageableUnits domain.ManageableUnits
+	// WebAuthn (phase 8B): empty WebAuthnRPID leaves the security keys off.
+	WebAuthnRPID    string
+	WebAuthnRPName  string
+	WebAuthnOrigins []string
 }
 
 func LoadConfig() (Config, error) {
@@ -80,6 +86,12 @@ func LoadConfig() (Config, error) {
 	// created by deployments/tmpfiles/homelab-backup.conf.
 	v.SetDefault("backup_jobs_dir", "/var/lib/homelab-backup/jobs")
 	v.SetDefault("backup_runs_dir", "/var/lib/homelab-backup/runs")
+	// WebAuthn: the domain name the browser shows (not an IP address) and
+	// the origins of the interface; HOMELAB_WEBAUTHN_ORIGINS separates them
+	// by spaces. Without a domain name, passkeys and security keys are off.
+	v.SetDefault("webauthn_rp_id", "")
+	v.SetDefault("webauthn_rp_name", "Homelab Manager")
+	v.SetDefault("webauthn_origins", []string{})
 
 	if err := v.ReadInConfig(); err != nil {
 		var notFound viper.ConfigFileNotFoundError
@@ -110,6 +122,9 @@ func LoadConfig() (Config, error) {
 		VulnscanResultPath:             v.GetString("vulnscan_result_path"),
 		BackupJobsDir:                  v.GetString("backup_jobs_dir"),
 		BackupRunsDir:                  v.GetString("backup_runs_dir"),
+		WebAuthnRPID:                   strings.ToLower(strings.TrimSpace(v.GetString("webauthn_rp_id"))),
+		WebAuthnRPName:                 strings.TrimSpace(v.GetString("webauthn_rp_name")),
+		WebAuthnOrigins:                v.GetStringSlice("webauthn_origins"),
 	}
 	if config.TLSCertFile != "" {
 		config.SessionSecure = true
@@ -178,6 +193,41 @@ func (c Config) Validate() error {
 	}
 	if !filepath.IsAbs(c.BackupJobsDir) || !filepath.IsAbs(c.BackupRunsDir) {
 		return fmt.Errorf("backup jobs and runs directories must be absolute")
+	}
+	return c.validateWebAuthn()
+}
+
+// validateWebAuthn checks the relying party: a domain name, not an IP
+// address (WebAuthn refuses them), and origins of that domain, in HTTPS
+// except for localhost.
+func (c Config) validateWebAuthn() error {
+	if c.WebAuthnRPID == "" {
+		if len(c.WebAuthnOrigins) > 0 {
+			return fmt.Errorf("webauthn_origins needs webauthn_rp_id")
+		}
+		return nil
+	}
+	if net.ParseIP(c.WebAuthnRPID) != nil || strings.ContainsAny(c.WebAuthnRPID, ":/ ") || strings.Trim(c.WebAuthnRPID, ".") != c.WebAuthnRPID {
+		return fmt.Errorf("webauthn_rp_id must be a domain name, not an IP address or a URL")
+	}
+	if c.WebAuthnRPName == "" || len(c.WebAuthnRPName) > 64 {
+		return fmt.Errorf("webauthn_rp_name must have 1 to 64 bytes")
+	}
+	if len(c.WebAuthnOrigins) == 0 {
+		return fmt.Errorf("webauthn_origins is required with webauthn_rp_id")
+	}
+	for _, origin := range c.WebAuthnOrigins {
+		parsed, err := url.Parse(origin)
+		if err != nil || parsed.Host == "" || (parsed.Path != "" && parsed.Path != "/") || parsed.RawQuery != "" || parsed.Fragment != "" || parsed.User != nil {
+			return fmt.Errorf("webauthn origin %q must be a scheme and a host, like https://homelab.example", origin)
+		}
+		host := strings.ToLower(parsed.Hostname())
+		if host != c.WebAuthnRPID && !strings.HasSuffix(host, "."+c.WebAuthnRPID) {
+			return fmt.Errorf("webauthn origin %q is not in the domain %s", origin, c.WebAuthnRPID)
+		}
+		if parsed.Scheme != "https" && !(parsed.Scheme == "http" && host == "localhost") {
+			return fmt.Errorf("webauthn origin %q must use HTTPS", origin)
+		}
 	}
 	return nil
 }

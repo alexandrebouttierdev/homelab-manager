@@ -8,6 +8,30 @@ import (
 	"homelab-manager/backend/ent"
 )
 
+// The AlertFunc type is an adapter to allow the use of ordinary
+// function as Alert mutator.
+type AlertFunc func(context.Context, *ent.AlertMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f AlertFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.AlertMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AlertMutation", m)
+}
+
+// The AlertRuleFunc type is an adapter to allow the use of ordinary
+// function as AlertRule mutator.
+type AlertRuleFunc func(context.Context, *ent.AlertRuleMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f AlertRuleFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.AlertRuleMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.AlertRuleMutation", m)
+}
+
 // The AppSettingFunc type is an adapter to allow the use of ordinary
 // function as AppSetting mutator.
 type AppSettingFunc func(context.Context, *ent.AppSettingMutation) (ent.Value, error)

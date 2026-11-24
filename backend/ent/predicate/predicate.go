@@ -6,6 +6,12 @@ import (
 	"entgo.io/ent/dialect/sql"
 )
 
+// Alert is the predicate function for alert builders.
+type Alert func(*sql.Selector)
+
+// AlertRule is the predicate function for alertrule builders.
+type AlertRule func(*sql.Selector)
+
 // AppSetting is the predicate function for appsetting builders.
 type AppSetting func(*sql.Selector)
 

@@ -3,6 +3,8 @@
 package ent
 
 import (
+	"homelab-manager/backend/ent/alert"
+	"homelab-manager/backend/ent/alertrule"
 	"homelab-manager/backend/ent/appsetting"
 	"homelab-manager/backend/ent/auditlog"
 	"homelab-manager/backend/ent/container"
@@ -27,6 +29,78 @@ import (
 // (default values, validators, hooks and policies) and stitches it
 // to their package variables.
 func init() {
+	alertFields := schema.Alert{}.Fields()
+	_ = alertFields
+	// alertDescRuleName is the schema descriptor for rule_name field.
+	alertDescRuleName := alertFields[2].Descriptor()
+	// alert.RuleNameValidator is a validator for the "rule_name" field. It is called by the builders before save.
+	alert.RuleNameValidator = alertDescRuleName.Validators[0].(func(string) error)
+	// alertDescRuleType is the schema descriptor for rule_type field.
+	alertDescRuleType := alertFields[3].Descriptor()
+	// alert.RuleTypeValidator is a validator for the "rule_type" field. It is called by the builders before save.
+	alert.RuleTypeValidator = alertDescRuleType.Validators[0].(func(string) error)
+	// alertDescSeverity is the schema descriptor for severity field.
+	alertDescSeverity := alertFields[4].Descriptor()
+	// alert.SeverityValidator is a validator for the "severity" field. It is called by the builders before save.
+	alert.SeverityValidator = alertDescSeverity.Validators[0].(func(string) error)
+	// alertDescTargetKey is the schema descriptor for target_key field.
+	alertDescTargetKey := alertFields[5].Descriptor()
+	// alert.TargetKeyValidator is a validator for the "target_key" field. It is called by the builders before save.
+	alert.TargetKeyValidator = alertDescTargetKey.Validators[0].(func(string) error)
+	// alertDescTarget is the schema descriptor for target field.
+	alertDescTarget := alertFields[6].Descriptor()
+	// alert.DefaultTarget holds the default value on creation for the target field.
+	alert.DefaultTarget = alertDescTarget.Default.(string)
+	// alertDescState is the schema descriptor for state field.
+	alertDescState := alertFields[7].Descriptor()
+	// alert.StateValidator is a validator for the "state" field. It is called by the builders before save.
+	alert.StateValidator = alertDescState.Validators[0].(func(string) error)
+	// alertDescObserved is the schema descriptor for observed field.
+	alertDescObserved := alertFields[10].Descriptor()
+	// alert.DefaultObserved holds the default value on creation for the observed field.
+	alert.DefaultObserved = alertDescObserved.Default.(string)
+	// alertDescID is the schema descriptor for id field.
+	alertDescID := alertFields[0].Descriptor()
+	// alert.DefaultID holds the default value on creation for the id field.
+	alert.DefaultID = alertDescID.Default.(func() uuid.UUID)
+	alertruleFields := schema.AlertRule{}.Fields()
+	_ = alertruleFields
+	// alertruleDescName is the schema descriptor for name field.
+	alertruleDescName := alertruleFields[1].Descriptor()
+	// alertrule.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	alertrule.NameValidator = alertruleDescName.Validators[0].(func(string) error)
+	// alertruleDescType is the schema descriptor for type field.
+	alertruleDescType := alertruleFields[2].Descriptor()
+	// alertrule.TypeValidator is a validator for the "type" field. It is called by the builders before save.
+	alertrule.TypeValidator = alertruleDescType.Validators[0].(func(string) error)
+	// alertruleDescSeverity is the schema descriptor for severity field.
+	alertruleDescSeverity := alertruleFields[3].Descriptor()
+	// alertrule.SeverityValidator is a validator for the "severity" field. It is called by the builders before save.
+	alertrule.SeverityValidator = alertruleDescSeverity.Validators[0].(func(string) error)
+	// alertruleDescEnabled is the schema descriptor for enabled field.
+	alertruleDescEnabled := alertruleFields[4].Descriptor()
+	// alertrule.DefaultEnabled holds the default value on creation for the enabled field.
+	alertrule.DefaultEnabled = alertruleDescEnabled.Default.(bool)
+	// alertruleDescIsDefault is the schema descriptor for is_default field.
+	alertruleDescIsDefault := alertruleFields[5].Descriptor()
+	// alertrule.DefaultIsDefault holds the default value on creation for the is_default field.
+	alertrule.DefaultIsDefault = alertruleDescIsDefault.Default.(bool)
+	// alertruleDescParams is the schema descriptor for params field.
+	alertruleDescParams := alertruleFields[6].Descriptor()
+	// alertrule.DefaultParams holds the default value on creation for the params field.
+	alertrule.DefaultParams = alertruleDescParams.Default.(string)
+	// alertruleDescCreatedAt is the schema descriptor for created_at field.
+	alertruleDescCreatedAt := alertruleFields[7].Descriptor()
+	// alertrule.DefaultCreatedAt holds the default value on creation for the created_at field.
+	alertrule.DefaultCreatedAt = alertruleDescCreatedAt.Default.(func() time.Time)
+	// alertruleDescUpdatedAt is the schema descriptor for updated_at field.
+	alertruleDescUpdatedAt := alertruleFields[8].Descriptor()
+	// alertrule.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	alertrule.DefaultUpdatedAt = alertruleDescUpdatedAt.Default.(func() time.Time)
+	// alertruleDescID is the schema descriptor for id field.
+	alertruleDescID := alertruleFields[0].Descriptor()
+	// alertrule.DefaultID holds the default value on creation for the id field.
+	alertrule.DefaultID = alertruleDescID.Default.(func() uuid.UUID)
 	appsettingFields := schema.AppSetting{}.Fields()
 	_ = appsettingFields
 	// appsettingDescSingletonKey is the schema descriptor for singleton_key field.

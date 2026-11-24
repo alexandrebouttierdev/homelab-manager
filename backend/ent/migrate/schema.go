@@ -8,6 +8,49 @@ import (
 )
 
 var (
+	// AlertsColumns holds the columns for the "alerts" table.
+	AlertsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "rule_id", Type: field.TypeUUID},
+		{Name: "rule_name", Type: field.TypeString},
+		{Name: "rule_type", Type: field.TypeString},
+		{Name: "severity", Type: field.TypeString},
+		{Name: "target_key", Type: field.TypeString},
+		{Name: "target", Type: field.TypeString, Size: 2147483647, Default: "{}"},
+		{Name: "state", Type: field.TypeString},
+		{Name: "value", Type: field.TypeFloat64, Nullable: true},
+		{Name: "threshold", Type: field.TypeFloat64, Nullable: true},
+		{Name: "observed", Type: field.TypeString, Default: ""},
+		{Name: "fired_at", Type: field.TypeTime},
+		{Name: "acknowledged_at", Type: field.TypeTime, Nullable: true},
+		{Name: "acknowledged_by", Type: field.TypeString, Nullable: true},
+		{Name: "resolved_at", Type: field.TypeTime, Nullable: true},
+		{Name: "resolution", Type: field.TypeString, Nullable: true},
+	}
+	// AlertsTable holds the schema information for the "alerts" table.
+	AlertsTable = &schema.Table{
+		Name:       "alerts",
+		Columns:    AlertsColumns,
+		PrimaryKey: []*schema.Column{AlertsColumns[0]},
+	}
+	// AlertRulesColumns holds the columns for the "alert_rules" table.
+	AlertRulesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "name", Type: field.TypeString},
+		{Name: "type", Type: field.TypeString},
+		{Name: "severity", Type: field.TypeString},
+		{Name: "enabled", Type: field.TypeBool, Default: true},
+		{Name: "is_default", Type: field.TypeBool, Default: false},
+		{Name: "params", Type: field.TypeString, Size: 2147483647, Default: "{}"},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// AlertRulesTable holds the schema information for the "alert_rules" table.
+	AlertRulesTable = &schema.Table{
+		Name:       "alert_rules",
+		Columns:    AlertRulesColumns,
+		PrimaryKey: []*schema.Column{AlertRulesColumns[0]},
+	}
 	// AppSettingsColumns holds the columns for the "app_settings" table.
 	AppSettingsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -260,6 +303,8 @@ var (
 	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
+		AlertsTable,
+		AlertRulesTable,
 		AppSettingsTable,
 		AuditLogsTable,
 		ContainersTable,

@@ -6,6 +6,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"homelab-manager/backend/ent/alert"
+	"homelab-manager/backend/ent/alertrule"
 	"homelab-manager/backend/ent/appsetting"
 	"homelab-manager/backend/ent/auditlog"
 	"homelab-manager/backend/ent/container"
@@ -38,6 +40,8 @@ const (
 	OpUpdateOne = ent.OpUpdateOne
 
 	// Node types.
+	TypeAlert                 = "Alert"
+	TypeAlertRule             = "AlertRule"
 	TypeAppSetting            = "AppSetting"
 	TypeAuditLog              = "AuditLog"
 	TypeContainer             = "Container"
@@ -53,6 +57,1992 @@ const (
 	TypeTotpSecret            = "TotpSecret"
 	TypeUser                  = "User"
 )
+
+// AlertMutation represents an operation that mutates the Alert nodes in the graph.
+type AlertMutation struct {
+	config
+	op              Op
+	typ             string
+	id              *uuid.UUID
+	rule_id         *uuid.UUID
+	rule_name       *string
+	rule_type       *string
+	severity        *string
+	target_key      *string
+	target          *string
+	state           *string
+	value           *float64
+	addvalue        *float64
+	threshold       *float64
+	addthreshold    *float64
+	observed        *string
+	fired_at        *time.Time
+	acknowledged_at *time.Time
+	acknowledged_by *string
+	resolved_at     *time.Time
+	resolution      *string
+	clearedFields   map[string]struct{}
+	done            bool
+	oldValue        func(context.Context) (*Alert, error)
+	predicates      []predicate.Alert
+}
+
+var _ ent.Mutation = (*AlertMutation)(nil)
+
+// alertOption allows management of the mutation configuration using functional options.
+type alertOption func(*AlertMutation)
+
+// newAlertMutation creates new mutation for the Alert entity.
+func newAlertMutation(c config, op Op, opts ...alertOption) *AlertMutation {
+	m := &AlertMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeAlert,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withAlertID sets the ID field of the mutation.
+func withAlertID(id uuid.UUID) alertOption {
+	return func(m *AlertMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *Alert
+		)
+		m.oldValue = func(ctx context.Context) (*Alert, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().Alert.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withAlert sets the old Alert of the mutation.
+func withAlert(node *Alert) alertOption {
+	return func(m *AlertMutation) {
+		m.oldValue = func(context.Context) (*Alert, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m AlertMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m AlertMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of Alert entities.
+func (m *AlertMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *AlertMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *AlertMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().Alert.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetRuleID sets the "rule_id" field.
+func (m *AlertMutation) SetRuleID(u uuid.UUID) {
+	m.rule_id = &u
+}
+
+// RuleID returns the value of the "rule_id" field in the mutation.
+func (m *AlertMutation) RuleID() (r uuid.UUID, exists bool) {
+	v := m.rule_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRuleID returns the old "rule_id" field's value of the Alert entity.
+// If the Alert object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AlertMutation) OldRuleID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRuleID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRuleID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRuleID: %w", err)
+	}
+	return oldValue.RuleID, nil
+}
+
+// ResetRuleID resets all changes to the "rule_id" field.
+func (m *AlertMutation) ResetRuleID() {
+	m.rule_id = nil
+}
+
+// SetRuleName sets the "rule_name" field.
+func (m *AlertMutation) SetRuleName(s string) {
+	m.rule_name = &s
+}
+
+// RuleName returns the value of the "rule_name" field in the mutation.
+func (m *AlertMutation) RuleName() (r string, exists bool) {
+	v := m.rule_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRuleName returns the old "rule_name" field's value of the Alert entity.
+// If the Alert object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AlertMutation) OldRuleName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRuleName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRuleName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRuleName: %w", err)
+	}
+	return oldValue.RuleName, nil
+}
+
+// ResetRuleName resets all changes to the "rule_name" field.
+func (m *AlertMutation) ResetRuleName() {
+	m.rule_name = nil
+}
+
+// SetRuleType sets the "rule_type" field.
+func (m *AlertMutation) SetRuleType(s string) {
+	m.rule_type = &s
+}
+
+// RuleType returns the value of the "rule_type" field in the mutation.
+func (m *AlertMutation) RuleType() (r string, exists bool) {
+	v := m.rule_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRuleType returns the old "rule_type" field's value of the Alert entity.
+// If the Alert object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AlertMutation) OldRuleType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRuleType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRuleType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRuleType: %w", err)
+	}
+	return oldValue.RuleType, nil
+}
+
+// ResetRuleType resets all changes to the "rule_type" field.
+func (m *AlertMutation) ResetRuleType() {
+	m.rule_type = nil
+}
+
+// SetSeverity sets the "severity" field.
+func (m *AlertMutation) SetSeverity(s string) {
+	m.severity = &s
+}
+
+// Severity returns the value of the "severity" field in the mutation.
+func (m *AlertMutation) Severity() (r string, exists bool) {
+	v := m.severity
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSeverity returns the old "severity" field's value of the Alert entity.
+// If the Alert object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AlertMutation) OldSeverity(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSeverity is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSeverity requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSeverity: %w", err)
+	}
+	return oldValue.Severity, nil
+}
+
+// ResetSeverity resets all changes to the "severity" field.
+func (m *AlertMutation) ResetSeverity() {
+	m.severity = nil
+}
+
+// SetTargetKey sets the "target_key" field.
+func (m *AlertMutation) SetTargetKey(s string) {
+	m.target_key = &s
+}
+
+// TargetKey returns the value of the "target_key" field in the mutation.
+func (m *AlertMutation) TargetKey() (r string, exists bool) {
+	v := m.target_key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTargetKey returns the old "target_key" field's value of the Alert entity.
+// If the Alert object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AlertMutation) OldTargetKey(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTargetKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTargetKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTargetKey: %w", err)
+	}
+	return oldValue.TargetKey, nil
+}
+
+// ResetTargetKey resets all changes to the "target_key" field.
+func (m *AlertMutation) ResetTargetKey() {
+	m.target_key = nil
+}
+
+// SetTarget sets the "target" field.
+func (m *AlertMutation) SetTarget(s string) {
+	m.target = &s
+}
+
+// Target returns the value of the "target" field in the mutation.
+func (m *AlertMutation) Target() (r string, exists bool) {
+	v := m.target
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldTarget returns the old "target" field's value of the Alert entity.
+// If the Alert object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AlertMutation) OldTarget(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldTarget is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldTarget requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldTarget: %w", err)
+	}
+	return oldValue.Target, nil
+}
+
+// ResetTarget resets all changes to the "target" field.
+func (m *AlertMutation) ResetTarget() {
+	m.target = nil
+}
+
+// SetState sets the "state" field.
+func (m *AlertMutation) SetState(s string) {
+	m.state = &s
+}
+
+// State returns the value of the "state" field in the mutation.
+func (m *AlertMutation) State() (r string, exists bool) {
+	v := m.state
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldState returns the old "state" field's value of the Alert entity.
+// If the Alert object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AlertMutation) OldState(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldState is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldState requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldState: %w", err)
+	}
+	return oldValue.State, nil
+}
+
+// ResetState resets all changes to the "state" field.
+func (m *AlertMutation) ResetState() {
+	m.state = nil
+}
+
+// SetValue sets the "value" field.
+func (m *AlertMutation) SetValue(f float64) {
+	m.value = &f
+	m.addvalue = nil
+}
+
+// Value returns the value of the "value" field in the mutation.
+func (m *AlertMutation) Value() (r float64, exists bool) {
+	v := m.value
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldValue returns the old "value" field's value of the Alert entity.
+// If the Alert object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AlertMutation) OldValue(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldValue is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldValue requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldValue: %w", err)
+	}
+	return oldValue.Value, nil
+}
+
+// AddValue adds f to the "value" field.
+func (m *AlertMutation) AddValue(f float64) {
+	if m.addvalue != nil {
+		*m.addvalue += f
+	} else {
+		m.addvalue = &f
+	}
+}
+
+// AddedValue returns the value that was added to the "value" field in this mutation.
+func (m *AlertMutation) AddedValue() (r float64, exists bool) {
+	v := m.addvalue
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearValue clears the value of the "value" field.
+func (m *AlertMutation) ClearValue() {
+	m.value = nil
+	m.addvalue = nil
+	m.clearedFields[alert.FieldValue] = struct{}{}
+}
+
+// ValueCleared returns if the "value" field was cleared in this mutation.
+func (m *AlertMutation) ValueCleared() bool {
+	_, ok := m.clearedFields[alert.FieldValue]
+	return ok
+}
+
+// ResetValue resets all changes to the "value" field.
+func (m *AlertMutation) ResetValue() {
+	m.value = nil
+	m.addvalue = nil
+	delete(m.clearedFields, alert.FieldValue)
+}
+
+// SetThreshold sets the "threshold" field.
+func (m *AlertMutation) SetThreshold(f float64) {
+	m.threshold = &f
+	m.addthreshold = nil
+}
+
+// Threshold returns the value of the "threshold" field in the mutation.
+func (m *AlertMutation) Threshold() (r float64, exists bool) {
+	v := m.threshold
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldThreshold returns the old "threshold" field's value of the Alert entity.
+// If the Alert object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AlertMutation) OldThreshold(ctx context.Context) (v *float64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldThreshold is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldThreshold requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldThreshold: %w", err)
+	}
+	return oldValue.Threshold, nil
+}
+
+// AddThreshold adds f to the "threshold" field.
+func (m *AlertMutation) AddThreshold(f float64) {
+	if m.addthreshold != nil {
+		*m.addthreshold += f
+	} else {
+		m.addthreshold = &f
+	}
+}
+
+// AddedThreshold returns the value that was added to the "threshold" field in this mutation.
+func (m *AlertMutation) AddedThreshold() (r float64, exists bool) {
+	v := m.addthreshold
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearThreshold clears the value of the "threshold" field.
+func (m *AlertMutation) ClearThreshold() {
+	m.threshold = nil
+	m.addthreshold = nil
+	m.clearedFields[alert.FieldThreshold] = struct{}{}
+}
+
+// ThresholdCleared returns if the "threshold" field was cleared in this mutation.
+func (m *AlertMutation) ThresholdCleared() bool {
+	_, ok := m.clearedFields[alert.FieldThreshold]
+	return ok
+}
+
+// ResetThreshold resets all changes to the "threshold" field.
+func (m *AlertMutation) ResetThreshold() {
+	m.threshold = nil
+	m.addthreshold = nil
+	delete(m.clearedFields, alert.FieldThreshold)
+}
+
+// SetObserved sets the "observed" field.
+func (m *AlertMutation) SetObserved(s string) {
+	m.observed = &s
+}
+
+// Observed returns the value of the "observed" field in the mutation.
+func (m *AlertMutation) Observed() (r string, exists bool) {
+	v := m.observed
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldObserved returns the old "observed" field's value of the Alert entity.
+// If the Alert object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AlertMutation) OldObserved(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldObserved is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldObserved requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldObserved: %w", err)
+	}
+	return oldValue.Observed, nil
+}
+
+// ResetObserved resets all changes to the "observed" field.
+func (m *AlertMutation) ResetObserved() {
+	m.observed = nil
+}
+
+// SetFiredAt sets the "fired_at" field.
+func (m *AlertMutation) SetFiredAt(t time.Time) {
+	m.fired_at = &t
+}
+
+// FiredAt returns the value of the "fired_at" field in the mutation.
+func (m *AlertMutation) FiredAt() (r time.Time, exists bool) {
+	v := m.fired_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFiredAt returns the old "fired_at" field's value of the Alert entity.
+// If the Alert object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AlertMutation) OldFiredAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFiredAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFiredAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFiredAt: %w", err)
+	}
+	return oldValue.FiredAt, nil
+}
+
+// ResetFiredAt resets all changes to the "fired_at" field.
+func (m *AlertMutation) ResetFiredAt() {
+	m.fired_at = nil
+}
+
+// SetAcknowledgedAt sets the "acknowledged_at" field.
+func (m *AlertMutation) SetAcknowledgedAt(t time.Time) {
+	m.acknowledged_at = &t
+}
+
+// AcknowledgedAt returns the value of the "acknowledged_at" field in the mutation.
+func (m *AlertMutation) AcknowledgedAt() (r time.Time, exists bool) {
+	v := m.acknowledged_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAcknowledgedAt returns the old "acknowledged_at" field's value of the Alert entity.
+// If the Alert object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AlertMutation) OldAcknowledgedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAcknowledgedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAcknowledgedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAcknowledgedAt: %w", err)
+	}
+	return oldValue.AcknowledgedAt, nil
+}
+
+// ClearAcknowledgedAt clears the value of the "acknowledged_at" field.
+func (m *AlertMutation) ClearAcknowledgedAt() {
+	m.acknowledged_at = nil
+	m.clearedFields[alert.FieldAcknowledgedAt] = struct{}{}
+}
+
+// AcknowledgedAtCleared returns if the "acknowledged_at" field was cleared in this mutation.
+func (m *AlertMutation) AcknowledgedAtCleared() bool {
+	_, ok := m.clearedFields[alert.FieldAcknowledgedAt]
+	return ok
+}
+
+// ResetAcknowledgedAt resets all changes to the "acknowledged_at" field.
+func (m *AlertMutation) ResetAcknowledgedAt() {
+	m.acknowledged_at = nil
+	delete(m.clearedFields, alert.FieldAcknowledgedAt)
+}
+
+// SetAcknowledgedBy sets the "acknowledged_by" field.
+func (m *AlertMutation) SetAcknowledgedBy(s string) {
+	m.acknowledged_by = &s
+}
+
+// AcknowledgedBy returns the value of the "acknowledged_by" field in the mutation.
+func (m *AlertMutation) AcknowledgedBy() (r string, exists bool) {
+	v := m.acknowledged_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAcknowledgedBy returns the old "acknowledged_by" field's value of the Alert entity.
+// If the Alert object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AlertMutation) OldAcknowledgedBy(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAcknowledgedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAcknowledgedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAcknowledgedBy: %w", err)
+	}
+	return oldValue.AcknowledgedBy, nil
+}
+
+// ClearAcknowledgedBy clears the value of the "acknowledged_by" field.
+func (m *AlertMutation) ClearAcknowledgedBy() {
+	m.acknowledged_by = nil
+	m.clearedFields[alert.FieldAcknowledgedBy] = struct{}{}
+}
+
+// AcknowledgedByCleared returns if the "acknowledged_by" field was cleared in this mutation.
+func (m *AlertMutation) AcknowledgedByCleared() bool {
+	_, ok := m.clearedFields[alert.FieldAcknowledgedBy]
+	return ok
+}
+
+// ResetAcknowledgedBy resets all changes to the "acknowledged_by" field.
+func (m *AlertMutation) ResetAcknowledgedBy() {
+	m.acknowledged_by = nil
+	delete(m.clearedFields, alert.FieldAcknowledgedBy)
+}
+
+// SetResolvedAt sets the "resolved_at" field.
+func (m *AlertMutation) SetResolvedAt(t time.Time) {
+	m.resolved_at = &t
+}
+
+// ResolvedAt returns the value of the "resolved_at" field in the mutation.
+func (m *AlertMutation) ResolvedAt() (r time.Time, exists bool) {
+	v := m.resolved_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldResolvedAt returns the old "resolved_at" field's value of the Alert entity.
+// If the Alert object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AlertMutation) OldResolvedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldResolvedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldResolvedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldResolvedAt: %w", err)
+	}
+	return oldValue.ResolvedAt, nil
+}
+
+// ClearResolvedAt clears the value of the "resolved_at" field.
+func (m *AlertMutation) ClearResolvedAt() {
+	m.resolved_at = nil
+	m.clearedFields[alert.FieldResolvedAt] = struct{}{}
+}
+
+// ResolvedAtCleared returns if the "resolved_at" field was cleared in this mutation.
+func (m *AlertMutation) ResolvedAtCleared() bool {
+	_, ok := m.clearedFields[alert.FieldResolvedAt]
+	return ok
+}
+
+// ResetResolvedAt resets all changes to the "resolved_at" field.
+func (m *AlertMutation) ResetResolvedAt() {
+	m.resolved_at = nil
+	delete(m.clearedFields, alert.FieldResolvedAt)
+}
+
+// SetResolution sets the "resolution" field.
+func (m *AlertMutation) SetResolution(s string) {
+	m.resolution = &s
+}
+
+// Resolution returns the value of the "resolution" field in the mutation.
+func (m *AlertMutation) Resolution() (r string, exists bool) {
+	v := m.resolution
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldResolution returns the old "resolution" field's value of the Alert entity.
+// If the Alert object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AlertMutation) OldResolution(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldResolution is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldResolution requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldResolution: %w", err)
+	}
+	return oldValue.Resolution, nil
+}
+
+// ClearResolution clears the value of the "resolution" field.
+func (m *AlertMutation) ClearResolution() {
+	m.resolution = nil
+	m.clearedFields[alert.FieldResolution] = struct{}{}
+}
+
+// ResolutionCleared returns if the "resolution" field was cleared in this mutation.
+func (m *AlertMutation) ResolutionCleared() bool {
+	_, ok := m.clearedFields[alert.FieldResolution]
+	return ok
+}
+
+// ResetResolution resets all changes to the "resolution" field.
+func (m *AlertMutation) ResetResolution() {
+	m.resolution = nil
+	delete(m.clearedFields, alert.FieldResolution)
+}
+
+// Where appends a list predicates to the AlertMutation builder.
+func (m *AlertMutation) Where(ps ...predicate.Alert) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the AlertMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *AlertMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.Alert, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *AlertMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *AlertMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (Alert).
+func (m *AlertMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *AlertMutation) Fields() []string {
+	fields := make([]string, 0, 15)
+	if m.rule_id != nil {
+		fields = append(fields, alert.FieldRuleID)
+	}
+	if m.rule_name != nil {
+		fields = append(fields, alert.FieldRuleName)
+	}
+	if m.rule_type != nil {
+		fields = append(fields, alert.FieldRuleType)
+	}
+	if m.severity != nil {
+		fields = append(fields, alert.FieldSeverity)
+	}
+	if m.target_key != nil {
+		fields = append(fields, alert.FieldTargetKey)
+	}
+	if m.target != nil {
+		fields = append(fields, alert.FieldTarget)
+	}
+	if m.state != nil {
+		fields = append(fields, alert.FieldState)
+	}
+	if m.value != nil {
+		fields = append(fields, alert.FieldValue)
+	}
+	if m.threshold != nil {
+		fields = append(fields, alert.FieldThreshold)
+	}
+	if m.observed != nil {
+		fields = append(fields, alert.FieldObserved)
+	}
+	if m.fired_at != nil {
+		fields = append(fields, alert.FieldFiredAt)
+	}
+	if m.acknowledged_at != nil {
+		fields = append(fields, alert.FieldAcknowledgedAt)
+	}
+	if m.acknowledged_by != nil {
+		fields = append(fields, alert.FieldAcknowledgedBy)
+	}
+	if m.resolved_at != nil {
+		fields = append(fields, alert.FieldResolvedAt)
+	}
+	if m.resolution != nil {
+		fields = append(fields, alert.FieldResolution)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *AlertMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case alert.FieldRuleID:
+		return m.RuleID()
+	case alert.FieldRuleName:
+		return m.RuleName()
+	case alert.FieldRuleType:
+		return m.RuleType()
+	case alert.FieldSeverity:
+		return m.Severity()
+	case alert.FieldTargetKey:
+		return m.TargetKey()
+	case alert.FieldTarget:
+		return m.Target()
+	case alert.FieldState:
+		return m.State()
+	case alert.FieldValue:
+		return m.Value()
+	case alert.FieldThreshold:
+		return m.Threshold()
+	case alert.FieldObserved:
+		return m.Observed()
+	case alert.FieldFiredAt:
+		return m.FiredAt()
+	case alert.FieldAcknowledgedAt:
+		return m.AcknowledgedAt()
+	case alert.FieldAcknowledgedBy:
+		return m.AcknowledgedBy()
+	case alert.FieldResolvedAt:
+		return m.ResolvedAt()
+	case alert.FieldResolution:
+		return m.Resolution()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *AlertMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case alert.FieldRuleID:
+		return m.OldRuleID(ctx)
+	case alert.FieldRuleName:
+		return m.OldRuleName(ctx)
+	case alert.FieldRuleType:
+		return m.OldRuleType(ctx)
+	case alert.FieldSeverity:
+		return m.OldSeverity(ctx)
+	case alert.FieldTargetKey:
+		return m.OldTargetKey(ctx)
+	case alert.FieldTarget:
+		return m.OldTarget(ctx)
+	case alert.FieldState:
+		return m.OldState(ctx)
+	case alert.FieldValue:
+		return m.OldValue(ctx)
+	case alert.FieldThreshold:
+		return m.OldThreshold(ctx)
+	case alert.FieldObserved:
+		return m.OldObserved(ctx)
+	case alert.FieldFiredAt:
+		return m.OldFiredAt(ctx)
+	case alert.FieldAcknowledgedAt:
+		return m.OldAcknowledgedAt(ctx)
+	case alert.FieldAcknowledgedBy:
+		return m.OldAcknowledgedBy(ctx)
+	case alert.FieldResolvedAt:
+		return m.OldResolvedAt(ctx)
+	case alert.FieldResolution:
+		return m.OldResolution(ctx)
+	}
+	return nil, fmt.Errorf("unknown Alert field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *AlertMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case alert.FieldRuleID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRuleID(v)
+		return nil
+	case alert.FieldRuleName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRuleName(v)
+		return nil
+	case alert.FieldRuleType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRuleType(v)
+		return nil
+	case alert.FieldSeverity:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSeverity(v)
+		return nil
+	case alert.FieldTargetKey:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTargetKey(v)
+		return nil
+	case alert.FieldTarget:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetTarget(v)
+		return nil
+	case alert.FieldState:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetState(v)
+		return nil
+	case alert.FieldValue:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetValue(v)
+		return nil
+	case alert.FieldThreshold:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetThreshold(v)
+		return nil
+	case alert.FieldObserved:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetObserved(v)
+		return nil
+	case alert.FieldFiredAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFiredAt(v)
+		return nil
+	case alert.FieldAcknowledgedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAcknowledgedAt(v)
+		return nil
+	case alert.FieldAcknowledgedBy:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAcknowledgedBy(v)
+		return nil
+	case alert.FieldResolvedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetResolvedAt(v)
+		return nil
+	case alert.FieldResolution:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetResolution(v)
+		return nil
+	}
+	return fmt.Errorf("unknown Alert field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *AlertMutation) AddedFields() []string {
+	var fields []string
+	if m.addvalue != nil {
+		fields = append(fields, alert.FieldValue)
+	}
+	if m.addthreshold != nil {
+		fields = append(fields, alert.FieldThreshold)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *AlertMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case alert.FieldValue:
+		return m.AddedValue()
+	case alert.FieldThreshold:
+		return m.AddedThreshold()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *AlertMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case alert.FieldValue:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddValue(v)
+		return nil
+	case alert.FieldThreshold:
+		v, ok := value.(float64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddThreshold(v)
+		return nil
+	}
+	return fmt.Errorf("unknown Alert numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *AlertMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(alert.FieldValue) {
+		fields = append(fields, alert.FieldValue)
+	}
+	if m.FieldCleared(alert.FieldThreshold) {
+		fields = append(fields, alert.FieldThreshold)
+	}
+	if m.FieldCleared(alert.FieldAcknowledgedAt) {
+		fields = append(fields, alert.FieldAcknowledgedAt)
+	}
+	if m.FieldCleared(alert.FieldAcknowledgedBy) {
+		fields = append(fields, alert.FieldAcknowledgedBy)
+	}
+	if m.FieldCleared(alert.FieldResolvedAt) {
+		fields = append(fields, alert.FieldResolvedAt)
+	}
+	if m.FieldCleared(alert.FieldResolution) {
+		fields = append(fields, alert.FieldResolution)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *AlertMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *AlertMutation) ClearField(name string) error {
+	switch name {
+	case alert.FieldValue:
+		m.ClearValue()
+		return nil
+	case alert.FieldThreshold:
+		m.ClearThreshold()
+		return nil
+	case alert.FieldAcknowledgedAt:
+		m.ClearAcknowledgedAt()
+		return nil
+	case alert.FieldAcknowledgedBy:
+		m.ClearAcknowledgedBy()
+		return nil
+	case alert.FieldResolvedAt:
+		m.ClearResolvedAt()
+		return nil
+	case alert.FieldResolution:
+		m.ClearResolution()
+		return nil
+	}
+	return fmt.Errorf("unknown Alert nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *AlertMutation) ResetField(name string) error {
+	switch name {
+	case alert.FieldRuleID:
+		m.ResetRuleID()
+		return nil
+	case alert.FieldRuleName:
+		m.ResetRuleName()
+		return nil
+	case alert.FieldRuleType:
+		m.ResetRuleType()
+		return nil
+	case alert.FieldSeverity:
+		m.ResetSeverity()
+		return nil
+	case alert.FieldTargetKey:
+		m.ResetTargetKey()
+		return nil
+	case alert.FieldTarget:
+		m.ResetTarget()
+		return nil
+	case alert.FieldState:
+		m.ResetState()
+		return nil
+	case alert.FieldValue:
+		m.ResetValue()
+		return nil
+	case alert.FieldThreshold:
+		m.ResetThreshold()
+		return nil
+	case alert.FieldObserved:
+		m.ResetObserved()
+		return nil
+	case alert.FieldFiredAt:
+		m.ResetFiredAt()
+		return nil
+	case alert.FieldAcknowledgedAt:
+		m.ResetAcknowledgedAt()
+		return nil
+	case alert.FieldAcknowledgedBy:
+		m.ResetAcknowledgedBy()
+		return nil
+	case alert.FieldResolvedAt:
+		m.ResetResolvedAt()
+		return nil
+	case alert.FieldResolution:
+		m.ResetResolution()
+		return nil
+	}
+	return fmt.Errorf("unknown Alert field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *AlertMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *AlertMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *AlertMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *AlertMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *AlertMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *AlertMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *AlertMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown Alert unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *AlertMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown Alert edge %s", name)
+}
+
+// AlertRuleMutation represents an operation that mutates the AlertRule nodes in the graph.
+type AlertRuleMutation struct {
+	config
+	op            Op
+	typ           string
+	id            *uuid.UUID
+	name          *string
+	_type         *string
+	severity      *string
+	enabled       *bool
+	is_default    *bool
+	params        *string
+	created_at    *time.Time
+	updated_at    *time.Time
+	clearedFields map[string]struct{}
+	done          bool
+	oldValue      func(context.Context) (*AlertRule, error)
+	predicates    []predicate.AlertRule
+}
+
+var _ ent.Mutation = (*AlertRuleMutation)(nil)
+
+// alertruleOption allows management of the mutation configuration using functional options.
+type alertruleOption func(*AlertRuleMutation)
+
+// newAlertRuleMutation creates new mutation for the AlertRule entity.
+func newAlertRuleMutation(c config, op Op, opts ...alertruleOption) *AlertRuleMutation {
+	m := &AlertRuleMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeAlertRule,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withAlertRuleID sets the ID field of the mutation.
+func withAlertRuleID(id uuid.UUID) alertruleOption {
+	return func(m *AlertRuleMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *AlertRule
+		)
+		m.oldValue = func(ctx context.Context) (*AlertRule, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().AlertRule.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withAlertRule sets the old AlertRule of the mutation.
+func withAlertRule(node *AlertRule) alertruleOption {
+	return func(m *AlertRuleMutation) {
+		m.oldValue = func(context.Context) (*AlertRule, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m AlertRuleMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m AlertRuleMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of AlertRule entities.
+func (m *AlertRuleMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *AlertRuleMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *AlertRuleMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().AlertRule.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetName sets the "name" field.
+func (m *AlertRuleMutation) SetName(s string) {
+	m.name = &s
+}
+
+// Name returns the value of the "name" field in the mutation.
+func (m *AlertRuleMutation) Name() (r string, exists bool) {
+	v := m.name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldName returns the old "name" field's value of the AlertRule entity.
+// If the AlertRule object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AlertRuleMutation) OldName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldName: %w", err)
+	}
+	return oldValue.Name, nil
+}
+
+// ResetName resets all changes to the "name" field.
+func (m *AlertRuleMutation) ResetName() {
+	m.name = nil
+}
+
+// SetType sets the "type" field.
+func (m *AlertRuleMutation) SetType(s string) {
+	m._type = &s
+}
+
+// GetType returns the value of the "type" field in the mutation.
+func (m *AlertRuleMutation) GetType() (r string, exists bool) {
+	v := m._type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldType returns the old "type" field's value of the AlertRule entity.
+// If the AlertRule object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AlertRuleMutation) OldType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldType: %w", err)
+	}
+	return oldValue.Type, nil
+}
+
+// ResetType resets all changes to the "type" field.
+func (m *AlertRuleMutation) ResetType() {
+	m._type = nil
+}
+
+// SetSeverity sets the "severity" field.
+func (m *AlertRuleMutation) SetSeverity(s string) {
+	m.severity = &s
+}
+
+// Severity returns the value of the "severity" field in the mutation.
+func (m *AlertRuleMutation) Severity() (r string, exists bool) {
+	v := m.severity
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSeverity returns the old "severity" field's value of the AlertRule entity.
+// If the AlertRule object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AlertRuleMutation) OldSeverity(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSeverity is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSeverity requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSeverity: %w", err)
+	}
+	return oldValue.Severity, nil
+}
+
+// ResetSeverity resets all changes to the "severity" field.
+func (m *AlertRuleMutation) ResetSeverity() {
+	m.severity = nil
+}
+
+// SetEnabled sets the "enabled" field.
+func (m *AlertRuleMutation) SetEnabled(b bool) {
+	m.enabled = &b
+}
+
+// Enabled returns the value of the "enabled" field in the mutation.
+func (m *AlertRuleMutation) Enabled() (r bool, exists bool) {
+	v := m.enabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEnabled returns the old "enabled" field's value of the AlertRule entity.
+// If the AlertRule object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AlertRuleMutation) OldEnabled(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEnabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEnabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEnabled: %w", err)
+	}
+	return oldValue.Enabled, nil
+}
+
+// ResetEnabled resets all changes to the "enabled" field.
+func (m *AlertRuleMutation) ResetEnabled() {
+	m.enabled = nil
+}
+
+// SetIsDefault sets the "is_default" field.
+func (m *AlertRuleMutation) SetIsDefault(b bool) {
+	m.is_default = &b
+}
+
+// IsDefault returns the value of the "is_default" field in the mutation.
+func (m *AlertRuleMutation) IsDefault() (r bool, exists bool) {
+	v := m.is_default
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldIsDefault returns the old "is_default" field's value of the AlertRule entity.
+// If the AlertRule object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AlertRuleMutation) OldIsDefault(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldIsDefault is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldIsDefault requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldIsDefault: %w", err)
+	}
+	return oldValue.IsDefault, nil
+}
+
+// ResetIsDefault resets all changes to the "is_default" field.
+func (m *AlertRuleMutation) ResetIsDefault() {
+	m.is_default = nil
+}
+
+// SetParams sets the "params" field.
+func (m *AlertRuleMutation) SetParams(s string) {
+	m.params = &s
+}
+
+// Params returns the value of the "params" field in the mutation.
+func (m *AlertRuleMutation) Params() (r string, exists bool) {
+	v := m.params
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldParams returns the old "params" field's value of the AlertRule entity.
+// If the AlertRule object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AlertRuleMutation) OldParams(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldParams is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldParams requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldParams: %w", err)
+	}
+	return oldValue.Params, nil
+}
+
+// ResetParams resets all changes to the "params" field.
+func (m *AlertRuleMutation) ResetParams() {
+	m.params = nil
+}
+
+// SetCreatedAt sets the "created_at" field.
+func (m *AlertRuleMutation) SetCreatedAt(t time.Time) {
+	m.created_at = &t
+}
+
+// CreatedAt returns the value of the "created_at" field in the mutation.
+func (m *AlertRuleMutation) CreatedAt() (r time.Time, exists bool) {
+	v := m.created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCreatedAt returns the old "created_at" field's value of the AlertRule entity.
+// If the AlertRule object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AlertRuleMutation) OldCreatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCreatedAt: %w", err)
+	}
+	return oldValue.CreatedAt, nil
+}
+
+// ResetCreatedAt resets all changes to the "created_at" field.
+func (m *AlertRuleMutation) ResetCreatedAt() {
+	m.created_at = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *AlertRuleMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *AlertRuleMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the AlertRule entity.
+// If the AlertRule object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AlertRuleMutation) OldUpdatedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *AlertRuleMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+}
+
+// Where appends a list predicates to the AlertRuleMutation builder.
+func (m *AlertRuleMutation) Where(ps ...predicate.AlertRule) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the AlertRuleMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *AlertRuleMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.AlertRule, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *AlertRuleMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *AlertRuleMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (AlertRule).
+func (m *AlertRuleMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *AlertRuleMutation) Fields() []string {
+	fields := make([]string, 0, 8)
+	if m.name != nil {
+		fields = append(fields, alertrule.FieldName)
+	}
+	if m._type != nil {
+		fields = append(fields, alertrule.FieldType)
+	}
+	if m.severity != nil {
+		fields = append(fields, alertrule.FieldSeverity)
+	}
+	if m.enabled != nil {
+		fields = append(fields, alertrule.FieldEnabled)
+	}
+	if m.is_default != nil {
+		fields = append(fields, alertrule.FieldIsDefault)
+	}
+	if m.params != nil {
+		fields = append(fields, alertrule.FieldParams)
+	}
+	if m.created_at != nil {
+		fields = append(fields, alertrule.FieldCreatedAt)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, alertrule.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *AlertRuleMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case alertrule.FieldName:
+		return m.Name()
+	case alertrule.FieldType:
+		return m.GetType()
+	case alertrule.FieldSeverity:
+		return m.Severity()
+	case alertrule.FieldEnabled:
+		return m.Enabled()
+	case alertrule.FieldIsDefault:
+		return m.IsDefault()
+	case alertrule.FieldParams:
+		return m.Params()
+	case alertrule.FieldCreatedAt:
+		return m.CreatedAt()
+	case alertrule.FieldUpdatedAt:
+		return m.UpdatedAt()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *AlertRuleMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case alertrule.FieldName:
+		return m.OldName(ctx)
+	case alertrule.FieldType:
+		return m.OldType(ctx)
+	case alertrule.FieldSeverity:
+		return m.OldSeverity(ctx)
+	case alertrule.FieldEnabled:
+		return m.OldEnabled(ctx)
+	case alertrule.FieldIsDefault:
+		return m.OldIsDefault(ctx)
+	case alertrule.FieldParams:
+		return m.OldParams(ctx)
+	case alertrule.FieldCreatedAt:
+		return m.OldCreatedAt(ctx)
+	case alertrule.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	}
+	return nil, fmt.Errorf("unknown AlertRule field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *AlertRuleMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case alertrule.FieldName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetName(v)
+		return nil
+	case alertrule.FieldType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetType(v)
+		return nil
+	case alertrule.FieldSeverity:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSeverity(v)
+		return nil
+	case alertrule.FieldEnabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEnabled(v)
+		return nil
+	case alertrule.FieldIsDefault:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetIsDefault(v)
+		return nil
+	case alertrule.FieldParams:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetParams(v)
+		return nil
+	case alertrule.FieldCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCreatedAt(v)
+		return nil
+	case alertrule.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	}
+	return fmt.Errorf("unknown AlertRule field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *AlertRuleMutation) AddedFields() []string {
+	return nil
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *AlertRuleMutation) AddedField(name string) (ent.Value, bool) {
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *AlertRuleMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	}
+	return fmt.Errorf("unknown AlertRule numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *AlertRuleMutation) ClearedFields() []string {
+	return nil
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *AlertRuleMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *AlertRuleMutation) ClearField(name string) error {
+	return fmt.Errorf("unknown AlertRule nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *AlertRuleMutation) ResetField(name string) error {
+	switch name {
+	case alertrule.FieldName:
+		m.ResetName()
+		return nil
+	case alertrule.FieldType:
+		m.ResetType()
+		return nil
+	case alertrule.FieldSeverity:
+		m.ResetSeverity()
+		return nil
+	case alertrule.FieldEnabled:
+		m.ResetEnabled()
+		return nil
+	case alertrule.FieldIsDefault:
+		m.ResetIsDefault()
+		return nil
+	case alertrule.FieldParams:
+		m.ResetParams()
+		return nil
+	case alertrule.FieldCreatedAt:
+		m.ResetCreatedAt()
+		return nil
+	case alertrule.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown AlertRule field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *AlertRuleMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *AlertRuleMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *AlertRuleMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *AlertRuleMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *AlertRuleMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *AlertRuleMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *AlertRuleMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown AlertRule unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *AlertRuleMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown AlertRule edge %s", name)
+}
 
 // AppSettingMutation represents an operation that mutates the AppSetting nodes in the graph.
 type AppSettingMutation struct {

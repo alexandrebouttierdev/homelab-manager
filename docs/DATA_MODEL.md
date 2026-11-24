@@ -58,6 +58,15 @@ Modèle logique d'Ent et SQLite. Il décrit un hôte unique et ses conteneurs lo
 - Ajoutée avec son événement `service.failed`, retirée avec `service.recovered` quand l'unité redevient `active`, ou sans événement quand l'unité disparaît de l'inventaire ; toujours dans la même transaction que les événements.
 - Distincte des événements, que la rétention purge : un échec n'est signalé qu'une fois, même après un redémarrage du Manager ou la purge de son événement. Elle n'a pas de purge propre, sa taille étant bornée par l'inventaire (2 000 unités au plus).
 
+### AlertRule
+- `alert_rules` : UUID, nom, type (`host_metric`, `container_metric`, `container_state`, `unit_failed`, `collector`), sévérité (`info`, `warning`, `critical`), `enabled`, `is_default`, `params` (objet JSON des paramètres du type : métrique, labels, opérateur, seuil, conteneur, états, motif d'unité, collecteur, `forSeconds`), `created_at`, `updated_at`.
+- Six règles par défaut insérées par la migration `007` avec des UUID fixes (`6f1c2a10-7a4e-4c4b-9a51-00000000000N`) : modifiables et désactivables, jamais supprimées. 200 règles au plus.
+
+### Alert
+- `alerts` : une ligne par déclenchement d'une règle sur une cible. `rule_id` (sans clé étrangère : l'historique survit à la règle), copie de `rule_name`, `rule_type` et `severity`, `target_key` (clé stable de la cible), `target` (JSON : genre, métrique, labels, conteneur, unité, collecteur), `state` (`firing`, `acknowledged`, `resolved`), `value` et `threshold` (règles de métrique), `observed` (état observé des autres règles), `fired_at`, `acknowledged_at`, `acknowledged_by` (nom du compte), `resolved_at`, `resolution` (`condition_cleared`, `no_data`, `target_gone`, `rule_disabled`, `rule_deleted`, `rule_changed`).
+- Index unique partiel `(rule_id, target_key) WHERE state <> 'resolved'` : une seule alerte ouverte par règle et par cible, même après un redémarrage du Manager. Une modification, une désactivation ou une suppression de règle résout ses alertes ouvertes dans la même transaction que la règle et son audit.
+- Les alertes résolues suivent la rétention des métriques et des événements ; les alertes ouvertes ne sont jamais purgées. Le début d'une condition qui n'a pas encore tenu sa durée n'est pas stocké (mémoire du moteur).
+
 ### AuditLog
 - UUID, acteur local, cible (`target_type`, `target_id`), action, request ID, résultat, timestamp.
 - Écrit dans la même transaction que la modification qu'il trace : modification de la rétention (`settings` / `metrics_retention_days` / `update`) et des comptes (`user` / UUID du compte / `create`, `update`, `delete`). Les autres modules d'administration v3 y journaliseront chaque action (SPEC_ADMINISTRATION.md § 2.2).
@@ -74,7 +83,7 @@ Le stockage est un fichier SQLite unique ; aucune base de séries temporelles ni
 
 ### Représentation SQLite
 
-- UUID stockés en texte canonique, documents JSON (`labels`, `ports`, `networks`, `mounts`, `metadata`) en texte.
+- UUID stockés en texte canonique, documents JSON (`labels`, `ports`, `networks`, `mounts`, `metadata`, `params`, `target`) en texte.
 - Horodatages en colonnes `DATETIME` contenant du texte UTC au format `2006-01-02 15:04:05.999999999+00:00`. Le driver est configuré avec `_timezone=UTC` et `_time_format=sqlite` : l'ordre lexical est alors l'ordre chronologique, ce dont dépendent les filtres temporels, les tris et la purge. Ne jamais écrire d'horodatage par un autre chemin que l'adaptateur.
 - Pragmas à l'ouverture : `foreign_keys=ON`, `journal_mode=WAL`, `synchronous=NORMAL`, `busy_timeout=5000`, transactions `IMMEDIATE`.
 - Une seule connexion ouverte : les accès du Manager sont sérialisés, il n'y a pas d'erreur `SQLITE_BUSY` interne. Une transaction ne doit utiliser que son `tx`, sous peine de blocage.
@@ -84,7 +93,7 @@ Le stockage est un fichier SQLite unique ; aucune base de séries temporelles ni
 - Vue courante : tous les échantillons d'un cycle partagent un même `recorded_at`, ce qui permet de lire le dernier cycle complet par égalité sur l'horodatage maximal (index `recorded_at`).
 - Durée de conservation brute par défaut : 7 jours, configurable de 1 à 365 jours (configuration puis interface).
 - Purger toutes les heures, par lots de 1 000 lignes sur `recorded_at`, jusqu'à épuisement ; chaque lot est une écriture courte, pour ne pas bloquer les collectes.
-- Les événements et métriques sont purgés par lots selon la même rétention.
+- Les événements, métriques et alertes résolues sont purgés par lots selon la même rétention.
 - Limiter l'intervalle et le nombre de points retournés par l'API. L'agrégation se fait en SQL à la lecture (`GROUP BY` série et intervalle, horodatage converti par `strftime('%s', substr(recorded_at, 1, 19))`) ; la pagination par curseur n'est pas implémentée.
 - Mesures non disponibles : valeur absente/null ou absence d'échantillon avec fraîcheur explicite, jamais un zéro fictif.
 
@@ -95,4 +104,4 @@ Le stockage est un fichier SQLite unique ; aucune base de séries temporelles ni
 - Horodatages UTC et migrations versionnées/reproductibles.
 - Les modèles Ent restent confinés aux adaptateurs ; DTO et domaine sont indépendants.
 - Les valeurs volatiles de stats ne sont pas dupliquées comme état courant dans `Container` si le dernier échantillon peut servir de source.
-- `001_initial.sql` crée le schéma SQLite initial, `002_app_settings.sql` la table `app_settings`, `003_user_accounts.sql` les colonnes de rôle et d'état des comptes, `004_sessions_security.sql` l'activité des sessions, la politique de sécurité, les échecs de connexion et l'index `audit_logs (created_at DESC)`, `005_second_factor.sql` les secrets TOTP, les codes de secours et l'obligation du second facteur, `006_failed_units.sql` les unités systemd enregistrées en échec ; les migrations suivantes s'ajoutent sous un nouveau numéro, sans modifier les fichiers déjà livrés. Les anciennes migrations PostgreSQL ont été retirées et leurs données ne sont pas reprises.
+- `001_initial.sql` crée le schéma SQLite initial, `002_app_settings.sql` la table `app_settings`, `003_user_accounts.sql` les colonnes de rôle et d'état des comptes, `004_sessions_security.sql` l'activité des sessions, la politique de sécurité, les échecs de connexion et l'index `audit_logs (created_at DESC)`, `005_second_factor.sql` les secrets TOTP, les codes de secours et l'obligation du second facteur, `006_failed_units.sql` les unités systemd enregistrées en échec, `007_alerts.sql` les règles d'alerte (dont les règles par défaut) et les alertes ; les migrations suivantes s'ajoutent sous un nouveau numéro, sans modifier les fichiers déjà livrés. Les anciennes migrations PostgreSQL ont été retirées et leurs données ne sont pas reprises.

@@ -66,6 +66,8 @@ Ce document est le contrat exact de l'API implémentée. Toute différence entre
 | `GET /api/v1/journal/export` | oui | Export `.log` ou `.json` (§ 4.6) |
 | `GET /api/v1/system/units` | oui | Inventaire des services, timers et sockets systemd (§ 4.7) |
 | `GET /api/v1/system/units/{unitName}` | oui | Détail d'une unité et extrait de son journal (§ 4.7) |
+| `POST /api/v1/system/units/{unitName}/actions` | `operator` | Démarre, arrête, redémarre ou recharge une unité de la liste blanche (§ 4.7) |
+| `GET /api/v1/system/units/{unitName}/actions/last` | oui | Dernière action demandée sur l'unité (§ 4.7) |
 | `GET /api/v1/alerts` | oui | Alertes ouvertes et historique (§ 4.8) |
 | `GET /api/v1/alerts/summary` | oui | Indicateurs des alertes (§ 4.8) |
 | `GET /api/v1/alerts/{alertID}` | oui | Une alerte (§ 4.8) |

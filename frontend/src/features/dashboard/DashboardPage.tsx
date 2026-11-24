@@ -26,6 +26,7 @@ import { EventIcon } from '../../components/ui/EventIcon'
 import { LoadingState } from '../../components/ui/LoadingState'
 import { MetricCard } from '../../components/ui/MetricCard'
 import { PageHeader } from '../../components/ui/PageHeader'
+import { VulnerabilitiesCard } from './VulnerabilitiesCard'
 import { ProgressBar } from '../../components/ui/ProgressBar'
 import { Sparkline } from '../../components/ui/Sparkline'
 import { StatusDot } from '../../components/ui/StatusDot'
@@ -596,6 +597,10 @@ export function DashboardPage() {
                   : 'Aucune collecte réussie'}
               </CardFooter>
             </Card>
+          </div>
+
+          <div className="grid items-start gap-4 xl:grid-cols-3">
+            <VulnerabilitiesCard />
           </div>
 
           <p className="flex flex-wrap items-center gap-2 font-mono text-[10px] text-text-muted">

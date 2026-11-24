@@ -15,6 +15,8 @@ const base: AlertRuleValues = {
   states: [],
   unitPattern: '',
   collector: '',
+  vulnSeverity: 'critical' as const,
+  fixableOnly: false,
   forMinutes: '5',
 }
 

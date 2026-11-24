@@ -11,6 +11,7 @@ import type {
   AlertState,
 } from './api/alerts'
 import { formatMetricValue } from './format'
+import { vulnSeverityLabel } from './vulnerabilities'
 import { parseDecimal, type AlertRuleValues } from '../schemas/alertRule'
 
 const severityLabels: Record<AlertSeverity, string> = {
@@ -59,6 +60,7 @@ const ruleTypeLabels: Record<AlertRuleType, string> = {
   container_state: 'État de conteneur',
   unit_failed: 'Unité systemd en échec',
   collector: 'Collecteur indisponible',
+  vulnerabilities: 'Vulnérabilités des paquets',
 }
 
 export const ruleTypeOptions: ReadonlyArray<{ value: AlertRuleType; label: string }> = (
@@ -200,6 +202,10 @@ export function describeRule(rule: Pick<AlertRule, 'type' | 'params'>): string {
         : `Une unité correspondant à « ${p.unitPattern ?? ''} » est en échec`
     case 'collector':
       return `${collectorLabel(p.collector ?? '')} indisponible${during}`
+    case 'vulnerabilities': {
+      const severity = vulnSeverityLabel(p.vulnSeverity ?? 'critical').toLowerCase()
+      return `Une vulnérabilité ${severity} ou plus grave${p.fixableOnly ? ', corrigeable,' : ''} est présente`
+    }
   }
 }
 
@@ -220,11 +226,15 @@ export function describeTarget(alert: Alert): string {
       return target.unit ?? 'Unité'
     case 'collector':
       return collectorLabel(target.collector ?? '')
+    case 'vulnerabilities':
+      return 'Paquets de la machine'
   }
 }
 
 /** The measured value and the threshold, or the state that fired the rule. */
 export function alertValueText(alert: Alert): string {
+  if (alert.target.kind === 'vulnerabilities' && alert.value !== null)
+    return `${alert.value} vulnérabilité${alert.value > 1 ? 's' : ''}`
   if (alert.value !== null) {
     const unit = metricUnit(alert.target.metric)
     const value = formatMetricValue(alert.value, unit)
@@ -262,6 +272,8 @@ export function alertLink(alert: Alert): AlertLink | null {
       return target.collector === 'services'
         ? { to: '/services', label: 'Voir les services' }
         : { to: '/', label: 'Voir la synthèse' }
+    case 'vulnerabilities':
+      return { to: '/host?tab=vulnerabilities', label: 'Voir les vulnérabilités' }
   }
 }
 
@@ -296,6 +308,8 @@ export const emptyRuleValues: AlertRuleValues = {
   unitPattern: '*',
   collector: 'docker',
   forMinutes: '5',
+  vulnSeverity: 'critical',
+  fixableOnly: false,
 }
 
 /** Form values of an existing rule. The form edits one label; a rule from the API keeps its first one. */
@@ -318,6 +332,11 @@ export function ruleToValues(rule: AlertRule): AlertRuleValues {
     unitPattern: p.unitPattern ?? '*',
     collector: p.collector ?? 'docker',
     forMinutes: String(p.forSeconds / 60),
+    vulnSeverity:
+      p.vulnSeverity === 'negligible' || p.vulnSeverity === 'unknown' || !p.vulnSeverity
+        ? 'critical'
+        : p.vulnSeverity,
+    fixableOnly: p.fixableOnly ?? false,
   }
 }
 
@@ -354,6 +373,11 @@ export function alertRuleInput(values: AlertRuleValues): AlertRuleInput {
       return { ...common, params: { unitPattern: values.unitPattern.trim(), forSeconds: 0 } }
     case 'collector':
       return { ...common, params: { collector: values.collector, forSeconds } }
+    case 'vulnerabilities': {
+      const params: AlertRuleInput['params'] = { vulnSeverity: values.vulnSeverity, forSeconds: 0 }
+      if (values.fixableOnly) params.fixableOnly = true
+      return { ...common, params }
+    }
   }
 }
 

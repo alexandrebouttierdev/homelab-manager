@@ -150,6 +150,12 @@ const catalog = {
   containerMetrics: { 'memory.percent': [], 'cpu.percent': [] },
   containerStates: ['running', 'exited'],
   collectors: ['system', 'docker', 'services'],
+  vulnerabilitySeverities: [
+    'critical' as const,
+    'high' as const,
+    'medium' as const,
+    'low' as const,
+  ],
 }
 
 const silences: Silence[] = [
@@ -417,5 +423,28 @@ describe('AlertsPage', () => {
       'channel-1',
       expect.objectContaining({ type: 'ntfy', secrets: {} }),
     ])
+  })
+
+  it('creates a vulnerabilities rule', async () => {
+    session.role = 'admin'
+    vi.mocked(createAlertRule).mockResolvedValue(rules[1])
+    const user = userEvent.setup()
+    renderPage()
+    await user.click(screen.getByRole('button', { name: 'Règles' }))
+    await user.click(await screen.findByRole('button', { name: 'Nouvelle règle' }))
+    await user.type(screen.getByLabelText('Nom'), 'Vulnérabilités élevées')
+    await user.selectOptions(screen.getByLabelText('Type'), 'vulnerabilities')
+    await user.selectOptions(screen.getByLabelText('Sévérité minimale'), 'high')
+    await user.click(screen.getByLabelText('Corrigeables seulement'))
+    expect(screen.queryByLabelText('Pendant (minutes)')).not.toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }))
+    await waitFor(() => expect(createAlertRule).toHaveBeenCalled())
+    expect(vi.mocked(createAlertRule).mock.calls[0][0]).toEqual({
+      name: 'Vulnérabilités élevées',
+      type: 'vulnerabilities',
+      severity: 'warning',
+      enabled: true,
+      params: { vulnSeverity: 'high', fixableOnly: true, forSeconds: 0 },
+    })
   })
 })

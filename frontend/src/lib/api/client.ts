@@ -66,6 +66,11 @@ export const errorMessages: Record<string, string> = {
   SECRETS_UNAVAILABLE:
     'Secrets indisponibles : la clé du coffre est absente. Les canaux sans secret restent utilisables.',
   NOTIFICATION_FAILED: "L'envoi de test a échoué : voir la dernière erreur du canal.",
+  SCAN_IN_PROGRESS: 'Une analyse est déjà en cours.',
+  SCAN_RATE_LIMITED: 'Une analyse manuelle a été lancée il y a moins de 5 minutes.',
+  VULNERABILITIES_UNAVAILABLE:
+    "Vulnérabilités indisponibles : la base de données du Manager n'est pas accessible.",
+  VULNERABILITIES_FAILED: "Les vulnérabilités n'ont pas pu être lues ou l'analyse lancée.",
   OWN_PASSWORD_RESET: 'Changez votre propre mot de passe dans Paramètres.',
   INVALID_SECOND_FACTOR: 'Code incorrect.',
   LOGIN_CHALLENGE_EXPIRED: 'Délai dépassé : reconnectez-vous avec votre mot de passe.',

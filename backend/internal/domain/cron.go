@@ -360,10 +360,34 @@ type CronInventory struct {
 	Unreadable []string
 }
 
-var secretPattern = regexp.MustCompile(`(?i)\b(password|passwd|pwd|token|secret|api[_-]?key)=("[^"]*"|'[^']*'|\S+)`)
+const secretWords = `(?:password|passwd|pwd|pass|token|secret|api[_-]?key|credentials?|auth)`
 
-// MaskCronSecrets hides the value of password=, token= and the like in a
-// command (SPEC_ADMINISTRATION.md § 8).
+var (
+	// secretAssignment: a variable or option whose name holds a secret
+	// word, assigned with "=" or ":" (DB_PASSWORD=x, token: x).
+	secretAssignment = regexp.MustCompile(`(?i)([A-Za-z0-9_.-]*` + secretWords + `[A-Za-z0-9_.-]*)(\s*[=:]\s*)("[^"]*"|'[^']*'|[^\s;|&'"]+)`)
+	// secretOption: a long option followed by its value (--password x).
+	secretOption = regexp.MustCompile(`(?i)(--[A-Za-z0-9-]*` + secretWords + `[A-Za-z0-9-]*)(\s+)("[^"]*"|'[^']*'|[^\s;|&'"-][^\s;|&'"]*)`)
+	// userPassword: curl and wget style -u user:password.
+	userPassword = regexp.MustCompile(`(\s-u\s*)([^\s:'"]+):([^\s;|&'"]+)`)
+	// mysqlPassword: -pPASSWORD of the MySQL and MariaDB clients.
+	mysqlPassword = regexp.MustCompile(`(?i)(\b(?:mysql|mysqldump|mysqladmin|mariadb|mariadb-dump)\b[^|;&]*?\s-p)([^\s;|&'"]+)`)
+	// authorizationHeader: the value of an Authorization header.
+	authorizationHeader = regexp.MustCompile(`(?i)(authorization:\s*)([^'"\n]+)`)
+	// urlUserinfo: credentials written in a URL (https://user:pass@host).
+	urlUserinfo = regexp.MustCompile(`(?i)([a-z][a-z0-9+.-]*://)[^/@\s'"]+@`)
+)
+
+// MaskCronSecrets hides the secrets of a command before it is served
+// (SPEC_ADMINISTRATION.md § 8): the value of a variable or option whose
+// name holds password, token, secret, key or the like, an Authorization
+// header and the credentials of a URL. A secret written otherwise stays
+// visible, as /etc/crontab shows it to every local account.
 func MaskCronSecrets(command string) string {
-	return secretPattern.ReplaceAllString(command, "$1=••••")
+	command = urlUserinfo.ReplaceAllString(command, "${1}••••@")
+	command = authorizationHeader.ReplaceAllString(command, "${1}••••")
+	command = secretOption.ReplaceAllString(command, "${1}${2}••••")
+	command = userPassword.ReplaceAllString(command, "${1}${2}:••••")
+	command = mysqlPassword.ReplaceAllString(command, "${1}••••")
+	return secretAssignment.ReplaceAllString(command, "${1}${2}••••")
 }

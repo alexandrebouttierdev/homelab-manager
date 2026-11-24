@@ -105,3 +105,25 @@ func TestCronDescribe(t *testing.T) {
 		}
 	}
 }
+
+func TestMaskCronSecrets(t *testing.T) {
+	cases := map[string]string{
+		"/opt/backup.sh --password=hunter2 --verbose":              "/opt/backup.sh --password=•••• --verbose",
+		"DB_PASSWORD=hunter2 /opt/dump.sh":                         "DB_PASSWORD=•••• /opt/dump.sh",
+		"MYSQL_PWD='a b c' mysqldump db":                           "MYSQL_PWD=•••• mysqldump db",
+		"backup --password hunter2 --db x":                         "backup --password •••• --db x",
+		"tool --api-key=abc123 && echo ok":                         "tool --api-key=•••• && echo ok",
+		"curl -H 'Authorization: Bearer abc.def' https://x/y":      "curl -H 'Authorization: ••••' https://x/y",
+		"rclone sync /data https://user:pass@backup.lan/data":      "rclone sync /data https://••••@backup.lan/data",
+		"curl -u admin:s3cret https://x/y":                         "curl -u admin:•••• https://x/y",
+		"mysqldump -u root -phunter2 db > /backup/db.sql":          "mysqldump -u root -p•••• db > /backup/db.sql",
+		"GITHUB_TOKEN=ghp_x123; git pull":                          "GITHUB_TOKEN=••••; git pull",
+		"run-parts --report /etc/cron.daily":                       "run-parts --report /etc/cron.daily",
+		"test -x /usr/sbin/anacron || { cd / && run-parts /etc; }": "test -x /usr/sbin/anacron || { cd / && run-parts /etc; }",
+	}
+	for command, want := range cases {
+		if got := MaskCronSecrets(command); got != want {
+			t.Errorf("MaskCronSecrets(%q) = %q, want %q", command, got, want)
+		}
+	}
+}

@@ -722,7 +722,7 @@ Lecture seule (SPEC_ADMINISTRATION.md § 8, phase 7), ouverte à tous les rôles
 }
 ```
 
-- `command` : telle qu'écrite, jamais exécutée ; la valeur de `password=`, `passwd=`, `pwd=`, `token=`, `secret=` et `api_key=` (ou `apikey=`, `api-key=`) est remplacée par `••••`. 4 Kio au plus.
+- `command` : telle qu'écrite, jamais exécutée, 4 Kio au plus. Sont remplacés par `••••` : la valeur d'une variable ou d'une option dont le nom contient `password`, `passwd`, `pwd`, `pass`, `token`, `secret`, `api_key` (`apikey`, `api-key`), `credential` ou `auth` (`DB_PASSWORD=x`, `--token x`, `--api-key=x`), l'en-tête `Authorization`, le mot de passe de `-u utilisateur:motdepasse` et de `-pMOTDEPASSE` (clients MySQL et MariaDB), et les identifiants d'une URL (`https://••••@hôte`).
 - `valid: false` : expression illisible, `error` en donne la raison ; `description` est alors `null` et `nextRuns` vide. `description` : la planification en français, ou « Selon l'expression « … » » quand elle n'a pas de formulation courte.
 - `nextRuns` : les 5 prochaines exécutions dans le fuseau de la machine (`timeZone`), dans les cinq ans ; vide pour `@reboot` ou une date impossible.
 - `lastRun` : dernière ligne `(compte) CMD (commande)` de l'identifiant `CRON` dans les 500 dernières du journal (module J), `null` sinon ; cron ne journalise pas le code de sortie. `journalAvailable: false` si le journal ne peut pas être lu.

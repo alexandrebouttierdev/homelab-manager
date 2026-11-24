@@ -34,6 +34,9 @@ Ce document est le contrat exact de l'API implémentée. Toute différence entre
 | `GET /api/v1/auth/sessions` | oui | Ses sessions actives ; `?scope=all` : toutes (admin) (§ 3.2) |
 | `DELETE /api/v1/auth/sessions/{sessionID}` | oui | Révoque une session (§ 3.2) |
 | `POST /api/v1/auth/sessions/revoke-others` | oui | Révoque ses autres sessions (§ 3.2) |
+| `GET /api/v1/auth/tokens` | oui | Ses jetons d'API ; `?scope=all` : tous (admin) (§ 3.6) |
+| `POST /api/v1/auth/tokens` | oui | Crée un jeton d'API, affiché une fois (§ 3.6) |
+| `DELETE /api/v1/auth/tokens/{tokenID}` | oui | Révoque un de ses jetons, ou tout jeton (admin) (§ 3.6) |
 | `GET /api/v1/security/policy` | admin | Politique de sécurité (§ 3.3) |
 | `PUT /api/v1/security/policy` | admin | Modifie la politique (§ 3.3) |
 | `GET /api/v1/audit` | admin | Journal d'audit filtré (§ 3.4) |
@@ -213,6 +216,16 @@ TOTP (RFC 6238 : HMAC-SHA-1, 6 chiffres, 30 s, ±1 période, un code n'est accep
 - `POST /api/v1/auth/second-factor/totp/confirm` avec `{ "code": "123456" }` : `200 { "recoveryCodes": ["k7pq-2mzx-b9ht", …] }` (10 codes, affichés cette seule fois). Code faux : `400 INVALID_SECOND_FACTOR` ; aucun enrôlement en attente : `409 NO_PENDING_ENROLLMENT`. Audité (`user`, UUID, `second_factor_enable`).
 - `POST /api/v1/auth/second-factor/recovery-codes` avec `{ "password" }` : `200 { "recoveryCodes": […] }`, les anciens codes ne valent plus. Sans second facteur : `409 SECOND_FACTOR_NOT_ENABLED`. Audité (`recovery_codes_regenerate`).
 - `POST /api/v1/auth/second-factor/disable` avec `{ "password" }` : `200 { "disabled": true }`, secret et codes supprimés. Audité (`second_factor_disable`).
+
+### 3.6 Jetons d'API
+
+Jetons en lecture seule pour les scripts (SPEC_ADMINISTRATION.md § 3.5, phase 8A). Chaque compte gère ses jetons ; un administrateur liste et révoque ceux de tous.
+
+- **Usage** : en-tête `Authorization: Bearer hlm_<43 caractères>` sur une route `GET` (ou `HEAD`) de ses portées ; aucun cookie, aucun contrôle d'origine. Portées : `metrics:read` (`/api/v1/dashboard`, `/api/v1/host…`), `containers:read` (`/api/v1/containers…`), `events:read` (`/api/v1/events`), `services:read` (`/api/v1/system/units…`, en lecture), `backups:read` (`/api/v1/backups/summary`, `/runs…`, `/snapshots`). Toute autre route ou méthode : `403 TOKEN_SCOPE_DENIED`. Jeton inconnu, révoqué, expiré, ou compte désactivé ou supprimé : `401 TOKEN_INVALID`. L'usage n'est pas audité ; `lastUsedAt` est écrit au plus une fois par minute.
+- `POST /api/v1/auth/tokens` avec `{ "name": "Home Assistant", "scopes": ["metrics:read"], "expiresInDays": 90 }` → `201 { "token": "hlm_…", "apiToken": Jeton }`, en-tête `Cache-Control: no-store` : le jeton n'est plus jamais renvoyé, seul son SHA-256 est stocké. `name` 1 à 100 caractères, au moins une portée, sans doublon, `expiresInDays` 1 à 365 (90 si absent ; sans expiration impossible). Plus de 20 jetons pour le compte : `409 TOO_MANY_TOKENS`. Audité (`api_token` / UUID / `create`).
+- `GET /api/v1/auth/tokens` → `{ "tokens": [Jeton], "scopes": [...] }`, les plus récents d'abord ; `?scope=all` (admin) : ceux de tous les comptes, sinon `403 FORBIDDEN` (audité). Jeton : `{ "id", "name", "prefix" (12 premiers caractères), "scopes", "username", "createdAt", "expiresAt", "lastUsedAt" }`.
+- `DELETE /api/v1/auth/tokens/{tokenID}` → `204` ; jeton d'un autre compte pour un non-administrateur, ou inconnu : `404 NOT_FOUND`. Audité (`api_token` / UUID / `revoke`).
+- Un jeton ne peut pas gérer les jetons : ces routes exigent une session.
 
 ## 4. Santé, synthèse, hôte et paramètres
 
@@ -949,6 +962,11 @@ Les routes sont versionnées sous `/api/v1`. Un changement incompatible (champ s
 | `CRON_EXPRESSION_INVALID` | 400 | Expression Cron invalide (inspecteur) |
 | `CRON_READ_FAILED` | 500 | Lecture des crontabs en échec |
 | `CRON_UNAVAILABLE` | 503 | Module des tâches planifiées indisponible |
+| `TOKEN_INVALID` | 401 | Jeton d'API inconnu, expiré ou révoqué, ou compte désactivé |
+| `TOKEN_SCOPE_DENIED` | 403 | Route ou méthode hors des portées du jeton |
+| `TOO_MANY_TOKENS` | 409 | Plus de 20 jetons pour le compte |
+| `TOKENS_UNAVAILABLE` | 503 | Jetons indisponibles (base de données) |
+| `TOKENS_FAILED` | 500 | Lecture ou écriture des jetons en échec |
 | `BACKUPS_UNAVAILABLE` | 503 | Module des sauvegardes arrêté (base de données indisponible) |
 | `BACKUPS_FAILED` | 500 | Lecture ou lancement des sauvegardes en échec |
 | `BACKUP_NOT_CONFIGURED` | 409 | Aucun dépôt de sauvegarde |

@@ -262,6 +262,16 @@ La page « Alertes » montre les alertes ouvertes (les plus graves d'abord, avec
 
 Un opérateur ou un administrateur pose un **silence** depuis une alerte (sur sa cible ou sur toute sa règle) ou un silence global depuis l'onglet « Silences », de 15 minutes à 7 jours, avec un motif ; il le lève quand il veut. Les alertes sous silence restent ouvertes et visibles (« Sous silence ») ; seules leurs notifications sont suspendues. Le format du webhook et la vérification de sa signature sont décrits dans [docs/API_CONTRACTS.md](docs/API_CONTRACTS.md) § 4.8.
 
+### Jetons d'API
+
+Dans les Paramètres, carte « Jetons d'API », chaque compte crée des jetons en lecture seule pour ses scripts ou tableaux de bord (Home Assistant, Grafana…) : nom, portées (métriques, conteneurs, événements, services, sauvegardes) et validité de 1 à 365 jours. Le jeton (`hlm_…`) s'affiche une seule fois ; il s'utilise ainsi :
+
+```bash
+curl -H "Authorization: Bearer hlm_…" https://homelab.lan:8080/api/v1/dashboard
+```
+
+Un jeton ne permet aucune action ni l'accès aux comptes, aux paramètres ou à l'audit, et cesse de fonctionner à son expiration, à sa révocation ou si le compte est désactivé. Un administrateur voit et révoque les jetons de tous les comptes.
+
 ### Double authentification
 
 Chaque utilisateur l'active dans « Configuration » › Double authentification : mot de passe actuel, QR code à scanner (Aegis, Google Authenticator, 1Password…), premier code, puis 10 codes de secours affichés une seule fois. La connexion demande ensuite un code après le mot de passe. Dans « Utilisateurs & accès » › Politique, un administrateur qui l'a lui-même activée peut l'exiger de tous les administrateurs : ceux qui ne l'ont pas encore ne peuvent plus que l'activer.

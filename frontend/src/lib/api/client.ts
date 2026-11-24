@@ -56,6 +56,12 @@ export const errorMessages: Record<string, string> = {
   SYSTEMD_UNAVAILABLE:
     "Services système indisponibles : systemd n'est pas joignable sur le bus système de la machine.",
   SYSTEMD_READ_FAILED: "L'unité systemd n'a pas pu être lue.",
+  TOKEN_INVALID: "Jeton d'API invalide, expiré ou révoqué.",
+  TOKEN_SCOPE_DENIED: "Ce jeton d'API ne permet pas cette requête.",
+  TOO_MANY_TOKENS: "Nombre maximal de jetons d'API atteint (20 par compte).",
+  TOKENS_UNAVAILABLE:
+    "Jetons d'API indisponibles : la base de données du Manager n'est pas accessible.",
+  TOKENS_FAILED: "Les jetons d'API n'ont pas pu être lus ou modifiés.",
   CRON_UNAVAILABLE: 'Tâches planifiées indisponibles.',
   CRON_READ_FAILED: "Les tâches planifiées n'ont pas pu être lues.",
   CRON_EXPRESSION_INVALID:

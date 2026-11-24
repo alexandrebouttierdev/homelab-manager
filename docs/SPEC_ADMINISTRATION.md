@@ -1,6 +1,6 @@
 # Spécification des modules d'administration — Homelab Manager
 
-Version 3.0 (brouillon) — 22 novembre 2026 — **partiellement implémenté** : comptes multiples et rôles (§§ 3.1–3.2, phase 1A), sessions, politique de sécurité et journal d'audit (§§ 3.4–3.5, phase 1B), coffre de secrets, TOTP et codes de secours (§§ 2.5, 3.3 hors WebAuthn, phase 1C) journaux système (§ 4, phase 2), consultation des services système (§ 5.1, phase 3), vulnérabilités des paquets (§ 8 ter, module V) et redémarrage et extinction de la machine (§ 8 bis, module M), le 23 novembre 2026 ; règles, cycle de vie, indicateurs, silences et canaux des alertes (§§ 6.1 à 6.4, phase 4), actions sur les services système (§ 5.2, phase 5), sauvegardes restic (§ 7, phase 6 : incréments 6A et 6B) et tâches planifiées en lecture (§ 8, phase 7), le 24 novembre 2026.
+Version 3.0 (brouillon) — 22 novembre 2026 — **partiellement implémenté** : comptes multiples et rôles (§§ 3.1–3.2, phase 1A), sessions, politique de sécurité et journal d'audit (§§ 3.4–3.5, phase 1B), coffre de secrets, TOTP et codes de secours (§§ 2.5, 3.3 hors WebAuthn, phase 1C) journaux système (§ 4, phase 2), consultation des services système (§ 5.1, phase 3), vulnérabilités des paquets (§ 8 ter, module V) et redémarrage et extinction de la machine (§ 8 bis, module M), le 23 novembre 2026 ; règles, cycle de vie, indicateurs, silences et canaux des alertes (§§ 6.1 à 6.4, phase 4), actions sur les services système (§ 5.2, phase 5), sauvegardes restic (§ 7, phase 6 : incréments 6A et 6B) tâches planifiées en lecture (§ 8, phase 7) et jetons d'API (§ 3.5, phase 8A), le 24 novembre 2026.
 
 Ce document spécifie les modules annoncés « à venir » dans la navigation : utilisateurs et accès, journaux système, services système, alertes et notifications, sauvegardes, tâches planifiées, ainsi que le redémarrage et l'extinction de la machine (§ 8 bis, ajouté le 23 novembre 2026). Il s'appuie sur les maquettes de `maquette/` et en fixe le périmètre réel : une maquette montre une intention visuelle, ce document fait foi. Tant qu'un module n'est pas livré, il reste désactivé dans l'interface et ses routes n'existent pas.
 
@@ -110,7 +110,7 @@ Uniquement les comptes de Homelab Manager (règle 2).
 ### 3.5 Sessions et jetons
 
 - Liste des sessions actives de l'utilisateur (navigateur, IP, méthode d'authentification, dernière activité), révocation unitaire et « toutes sauf celle-ci ». Un administrateur voit et révoque les sessions de tous.
-- **Jetons d'API** : préfixe `hlm_`, 32 octets aléatoires, affichés une seule fois, stockés hachés ; nom, portées, date d'expiration (90 jours par défaut, « sans expiration » interdit) et dernier usage. En-tête `Authorization: Bearer`. Portées v3 : `metrics:read`, `containers:read`, `events:read`, `services:read`, `backups:read`. Aucune portée d'action pour les jetons dans cette version [D-4].
+- **Jetons d'API** : préfixe `hlm_`, 32 octets aléatoires, affichés une seule fois, stockés hachés ; nom, portées, date d'expiration (90 jours par défaut, « sans expiration » interdit) et dernier usage. En-tête `Authorization: Bearer`. Portées v3 : `metrics:read`, `containers:read`, `events:read`, `services:read`, `backups:read`. Aucune portée d'action pour les jetons dans cette version [D-4]. **Mise en œuvre (phase 8A, 24 novembre 2026)** : jetons `hlm_` + 32 octets en base64url, stockés en SHA-256 (entropie suffisante, pas de hachage lent), préfixe de 12 caractères affiché ; validité de 1 à 365 jours ; 20 jetons par compte ; chacun gère les siens, un administrateur liste et révoque ceux de tous ; un compte désactivé ou supprimé invalide ses jetons ; création et révocation auditées. Portées appliquées aux seules routes `GET` qu'elles nomment, tout le reste refusé. Carte « Jetons d'API » des Paramètres. Contrat : API_CONTRACTS.md § 3.6.
 - **Journal d'audit** consultable par les administrateurs, filtrable, exportable en CSV et JSON.
 
 ### 3.6 Données
@@ -297,7 +297,7 @@ Ajouté le 24 novembre 2026 à la demande du propriétaire du projet : détecter
 | 5 | Module S, actions par polkit. **Livrée** (liste blanche, règle générée, « Redémarrer » depuis une alerte) | Phase 1 |
 | 6 | Module B : dépôts, sauvegarde, rétention, restauration en quarantaine. **6A et 6B livrés** (dépôt, sources, exclusions, sauvegardes manuelles et planifiées, historique, instantanés, rétention, vérification, restauration en quarantaine, rattachement, déverrouillage) ; restent diff, copies et SFTP | Phases 1 et 4 |
 | 7 | Module C en lecture. **Livré** | Phase 2 |
-| 8 | WebAuthn, jetons d'API | Phase 1, HTTPS |
+| 8 | WebAuthn, jetons d'API. **Jetons livrés (8A)** ; WebAuthn (8B) à venir | Phase 1, HTTPS |
 | V | Module V : vulnérabilités des paquets (Grype) de la machine du Manager, placé après la phase 4. **Livré** (dpkg et apk ; RPM à venir) | Phase 4 (règle d'alerte) |
 
 Chaque phase livre son contrat dans API_CONTRACTS.md, ses tables dans DATA_MODEL.md, ses risques dans SECURITY.md, ses tests, et retire la mention « à venir » de son entrée de navigation.

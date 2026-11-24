@@ -1,3 +1,4 @@
+import type { CeremonyOptions } from '../webauthn'
 import { requestJSON } from './client'
 
 export { ApiError } from './client'
@@ -15,7 +16,7 @@ export type SessionUser = {
   mustEnrollSecondFactor: boolean
 }
 
-export type SecondFactorMethod = 'totp' | 'recovery'
+export type SecondFactorMethod = 'totp' | 'webauthn' | 'recovery'
 
 /** A password accepted for an account that still has to give its second factor. */
 export type SecondFactorChallenge = {
@@ -57,5 +58,20 @@ export function completeSecondFactor(method: SecondFactorMethod, code: string) {
   return requestJSON<{ user: SessionUser }>('/api/v1/auth/login/second-factor', {
     method: 'POST',
     body: JSON.stringify({ method, code }),
+  })
+}
+
+/** Options of a key login, for the pending login of the challenge cookie. */
+export function beginWebAuthnLogin() {
+  return requestJSON<{ options: CeremonyOptions }>('/api/v1/auth/login/second-factor/webauthn', {
+    method: 'POST',
+  }).then((body) => body.options)
+}
+
+/** Second step of a login with the answer of a security key. */
+export function completeWithKey(response: unknown) {
+  return requestJSON<{ user: SessionUser }>('/api/v1/auth/login/second-factor', {
+    method: 'POST',
+    body: JSON.stringify({ method: 'webauthn', response }),
   })
 }

@@ -95,7 +95,7 @@ export const errorMessages: Record<string, string> = {
     "Vulnérabilités indisponibles : la base de données du Manager n'est pas accessible.",
   VULNERABILITIES_FAILED: "Les vulnérabilités n'ont pas pu être lues ou l'analyse lancée.",
   OWN_PASSWORD_RESET: 'Changez votre propre mot de passe dans Paramètres.',
-  INVALID_SECOND_FACTOR: 'Code incorrect.',
+  INVALID_SECOND_FACTOR: 'Code incorrect ou clé refusée.',
   LOGIN_CHALLENGE_EXPIRED: 'Délai dépassé : reconnectez-vous avec votre mot de passe.',
   SECOND_FACTOR_REQUIRED: 'Activez la double authentification pour continuer.',
   SECOND_FACTOR_UNAVAILABLE:
@@ -105,6 +105,12 @@ export const errorMessages: Record<string, string> = {
   NO_PENDING_ENROLLMENT: "Recommencez l'activation de la double authentification.",
   SECOND_FACTOR_NOT_ENROLLED: "Activez d'abord votre propre double authentification.",
   SECOND_FACTOR_UPDATE_FAILED: "La double authentification n'a pas pu être modifiée.",
+  WEBAUTHN_UNAVAILABLE:
+    "Clés de sécurité indisponibles : le domaine WebAuthn du Manager n'est pas configuré.",
+  WEBAUTHN_KEY_NOT_FOUND: "Cette clé de sécurité n'existe pas ou plus.",
+  WEBAUTHN_KEY_EXISTS: 'Cette clé de sécurité est déjà enregistrée.',
+  TOO_MANY_WEBAUTHN_KEYS: 'Nombre maximal de clés de sécurité atteint (10 par compte).',
+  INVALID_WEBAUTHN_RESPONSE: 'La réponse de la clé de sécurité a été refusée.',
   INTERNAL_ERROR: 'Erreur interne du Manager.',
 }
 

@@ -231,7 +231,7 @@ Références : [react.dev/learn](https://react.dev/learn), [Règles de React](ht
 ### 6.5 Script d'audit
 
 - `scripts/audit.sh` enchaîne `npm audit`, `npm audit --omit=dev`, OSV-Scanner et `govulncheck` et rapporte chacun dans les catégories du § 2.2. Code de sortie : 0 si tout est réussi, 1 si des vulnérabilités sont détectées, 2 si un outil est indisponible ou a échoué. Il interroge des bases en ligne ; il n'est donc pas inclus dans `scripts/verify.sh`, qui reste exécutable hors ligne.
-- Installation des outils (outils de développement, hors dépendances du projet) : `go install golang.org/x/vuln/cmd/govulncheck@latest` ; OSV-Scanner par `brew install osv-scanner` (macOS) ou `go install github.com/google/osv-scanner/v2/cmd/osv-scanner@latest`.
+- Installation des outils (outils de développement, hors dépendances du projet) : `go install golang.org/x/vuln/cmd/govulncheck@latest`, lancé hors de `backend/` pour être compilé avec le Go le plus récent de la machine (un `govulncheck` compilé avec un Go plus ancien que le `go` du `PATH` ne sait pas charger le code et échoue) ; le script l'exécute avec la version de Go de `backend/go.mod`, celle de la CI et des releases, pour que la bibliothèque standard analysée soit celle livrée ; OSV-Scanner par `brew install osv-scanner` (macOS) ou `go install github.com/google/osv-scanner/v2/cmd/osv-scanner@latest`.
 
 ### 6.6 Vulnérabilités non corrigées
 

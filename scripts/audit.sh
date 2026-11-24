@@ -76,8 +76,11 @@ go_vulncheck() {
     unavailable=1
     return
   fi
-  local log="$log_dir/govulncheck.txt" status
-  (cd "$root/backend" && "$tool" ./...) >"$log" 2>&1
+  # Analyse with the Go version of go.mod, the one CI and releases build
+  # with: the standard library is part of the scan.
+  local log="$log_dir/govulncheck.txt" status toolchain
+  toolchain="go$(sed -n 's/^go //p' "$root/backend/go.mod")"
+  (cd "$root/backend" && GOTOOLCHAIN="$toolchain" "$tool" ./...) >"$log" 2>&1
   status=$?
   case $status in
     0) record "govulncheck" "RÉUSSI" "aucune vulnérabilité atteignable" ;;

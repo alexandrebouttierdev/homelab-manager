@@ -62,9 +62,10 @@ Audits (docs/CODE_RULES.md § 6) : `npm audit` et `npm audit --omit=dev`, OSV-Sc
 
 | Identifiant | Paquet | Gravité | Atteignable | Mesure | Réexamen |
 |---|---|---|---|---|---|
-| — | — | — | — | Aucune vulnérabilité connue non corrigée | — |
+| GO-2026-6859 | Bibliothèque standard Go 1.26.10 (`net/http`) | Déni de service : plantage d'un serveur HTTP/1 (course sur `MaxBytesReader`) | **Oui** : serveur HTTP du Manager et proxy Docker | Corrigée par Go 1.26.11 (publié le 2 novembre 2026) : passer `go.mod`, la CI et les releases à 1.26.11 | À la correction |
+| GHSA-x527-x647-q7gg et 22 avis GO- (GO-2023-2402 à GO-2026-6355) | `golang.org/x/crypto` v0.0.0-20220517005047-85d78b3ac167 | Critique selon OSV (CVSS 10) ; déni de service, contournements d'authentification | **Non** : seul `golang.org/x/crypto/argon2` est importé ; `ssh`, `ssh/agent` et `openpgp`, concernés, ne le sont pas | Monter à v0.58.0 (publiée le 9 octobre 2026), qui les corrige tous sauf GO-2026-5932 (`openpgp`, non importé), corrigé en v0.59.0, admissible le 25 novembre 2026 (règle des deux semaines) | À la correction |
 
-Dernier audit, 24 novembre 2026 : `npm audit` et `npm audit --omit=dev` réussis (0 vulnérabilité) ; OSV-Scanner et `govulncheck` non exécutés, outils non installés sur le poste de développement ni dans la CI.
+Dernier audit, 24 novembre 2026 (`scripts/audit.sh`) : `npm audit` et `npm audit --omit=dev` réussis (0 vulnérabilité) ; OSV-Scanner 2.7.1 : 1 vulnérabilité critique (`golang.org/x/crypto`) ; `govulncheck` 1.10.0 avec Go 1.26.10 : 1 vulnérabilité atteignable (bibliothèque standard), 23 non atteignables (`golang.org/x/crypto`). Les deux outils ne tournent pas encore dans la CI.
 
 ## Système et déploiement
 

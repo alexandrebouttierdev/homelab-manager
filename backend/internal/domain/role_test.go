@@ -22,6 +22,10 @@ func TestRolePolicy(t *testing.T) {
 		{RoleViewer, PermManageServices, false},
 		{RoleOperator, PermManageServices, true},
 		{RoleAdmin, PermManageServices, true},
+		{RoleViewer, PermRunBackups, false},
+		{RoleOperator, PermRunBackups, true},
+		{RoleOperator, PermManageBackups, false},
+		{RoleAdmin, PermManageBackups, true},
 		{Role("root"), PermManageUsers, false},
 	}
 	for _, c := range cases {

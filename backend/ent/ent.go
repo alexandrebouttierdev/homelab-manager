@@ -11,6 +11,9 @@ import (
 	"homelab-manager/backend/ent/alertsilence"
 	"homelab-manager/backend/ent/appsetting"
 	"homelab-manager/backend/ent/auditlog"
+	"homelab-manager/backend/ent/backupconfig"
+	"homelab-manager/backend/ent/backuprun"
+	"homelab-manager/backend/ent/backupsnapshot"
 	"homelab-manager/backend/ent/container"
 	"homelab-manager/backend/ent/containermetricsample"
 	"homelab-manager/backend/ent/event"
@@ -97,6 +100,9 @@ func checkColumn(t, c string) error {
 			alertsilence.Table:          alertsilence.ValidColumn,
 			appsetting.Table:            appsetting.ValidColumn,
 			auditlog.Table:              auditlog.ValidColumn,
+			backupconfig.Table:          backupconfig.ValidColumn,
+			backuprun.Table:             backuprun.ValidColumn,
+			backupsnapshot.Table:        backupsnapshot.ValidColumn,
 			container.Table:             container.ValidColumn,
 			containermetricsample.Table: containermetricsample.ValidColumn,
 			event.Table:                 event.ValidColumn,

@@ -31,16 +31,23 @@ const (
 	// PermManageServices covers starting, stopping, restarting and
 	// reloading the units of the allow list.
 	PermManageServices Permission = "services:manage"
+	// PermRunBackups covers starting a backup.
+	PermRunBackups Permission = "backups:run"
+	// PermManageBackups covers the repository, the sources, the
+	// exclusions and the schedule.
+	PermManageBackups Permission = "backups:manage"
 )
 
-// rolePermissions is the single source of the role policy. Operators gain
-// their backup permissions with phase 6.
+// rolePermissions is the single source of the role policy.
 var rolePermissions = map[Role]map[Permission]bool{
-	RoleViewer:   {},
-	RoleOperator: {PermOperateAlerts: true, PermScanVulnerabilities: true, PermManageServices: true},
+	RoleViewer: {},
+	RoleOperator: {
+		PermOperateAlerts: true, PermScanVulnerabilities: true, PermManageServices: true, PermRunBackups: true,
+	},
 	RoleAdmin: {
 		PermManageSettings: true, PermManageUsers: true, PermManagePower: true, PermViewAudit: true,
 		PermOperateAlerts: true, PermManageAlerts: true, PermScanVulnerabilities: true, PermManageServices: true,
+		PermRunBackups: true, PermManageBackups: true,
 	},
 }
 

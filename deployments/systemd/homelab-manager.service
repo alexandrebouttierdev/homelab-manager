@@ -27,6 +27,9 @@ StateDirectory=homelab-manager
 # Package inventory for homelab-vulnscan.service (module V); ignored when
 # the directory does not exist.
 ReadWritePaths=-/var/lib/homelab-vulnscan/inventory
+# Backup jobs for homelab-backup@.service (phase 6); ignored when the
+# directory does not exist.
+ReadWritePaths=-/var/lib/homelab-backup/jobs
 StateDirectoryMode=0700
 UMask=0077
 EnvironmentFile=-/etc/homelab-manager/manager.env

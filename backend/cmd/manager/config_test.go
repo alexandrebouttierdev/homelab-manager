@@ -8,6 +8,7 @@ func TestConfigValidateCollectionBounds(t *testing.T) {
 		SystemIntervalSeconds: 10, DockerStatsIntervalSeconds: 15,
 		DockerDiscoveryIntervalSeconds: 30, MetricsRetentionDays: 30, VulnerabilityScanIntervalHours: 24,
 		VulnscanInventoryPath: "/var/lib/homelab-vulnscan/inventory/inventory.json", VulnscanResultPath: "/var/lib/homelab-vulnscan/result/result.json",
+		BackupJobsDir: "/var/lib/homelab-backup/jobs", BackupRunsDir: "/var/lib/homelab-backup/runs",
 	}
 	if err := config.Validate(); err != nil {
 		t.Fatalf("valid configuration rejected: %v", err)
@@ -27,6 +28,7 @@ func TestConfigValidateCollectionBounds(t *testing.T) {
 		{"scan interval too short", func(c *Config) { c.VulnerabilityScanIntervalHours = 5 }},
 		{"scan interval too long", func(c *Config) { c.VulnerabilityScanIntervalHours = 169 }},
 		{"relative inventory path", func(c *Config) { c.VulnscanInventoryPath = "inventory.json" }},
+		{"relative backup jobs directory", func(c *Config) { c.BackupJobsDir = "jobs" }},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

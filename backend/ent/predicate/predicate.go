@@ -21,6 +21,15 @@ type AppSetting func(*sql.Selector)
 // AuditLog is the predicate function for auditlog builders.
 type AuditLog func(*sql.Selector)
 
+// BackupConfig is the predicate function for backupconfig builders.
+type BackupConfig func(*sql.Selector)
+
+// BackupRun is the predicate function for backuprun builders.
+type BackupRun func(*sql.Selector)
+
+// BackupSnapshot is the predicate function for backupsnapshot builders.
+type BackupSnapshot func(*sql.Selector)
+
 // Container is the predicate function for container builders.
 type Container func(*sql.Selector)
 

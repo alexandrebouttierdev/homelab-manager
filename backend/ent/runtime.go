@@ -8,6 +8,9 @@ import (
 	"homelab-manager/backend/ent/alertsilence"
 	"homelab-manager/backend/ent/appsetting"
 	"homelab-manager/backend/ent/auditlog"
+	"homelab-manager/backend/ent/backupconfig"
+	"homelab-manager/backend/ent/backuprun"
+	"homelab-manager/backend/ent/backupsnapshot"
 	"homelab-manager/backend/ent/container"
 	"homelab-manager/backend/ent/containermetricsample"
 	"homelab-manager/backend/ent/event"
@@ -169,6 +172,104 @@ func init() {
 	auditlogDescID := auditlogFields[0].Descriptor()
 	// auditlog.DefaultID holds the default value on creation for the id field.
 	auditlog.DefaultID = auditlogDescID.Default.(func() uuid.UUID)
+	backupconfigFields := schema.BackupConfig{}.Fields()
+	_ = backupconfigFields
+	// backupconfigDescSingletonKey is the schema descriptor for singleton_key field.
+	backupconfigDescSingletonKey := backupconfigFields[1].Descriptor()
+	// backupconfig.SingletonKeyValidator is a validator for the "singleton_key" field. It is called by the builders before save.
+	backupconfig.SingletonKeyValidator = backupconfigDescSingletonKey.Validators[0].(func(string) error)
+	// backupconfigDescSealedCredentials is the schema descriptor for sealed_credentials field.
+	backupconfigDescSealedCredentials := backupconfigFields[4].Descriptor()
+	// backupconfig.DefaultSealedCredentials holds the default value on creation for the sealed_credentials field.
+	backupconfig.DefaultSealedCredentials = backupconfigDescSealedCredentials.Default.(string)
+	// backupconfigDescExcludeCaches is the schema descriptor for exclude_caches field.
+	backupconfigDescExcludeCaches := backupconfigFields[8].Descriptor()
+	// backupconfig.DefaultExcludeCaches holds the default value on creation for the exclude_caches field.
+	backupconfig.DefaultExcludeCaches = backupconfigDescExcludeCaches.Default.(bool)
+	// backupconfigDescExcludeIfPresent is the schema descriptor for exclude_if_present field.
+	backupconfigDescExcludeIfPresent := backupconfigFields[9].Descriptor()
+	// backupconfig.DefaultExcludeIfPresent holds the default value on creation for the exclude_if_present field.
+	backupconfig.DefaultExcludeIfPresent = backupconfigDescExcludeIfPresent.Default.(string)
+	// backupconfigDescScheduleEnabled is the schema descriptor for schedule_enabled field.
+	backupconfigDescScheduleEnabled := backupconfigFields[10].Descriptor()
+	// backupconfig.DefaultScheduleEnabled holds the default value on creation for the schedule_enabled field.
+	backupconfig.DefaultScheduleEnabled = backupconfigDescScheduleEnabled.Default.(bool)
+	// backupconfigDescScheduleFrequency is the schema descriptor for schedule_frequency field.
+	backupconfigDescScheduleFrequency := backupconfigFields[11].Descriptor()
+	// backupconfig.DefaultScheduleFrequency holds the default value on creation for the schedule_frequency field.
+	backupconfig.DefaultScheduleFrequency = backupconfigDescScheduleFrequency.Default.(string)
+	// backupconfigDescScheduleWeekday is the schema descriptor for schedule_weekday field.
+	backupconfigDescScheduleWeekday := backupconfigFields[12].Descriptor()
+	// backupconfig.DefaultScheduleWeekday holds the default value on creation for the schedule_weekday field.
+	backupconfig.DefaultScheduleWeekday = backupconfigDescScheduleWeekday.Default.(int)
+	// backupconfigDescScheduleHour is the schema descriptor for schedule_hour field.
+	backupconfigDescScheduleHour := backupconfigFields[13].Descriptor()
+	// backupconfig.DefaultScheduleHour holds the default value on creation for the schedule_hour field.
+	backupconfig.DefaultScheduleHour = backupconfigDescScheduleHour.Default.(int)
+	// backupconfigDescScheduleMinute is the schema descriptor for schedule_minute field.
+	backupconfigDescScheduleMinute := backupconfigFields[14].Descriptor()
+	// backupconfig.DefaultScheduleMinute holds the default value on creation for the schedule_minute field.
+	backupconfig.DefaultScheduleMinute = backupconfigDescScheduleMinute.Default.(int)
+	// backupconfigDescUpdatedBy is the schema descriptor for updated_by field.
+	backupconfigDescUpdatedBy := backupconfigFields[16].Descriptor()
+	// backupconfig.DefaultUpdatedBy holds the default value on creation for the updated_by field.
+	backupconfig.DefaultUpdatedBy = backupconfigDescUpdatedBy.Default.(string)
+	// backupconfigDescID is the schema descriptor for id field.
+	backupconfigDescID := backupconfigFields[0].Descriptor()
+	// backupconfig.DefaultID holds the default value on creation for the id field.
+	backupconfig.DefaultID = backupconfigDescID.Default.(func() uuid.UUID)
+	backuprunFields := schema.BackupRun{}.Fields()
+	_ = backuprunFields
+	// backuprunDescOperation is the schema descriptor for operation field.
+	backuprunDescOperation := backuprunFields[1].Descriptor()
+	// backuprun.OperationValidator is a validator for the "operation" field. It is called by the builders before save.
+	backuprun.OperationValidator = backuprunDescOperation.Validators[0].(func(string) error)
+	// backuprunDescOrigin is the schema descriptor for origin field.
+	backuprunDescOrigin := backuprunFields[2].Descriptor()
+	// backuprun.OriginValidator is a validator for the "origin" field. It is called by the builders before save.
+	backuprun.OriginValidator = backuprunDescOrigin.Validators[0].(func(string) error)
+	// backuprunDescState is the schema descriptor for state field.
+	backuprunDescState := backuprunFields[4].Descriptor()
+	// backuprun.StateValidator is a validator for the "state" field. It is called by the builders before save.
+	backuprun.StateValidator = backuprunDescState.Validators[0].(func(string) error)
+	// backuprunDescMessage is the schema descriptor for message field.
+	backuprunDescMessage := backuprunFields[6].Descriptor()
+	// backuprun.DefaultMessage holds the default value on creation for the message field.
+	backuprun.DefaultMessage = backuprunDescMessage.Default.(string)
+	// backuprunDescWarning is the schema descriptor for warning field.
+	backuprunDescWarning := backuprunFields[7].Descriptor()
+	// backuprun.DefaultWarning holds the default value on creation for the warning field.
+	backuprun.DefaultWarning = backuprunDescWarning.Default.(bool)
+	// backuprunDescSnapshotID is the schema descriptor for snapshot_id field.
+	backuprunDescSnapshotID := backuprunFields[8].Descriptor()
+	// backuprun.DefaultSnapshotID holds the default value on creation for the snapshot_id field.
+	backuprun.DefaultSnapshotID = backuprunDescSnapshotID.Default.(string)
+	// backuprunDescID is the schema descriptor for id field.
+	backuprunDescID := backuprunFields[0].Descriptor()
+	// backuprun.DefaultID holds the default value on creation for the id field.
+	backuprun.DefaultID = backuprunDescID.Default.(func() uuid.UUID)
+	backupsnapshotFields := schema.BackupSnapshot{}.Fields()
+	_ = backupsnapshotFields
+	// backupsnapshotDescHostname is the schema descriptor for hostname field.
+	backupsnapshotDescHostname := backupsnapshotFields[3].Descriptor()
+	// backupsnapshot.DefaultHostname holds the default value on creation for the hostname field.
+	backupsnapshot.DefaultHostname = backupsnapshotDescHostname.Default.(string)
+	// backupsnapshotDescTotalFiles is the schema descriptor for total_files field.
+	backupsnapshotDescTotalFiles := backupsnapshotFields[6].Descriptor()
+	// backupsnapshot.DefaultTotalFiles holds the default value on creation for the total_files field.
+	backupsnapshot.DefaultTotalFiles = backupsnapshotDescTotalFiles.Default.(int64)
+	// backupsnapshotDescTotalBytes is the schema descriptor for total_bytes field.
+	backupsnapshotDescTotalBytes := backupsnapshotFields[7].Descriptor()
+	// backupsnapshot.DefaultTotalBytes holds the default value on creation for the total_bytes field.
+	backupsnapshot.DefaultTotalBytes = backupsnapshotDescTotalBytes.Default.(int64)
+	// backupsnapshotDescDataAdded is the schema descriptor for data_added field.
+	backupsnapshotDescDataAdded := backupsnapshotFields[8].Descriptor()
+	// backupsnapshot.DefaultDataAdded holds the default value on creation for the data_added field.
+	backupsnapshot.DefaultDataAdded = backupsnapshotDescDataAdded.Default.(int64)
+	// backupsnapshotDescID is the schema descriptor for id field.
+	backupsnapshotDescID := backupsnapshotFields[0].Descriptor()
+	// backupsnapshot.IDValidator is a validator for the "id" field. It is called by the builders before save.
+	backupsnapshot.IDValidator = backupsnapshotDescID.Validators[0].(func(string) error)
 	containerFields := schema.Container{}.Fields()
 	_ = containerFields
 	// containerDescDockerID is the schema descriptor for docker_id field.

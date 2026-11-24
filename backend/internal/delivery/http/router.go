@@ -54,6 +54,8 @@ type Services struct {
 	// Vulnerabilities scans the system packages; nil (no database) answers
 	// 503.
 	Vulnerabilities *usecase.VulnerabilityUsecase
+	// Backups configures and runs restic; nil (no database) answers 503.
+	Backups *usecase.BackupUsecase
 }
 
 func NewRouter(logger *zap.Logger, services Services, sessionSecure bool, webRoot string) http.Handler {
@@ -67,6 +69,7 @@ func NewRouter(logger *zap.Logger, services Services, sessionSecure bool, webRoo
 	units, alerts, notifications := services.Units, services.Alerts, services.Notifications
 	vulnerabilities := services.Vulnerabilities
 	unitActions := services.UnitActions
+	backups := services.Backups
 	if units == nil {
 		// Never run: its inventory stays pending and its detail unavailable.
 		units = usecase.NewServiceUsecase(nil, nil, nil, logger)
@@ -210,6 +213,17 @@ func NewRouter(logger *zap.Logger, services Services, sessionSecure bool, webRoo
 						vulns.Get("/scans", listScansHandler(vulnerabilities))
 						vulns.With(requirePermission(deny, domain.PermScanVulnerabilities)).Post("/scans", requestScanHandler(vulnerabilities))
 						vulns.Get("/{findingID}", findingHandler(vulnerabilities))
+					})
+					active.Route("/backups", func(backup chi.Router) {
+						backup.Use(requireBackups(backups))
+						backup.Get("/summary", backupSummaryHandler(backups))
+						backup.Get("/config", backupConfigHandler(backups))
+						backup.With(requirePermission(deny, domain.PermManageBackups)).Put("/config", updateBackupConfigHandler(backups))
+						backup.With(requirePermission(deny, domain.PermManageBackups)).Post("/repository/init", initBackupRepositoryHandler(backups))
+						backup.Get("/runs", listBackupRunsHandler(backups))
+						backup.With(requirePermission(deny, domain.PermRunBackups)).Post("/runs", requestBackupHandler(backups))
+						backup.Get("/runs/{runID}", backupRunHandler(backups))
+						backup.Get("/snapshots", listBackupSnapshotsHandler(backups))
 					})
 					active.Route("/machine/power", func(machine chi.Router) {
 						machine.Use(requirePermission(deny, domain.PermManagePower))

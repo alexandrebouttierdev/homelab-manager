@@ -10,6 +10,7 @@ import (
 	"time"
 
 	argon2adapter "homelab-manager/backend/internal/adapters/argon2"
+	"homelab-manager/backend/internal/adapters/backupunit"
 	"homelab-manager/backend/internal/adapters/dockerengine"
 	"homelab-manager/backend/internal/adapters/journalctl"
 	logindadapter "homelab-manager/backend/internal/adapters/logind"
@@ -206,12 +207,31 @@ func main() {
 				zap.Strings("units", names))
 		}
 	}
+	// Backups (phase 6): restic runs in homelab-backup@.service only; the
+	// Manager writes the job, starts the unit and reads the result. Without
+	// the secrets key the repository password cannot be kept: backups are
+	// then unavailable.
+	var backupUsecase *usecase.BackupUsecase
+	var backupsDone chan struct{}
+	if database != nil {
+		backupUsecase = usecase.NewBackupUsecase(sqlite.NewBackupRepository(database.Client()),
+			backupunit.NewExecutor(backupunit.Config{
+				JobsDir: config.BackupJobsDir, RunsDir: config.BackupRunsDir,
+				InitTimeout: backupunit.DefaultInitTimeout, BackupTimeout: backupunit.DefaultBackupTimeout,
+			}, systemd.NewController(systemd.SystemBus)),
+			secretBox, logger)
+		backupsDone = make(chan struct{})
+		go func() {
+			defer close(backupsDone)
+			backupUsecase.Run(schedulerCtx)
+		}()
+	}
 	router := httpdelivery.NewRouter(logger, httpdelivery.Services{
 		Health: healthUsecase, Auth: authUsecase, Monitoring: monitoringUsecase,
 		Accounts: accountUsecase, Power: powerUsecase, Security: securityUsecase, Audit: auditUsecase,
 		SecondFactors: secondFactorUsecase, Journal: journalUsecase, Units: serviceUsecase, UnitActions: unitActionUsecase,
 		Alerts:        alertUsecase,
-		Notifications: notificationUsecase, Vulnerabilities: vulnerabilityUsecase,
+		Notifications: notificationUsecase, Vulnerabilities: vulnerabilityUsecase, Backups: backupUsecase,
 	}, config.SessionSecure, config.WebRoot)
 
 	server := &http.Server{
@@ -270,6 +290,15 @@ func main() {
 			logger.Error("alert notifications did not stop before deadline")
 		}
 		notifier.CloseIdleConnections()
+	}
+	if backupsDone != nil {
+		// A running backup is stopped by its context and recorded as
+		// interrupted; systemd keeps the unit until restic exits.
+		select {
+		case <-backupsDone:
+		case <-time.After(15 * time.Second):
+			logger.Error("backups did not stop before deadline")
+		}
 	}
 	if unitActionsDone != nil {
 		// An action being followed ends as interrupted at once.

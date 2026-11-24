@@ -35,11 +35,11 @@ Chaque incrément, quel qu'il soit :
 | **1C** | Coffre de secrets (AES-256-GCM, `systemd-creds`), TOTP, codes de secours, connexion en deux étapes, 2FA obligatoire pour les administrateurs | 1B | `005_second_factor.sql` | L |
 | **2** | Journaux système (lecture `journalctl`) | 1A, groupe `systemd-journal` | — | M |
 | **3** | Services système en lecture (D-Bus), événements `service.failed` / `service.recovered` | 1A, D-Bus | `006_failed_units.sql` | M |
-| **4** | Alertes et notifications : règles, cycle de vie, silences, canaux | 1C (secrets), 3 | `007_alerts.sql` | L |
+| **4** | Alertes et notifications : règles, cycle de vie, silences, canaux | 1C (secrets), 3 | `007_alerts.sql` (4A), `008_notifications.sql` (4B) | L |
 | **5** | Actions sur les services par polkit (`start`, `stop`, `restart`, `reload`) | 1B (audit), 3 | — | M |
-| **6** | Sauvegardes restic : dépôts, sources, exclusions, rétention, restauration en quarantaine | 1C, 4, 5 | `008_backups.sql` | XL |
+| **6** | Sauvegardes restic : dépôts, sources, exclusions, rétention, restauration en quarantaine | 1C, 4, 5 | `009_backups.sql` | XL |
 | **7** | Tâches planifiées en lecture (Cron et timers) | 2, 3 | — | S |
-| **8** | WebAuthn (passkeys, FIDO2) et jetons d'API en lecture | 1C, HTTPS | `009_webauthn_tokens.sql` | L |
+| **8** | WebAuthn (passkeys, FIDO2) et jetons d'API en lecture | 1C, HTTPS | `010_webauthn_tokens.sql` | L |
 | *Option* | Dettes v2.1 : pagination par curseur, inventaire complet images/volumes/réseaux | Décision Q-4 | selon choix | M |
 
 Le coffre de secrets (§ 2.5 de la spécification) est avancé en **1C** et non en phase 4 : les secrets TOTP doivent être chiffrés (§ 3.6), ce qui en fait le premier consommateur.
@@ -114,13 +114,15 @@ Ordre de réalisation : 1A → M → 1B → 1C → 2 → 3 → 4 → 5 → 6 →
 - Tests : faux systemd exporté par godbus sur un bus privé (`dbus-daemon`, installé en CI), transitions d'état, SQLite réel, routes `httptest`, page et fonctions pures de l'interface.
 - Parcours vérifié dans le navigateur contre le Manager et un faux systemd sur un bus privé (macOS, sans vrai systemd) : inventaire, détail, événements d'échec puis de rétablissement, aucun doublon après redémarrage du Manager.
 
-### 4 — Alertes et notifications
+### 4 — Alertes et notifications (plan détaillé rédigé)
 
+- Plan : [2026-11-24-phase-4-alertes-notifications.md](./2026-11-24-phase-4-alertes-notifications.md), livré en deux parties : 4A (moteur, règles, cycle de vie, interface, sans communication sortante) puis 4B (canaux, silences, regroupement, renotification).
 - Moteur évalué toutes les 15 s sur les derniers échantillons (aucune requête historique lourde) ; six types de règles (§ 6.1) ; règles par défaut désactivables.
 - Cycle `firing` → `acknowledged` → `resolved`, silences (15 min à 7 jours), indicateurs.
 - Canaux : Telegram, Discord, Gotify, ntfy, SMTP, webhook (signature HMAC-SHA256 optionnelle) ; secrets dans le coffre (1C) ; bouton « Tester » ; regroupement 1/min/canal ; renotification toutes les N minutes.
 - Seule communication sortante du Manager : délais courts, échecs sans effet sur la supervision, file bornée.
-- Tables : `alert_rules`, `alerts`, `alert_silences`, `notification_channels`.
+- Tables : `alert_rules`, `alerts` (migration `007`), `alert_silences`, `notification_channels` (migration `008`).
+- Règle « Sauvegarde » et règle par défaut « sauvegarde en retard » : avec la phase 6, qui en fournit les données.
 - Retire « Alertes » de « à venir ».
 
 ### 5 — Actions sur les services
@@ -164,6 +166,9 @@ Questions nouvelles relevées en préparant ce plan, à trancher avant l'incrém
 | Q-3 | Les refus d'autorisation (`403 FORBIDDEN`) et les refus métier (`LAST_ADMIN`) sont-ils audités ? | Oui, avec `outcome = denied`, à partir de 1B (port `AuditRecorder`). En 1A, ils sont journalisés par zap avec le `request_id`. | 1B |
 | Q-5 | Faut-il une procédure dans l'interface pour retirer le second facteur d'un compte qui a perdu son appareil et ses codes de secours ? | Non pour l'instant : un administrateur supprime et recrée le compte ; pour le dernier administrateur, procédure SQLite documentée dans le README (non auditée). À réexaminer avec WebAuthn. | 8 |
 | Q-4 | Lever les limites v2.1 (pagination par curseur, images/volumes/réseaux inutilisés) ? La seconde exige d'ajouter au proxy des routes GET `images/json`, `volumes`, `networks`. | À planifier après la phase 3, si le besoin est confirmé. | Option |
+| Q-6 | Règle par défaut « température > seuil du capteur » : les seuils des capteurs ne sont pas collectés | Seuil fixe de 85 °C, modifiable ; collecter les seuils serait une évolution à part | 4A |
+| Q-7 | Un silence masque-t-il l'alerte dans l'interface ? | Non : alerte listée « sous silence », seules les notifications sont suspendues | 4B |
+| Q-8 | Vérification réelle de Telegram, Discord, Gotify et SMTP | Tests contre des serveurs simulés ; ntfy et webhook vérifiés dans la machine de test ; les autres par le propriétaire avec ses jetons | 4B |
 
 ## 6. Vérifications manuelles à chaque version
 

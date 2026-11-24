@@ -54,6 +54,8 @@ type BackupRun struct {
 	TotalBytesProcessed *int64 `json:"total_bytes_processed,omitempty"`
 	// DurationSeconds holds the value of the "duration_seconds" field.
 	DurationSeconds *float64 `json:"duration_seconds,omitempty"`
+	// Details holds the value of the "details" field.
+	Details *string `json:"details,omitempty"`
 	// StartedAt holds the value of the "started_at" field.
 	StartedAt time.Time `json:"started_at,omitempty"`
 	// FinishedAt holds the value of the "finished_at" field.
@@ -72,7 +74,7 @@ func (*BackupRun) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullFloat64)
 		case backuprun.FieldFilesNew, backuprun.FieldFilesChanged, backuprun.FieldFilesUnmodified, backuprun.FieldDirsNew, backuprun.FieldDirsChanged, backuprun.FieldDirsUnmodified, backuprun.FieldDataAdded, backuprun.FieldTotalFilesProcessed, backuprun.FieldTotalBytesProcessed:
 			values[i] = new(sql.NullInt64)
-		case backuprun.FieldOperation, backuprun.FieldOrigin, backuprun.FieldRequestedBy, backuprun.FieldState, backuprun.FieldFailure, backuprun.FieldMessage, backuprun.FieldSnapshotID:
+		case backuprun.FieldOperation, backuprun.FieldOrigin, backuprun.FieldRequestedBy, backuprun.FieldState, backuprun.FieldFailure, backuprun.FieldMessage, backuprun.FieldSnapshotID, backuprun.FieldDetails:
 			values[i] = new(sql.NullString)
 		case backuprun.FieldStartedAt, backuprun.FieldFinishedAt:
 			values[i] = new(sql.NullTime)
@@ -219,6 +221,13 @@ func (_m *BackupRun) assignValues(columns []string, values []any) error {
 				_m.DurationSeconds = new(float64)
 				*_m.DurationSeconds = value.Float64
 			}
+		case backuprun.FieldDetails:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field details", values[i])
+			} else if value.Valid {
+				_m.Details = new(string)
+				*_m.Details = value.String
+			}
 		case backuprun.FieldStartedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field started_at", values[i])
@@ -344,6 +353,11 @@ func (_m *BackupRun) String() string {
 	if v := _m.DurationSeconds; v != nil {
 		builder.WriteString("duration_seconds=")
 		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.Details; v != nil {
+		builder.WriteString("details=")
+		builder.WriteString(*v)
 	}
 	builder.WriteString(", ")
 	builder.WriteString("started_at=")

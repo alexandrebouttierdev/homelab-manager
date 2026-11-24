@@ -11,6 +11,8 @@ import (
 	"homelab-manager/backend/internal/backupjob"
 	"homelab-manager/backend/internal/domain"
 	"homelab-manager/backend/internal/ports"
+
+	"github.com/google/uuid"
 )
 
 // fakeUnits plays the runner: it checks the job and the secrets, then
@@ -140,5 +142,45 @@ func TestExecuteRefusesAnInvalidJobBeforeWritingIt(t *testing.T) {
 	}
 	if len(units.units) != 0 {
 		t.Fatal("the unit started for an invalid job")
+	}
+}
+
+func TestExecuteWritesTheJobOfEachOperation(t *testing.T) {
+	fresh := time.Date(2026, 11, 24, 3, 0, 1, 0, time.UTC)
+	runID := uuid.MustParse("7c9e6679-7425-40de-944b-e07fc1f90ae7")
+	cases := map[domain.BackupOperation]ports.BackupJob{
+		domain.BackupOpForgetPrune: {Retention: domain.BackupRetention{Enabled: true, KeepDaily: 7}},
+		domain.BackupOpCheck:       {CheckSubsetPercent: 5},
+		domain.BackupOpRestore:     {RunID: runID, Restore: &domain.BackupRestore{SnapshotID: "3a253ad8", DryRun: true}},
+		domain.BackupOpSnapshots:   {},
+		domain.BackupOpUnlock:      {},
+	}
+	for op, job := range cases {
+		t.Run(string(op), func(t *testing.T) {
+			units := &fakeUnits{result: &backupjob.Result{
+				Version: 1, Operation: op, StartedAt: fresh, Success: true, Details: &domain.BackupRunDetails{SubsetPercent: 5},
+			}}
+			executor := newExecutor(t, units)
+			job.Operation = op
+			job.Repository = domain.BackupRepository{Type: domain.RepositoryLocal, Location: "/mnt/backup"}
+			job.Selection = domain.BackupSelection{Sources: []string{"/etc"}}
+			result, err := executor.Execute(context.Background(), job, domain.BackupCredentials{Password: "p"})
+			if err != nil || result.Details == nil {
+				t.Fatalf("result = %+v, %v", result, err)
+			}
+			if len(units.sawJob.Sources) != 0 {
+				t.Fatal("only a backup carries the sources")
+			}
+			switch op {
+			case domain.BackupOpForgetPrune:
+				if units.sawJob.Retention == nil || units.sawJob.Retention.KeepDaily != 7 {
+					t.Fatalf("retention = %+v", units.sawJob.Retention)
+				}
+			case domain.BackupOpRestore:
+				if units.sawJob.Restore == nil || units.sawJob.Restore.Target != domain.RestoreTarget(runID) || !units.sawJob.Restore.DryRun {
+					t.Fatalf("restore = %+v", units.sawJob.Restore)
+				}
+			}
+		})
 	}
 }

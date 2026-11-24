@@ -119,6 +119,13 @@ var (
 		{Name: "schedule_weekday", Type: field.TypeInt, Default: 0},
 		{Name: "schedule_hour", Type: field.TypeInt, Default: 3},
 		{Name: "schedule_minute", Type: field.TypeInt, Default: 0},
+		{Name: "retention_enabled", Type: field.TypeBool, Default: false},
+		{Name: "keep_daily", Type: field.TypeInt, Default: 7},
+		{Name: "keep_weekly", Type: field.TypeInt, Default: 4},
+		{Name: "keep_monthly", Type: field.TypeInt, Default: 6},
+		{Name: "keep_yearly", Type: field.TypeInt, Default: 0},
+		{Name: "check_enabled", Type: field.TypeBool, Default: true},
+		{Name: "check_subset_percent", Type: field.TypeInt, Default: 5},
 		{Name: "updated_at", Type: field.TypeTime},
 		{Name: "updated_by", Type: field.TypeString, Default: ""},
 	}
@@ -149,6 +156,7 @@ var (
 		{Name: "total_files_processed", Type: field.TypeInt64, Nullable: true},
 		{Name: "total_bytes_processed", Type: field.TypeInt64, Nullable: true},
 		{Name: "duration_seconds", Type: field.TypeFloat64, Nullable: true},
+		{Name: "details", Type: field.TypeString, Nullable: true, Size: 2147483647},
 		{Name: "started_at", Type: field.TypeTime},
 		{Name: "finished_at", Type: field.TypeTime, Nullable: true},
 	}

@@ -55,7 +55,7 @@ func newFixture(t *testing.T) *fixture {
 	now := time.Date(2026, 11, 24, 3, 0, 0, 0, time.UTC)
 	f.config = Config{
 		JobsDir: filepath.Join(root, "jobs"), RunsDir: filepath.Join(root, "runs"), CacheDir: filepath.Join(root, "cache"),
-		TempDir: filepath.Join(root, "tmp"), Restic: restic, Path: "/usr/bin:/bin",
+		TempDir: filepath.Join(root, "tmp"), Restic: restic, Path: "/usr/bin:/bin", RestoreRoot: filepath.Join(root, "restore"),
 		Now: func() time.Time { now = now.Add(time.Second); return now },
 	}
 	return f
@@ -263,7 +263,7 @@ func TestRunnerRefusesUnknownFieldsAndOperations(t *testing.T) {
 	if status, result, _ := f.run("backup"); status != 1 || !strings.Contains(result.Message, "unknown field") {
 		t.Fatalf("unknown field: status %d, %+v", status, result)
 	}
-	if status, _, _ := f.run("restore"); status != 2 {
+	if status, _, _ := f.run("diff"); status != 2 {
 		t.Fatalf("unknown operation = %d, want 2", status)
 	}
 	if status, result, _ := f.run("init"); status != 1 || result.Success {
@@ -311,5 +311,116 @@ func TestRunnerWithRealRestic(t *testing.T) {
 	}, domain.BackupCredentials{Password: "wrong-password"})
 	if status, result, _ := f.run("backup"); status != 1 || result.Message == "" {
 		t.Fatalf("wrong password: %d %+v", status, result)
+	}
+}
+
+func repositoryJob(op domain.BackupOperation) backupjob.Job {
+	return backupjob.Job{Version: 1, Operation: op, RepositoryType: domain.RepositoryLocal, Repository: "/mnt/backup", Sources: []string{}, Excludes: []string{}}
+}
+
+func TestMaintenanceOperations(t *testing.T) {
+	f := newFixture(t)
+	f.file("snapshots.out", snapshotsJSON)
+	f.job(repositoryJob(domain.BackupOpSnapshots), domain.BackupCredentials{Password: "p"})
+	if status, result, _ := f.run("snapshots"); status != 0 || len(result.Snapshots) != 2 {
+		t.Fatalf("snapshots: %d %+v", status, result)
+	}
+
+	f.job(repositoryJob(domain.BackupOpUnlock), domain.BackupCredentials{Password: "p"})
+	if status, _, _ := f.run("unlock"); status != 0 || strings.TrimSpace(f.read("args.unlock")) != "unlock\n--remove-all" {
+		t.Fatalf("unlock: %d %q", status, f.read("args.unlock"))
+	}
+
+	check := repositoryJob(domain.BackupOpCheck)
+	check.CheckSubsetPercent = 5
+	f.job(check, domain.BackupCredentials{Password: "p"})
+	status, result, _ := f.run("check")
+	if status != 0 || result.Details.SubsetPercent != 5 || strings.TrimSpace(f.read("args.check")) != "check\n--read-data-subset\n5%" {
+		t.Fatalf("check: %d %+v %q", status, result, f.read("args.check"))
+	}
+	f.file("check.err", "Fatal: repository contains errors\n")
+	f.file("check.code", "1")
+	f.job(check, domain.BackupCredentials{Password: "p"})
+	if status, result, _ := f.run("check"); status != 1 || result.Message != "Fatal: repository contains errors" {
+		t.Fatalf("failed check: %d %+v", status, result)
+	}
+
+	forget := repositoryJob(domain.BackupOpForgetPrune)
+	forget.Retention = &backupjob.Retention{KeepDaily: 7, KeepMonthly: 6}
+	f.file("forget.out", `[{"tags":["homelab-manager"],"host":"h","paths":["/etc"],"keep":[{"id":"a"}],"remove":[{"id":"b"},{"id":"c"}]}]`+"\nrepacking packs\n")
+	f.job(forget, domain.BackupCredentials{Password: "p"})
+	status, result, _ = f.run("forget-prune")
+	if status != 0 || result.Details.SnapshotsRemoved != 2 || len(result.Snapshots) != 2 {
+		t.Fatalf("forget: %d %+v", status, result)
+	}
+	if got := strings.TrimSpace(f.read("args.forget")); got != "forget\n--json\n--tag\nhomelab-manager\n--keep-daily\n7\n--keep-monthly\n6\n--prune" {
+		t.Fatalf("forget args = %q", got)
+	}
+}
+
+func restoreJob(dryRun bool) backupjob.Job {
+	job := repositoryJob(domain.BackupOpRestore)
+	job.Restore = &backupjob.Restore{
+		SnapshotID: "3a253ad8", Include: []string{"/etc/hostname"}, DryRun: dryRun,
+		Target: domain.BackupRestoreRoot + "/7c9e6679-7425-40de-944b-e07fc1f90ae7",
+	}
+	return job
+}
+
+func TestRestoreIntoTheQuarantine(t *testing.T) {
+	f := newFixture(t)
+	f.file("restore.out", `{"message_type":"summary","total_files":3,"files_restored":3,"total_bytes":42,"bytes_restored":42}`+"\n")
+	f.job(restoreJob(false), domain.BackupCredentials{Password: "p"})
+	status, result, stderr := f.run("restore")
+	if status != 0 || result.Details.FilesRestored != 3 || result.Details.BytesRestored != 42 || result.Details.SnapshotID != "3a253ad8" {
+		t.Fatalf("restore: %d %+v %s", status, result, stderr)
+	}
+	target := filepath.Join(f.config.RestoreRoot, "7c9e6679-7425-40de-944b-e07fc1f90ae7")
+	if info, err := os.Stat(target); err != nil || info.Mode().Perm() != 0o700 {
+		t.Fatalf("quarantine = %v %v", info, err)
+	}
+	want := "restore\n--json\n--target\n" + target + "\n--include\n/etc/hostname\n--\n3a253ad8"
+	if got := strings.TrimSpace(f.read("args.restore")); got != want {
+		t.Fatalf("args = %q, want %q", got, want)
+	}
+	// The same run directory is never written twice.
+	f.job(restoreJob(false), domain.BackupCredentials{Password: "p"})
+	if status, _, _ := f.run("restore"); status != 1 {
+		t.Fatal("a second restore into the same directory must fail")
+	}
+
+	g := newFixture(t)
+	g.file("restore.out", `{"message_type":"summary","total_files":3,"files_restored":0,"total_bytes":42,"bytes_restored":0}`+"\n")
+	g.job(restoreJob(true), domain.BackupCredentials{Password: "p"})
+	if status, result, _ := g.run("restore"); status != 0 || !result.Details.DryRun || result.Details.TotalFiles != 3 {
+		t.Fatalf("dry run: %d %+v", status, result)
+	}
+	if !strings.Contains(g.read("args.restore"), "--dry-run") {
+		t.Fatal("dry run flag missing")
+	}
+	if _, err := os.Stat(filepath.Join(g.config.RestoreRoot, "7c9e6679-7425-40de-944b-e07fc1f90ae7")); !os.IsNotExist(err) {
+		t.Fatal("a dry run leaves no directory")
+	}
+}
+
+func TestRestoreRefusesATargetOutsideTheQuarantine(t *testing.T) {
+	for name, target := range map[string]string{
+		"elsewhere":   "/etc",
+		"not a run":   domain.BackupRestoreRoot + "/x",
+		"nested":      domain.BackupRestoreRoot + "/7c9e6679-7425-40de-944b-e07fc1f90ae7/../../etc",
+		"root itself": domain.BackupRestoreRoot,
+	} {
+		t.Run(name, func(t *testing.T) {
+			f := newFixture(t)
+			job := restoreJob(false)
+			job.Restore.Target = target
+			f.job(job, domain.BackupCredentials{Password: "p"})
+			if status, _, _ := f.run("restore"); status != 1 {
+				t.Fatalf("status %d", status)
+			}
+			if _, err := os.Stat(filepath.Join(f.bin, "args.restore")); !os.IsNotExist(err) {
+				t.Fatal("restic ran")
+			}
+		})
 	}
 }

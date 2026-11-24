@@ -18,7 +18,8 @@ func TestBackupConfigRoundTrip(t *testing.T) {
 	repository := NewBackupRepository(database.Client())
 
 	empty, err := repository.BackupConfig(ctx)
-	if err != nil || empty.Repository != nil || empty.Schedule != domain.DefaultBackupSchedule || !empty.Selection.ExcludeCaches {
+	if err != nil || empty.Repository != nil || empty.Schedule != domain.DefaultBackupSchedule || !empty.Selection.ExcludeCaches ||
+		empty.Retention != domain.DefaultBackupRetention || empty.Check != domain.DefaultBackupCheck {
 		t.Fatalf("default = %+v, %v", empty, err)
 	}
 	updated := time.Date(2026, 11, 24, 10, 0, 0, 0, time.UTC)
@@ -29,6 +30,8 @@ func TestBackupConfigRoundTrip(t *testing.T) {
 			Sources: []string{"/etc", "/srv"}, Excludes: []string{"*.tmp"}, ExcludeCaches: false, ExcludeIfPresent: ".nobackup",
 		},
 		Schedule:  domain.BackupSchedule{Enabled: true, Frequency: domain.BackupWeekly, Weekday: time.Sunday, Hour: 4, Minute: 15},
+		Retention: domain.BackupRetention{Enabled: true, KeepDaily: 14, KeepYearly: 2},
+		Check:     domain.BackupCheck{Enabled: false, SubsetPercent: 10},
 		UpdatedAt: &updated, UpdatedBy: "alice",
 	}
 	audit := domain.AuditEntry{Actor: "alice", TargetType: "backup_config", TargetID: "local", Action: "update", Outcome: domain.AuditSuccess}
@@ -38,7 +41,8 @@ func TestBackupConfigRoundTrip(t *testing.T) {
 	got, err := repository.BackupConfig(ctx)
 	if err != nil || *got.Repository != *config.Repository || got.SealedCredentials != "sealed" || got.Schedule != config.Schedule ||
 		len(got.Selection.Sources) != 2 || got.Selection.ExcludeIfPresent != ".nobackup" || got.Selection.ExcludeCaches ||
-		got.InitializedAt != nil || got.UpdatedBy != "alice" || !got.UpdatedAt.Equal(updated) {
+		got.InitializedAt != nil || got.UpdatedBy != "alice" || !got.UpdatedAt.Equal(updated) ||
+		got.Retention != config.Retention || got.Check != config.Check {
 		t.Fatalf("stored = %+v, %v", got, err)
 	}
 	// A second save updates the singleton and clears the repository.
@@ -216,4 +220,39 @@ func TestBackupDefaultAlertRule(t *testing.T) {
 		}
 	}
 	t.Fatal("no default backup rule")
+}
+
+func TestBackupRunDetailsAndLastCheck(t *testing.T) {
+	ctx := context.Background()
+	database := openTestDatabase(t, ctx)
+	repository := NewBackupRepository(database.Client())
+	at := time.Date(2026, 11, 24, 3, 0, 0, 0, time.UTC)
+	for _, tc := range []struct {
+		op      domain.BackupOperation
+		state   domain.BackupRunState
+		details *domain.BackupRunDetails
+	}{
+		{domain.BackupOpCheck, domain.BackupSucceeded, &domain.BackupRunDetails{SubsetPercent: 5}},
+		{domain.BackupOpCheck, domain.BackupFailed, &domain.BackupRunDetails{SubsetPercent: 5}},
+		{domain.BackupOpRestore, domain.BackupSucceeded, &domain.BackupRunDetails{SnapshotID: "3a253ad8", Target: "/var/lib/homelab-backup/restore/x", FilesRestored: 3}},
+	} {
+		at = at.Add(time.Hour)
+		run := domain.BackupRun{ID: uuid.New(), Operation: tc.op, Origin: domain.BackupManual, StartedAt: at}
+		if err := repository.StartBackupRun(ctx, run, nil); err != nil {
+			t.Fatal(err)
+		}
+		end := at.Add(time.Minute)
+		run.State, run.FinishedAt, run.Details = tc.state, &end, tc.details
+		if err := repository.FinishBackupRun(ctx, run, nil, nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+	latest, err := repository.LatestBackupRuns(ctx)
+	if err != nil || latest.LastCheck == nil || latest.LastCheck.State != domain.BackupSucceeded || latest.LastBackup != nil {
+		t.Fatalf("latest = %+v, %v", latest, err)
+	}
+	runs, _ := repository.BackupRuns(ctx, domain.BackupRunFilter{Limit: 1})
+	if runs[0].Details == nil || runs[0].Details.FilesRestored != 3 || runs[0].Details.SnapshotID != "3a253ad8" {
+		t.Fatalf("restore details = %+v", runs[0].Details)
+	}
 }

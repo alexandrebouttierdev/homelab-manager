@@ -4261,34 +4261,46 @@ func (m *AuditLogMutation) ResetEdge(name string) error {
 // BackupConfigMutation represents an operation that mutates the BackupConfig nodes in the graph.
 type BackupConfigMutation struct {
 	config
-	op                  Op
-	typ                 string
-	id                  *uuid.UUID
-	singleton_key       *string
-	repository_type     *string
-	repository_location *string
-	sealed_credentials  *string
-	initialized_at      *time.Time
-	sources             *[]string
-	appendsources       []string
-	excludes            *[]string
-	appendexcludes      []string
-	exclude_caches      *bool
-	exclude_if_present  *string
-	schedule_enabled    *bool
-	schedule_frequency  *string
-	schedule_weekday    *int
-	addschedule_weekday *int
-	schedule_hour       *int
-	addschedule_hour    *int
-	schedule_minute     *int
-	addschedule_minute  *int
-	updated_at          *time.Time
-	updated_by          *string
-	clearedFields       map[string]struct{}
-	done                bool
-	oldValue            func(context.Context) (*BackupConfig, error)
-	predicates          []predicate.BackupConfig
+	op                      Op
+	typ                     string
+	id                      *uuid.UUID
+	singleton_key           *string
+	repository_type         *string
+	repository_location     *string
+	sealed_credentials      *string
+	initialized_at          *time.Time
+	sources                 *[]string
+	appendsources           []string
+	excludes                *[]string
+	appendexcludes          []string
+	exclude_caches          *bool
+	exclude_if_present      *string
+	schedule_enabled        *bool
+	schedule_frequency      *string
+	schedule_weekday        *int
+	addschedule_weekday     *int
+	schedule_hour           *int
+	addschedule_hour        *int
+	schedule_minute         *int
+	addschedule_minute      *int
+	retention_enabled       *bool
+	keep_daily              *int
+	addkeep_daily           *int
+	keep_weekly             *int
+	addkeep_weekly          *int
+	keep_monthly            *int
+	addkeep_monthly         *int
+	keep_yearly             *int
+	addkeep_yearly          *int
+	check_enabled           *bool
+	check_subset_percent    *int
+	addcheck_subset_percent *int
+	updated_at              *time.Time
+	updated_by              *string
+	clearedFields           map[string]struct{}
+	done                    bool
+	oldValue                func(context.Context) (*BackupConfig, error)
+	predicates              []predicate.BackupConfig
 }
 
 var _ ent.Mutation = (*BackupConfigMutation)(nil)
@@ -5028,6 +5040,358 @@ func (m *BackupConfigMutation) ResetScheduleMinute() {
 	m.addschedule_minute = nil
 }
 
+// SetRetentionEnabled sets the "retention_enabled" field.
+func (m *BackupConfigMutation) SetRetentionEnabled(b bool) {
+	m.retention_enabled = &b
+}
+
+// RetentionEnabled returns the value of the "retention_enabled" field in the mutation.
+func (m *BackupConfigMutation) RetentionEnabled() (r bool, exists bool) {
+	v := m.retention_enabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRetentionEnabled returns the old "retention_enabled" field's value of the BackupConfig entity.
+// If the BackupConfig object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BackupConfigMutation) OldRetentionEnabled(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRetentionEnabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRetentionEnabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRetentionEnabled: %w", err)
+	}
+	return oldValue.RetentionEnabled, nil
+}
+
+// ResetRetentionEnabled resets all changes to the "retention_enabled" field.
+func (m *BackupConfigMutation) ResetRetentionEnabled() {
+	m.retention_enabled = nil
+}
+
+// SetKeepDaily sets the "keep_daily" field.
+func (m *BackupConfigMutation) SetKeepDaily(i int) {
+	m.keep_daily = &i
+	m.addkeep_daily = nil
+}
+
+// KeepDaily returns the value of the "keep_daily" field in the mutation.
+func (m *BackupConfigMutation) KeepDaily() (r int, exists bool) {
+	v := m.keep_daily
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKeepDaily returns the old "keep_daily" field's value of the BackupConfig entity.
+// If the BackupConfig object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BackupConfigMutation) OldKeepDaily(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKeepDaily is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKeepDaily requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKeepDaily: %w", err)
+	}
+	return oldValue.KeepDaily, nil
+}
+
+// AddKeepDaily adds i to the "keep_daily" field.
+func (m *BackupConfigMutation) AddKeepDaily(i int) {
+	if m.addkeep_daily != nil {
+		*m.addkeep_daily += i
+	} else {
+		m.addkeep_daily = &i
+	}
+}
+
+// AddedKeepDaily returns the value that was added to the "keep_daily" field in this mutation.
+func (m *BackupConfigMutation) AddedKeepDaily() (r int, exists bool) {
+	v := m.addkeep_daily
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetKeepDaily resets all changes to the "keep_daily" field.
+func (m *BackupConfigMutation) ResetKeepDaily() {
+	m.keep_daily = nil
+	m.addkeep_daily = nil
+}
+
+// SetKeepWeekly sets the "keep_weekly" field.
+func (m *BackupConfigMutation) SetKeepWeekly(i int) {
+	m.keep_weekly = &i
+	m.addkeep_weekly = nil
+}
+
+// KeepWeekly returns the value of the "keep_weekly" field in the mutation.
+func (m *BackupConfigMutation) KeepWeekly() (r int, exists bool) {
+	v := m.keep_weekly
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKeepWeekly returns the old "keep_weekly" field's value of the BackupConfig entity.
+// If the BackupConfig object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BackupConfigMutation) OldKeepWeekly(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKeepWeekly is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKeepWeekly requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKeepWeekly: %w", err)
+	}
+	return oldValue.KeepWeekly, nil
+}
+
+// AddKeepWeekly adds i to the "keep_weekly" field.
+func (m *BackupConfigMutation) AddKeepWeekly(i int) {
+	if m.addkeep_weekly != nil {
+		*m.addkeep_weekly += i
+	} else {
+		m.addkeep_weekly = &i
+	}
+}
+
+// AddedKeepWeekly returns the value that was added to the "keep_weekly" field in this mutation.
+func (m *BackupConfigMutation) AddedKeepWeekly() (r int, exists bool) {
+	v := m.addkeep_weekly
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetKeepWeekly resets all changes to the "keep_weekly" field.
+func (m *BackupConfigMutation) ResetKeepWeekly() {
+	m.keep_weekly = nil
+	m.addkeep_weekly = nil
+}
+
+// SetKeepMonthly sets the "keep_monthly" field.
+func (m *BackupConfigMutation) SetKeepMonthly(i int) {
+	m.keep_monthly = &i
+	m.addkeep_monthly = nil
+}
+
+// KeepMonthly returns the value of the "keep_monthly" field in the mutation.
+func (m *BackupConfigMutation) KeepMonthly() (r int, exists bool) {
+	v := m.keep_monthly
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKeepMonthly returns the old "keep_monthly" field's value of the BackupConfig entity.
+// If the BackupConfig object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BackupConfigMutation) OldKeepMonthly(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKeepMonthly is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKeepMonthly requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKeepMonthly: %w", err)
+	}
+	return oldValue.KeepMonthly, nil
+}
+
+// AddKeepMonthly adds i to the "keep_monthly" field.
+func (m *BackupConfigMutation) AddKeepMonthly(i int) {
+	if m.addkeep_monthly != nil {
+		*m.addkeep_monthly += i
+	} else {
+		m.addkeep_monthly = &i
+	}
+}
+
+// AddedKeepMonthly returns the value that was added to the "keep_monthly" field in this mutation.
+func (m *BackupConfigMutation) AddedKeepMonthly() (r int, exists bool) {
+	v := m.addkeep_monthly
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetKeepMonthly resets all changes to the "keep_monthly" field.
+func (m *BackupConfigMutation) ResetKeepMonthly() {
+	m.keep_monthly = nil
+	m.addkeep_monthly = nil
+}
+
+// SetKeepYearly sets the "keep_yearly" field.
+func (m *BackupConfigMutation) SetKeepYearly(i int) {
+	m.keep_yearly = &i
+	m.addkeep_yearly = nil
+}
+
+// KeepYearly returns the value of the "keep_yearly" field in the mutation.
+func (m *BackupConfigMutation) KeepYearly() (r int, exists bool) {
+	v := m.keep_yearly
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldKeepYearly returns the old "keep_yearly" field's value of the BackupConfig entity.
+// If the BackupConfig object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BackupConfigMutation) OldKeepYearly(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldKeepYearly is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldKeepYearly requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldKeepYearly: %w", err)
+	}
+	return oldValue.KeepYearly, nil
+}
+
+// AddKeepYearly adds i to the "keep_yearly" field.
+func (m *BackupConfigMutation) AddKeepYearly(i int) {
+	if m.addkeep_yearly != nil {
+		*m.addkeep_yearly += i
+	} else {
+		m.addkeep_yearly = &i
+	}
+}
+
+// AddedKeepYearly returns the value that was added to the "keep_yearly" field in this mutation.
+func (m *BackupConfigMutation) AddedKeepYearly() (r int, exists bool) {
+	v := m.addkeep_yearly
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetKeepYearly resets all changes to the "keep_yearly" field.
+func (m *BackupConfigMutation) ResetKeepYearly() {
+	m.keep_yearly = nil
+	m.addkeep_yearly = nil
+}
+
+// SetCheckEnabled sets the "check_enabled" field.
+func (m *BackupConfigMutation) SetCheckEnabled(b bool) {
+	m.check_enabled = &b
+}
+
+// CheckEnabled returns the value of the "check_enabled" field in the mutation.
+func (m *BackupConfigMutation) CheckEnabled() (r bool, exists bool) {
+	v := m.check_enabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCheckEnabled returns the old "check_enabled" field's value of the BackupConfig entity.
+// If the BackupConfig object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BackupConfigMutation) OldCheckEnabled(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCheckEnabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCheckEnabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCheckEnabled: %w", err)
+	}
+	return oldValue.CheckEnabled, nil
+}
+
+// ResetCheckEnabled resets all changes to the "check_enabled" field.
+func (m *BackupConfigMutation) ResetCheckEnabled() {
+	m.check_enabled = nil
+}
+
+// SetCheckSubsetPercent sets the "check_subset_percent" field.
+func (m *BackupConfigMutation) SetCheckSubsetPercent(i int) {
+	m.check_subset_percent = &i
+	m.addcheck_subset_percent = nil
+}
+
+// CheckSubsetPercent returns the value of the "check_subset_percent" field in the mutation.
+func (m *BackupConfigMutation) CheckSubsetPercent() (r int, exists bool) {
+	v := m.check_subset_percent
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCheckSubsetPercent returns the old "check_subset_percent" field's value of the BackupConfig entity.
+// If the BackupConfig object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BackupConfigMutation) OldCheckSubsetPercent(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCheckSubsetPercent is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCheckSubsetPercent requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCheckSubsetPercent: %w", err)
+	}
+	return oldValue.CheckSubsetPercent, nil
+}
+
+// AddCheckSubsetPercent adds i to the "check_subset_percent" field.
+func (m *BackupConfigMutation) AddCheckSubsetPercent(i int) {
+	if m.addcheck_subset_percent != nil {
+		*m.addcheck_subset_percent += i
+	} else {
+		m.addcheck_subset_percent = &i
+	}
+}
+
+// AddedCheckSubsetPercent returns the value that was added to the "check_subset_percent" field in this mutation.
+func (m *BackupConfigMutation) AddedCheckSubsetPercent() (r int, exists bool) {
+	v := m.addcheck_subset_percent
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCheckSubsetPercent resets all changes to the "check_subset_percent" field.
+func (m *BackupConfigMutation) ResetCheckSubsetPercent() {
+	m.check_subset_percent = nil
+	m.addcheck_subset_percent = nil
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (m *BackupConfigMutation) SetUpdatedAt(t time.Time) {
 	m.updated_at = &t
@@ -5134,7 +5498,7 @@ func (m *BackupConfigMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *BackupConfigMutation) Fields() []string {
-	fields := make([]string, 0, 16)
+	fields := make([]string, 0, 23)
 	if m.singleton_key != nil {
 		fields = append(fields, backupconfig.FieldSingletonKey)
 	}
@@ -5176,6 +5540,27 @@ func (m *BackupConfigMutation) Fields() []string {
 	}
 	if m.schedule_minute != nil {
 		fields = append(fields, backupconfig.FieldScheduleMinute)
+	}
+	if m.retention_enabled != nil {
+		fields = append(fields, backupconfig.FieldRetentionEnabled)
+	}
+	if m.keep_daily != nil {
+		fields = append(fields, backupconfig.FieldKeepDaily)
+	}
+	if m.keep_weekly != nil {
+		fields = append(fields, backupconfig.FieldKeepWeekly)
+	}
+	if m.keep_monthly != nil {
+		fields = append(fields, backupconfig.FieldKeepMonthly)
+	}
+	if m.keep_yearly != nil {
+		fields = append(fields, backupconfig.FieldKeepYearly)
+	}
+	if m.check_enabled != nil {
+		fields = append(fields, backupconfig.FieldCheckEnabled)
+	}
+	if m.check_subset_percent != nil {
+		fields = append(fields, backupconfig.FieldCheckSubsetPercent)
 	}
 	if m.updated_at != nil {
 		fields = append(fields, backupconfig.FieldUpdatedAt)
@@ -5219,6 +5604,20 @@ func (m *BackupConfigMutation) Field(name string) (ent.Value, bool) {
 		return m.ScheduleHour()
 	case backupconfig.FieldScheduleMinute:
 		return m.ScheduleMinute()
+	case backupconfig.FieldRetentionEnabled:
+		return m.RetentionEnabled()
+	case backupconfig.FieldKeepDaily:
+		return m.KeepDaily()
+	case backupconfig.FieldKeepWeekly:
+		return m.KeepWeekly()
+	case backupconfig.FieldKeepMonthly:
+		return m.KeepMonthly()
+	case backupconfig.FieldKeepYearly:
+		return m.KeepYearly()
+	case backupconfig.FieldCheckEnabled:
+		return m.CheckEnabled()
+	case backupconfig.FieldCheckSubsetPercent:
+		return m.CheckSubsetPercent()
 	case backupconfig.FieldUpdatedAt:
 		return m.UpdatedAt()
 	case backupconfig.FieldUpdatedBy:
@@ -5260,6 +5659,20 @@ func (m *BackupConfigMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldScheduleHour(ctx)
 	case backupconfig.FieldScheduleMinute:
 		return m.OldScheduleMinute(ctx)
+	case backupconfig.FieldRetentionEnabled:
+		return m.OldRetentionEnabled(ctx)
+	case backupconfig.FieldKeepDaily:
+		return m.OldKeepDaily(ctx)
+	case backupconfig.FieldKeepWeekly:
+		return m.OldKeepWeekly(ctx)
+	case backupconfig.FieldKeepMonthly:
+		return m.OldKeepMonthly(ctx)
+	case backupconfig.FieldKeepYearly:
+		return m.OldKeepYearly(ctx)
+	case backupconfig.FieldCheckEnabled:
+		return m.OldCheckEnabled(ctx)
+	case backupconfig.FieldCheckSubsetPercent:
+		return m.OldCheckSubsetPercent(ctx)
 	case backupconfig.FieldUpdatedAt:
 		return m.OldUpdatedAt(ctx)
 	case backupconfig.FieldUpdatedBy:
@@ -5371,6 +5784,55 @@ func (m *BackupConfigMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetScheduleMinute(v)
 		return nil
+	case backupconfig.FieldRetentionEnabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRetentionEnabled(v)
+		return nil
+	case backupconfig.FieldKeepDaily:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKeepDaily(v)
+		return nil
+	case backupconfig.FieldKeepWeekly:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKeepWeekly(v)
+		return nil
+	case backupconfig.FieldKeepMonthly:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKeepMonthly(v)
+		return nil
+	case backupconfig.FieldKeepYearly:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetKeepYearly(v)
+		return nil
+	case backupconfig.FieldCheckEnabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCheckEnabled(v)
+		return nil
+	case backupconfig.FieldCheckSubsetPercent:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCheckSubsetPercent(v)
+		return nil
 	case backupconfig.FieldUpdatedAt:
 		v, ok := value.(time.Time)
 		if !ok {
@@ -5402,6 +5864,21 @@ func (m *BackupConfigMutation) AddedFields() []string {
 	if m.addschedule_minute != nil {
 		fields = append(fields, backupconfig.FieldScheduleMinute)
 	}
+	if m.addkeep_daily != nil {
+		fields = append(fields, backupconfig.FieldKeepDaily)
+	}
+	if m.addkeep_weekly != nil {
+		fields = append(fields, backupconfig.FieldKeepWeekly)
+	}
+	if m.addkeep_monthly != nil {
+		fields = append(fields, backupconfig.FieldKeepMonthly)
+	}
+	if m.addkeep_yearly != nil {
+		fields = append(fields, backupconfig.FieldKeepYearly)
+	}
+	if m.addcheck_subset_percent != nil {
+		fields = append(fields, backupconfig.FieldCheckSubsetPercent)
+	}
 	return fields
 }
 
@@ -5416,6 +5893,16 @@ func (m *BackupConfigMutation) AddedField(name string) (ent.Value, bool) {
 		return m.AddedScheduleHour()
 	case backupconfig.FieldScheduleMinute:
 		return m.AddedScheduleMinute()
+	case backupconfig.FieldKeepDaily:
+		return m.AddedKeepDaily()
+	case backupconfig.FieldKeepWeekly:
+		return m.AddedKeepWeekly()
+	case backupconfig.FieldKeepMonthly:
+		return m.AddedKeepMonthly()
+	case backupconfig.FieldKeepYearly:
+		return m.AddedKeepYearly()
+	case backupconfig.FieldCheckSubsetPercent:
+		return m.AddedCheckSubsetPercent()
 	}
 	return nil, false
 }
@@ -5445,6 +5932,41 @@ func (m *BackupConfigMutation) AddField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.AddScheduleMinute(v)
+		return nil
+	case backupconfig.FieldKeepDaily:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddKeepDaily(v)
+		return nil
+	case backupconfig.FieldKeepWeekly:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddKeepWeekly(v)
+		return nil
+	case backupconfig.FieldKeepMonthly:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddKeepMonthly(v)
+		return nil
+	case backupconfig.FieldKeepYearly:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddKeepYearly(v)
+		return nil
+	case backupconfig.FieldCheckSubsetPercent:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCheckSubsetPercent(v)
 		return nil
 	}
 	return fmt.Errorf("unknown BackupConfig numeric field %s", name)
@@ -5535,6 +6057,27 @@ func (m *BackupConfigMutation) ResetField(name string) error {
 		return nil
 	case backupconfig.FieldScheduleMinute:
 		m.ResetScheduleMinute()
+		return nil
+	case backupconfig.FieldRetentionEnabled:
+		m.ResetRetentionEnabled()
+		return nil
+	case backupconfig.FieldKeepDaily:
+		m.ResetKeepDaily()
+		return nil
+	case backupconfig.FieldKeepWeekly:
+		m.ResetKeepWeekly()
+		return nil
+	case backupconfig.FieldKeepMonthly:
+		m.ResetKeepMonthly()
+		return nil
+	case backupconfig.FieldKeepYearly:
+		m.ResetKeepYearly()
+		return nil
+	case backupconfig.FieldCheckEnabled:
+		m.ResetCheckEnabled()
+		return nil
+	case backupconfig.FieldCheckSubsetPercent:
+		m.ResetCheckSubsetPercent()
 		return nil
 	case backupconfig.FieldUpdatedAt:
 		m.ResetUpdatedAt()
@@ -5628,6 +6171,7 @@ type BackupRunMutation struct {
 	addtotal_bytes_processed *int64
 	duration_seconds         *float64
 	addduration_seconds      *float64
+	details                  *string
 	started_at               *time.Time
 	finished_at              *time.Time
 	clearedFields            map[string]struct{}
@@ -6754,6 +7298,55 @@ func (m *BackupRunMutation) ResetDurationSeconds() {
 	delete(m.clearedFields, backuprun.FieldDurationSeconds)
 }
 
+// SetDetails sets the "details" field.
+func (m *BackupRunMutation) SetDetails(s string) {
+	m.details = &s
+}
+
+// Details returns the value of the "details" field in the mutation.
+func (m *BackupRunMutation) Details() (r string, exists bool) {
+	v := m.details
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDetails returns the old "details" field's value of the BackupRun entity.
+// If the BackupRun object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BackupRunMutation) OldDetails(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDetails is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDetails requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDetails: %w", err)
+	}
+	return oldValue.Details, nil
+}
+
+// ClearDetails clears the value of the "details" field.
+func (m *BackupRunMutation) ClearDetails() {
+	m.details = nil
+	m.clearedFields[backuprun.FieldDetails] = struct{}{}
+}
+
+// DetailsCleared returns if the "details" field was cleared in this mutation.
+func (m *BackupRunMutation) DetailsCleared() bool {
+	_, ok := m.clearedFields[backuprun.FieldDetails]
+	return ok
+}
+
+// ResetDetails resets all changes to the "details" field.
+func (m *BackupRunMutation) ResetDetails() {
+	m.details = nil
+	delete(m.clearedFields, backuprun.FieldDetails)
+}
+
 // SetStartedAt sets the "started_at" field.
 func (m *BackupRunMutation) SetStartedAt(t time.Time) {
 	m.started_at = &t
@@ -6873,7 +7466,7 @@ func (m *BackupRunMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *BackupRunMutation) Fields() []string {
-	fields := make([]string, 0, 20)
+	fields := make([]string, 0, 21)
 	if m.operation != nil {
 		fields = append(fields, backuprun.FieldOperation)
 	}
@@ -6928,6 +7521,9 @@ func (m *BackupRunMutation) Fields() []string {
 	if m.duration_seconds != nil {
 		fields = append(fields, backuprun.FieldDurationSeconds)
 	}
+	if m.details != nil {
+		fields = append(fields, backuprun.FieldDetails)
+	}
 	if m.started_at != nil {
 		fields = append(fields, backuprun.FieldStartedAt)
 	}
@@ -6978,6 +7574,8 @@ func (m *BackupRunMutation) Field(name string) (ent.Value, bool) {
 		return m.TotalBytesProcessed()
 	case backuprun.FieldDurationSeconds:
 		return m.DurationSeconds()
+	case backuprun.FieldDetails:
+		return m.Details()
 	case backuprun.FieldStartedAt:
 		return m.StartedAt()
 	case backuprun.FieldFinishedAt:
@@ -7027,6 +7625,8 @@ func (m *BackupRunMutation) OldField(ctx context.Context, name string) (ent.Valu
 		return m.OldTotalBytesProcessed(ctx)
 	case backuprun.FieldDurationSeconds:
 		return m.OldDurationSeconds(ctx)
+	case backuprun.FieldDetails:
+		return m.OldDetails(ctx)
 	case backuprun.FieldStartedAt:
 		return m.OldStartedAt(ctx)
 	case backuprun.FieldFinishedAt:
@@ -7165,6 +7765,13 @@ func (m *BackupRunMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetDurationSeconds(v)
+		return nil
+	case backuprun.FieldDetails:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDetails(v)
 		return nil
 	case backuprun.FieldStartedAt:
 		v, ok := value.(time.Time)
@@ -7369,6 +7976,9 @@ func (m *BackupRunMutation) ClearedFields() []string {
 	if m.FieldCleared(backuprun.FieldDurationSeconds) {
 		fields = append(fields, backuprun.FieldDurationSeconds)
 	}
+	if m.FieldCleared(backuprun.FieldDetails) {
+		fields = append(fields, backuprun.FieldDetails)
+	}
 	if m.FieldCleared(backuprun.FieldFinishedAt) {
 		fields = append(fields, backuprun.FieldFinishedAt)
 	}
@@ -7421,6 +8031,9 @@ func (m *BackupRunMutation) ClearField(name string) error {
 		return nil
 	case backuprun.FieldDurationSeconds:
 		m.ClearDurationSeconds()
+		return nil
+	case backuprun.FieldDetails:
+		m.ClearDetails()
 		return nil
 	case backuprun.FieldFinishedAt:
 		m.ClearFinishedAt()
@@ -7486,6 +8099,9 @@ func (m *BackupRunMutation) ResetField(name string) error {
 		return nil
 	case backuprun.FieldDurationSeconds:
 		m.ResetDurationSeconds()
+		return nil
+	case backuprun.FieldDetails:
+		m.ResetDetails()
 		return nil
 	case backuprun.FieldStartedAt:
 		m.ResetStartedAt()

@@ -115,6 +115,41 @@ func ScheduleMinute(v int) predicate.BackupConfig {
 	return predicate.BackupConfig(sql.FieldEQ(FieldScheduleMinute, v))
 }
 
+// RetentionEnabled applies equality check predicate on the "retention_enabled" field. It's identical to RetentionEnabledEQ.
+func RetentionEnabled(v bool) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldEQ(FieldRetentionEnabled, v))
+}
+
+// KeepDaily applies equality check predicate on the "keep_daily" field. It's identical to KeepDailyEQ.
+func KeepDaily(v int) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldEQ(FieldKeepDaily, v))
+}
+
+// KeepWeekly applies equality check predicate on the "keep_weekly" field. It's identical to KeepWeeklyEQ.
+func KeepWeekly(v int) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldEQ(FieldKeepWeekly, v))
+}
+
+// KeepMonthly applies equality check predicate on the "keep_monthly" field. It's identical to KeepMonthlyEQ.
+func KeepMonthly(v int) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldEQ(FieldKeepMonthly, v))
+}
+
+// KeepYearly applies equality check predicate on the "keep_yearly" field. It's identical to KeepYearlyEQ.
+func KeepYearly(v int) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldEQ(FieldKeepYearly, v))
+}
+
+// CheckEnabled applies equality check predicate on the "check_enabled" field. It's identical to CheckEnabledEQ.
+func CheckEnabled(v bool) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldEQ(FieldCheckEnabled, v))
+}
+
+// CheckSubsetPercent applies equality check predicate on the "check_subset_percent" field. It's identical to CheckSubsetPercentEQ.
+func CheckSubsetPercent(v int) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldEQ(FieldCheckSubsetPercent, v))
+}
+
 // UpdatedAt applies equality check predicate on the "updated_at" field. It's identical to UpdatedAtEQ.
 func UpdatedAt(v time.Time) predicate.BackupConfig {
 	return predicate.BackupConfig(sql.FieldEQ(FieldUpdatedAt, v))
@@ -723,6 +758,226 @@ func ScheduleMinuteLT(v int) predicate.BackupConfig {
 // ScheduleMinuteLTE applies the LTE predicate on the "schedule_minute" field.
 func ScheduleMinuteLTE(v int) predicate.BackupConfig {
 	return predicate.BackupConfig(sql.FieldLTE(FieldScheduleMinute, v))
+}
+
+// RetentionEnabledEQ applies the EQ predicate on the "retention_enabled" field.
+func RetentionEnabledEQ(v bool) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldEQ(FieldRetentionEnabled, v))
+}
+
+// RetentionEnabledNEQ applies the NEQ predicate on the "retention_enabled" field.
+func RetentionEnabledNEQ(v bool) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldNEQ(FieldRetentionEnabled, v))
+}
+
+// KeepDailyEQ applies the EQ predicate on the "keep_daily" field.
+func KeepDailyEQ(v int) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldEQ(FieldKeepDaily, v))
+}
+
+// KeepDailyNEQ applies the NEQ predicate on the "keep_daily" field.
+func KeepDailyNEQ(v int) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldNEQ(FieldKeepDaily, v))
+}
+
+// KeepDailyIn applies the In predicate on the "keep_daily" field.
+func KeepDailyIn(vs ...int) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldIn(FieldKeepDaily, vs...))
+}
+
+// KeepDailyNotIn applies the NotIn predicate on the "keep_daily" field.
+func KeepDailyNotIn(vs ...int) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldNotIn(FieldKeepDaily, vs...))
+}
+
+// KeepDailyGT applies the GT predicate on the "keep_daily" field.
+func KeepDailyGT(v int) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldGT(FieldKeepDaily, v))
+}
+
+// KeepDailyGTE applies the GTE predicate on the "keep_daily" field.
+func KeepDailyGTE(v int) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldGTE(FieldKeepDaily, v))
+}
+
+// KeepDailyLT applies the LT predicate on the "keep_daily" field.
+func KeepDailyLT(v int) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldLT(FieldKeepDaily, v))
+}
+
+// KeepDailyLTE applies the LTE predicate on the "keep_daily" field.
+func KeepDailyLTE(v int) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldLTE(FieldKeepDaily, v))
+}
+
+// KeepWeeklyEQ applies the EQ predicate on the "keep_weekly" field.
+func KeepWeeklyEQ(v int) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldEQ(FieldKeepWeekly, v))
+}
+
+// KeepWeeklyNEQ applies the NEQ predicate on the "keep_weekly" field.
+func KeepWeeklyNEQ(v int) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldNEQ(FieldKeepWeekly, v))
+}
+
+// KeepWeeklyIn applies the In predicate on the "keep_weekly" field.
+func KeepWeeklyIn(vs ...int) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldIn(FieldKeepWeekly, vs...))
+}
+
+// KeepWeeklyNotIn applies the NotIn predicate on the "keep_weekly" field.
+func KeepWeeklyNotIn(vs ...int) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldNotIn(FieldKeepWeekly, vs...))
+}
+
+// KeepWeeklyGT applies the GT predicate on the "keep_weekly" field.
+func KeepWeeklyGT(v int) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldGT(FieldKeepWeekly, v))
+}
+
+// KeepWeeklyGTE applies the GTE predicate on the "keep_weekly" field.
+func KeepWeeklyGTE(v int) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldGTE(FieldKeepWeekly, v))
+}
+
+// KeepWeeklyLT applies the LT predicate on the "keep_weekly" field.
+func KeepWeeklyLT(v int) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldLT(FieldKeepWeekly, v))
+}
+
+// KeepWeeklyLTE applies the LTE predicate on the "keep_weekly" field.
+func KeepWeeklyLTE(v int) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldLTE(FieldKeepWeekly, v))
+}
+
+// KeepMonthlyEQ applies the EQ predicate on the "keep_monthly" field.
+func KeepMonthlyEQ(v int) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldEQ(FieldKeepMonthly, v))
+}
+
+// KeepMonthlyNEQ applies the NEQ predicate on the "keep_monthly" field.
+func KeepMonthlyNEQ(v int) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldNEQ(FieldKeepMonthly, v))
+}
+
+// KeepMonthlyIn applies the In predicate on the "keep_monthly" field.
+func KeepMonthlyIn(vs ...int) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldIn(FieldKeepMonthly, vs...))
+}
+
+// KeepMonthlyNotIn applies the NotIn predicate on the "keep_monthly" field.
+func KeepMonthlyNotIn(vs ...int) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldNotIn(FieldKeepMonthly, vs...))
+}
+
+// KeepMonthlyGT applies the GT predicate on the "keep_monthly" field.
+func KeepMonthlyGT(v int) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldGT(FieldKeepMonthly, v))
+}
+
+// KeepMonthlyGTE applies the GTE predicate on the "keep_monthly" field.
+func KeepMonthlyGTE(v int) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldGTE(FieldKeepMonthly, v))
+}
+
+// KeepMonthlyLT applies the LT predicate on the "keep_monthly" field.
+func KeepMonthlyLT(v int) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldLT(FieldKeepMonthly, v))
+}
+
+// KeepMonthlyLTE applies the LTE predicate on the "keep_monthly" field.
+func KeepMonthlyLTE(v int) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldLTE(FieldKeepMonthly, v))
+}
+
+// KeepYearlyEQ applies the EQ predicate on the "keep_yearly" field.
+func KeepYearlyEQ(v int) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldEQ(FieldKeepYearly, v))
+}
+
+// KeepYearlyNEQ applies the NEQ predicate on the "keep_yearly" field.
+func KeepYearlyNEQ(v int) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldNEQ(FieldKeepYearly, v))
+}
+
+// KeepYearlyIn applies the In predicate on the "keep_yearly" field.
+func KeepYearlyIn(vs ...int) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldIn(FieldKeepYearly, vs...))
+}
+
+// KeepYearlyNotIn applies the NotIn predicate on the "keep_yearly" field.
+func KeepYearlyNotIn(vs ...int) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldNotIn(FieldKeepYearly, vs...))
+}
+
+// KeepYearlyGT applies the GT predicate on the "keep_yearly" field.
+func KeepYearlyGT(v int) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldGT(FieldKeepYearly, v))
+}
+
+// KeepYearlyGTE applies the GTE predicate on the "keep_yearly" field.
+func KeepYearlyGTE(v int) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldGTE(FieldKeepYearly, v))
+}
+
+// KeepYearlyLT applies the LT predicate on the "keep_yearly" field.
+func KeepYearlyLT(v int) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldLT(FieldKeepYearly, v))
+}
+
+// KeepYearlyLTE applies the LTE predicate on the "keep_yearly" field.
+func KeepYearlyLTE(v int) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldLTE(FieldKeepYearly, v))
+}
+
+// CheckEnabledEQ applies the EQ predicate on the "check_enabled" field.
+func CheckEnabledEQ(v bool) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldEQ(FieldCheckEnabled, v))
+}
+
+// CheckEnabledNEQ applies the NEQ predicate on the "check_enabled" field.
+func CheckEnabledNEQ(v bool) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldNEQ(FieldCheckEnabled, v))
+}
+
+// CheckSubsetPercentEQ applies the EQ predicate on the "check_subset_percent" field.
+func CheckSubsetPercentEQ(v int) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldEQ(FieldCheckSubsetPercent, v))
+}
+
+// CheckSubsetPercentNEQ applies the NEQ predicate on the "check_subset_percent" field.
+func CheckSubsetPercentNEQ(v int) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldNEQ(FieldCheckSubsetPercent, v))
+}
+
+// CheckSubsetPercentIn applies the In predicate on the "check_subset_percent" field.
+func CheckSubsetPercentIn(vs ...int) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldIn(FieldCheckSubsetPercent, vs...))
+}
+
+// CheckSubsetPercentNotIn applies the NotIn predicate on the "check_subset_percent" field.
+func CheckSubsetPercentNotIn(vs ...int) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldNotIn(FieldCheckSubsetPercent, vs...))
+}
+
+// CheckSubsetPercentGT applies the GT predicate on the "check_subset_percent" field.
+func CheckSubsetPercentGT(v int) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldGT(FieldCheckSubsetPercent, v))
+}
+
+// CheckSubsetPercentGTE applies the GTE predicate on the "check_subset_percent" field.
+func CheckSubsetPercentGTE(v int) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldGTE(FieldCheckSubsetPercent, v))
+}
+
+// CheckSubsetPercentLT applies the LT predicate on the "check_subset_percent" field.
+func CheckSubsetPercentLT(v int) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldLT(FieldCheckSubsetPercent, v))
+}
+
+// CheckSubsetPercentLTE applies the LTE predicate on the "check_subset_percent" field.
+func CheckSubsetPercentLTE(v int) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldLTE(FieldCheckSubsetPercent, v))
 }
 
 // UpdatedAtEQ applies the EQ predicate on the "updated_at" field.

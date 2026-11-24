@@ -16,7 +16,9 @@ import (
 	"io"
 	"os"
 	"os/exec"
+	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 	"time"
 
@@ -46,14 +48,17 @@ type Config struct {
 	// Path is the PATH given to restic (rest-server and S3 need none; it
 	// is kept fixed).
 	Path string
-	Now  func() time.Time
+	// RestoreRoot holds the quarantine directories; the job names
+	// domain.BackupRestoreRoot, mapped here (tests use a temporary one).
+	RestoreRoot string
+	Now         func() time.Time
 }
 
 func Defaults() Config {
 	return Config{
 		JobsDir: "/var/lib/homelab-backup/jobs", RunsDir: "/var/lib/homelab-backup/runs",
 		CacheDir: "/var/cache/homelab-backup", TempDir: os.TempDir(), Restic: "/usr/bin/restic",
-		Path: "/usr/sbin:/usr/bin:/sbin:/bin", Now: time.Now,
+		Path: "/usr/sbin:/usr/bin:/sbin:/bin", RestoreRoot: domain.BackupRestoreRoot, Now: time.Now,
 	}
 }
 
@@ -124,8 +129,116 @@ func execute(ctx context.Context, config Config, op domain.BackupOperation, resu
 		}
 		result.Snapshots = snapshots
 		return nil
+	case domain.BackupOpSnapshots:
+		snapshots, err := listSnapshots(ctx, config, env)
+		if err != nil {
+			result.Message = domain.TruncateBackupMessage(err.Error())
+			return err
+		}
+		result.Snapshots, result.Success = snapshots, true
+		return nil
+	case domain.BackupOpUnlock:
+		output, err := runCaptured(ctx, config, env, []string{"unlock", "--remove-all"})
+		if err != nil {
+			result.Message = output.message()
+			return err
+		}
+		result.Success = true
+		return nil
+	case domain.BackupOpCheck:
+		percent := strconv.Itoa(job.CheckSubsetPercent) + "%"
+		output, err := runCaptured(ctx, config, env, []string{"check", "--read-data-subset", percent})
+		result.Details = &domain.BackupRunDetails{SubsetPercent: job.CheckSubsetPercent}
+		if err != nil {
+			result.Message = output.message()
+			return err
+		}
+		result.Success = true
+		return nil
+	case domain.BackupOpForgetPrune:
+		return forgetPrune(ctx, config, env, job, result)
+	case domain.BackupOpRestore:
+		return restore(ctx, config, env, job, result)
 	}
 	return fmt.Errorf("operation %q is not supported", op)
+}
+
+// forgetPrune applies the retention policy to the snapshots of the
+// Manager, prunes, then lists what is left.
+func forgetPrune(ctx context.Context, config Config, env []string, job backupjob.Job, result *backupjob.Result) error {
+	args := []string{"forget", "--json", "--tag", domain.BackupTag}
+	for _, keep := range []struct {
+		flag  string
+		count int
+	}{
+		{"--keep-daily", job.Retention.KeepDaily}, {"--keep-weekly", job.Retention.KeepWeekly},
+		{"--keep-monthly", job.Retention.KeepMonthly}, {"--keep-yearly", job.Retention.KeepYearly},
+	} {
+		if keep.count > 0 {
+			args = append(args, keep.flag, strconv.Itoa(keep.count))
+		}
+	}
+	args = append(args, "--prune")
+	output, err := runCaptured(ctx, config, env, args)
+	if err != nil {
+		result.Message = output.message()
+		return err
+	}
+	removed := 0
+	for _, line := range bytes.Split(output.stdout, []byte("\n")) {
+		var groups []struct {
+			Remove []json.RawMessage `json:"remove"`
+		}
+		if json.Unmarshal(bytes.TrimSpace(line), &groups) == nil {
+			for _, group := range groups {
+				removed += len(group.Remove)
+			}
+		}
+	}
+	result.Details = &domain.BackupRunDetails{SnapshotsRemoved: removed}
+	result.Success = true
+	if snapshots, err := listSnapshots(ctx, config, env); err == nil {
+		result.Snapshots = snapshots
+	} else {
+		result.Message = domain.TruncateBackupMessage("snapshot list unavailable: " + err.Error())
+	}
+	return nil
+}
+
+// restore brings a snapshot back into the quarantine directory of the run,
+// which it creates (0700); a dry run leaves it empty and removes it.
+func restore(ctx context.Context, config Config, env []string, job backupjob.Job, result *backupjob.Result) error {
+	request := job.Restore
+	target := filepath.Join(config.RestoreRoot, filepath.Base(request.Target))
+	result.Details = &domain.BackupRunDetails{SnapshotID: request.SnapshotID, Target: request.Target, DryRun: request.DryRun}
+	if err := os.MkdirAll(config.RestoreRoot, 0o700); err != nil {
+		return fmt.Errorf("create the quarantine: %w", err)
+	}
+	if err := os.Mkdir(target, 0o700); err != nil {
+		return fmt.Errorf("create the restore directory: %w", err)
+	}
+	if request.DryRun {
+		defer func() { _ = os.Remove(target) }()
+	}
+	args := []string{"restore", "--json", "--target", target}
+	for _, include := range request.Include {
+		args = append(args, "--include", include)
+	}
+	if request.DryRun {
+		args = append(args, "--dry-run")
+	}
+	args = append(args, "--", request.SnapshotID)
+	summary, output, err := runStreaming(ctx, config, env, args)
+	if summary != nil {
+		result.Details.TotalFiles, result.Details.FilesRestored = summary.TotalFiles, summary.FilesRestored
+		result.Details.TotalBytes, result.Details.BytesRestored = summary.TotalBytes, summary.BytesRestored
+	}
+	if err != nil {
+		result.Message = output.message()
+		return err
+	}
+	result.Success = true
+	return nil
 }
 
 // readSecrets reads then removes the one-use secrets file: it never stays
@@ -249,37 +362,47 @@ func backup(ctx context.Context, config Config, env []string, job backupjob.Job,
 	args = append(args, "--")
 	args = append(args, job.Sources...)
 
-	cmd := exec.CommandContext(ctx, config.Restic, args...)
-	cmd.Env = env
-	stderr := &boundedBuffer{limit: maxStderrBytes}
-	cmd.Stderr = stderr
-	stdout, err := cmd.StdoutPipe()
-	if err != nil {
-		return fmt.Errorf("start restic: %w", err)
-	}
-	if err := cmd.Start(); err != nil {
-		return fmt.Errorf("start restic: %w", err)
-	}
-	output := resticOutput{}
-	summary, scanErr := readBackupStream(stdout, &output)
-	waitErr := cmd.Wait()
-	output.absorbAll(stderr.Bytes())
+	summary, output, runErr := runStreaming(ctx, config, env, args)
 	if summary != nil {
 		result.Summary = summary.toSummary()
 		result.SnapshotID = summary.SnapshotID
 	}
 	var exitErr *exec.ExitError
 	switch {
-	case waitErr == nil && scanErr == nil && summary != nil:
+	case runErr == nil:
 		result.Success = true
 		return nil
-	case errors.As(waitErr, &exitErr) && exitErr.ExitCode() == resticPartialBackup && summary != nil:
+	case errors.As(runErr, &exitErr) && exitErr.ExitCode() == resticPartialBackup && summary != nil:
 		result.Success, result.Warning = true, true
 		result.Message = domain.TruncateBackupMessage("some files could not be read: " + output.message())
 		return nil
 	}
 	result.Message = output.message()
-	return errors.Join(waitErr, scanErr, errorIf(summary == nil && waitErr == nil, "restic gave no summary"))
+	return runErr
+}
+
+// runStreaming runs a long restic command whose JSON lines carry a
+// summary; it fails when restic fails or gives no summary.
+func runStreaming(ctx context.Context, config Config, env, args []string) (*backupMessage, resticOutput, error) {
+	cmd := exec.CommandContext(ctx, config.Restic, args...)
+	cmd.Env = env
+	stderr := &boundedBuffer{limit: maxStderrBytes}
+	cmd.Stderr = stderr
+	output := resticOutput{}
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return nil, output, fmt.Errorf("start restic: %w", err)
+	}
+	if err := cmd.Start(); err != nil {
+		return nil, output, fmt.Errorf("start restic: %w", err)
+	}
+	summary, scanErr := readBackupStream(stdout, &output)
+	waitErr := cmd.Wait()
+	output.absorbAll(stderr.Bytes())
+	if waitErr != nil {
+		return summary, output, waitErr
+	}
+	return summary, output, errors.Join(scanErr, errorIf(summary == nil, "restic gave no summary"))
 }
 
 func errorIf(condition bool, message string) error {
@@ -308,6 +431,11 @@ type backupMessage struct {
 	TotalBytesProcessed int64   `json:"total_bytes_processed"`
 	TotalDuration       float64 `json:"total_duration"`
 	SnapshotID          string  `json:"snapshot_id"`
+	// Restore summary.
+	TotalFiles    int64 `json:"total_files"`
+	FilesRestored int64 `json:"files_restored"`
+	TotalBytes    int64 `json:"total_bytes"`
+	BytesRestored int64 `json:"bytes_restored"`
 }
 
 func (m backupMessage) toSummary() *backupjob.Summary {

@@ -7,6 +7,7 @@ import (
 	"path"
 	"path/filepath"
 	"regexp"
+	"slices"
 	"strings"
 	"time"
 	"unicode/utf8"
@@ -328,8 +329,125 @@ type BackupConfig struct {
 	InitializedAt *time.Time
 	Selection     BackupSelection
 	Schedule      BackupSchedule
+	Retention     BackupRetention
+	Check         BackupCheck
 	UpdatedAt     *time.Time
 	UpdatedBy     string
+}
+
+// Operations reports whether the repository can run an operation other
+// than a backup (retention, check, restore, unlock): no source needed.
+func (c BackupConfig) Operations() error {
+	switch {
+	case c.Repository == nil:
+		return ErrBackupNotConfigured
+	case c.InitializedAt == nil || c.SealedCredentials == "":
+		return ErrBackupNotInitialized
+	}
+	return nil
+}
+
+// Bounds of the maintenance (SPEC_ADMINISTRATION.md § 7.3).
+const (
+	maxKeep = 1000
+	// BackupCheckEvery spaces two scheduled checks of the repository.
+	BackupCheckEvery = 7 * 24 * time.Hour
+	// BackupRestoreRoot holds the quarantine directories of the restores,
+	// one per run (deployments/tmpfiles/homelab-backup.conf).
+	BackupRestoreRoot  = "/var/lib/homelab-backup/restore"
+	MaxRestoreIncludes = 50
+)
+
+var snapshotIDPattern = regexp.MustCompile(`^[0-9a-f]{8,64}$`)
+
+// BackupRetention is the policy of restic forget --prune, applied after
+// each successful scheduled backup when enabled. A value of 0 keeps
+// nothing for that period.
+type BackupRetention struct {
+	Enabled     bool
+	KeepDaily   int
+	KeepWeekly  int
+	KeepMonthly int
+	KeepYearly  int
+}
+
+// DefaultBackupRetention: 7 daily, 4 weekly and 6 monthly snapshots,
+// disabled until an administrator enables it.
+var DefaultBackupRetention = BackupRetention{KeepDaily: 7, KeepWeekly: 4, KeepMonthly: 6}
+
+func ValidateBackupRetention(retention BackupRetention) error {
+	for _, keep := range []int{retention.KeepDaily, retention.KeepWeekly, retention.KeepMonthly, retention.KeepYearly} {
+		if keep < 0 || keep > maxKeep {
+			return invalidBackup("retention", "each value must be 0 to %d", maxKeep)
+		}
+	}
+	if retention.Enabled && retention.KeepDaily+retention.KeepWeekly+retention.KeepMonthly+retention.KeepYearly == 0 {
+		return invalidBackup("retention", "an enabled policy keeps at least one snapshot")
+	}
+	return nil
+}
+
+// BackupCheck is the weekly restic check --read-data-subset, run after a
+// successful scheduled backup when the last successful check is older
+// than BackupCheckEvery.
+type BackupCheck struct {
+	Enabled       bool
+	SubsetPercent int
+}
+
+// DefaultBackupCheck: 5 % of the data every week (§ 7.3).
+var DefaultBackupCheck = BackupCheck{Enabled: true, SubsetPercent: 5}
+
+func ValidateBackupCheck(check BackupCheck) error {
+	if check.SubsetPercent < 1 || check.SubsetPercent > 100 {
+		return invalidBackup("check", "subsetPercent must be 1 to 100")
+	}
+	return nil
+}
+
+// BackupRestore is a restore asked by an administrator: a snapshot, the
+// paths to restore (all when empty), simulated or not. The target is
+// always the quarantine directory of the run (§ 7.4, D-2).
+type BackupRestore struct {
+	SnapshotID string
+	Include    []string
+	DryRun     bool
+}
+
+func ValidateBackupRestore(restore BackupRestore) error {
+	if !snapshotIDPattern.MatchString(restore.SnapshotID) {
+		return invalidBackup("snapshotId", "must be 8 to 64 lowercase hexadecimal characters")
+	}
+	if len(restore.Include) > MaxRestoreIncludes {
+		return invalidBackup("include", "at most %d paths", MaxRestoreIncludes)
+	}
+	for _, include := range restore.Include {
+		if err := validateAbsolutePath(include); err != nil {
+			return invalidBackup("include", "%q %s", include, err.Error())
+		}
+	}
+	return nil
+}
+
+// RestoreTarget is the quarantine directory of a restore run.
+func RestoreTarget(runID uuid.UUID) string {
+	return BackupRestoreRoot + "/" + runID.String()
+}
+
+// BackupRunDetails holds what an operation other than a backup reports.
+type BackupRunDetails struct {
+	// Restore: the snapshot, the quarantine directory and the figures.
+	SnapshotID    string `json:"snapshotId,omitempty"`
+	Target        string `json:"target,omitempty"`
+	DryRun        bool   `json:"dryRun,omitempty"`
+	TotalFiles    int64  `json:"totalFiles,omitempty"`
+	FilesRestored int64  `json:"filesRestored,omitempty"`
+	TotalBytes    int64  `json:"totalBytes,omitempty"`
+	BytesRestored int64  `json:"bytesRestored,omitempty"`
+	// Forget: the snapshots removed by the retention policy.
+	SnapshotsRemoved int `json:"snapshotsRemoved,omitempty"`
+	// Check: the share of the data read.
+	SubsetPercent int `json:"subsetPercent,omitempty"`
 }
 
 // Ready reports whether a backup can run.
@@ -351,10 +469,25 @@ type BackupOperation string
 const (
 	BackupOpInit   BackupOperation = "init"
 	BackupOpBackup BackupOperation = "backup"
+	// BackupOpForgetPrune applies the retention policy.
+	BackupOpForgetPrune BackupOperation = "forget-prune"
+	BackupOpCheck       BackupOperation = "check"
+	BackupOpRestore     BackupOperation = "restore"
+	// BackupOpSnapshots lists the snapshots; it connects an existing
+	// repository.
+	BackupOpSnapshots BackupOperation = "snapshots"
+	// BackupOpUnlock removes every lock of the repository.
+	BackupOpUnlock BackupOperation = "unlock"
 )
 
+// BackupOperations lists the instances of homelab-backup@.service the
+// polkit rule allows.
+var BackupOperations = []BackupOperation{
+	BackupOpInit, BackupOpBackup, BackupOpForgetPrune, BackupOpCheck, BackupOpRestore, BackupOpSnapshots, BackupOpUnlock,
+}
+
 func (o BackupOperation) Valid() bool {
-	return o == BackupOpInit || o == BackupOpBackup
+	return slices.Contains(BackupOperations, o)
 }
 
 // BackupUnit is the systemd unit that runs the operation.
@@ -454,6 +587,7 @@ type BackupResult struct {
 	Message   string
 	Stats     *BackupStats
 	Snapshots []BackupSnapshot
+	Details   *BackupRunDetails
 }
 
 // BackupRun is one execution of an operation.
@@ -468,6 +602,7 @@ type BackupRun struct {
 	Warning     bool
 	SnapshotID  string
 	Stats       *BackupStats
+	Details     *BackupRunDetails
 	StartedAt   time.Time
 	FinishedAt  *time.Time
 }
@@ -505,5 +640,7 @@ type BackupSummary struct {
 	Running     *BackupRun
 	LastRun     *BackupRun
 	LastSuccess *BackupRun
-	NextRunAt   *time.Time
+	// LastCheck is the newest successful check of the repository.
+	LastCheck *BackupRun
+	NextRunAt *time.Time
 }

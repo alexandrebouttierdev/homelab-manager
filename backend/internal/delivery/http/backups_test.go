@@ -21,8 +21,15 @@ import (
 type instantExecutor struct{}
 
 func (instantExecutor) Execute(_ context.Context, job ports.BackupJob, _ domain.BackupCredentials) (domain.BackupResult, error) {
-	if job.Operation == domain.BackupOpInit {
+	switch job.Operation {
+	case domain.BackupOpInit, domain.BackupOpUnlock:
 		return domain.BackupResult{}, nil
+	case domain.BackupOpRestore:
+		return domain.BackupResult{Details: &domain.BackupRunDetails{
+			SnapshotID: job.Restore.SnapshotID, Target: domain.RestoreTarget(job.RunID), DryRun: job.Restore.DryRun, FilesRestored: 2,
+		}}, nil
+	case domain.BackupOpSnapshots:
+		return domain.BackupResult{Snapshots: []domain.BackupSnapshot{{ID: "0123456789ab", ShortID: "01234567", Time: time.Now().UTC()}}}, nil
 	}
 	return domain.BackupResult{
 		SnapshotID: "abcdef", Stats: &domain.BackupStats{FilesNew: 2, DataAdded: 1024, TotalFilesProcessed: 2},
@@ -171,5 +178,55 @@ func TestBackupsUnavailableWithoutTheModule(t *testing.T) {
 	admin := signIn(t, router, "admin", "admin-password-1")
 	if response := call(router, http.MethodGet, "/api/v1/backups/summary", "", admin); response.Code != http.StatusServiceUnavailable {
 		t.Fatalf("summary = %d", response.Code)
+	}
+}
+
+func TestBackupOperationRoutes(t *testing.T) {
+	resetLoginRateLimit(t)
+	router := newBackupsRouter(t)
+	admin := signIn(t, router, "admin", "admin-password-1")
+	operator := signInWithRole(t, router, admin, "olivia", "operator")
+	body := strings.Replace(backupConfigBody, `"schedule"`, `"retention":{"enabled":true,"keepDaily":7,"keepWeekly":0,"keepMonthly":3,"keepYearly":0},"check":{"enabled":false,"subsetPercent":10},"schedule"`, 1)
+	response := call(router, http.MethodPut, "/api/v1/backups/config", body, admin)
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"retention":{"enabled":true,"keepDaily":7,"keepWeekly":0,"keepMonthly":3,"keepYearly":0}`) ||
+		!strings.Contains(response.Body.String(), `"check":{"enabled":false,"subsetPercent":10}`) {
+		t.Fatalf("config = %d %s", response.Code, response.Body)
+	}
+	// Connect an existing repository instead of initialising one.
+	if response := call(router, http.MethodPost, "/api/v1/backups/repository/connect", `{"password":"an-old-password"}`, operator); response.Code != http.StatusForbidden {
+		t.Fatalf("operator connect = %d", response.Code)
+	}
+	if response := call(router, http.MethodPost, "/api/v1/backups/repository/connect", `{"password":"an-old-password"}`, admin); response.Code != http.StatusAccepted {
+		t.Fatalf("connect = %d %s", response.Code, response.Body)
+	}
+	waitForBody(t, router, "/api/v1/backups/summary", admin, `"initialized":true`)
+	if body := call(router, http.MethodGet, "/api/v1/backups/snapshots", "", admin).Body.String(); !strings.Contains(body, `"shortId":"01234567"`) {
+		t.Fatalf("snapshots after connect = %s", body)
+	}
+
+	if response := call(router, http.MethodPost, "/api/v1/backups/operations", `{"operation":"unlock"}`, operator); response.Code != http.StatusForbidden {
+		t.Fatalf("operator operation = %d", response.Code)
+	}
+	for _, tc := range []struct {
+		body string
+		code int
+	}{
+		{`{"operation":"backup"}`, http.StatusBadRequest},
+		{`{"operation":"restore","restore":{"snapshotId":"latest"}}`, http.StatusBadRequest},
+		{`{"operation":"restore","restore":{"snapshotId":"0123456789ab","include":["etc"]}}`, http.StatusBadRequest},
+		{`{"operation":"diff"}`, http.StatusBadRequest},
+	} {
+		if response := call(router, http.MethodPost, "/api/v1/backups/operations", tc.body, admin); response.Code != tc.code {
+			t.Errorf("%s = %d %s, want %d", tc.body, response.Code, response.Body, tc.code)
+		}
+	}
+	response = call(router, http.MethodPost, "/api/v1/backups/operations", `{"operation":"restore","restore":{"snapshotId":"0123456789ab","include":["/etc"],"dryRun":true}}`, admin)
+	if response.Code != http.StatusAccepted || !strings.Contains(response.Body.String(), `"target":"/var/lib/homelab-backup/restore/`) {
+		t.Fatalf("restore = %d %s", response.Code, response.Body)
+	}
+	waitForBody(t, router, "/api/v1/backups/runs?limit=1", admin, `"filesRestored":2`)
+	audit := call(router, http.MethodGet, "/api/v1/audit?action=restore", "", admin).Body.String()
+	if !strings.Contains(audit, `"targetType":"backup_run"`) {
+		t.Fatalf("audit = %s", audit)
 	}
 }

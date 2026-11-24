@@ -48,6 +48,8 @@ const (
 	FieldTotalBytesProcessed = "total_bytes_processed"
 	// FieldDurationSeconds holds the string denoting the duration_seconds field in the database.
 	FieldDurationSeconds = "duration_seconds"
+	// FieldDetails holds the string denoting the details field in the database.
+	FieldDetails = "details"
 	// FieldStartedAt holds the string denoting the started_at field in the database.
 	FieldStartedAt = "started_at"
 	// FieldFinishedAt holds the string denoting the finished_at field in the database.
@@ -77,6 +79,7 @@ var Columns = []string{
 	FieldTotalFilesProcessed,
 	FieldTotalBytesProcessed,
 	FieldDurationSeconds,
+	FieldDetails,
 	FieldStartedAt,
 	FieldFinishedAt,
 }
@@ -204,6 +207,11 @@ func ByTotalBytesProcessed(opts ...sql.OrderTermOption) OrderOption {
 // ByDurationSeconds orders the results by the duration_seconds field.
 func ByDurationSeconds(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldDurationSeconds, opts...).ToFunc()
+}
+
+// ByDetails orders the results by the details field.
+func ByDetails(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldDetails, opts...).ToFunc()
 }
 
 // ByStartedAt orders the results by the started_at field.

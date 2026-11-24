@@ -68,8 +68,25 @@ func (e *Executor) Execute(ctx context.Context, job ports.BackupJob, credentials
 		Sources: orEmpty(job.Selection.Sources), Excludes: orEmpty(job.Selection.Excludes),
 		ExcludeCaches: job.Selection.ExcludeCaches, ExcludeIfPresent: job.Selection.ExcludeIfPresent,
 	}
-	if op == domain.BackupOpInit {
+	if op != domain.BackupOpBackup {
 		file.Sources, file.Excludes, file.ExcludeCaches, file.ExcludeIfPresent = []string{}, []string{}, false, ""
+	}
+	switch op {
+	case domain.BackupOpForgetPrune:
+		file.Retention = &backupjob.Retention{
+			KeepDaily: job.Retention.KeepDaily, KeepWeekly: job.Retention.KeepWeekly,
+			KeepMonthly: job.Retention.KeepMonthly, KeepYearly: job.Retention.KeepYearly,
+		}
+	case domain.BackupOpCheck:
+		file.CheckSubsetPercent = job.CheckSubsetPercent
+	case domain.BackupOpRestore:
+		if job.Restore == nil {
+			return domain.BackupResult{}, &domain.BackupRunError{Failure: domain.BackupFailureJob, Err: errors.New("a restore needs its request")}
+		}
+		file.Restore = &backupjob.Restore{
+			SnapshotID: job.Restore.SnapshotID, Include: orEmpty(job.Restore.Include), DryRun: job.Restore.DryRun,
+			Target: domain.RestoreTarget(job.RunID),
+		}
 	}
 	if err := file.Validate(); err != nil {
 		return domain.BackupResult{}, &domain.BackupRunError{Failure: domain.BackupFailureJob, Err: err}
@@ -86,7 +103,8 @@ func (e *Executor) Execute(ctx context.Context, job ports.BackupJob, credentials
 	defer func() { _ = os.Remove(secretsPath) }()
 
 	timeout := e.config.BackupTimeout
-	if op == domain.BackupOpInit {
+	switch op {
+	case domain.BackupOpInit, domain.BackupOpSnapshots, domain.BackupOpUnlock:
 		timeout = e.config.InitTimeout
 	}
 	runCtx, cancel := context.WithTimeout(ctx, timeout)
@@ -133,6 +151,7 @@ func (e *Executor) readResult(op domain.BackupOperation, started time.Time) (dom
 	}
 	converted := domain.BackupResult{
 		SnapshotID: result.SnapshotID, Warning: result.Warning, Message: domain.TruncateBackupMessage(result.Message),
+		Details: result.Details,
 	}
 	if s := result.Summary; s != nil {
 		converted.Stats = &domain.BackupStats{

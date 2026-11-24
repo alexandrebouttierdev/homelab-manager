@@ -422,6 +422,26 @@ func (_u *BackupRunUpdate) ClearDurationSeconds() *BackupRunUpdate {
 	return _u
 }
 
+// SetDetails sets the "details" field.
+func (_u *BackupRunUpdate) SetDetails(v string) *BackupRunUpdate {
+	_u.mutation.SetDetails(v)
+	return _u
+}
+
+// SetNillableDetails sets the "details" field if the given value is not nil.
+func (_u *BackupRunUpdate) SetNillableDetails(v *string) *BackupRunUpdate {
+	if v != nil {
+		_u.SetDetails(*v)
+	}
+	return _u
+}
+
+// ClearDetails clears the value of the "details" field.
+func (_u *BackupRunUpdate) ClearDetails() *BackupRunUpdate {
+	_u.mutation.ClearDetails()
+	return _u
+}
+
 // SetStartedAt sets the "started_at" field.
 func (_u *BackupRunUpdate) SetStartedAt(v time.Time) *BackupRunUpdate {
 	_u.mutation.SetStartedAt(v)
@@ -639,6 +659,12 @@ func (_u *BackupRunUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if _u.mutation.DurationSecondsCleared() {
 		_spec.ClearField(backuprun.FieldDurationSeconds, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.Details(); ok {
+		_spec.SetField(backuprun.FieldDetails, field.TypeString, value)
+	}
+	if _u.mutation.DetailsCleared() {
+		_spec.ClearField(backuprun.FieldDetails, field.TypeString)
 	}
 	if value, ok := _u.mutation.StartedAt(); ok {
 		_spec.SetField(backuprun.FieldStartedAt, field.TypeTime, value)
@@ -1063,6 +1089,26 @@ func (_u *BackupRunUpdateOne) ClearDurationSeconds() *BackupRunUpdateOne {
 	return _u
 }
 
+// SetDetails sets the "details" field.
+func (_u *BackupRunUpdateOne) SetDetails(v string) *BackupRunUpdateOne {
+	_u.mutation.SetDetails(v)
+	return _u
+}
+
+// SetNillableDetails sets the "details" field if the given value is not nil.
+func (_u *BackupRunUpdateOne) SetNillableDetails(v *string) *BackupRunUpdateOne {
+	if v != nil {
+		_u.SetDetails(*v)
+	}
+	return _u
+}
+
+// ClearDetails clears the value of the "details" field.
+func (_u *BackupRunUpdateOne) ClearDetails() *BackupRunUpdateOne {
+	_u.mutation.ClearDetails()
+	return _u
+}
+
 // SetStartedAt sets the "started_at" field.
 func (_u *BackupRunUpdateOne) SetStartedAt(v time.Time) *BackupRunUpdateOne {
 	_u.mutation.SetStartedAt(v)
@@ -1310,6 +1356,12 @@ func (_u *BackupRunUpdateOne) sqlSave(ctx context.Context) (_node *BackupRun, er
 	}
 	if _u.mutation.DurationSecondsCleared() {
 		_spec.ClearField(backuprun.FieldDurationSeconds, field.TypeFloat64)
+	}
+	if value, ok := _u.mutation.Details(); ok {
+		_spec.SetField(backuprun.FieldDetails, field.TypeString, value)
+	}
+	if _u.mutation.DetailsCleared() {
+		_spec.ClearField(backuprun.FieldDetails, field.TypeString)
 	}
 	if value, ok := _u.mutation.StartedAt(); ok {
 		_spec.SetField(backuprun.FieldStartedAt, field.TypeTime, value)

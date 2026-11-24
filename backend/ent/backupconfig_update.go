@@ -260,6 +260,139 @@ func (_u *BackupConfigUpdate) AddScheduleMinute(v int) *BackupConfigUpdate {
 	return _u
 }
 
+// SetRetentionEnabled sets the "retention_enabled" field.
+func (_u *BackupConfigUpdate) SetRetentionEnabled(v bool) *BackupConfigUpdate {
+	_u.mutation.SetRetentionEnabled(v)
+	return _u
+}
+
+// SetNillableRetentionEnabled sets the "retention_enabled" field if the given value is not nil.
+func (_u *BackupConfigUpdate) SetNillableRetentionEnabled(v *bool) *BackupConfigUpdate {
+	if v != nil {
+		_u.SetRetentionEnabled(*v)
+	}
+	return _u
+}
+
+// SetKeepDaily sets the "keep_daily" field.
+func (_u *BackupConfigUpdate) SetKeepDaily(v int) *BackupConfigUpdate {
+	_u.mutation.ResetKeepDaily()
+	_u.mutation.SetKeepDaily(v)
+	return _u
+}
+
+// SetNillableKeepDaily sets the "keep_daily" field if the given value is not nil.
+func (_u *BackupConfigUpdate) SetNillableKeepDaily(v *int) *BackupConfigUpdate {
+	if v != nil {
+		_u.SetKeepDaily(*v)
+	}
+	return _u
+}
+
+// AddKeepDaily adds value to the "keep_daily" field.
+func (_u *BackupConfigUpdate) AddKeepDaily(v int) *BackupConfigUpdate {
+	_u.mutation.AddKeepDaily(v)
+	return _u
+}
+
+// SetKeepWeekly sets the "keep_weekly" field.
+func (_u *BackupConfigUpdate) SetKeepWeekly(v int) *BackupConfigUpdate {
+	_u.mutation.ResetKeepWeekly()
+	_u.mutation.SetKeepWeekly(v)
+	return _u
+}
+
+// SetNillableKeepWeekly sets the "keep_weekly" field if the given value is not nil.
+func (_u *BackupConfigUpdate) SetNillableKeepWeekly(v *int) *BackupConfigUpdate {
+	if v != nil {
+		_u.SetKeepWeekly(*v)
+	}
+	return _u
+}
+
+// AddKeepWeekly adds value to the "keep_weekly" field.
+func (_u *BackupConfigUpdate) AddKeepWeekly(v int) *BackupConfigUpdate {
+	_u.mutation.AddKeepWeekly(v)
+	return _u
+}
+
+// SetKeepMonthly sets the "keep_monthly" field.
+func (_u *BackupConfigUpdate) SetKeepMonthly(v int) *BackupConfigUpdate {
+	_u.mutation.ResetKeepMonthly()
+	_u.mutation.SetKeepMonthly(v)
+	return _u
+}
+
+// SetNillableKeepMonthly sets the "keep_monthly" field if the given value is not nil.
+func (_u *BackupConfigUpdate) SetNillableKeepMonthly(v *int) *BackupConfigUpdate {
+	if v != nil {
+		_u.SetKeepMonthly(*v)
+	}
+	return _u
+}
+
+// AddKeepMonthly adds value to the "keep_monthly" field.
+func (_u *BackupConfigUpdate) AddKeepMonthly(v int) *BackupConfigUpdate {
+	_u.mutation.AddKeepMonthly(v)
+	return _u
+}
+
+// SetKeepYearly sets the "keep_yearly" field.
+func (_u *BackupConfigUpdate) SetKeepYearly(v int) *BackupConfigUpdate {
+	_u.mutation.ResetKeepYearly()
+	_u.mutation.SetKeepYearly(v)
+	return _u
+}
+
+// SetNillableKeepYearly sets the "keep_yearly" field if the given value is not nil.
+func (_u *BackupConfigUpdate) SetNillableKeepYearly(v *int) *BackupConfigUpdate {
+	if v != nil {
+		_u.SetKeepYearly(*v)
+	}
+	return _u
+}
+
+// AddKeepYearly adds value to the "keep_yearly" field.
+func (_u *BackupConfigUpdate) AddKeepYearly(v int) *BackupConfigUpdate {
+	_u.mutation.AddKeepYearly(v)
+	return _u
+}
+
+// SetCheckEnabled sets the "check_enabled" field.
+func (_u *BackupConfigUpdate) SetCheckEnabled(v bool) *BackupConfigUpdate {
+	_u.mutation.SetCheckEnabled(v)
+	return _u
+}
+
+// SetNillableCheckEnabled sets the "check_enabled" field if the given value is not nil.
+func (_u *BackupConfigUpdate) SetNillableCheckEnabled(v *bool) *BackupConfigUpdate {
+	if v != nil {
+		_u.SetCheckEnabled(*v)
+	}
+	return _u
+}
+
+// SetCheckSubsetPercent sets the "check_subset_percent" field.
+func (_u *BackupConfigUpdate) SetCheckSubsetPercent(v int) *BackupConfigUpdate {
+	_u.mutation.ResetCheckSubsetPercent()
+	_u.mutation.SetCheckSubsetPercent(v)
+	return _u
+}
+
+// SetNillableCheckSubsetPercent sets the "check_subset_percent" field if the given value is not nil.
+func (_u *BackupConfigUpdate) SetNillableCheckSubsetPercent(v *int) *BackupConfigUpdate {
+	if v != nil {
+		_u.SetCheckSubsetPercent(*v)
+	}
+	return _u
+}
+
+// AddCheckSubsetPercent adds value to the "check_subset_percent" field.
+func (_u *BackupConfigUpdate) AddCheckSubsetPercent(v int) *BackupConfigUpdate {
+	_u.mutation.AddCheckSubsetPercent(v)
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *BackupConfigUpdate) SetUpdatedAt(v time.Time) *BackupConfigUpdate {
 	_u.mutation.SetUpdatedAt(v)
@@ -411,6 +544,42 @@ func (_u *BackupConfigUpdate) sqlSave(ctx context.Context) (_node int, err error
 	}
 	if value, ok := _u.mutation.AddedScheduleMinute(); ok {
 		_spec.AddField(backupconfig.FieldScheduleMinute, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.RetentionEnabled(); ok {
+		_spec.SetField(backupconfig.FieldRetentionEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.KeepDaily(); ok {
+		_spec.SetField(backupconfig.FieldKeepDaily, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedKeepDaily(); ok {
+		_spec.AddField(backupconfig.FieldKeepDaily, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.KeepWeekly(); ok {
+		_spec.SetField(backupconfig.FieldKeepWeekly, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedKeepWeekly(); ok {
+		_spec.AddField(backupconfig.FieldKeepWeekly, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.KeepMonthly(); ok {
+		_spec.SetField(backupconfig.FieldKeepMonthly, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedKeepMonthly(); ok {
+		_spec.AddField(backupconfig.FieldKeepMonthly, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.KeepYearly(); ok {
+		_spec.SetField(backupconfig.FieldKeepYearly, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedKeepYearly(); ok {
+		_spec.AddField(backupconfig.FieldKeepYearly, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.CheckEnabled(); ok {
+		_spec.SetField(backupconfig.FieldCheckEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.CheckSubsetPercent(); ok {
+		_spec.SetField(backupconfig.FieldCheckSubsetPercent, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCheckSubsetPercent(); ok {
+		_spec.AddField(backupconfig.FieldCheckSubsetPercent, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(backupconfig.FieldUpdatedAt, field.TypeTime, value)
@@ -669,6 +838,139 @@ func (_u *BackupConfigUpdateOne) AddScheduleMinute(v int) *BackupConfigUpdateOne
 	return _u
 }
 
+// SetRetentionEnabled sets the "retention_enabled" field.
+func (_u *BackupConfigUpdateOne) SetRetentionEnabled(v bool) *BackupConfigUpdateOne {
+	_u.mutation.SetRetentionEnabled(v)
+	return _u
+}
+
+// SetNillableRetentionEnabled sets the "retention_enabled" field if the given value is not nil.
+func (_u *BackupConfigUpdateOne) SetNillableRetentionEnabled(v *bool) *BackupConfigUpdateOne {
+	if v != nil {
+		_u.SetRetentionEnabled(*v)
+	}
+	return _u
+}
+
+// SetKeepDaily sets the "keep_daily" field.
+func (_u *BackupConfigUpdateOne) SetKeepDaily(v int) *BackupConfigUpdateOne {
+	_u.mutation.ResetKeepDaily()
+	_u.mutation.SetKeepDaily(v)
+	return _u
+}
+
+// SetNillableKeepDaily sets the "keep_daily" field if the given value is not nil.
+func (_u *BackupConfigUpdateOne) SetNillableKeepDaily(v *int) *BackupConfigUpdateOne {
+	if v != nil {
+		_u.SetKeepDaily(*v)
+	}
+	return _u
+}
+
+// AddKeepDaily adds value to the "keep_daily" field.
+func (_u *BackupConfigUpdateOne) AddKeepDaily(v int) *BackupConfigUpdateOne {
+	_u.mutation.AddKeepDaily(v)
+	return _u
+}
+
+// SetKeepWeekly sets the "keep_weekly" field.
+func (_u *BackupConfigUpdateOne) SetKeepWeekly(v int) *BackupConfigUpdateOne {
+	_u.mutation.ResetKeepWeekly()
+	_u.mutation.SetKeepWeekly(v)
+	return _u
+}
+
+// SetNillableKeepWeekly sets the "keep_weekly" field if the given value is not nil.
+func (_u *BackupConfigUpdateOne) SetNillableKeepWeekly(v *int) *BackupConfigUpdateOne {
+	if v != nil {
+		_u.SetKeepWeekly(*v)
+	}
+	return _u
+}
+
+// AddKeepWeekly adds value to the "keep_weekly" field.
+func (_u *BackupConfigUpdateOne) AddKeepWeekly(v int) *BackupConfigUpdateOne {
+	_u.mutation.AddKeepWeekly(v)
+	return _u
+}
+
+// SetKeepMonthly sets the "keep_monthly" field.
+func (_u *BackupConfigUpdateOne) SetKeepMonthly(v int) *BackupConfigUpdateOne {
+	_u.mutation.ResetKeepMonthly()
+	_u.mutation.SetKeepMonthly(v)
+	return _u
+}
+
+// SetNillableKeepMonthly sets the "keep_monthly" field if the given value is not nil.
+func (_u *BackupConfigUpdateOne) SetNillableKeepMonthly(v *int) *BackupConfigUpdateOne {
+	if v != nil {
+		_u.SetKeepMonthly(*v)
+	}
+	return _u
+}
+
+// AddKeepMonthly adds value to the "keep_monthly" field.
+func (_u *BackupConfigUpdateOne) AddKeepMonthly(v int) *BackupConfigUpdateOne {
+	_u.mutation.AddKeepMonthly(v)
+	return _u
+}
+
+// SetKeepYearly sets the "keep_yearly" field.
+func (_u *BackupConfigUpdateOne) SetKeepYearly(v int) *BackupConfigUpdateOne {
+	_u.mutation.ResetKeepYearly()
+	_u.mutation.SetKeepYearly(v)
+	return _u
+}
+
+// SetNillableKeepYearly sets the "keep_yearly" field if the given value is not nil.
+func (_u *BackupConfigUpdateOne) SetNillableKeepYearly(v *int) *BackupConfigUpdateOne {
+	if v != nil {
+		_u.SetKeepYearly(*v)
+	}
+	return _u
+}
+
+// AddKeepYearly adds value to the "keep_yearly" field.
+func (_u *BackupConfigUpdateOne) AddKeepYearly(v int) *BackupConfigUpdateOne {
+	_u.mutation.AddKeepYearly(v)
+	return _u
+}
+
+// SetCheckEnabled sets the "check_enabled" field.
+func (_u *BackupConfigUpdateOne) SetCheckEnabled(v bool) *BackupConfigUpdateOne {
+	_u.mutation.SetCheckEnabled(v)
+	return _u
+}
+
+// SetNillableCheckEnabled sets the "check_enabled" field if the given value is not nil.
+func (_u *BackupConfigUpdateOne) SetNillableCheckEnabled(v *bool) *BackupConfigUpdateOne {
+	if v != nil {
+		_u.SetCheckEnabled(*v)
+	}
+	return _u
+}
+
+// SetCheckSubsetPercent sets the "check_subset_percent" field.
+func (_u *BackupConfigUpdateOne) SetCheckSubsetPercent(v int) *BackupConfigUpdateOne {
+	_u.mutation.ResetCheckSubsetPercent()
+	_u.mutation.SetCheckSubsetPercent(v)
+	return _u
+}
+
+// SetNillableCheckSubsetPercent sets the "check_subset_percent" field if the given value is not nil.
+func (_u *BackupConfigUpdateOne) SetNillableCheckSubsetPercent(v *int) *BackupConfigUpdateOne {
+	if v != nil {
+		_u.SetCheckSubsetPercent(*v)
+	}
+	return _u
+}
+
+// AddCheckSubsetPercent adds value to the "check_subset_percent" field.
+func (_u *BackupConfigUpdateOne) AddCheckSubsetPercent(v int) *BackupConfigUpdateOne {
+	_u.mutation.AddCheckSubsetPercent(v)
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *BackupConfigUpdateOne) SetUpdatedAt(v time.Time) *BackupConfigUpdateOne {
 	_u.mutation.SetUpdatedAt(v)
@@ -850,6 +1152,42 @@ func (_u *BackupConfigUpdateOne) sqlSave(ctx context.Context) (_node *BackupConf
 	}
 	if value, ok := _u.mutation.AddedScheduleMinute(); ok {
 		_spec.AddField(backupconfig.FieldScheduleMinute, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.RetentionEnabled(); ok {
+		_spec.SetField(backupconfig.FieldRetentionEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.KeepDaily(); ok {
+		_spec.SetField(backupconfig.FieldKeepDaily, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedKeepDaily(); ok {
+		_spec.AddField(backupconfig.FieldKeepDaily, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.KeepWeekly(); ok {
+		_spec.SetField(backupconfig.FieldKeepWeekly, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedKeepWeekly(); ok {
+		_spec.AddField(backupconfig.FieldKeepWeekly, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.KeepMonthly(); ok {
+		_spec.SetField(backupconfig.FieldKeepMonthly, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedKeepMonthly(); ok {
+		_spec.AddField(backupconfig.FieldKeepMonthly, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.KeepYearly(); ok {
+		_spec.SetField(backupconfig.FieldKeepYearly, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedKeepYearly(); ok {
+		_spec.AddField(backupconfig.FieldKeepYearly, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.CheckEnabled(); ok {
+		_spec.SetField(backupconfig.FieldCheckEnabled, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.CheckSubsetPercent(); ok {
+		_spec.SetField(backupconfig.FieldCheckSubsetPercent, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedCheckSubsetPercent(); ok {
+		_spec.AddField(backupconfig.FieldCheckSubsetPercent, field.TypeInt, value)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(backupconfig.FieldUpdatedAt, field.TypeTime, value)

@@ -220,6 +220,8 @@ func NewRouter(logger *zap.Logger, services Services, sessionSecure bool, webRoo
 						backup.Get("/config", backupConfigHandler(backups))
 						backup.With(requirePermission(deny, domain.PermManageBackups)).Put("/config", updateBackupConfigHandler(backups))
 						backup.With(requirePermission(deny, domain.PermManageBackups)).Post("/repository/init", initBackupRepositoryHandler(backups))
+						backup.With(requirePermission(deny, domain.PermManageBackups)).Post("/repository/connect", connectBackupRepositoryHandler(backups))
+						backup.With(requirePermission(deny, domain.PermManageBackups)).Post("/operations", requestBackupOperationHandler(backups))
 						backup.Get("/runs", listBackupRunsHandler(backups))
 						backup.With(requirePermission(deny, domain.PermRunBackups)).Post("/runs", requestBackupHandler(backups))
 						backup.Get("/runs/{runID}", backupRunHandler(backups))

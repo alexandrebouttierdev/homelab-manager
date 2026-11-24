@@ -210,8 +210,36 @@ func init() {
 	backupconfigDescScheduleMinute := backupconfigFields[14].Descriptor()
 	// backupconfig.DefaultScheduleMinute holds the default value on creation for the schedule_minute field.
 	backupconfig.DefaultScheduleMinute = backupconfigDescScheduleMinute.Default.(int)
+	// backupconfigDescRetentionEnabled is the schema descriptor for retention_enabled field.
+	backupconfigDescRetentionEnabled := backupconfigFields[15].Descriptor()
+	// backupconfig.DefaultRetentionEnabled holds the default value on creation for the retention_enabled field.
+	backupconfig.DefaultRetentionEnabled = backupconfigDescRetentionEnabled.Default.(bool)
+	// backupconfigDescKeepDaily is the schema descriptor for keep_daily field.
+	backupconfigDescKeepDaily := backupconfigFields[16].Descriptor()
+	// backupconfig.DefaultKeepDaily holds the default value on creation for the keep_daily field.
+	backupconfig.DefaultKeepDaily = backupconfigDescKeepDaily.Default.(int)
+	// backupconfigDescKeepWeekly is the schema descriptor for keep_weekly field.
+	backupconfigDescKeepWeekly := backupconfigFields[17].Descriptor()
+	// backupconfig.DefaultKeepWeekly holds the default value on creation for the keep_weekly field.
+	backupconfig.DefaultKeepWeekly = backupconfigDescKeepWeekly.Default.(int)
+	// backupconfigDescKeepMonthly is the schema descriptor for keep_monthly field.
+	backupconfigDescKeepMonthly := backupconfigFields[18].Descriptor()
+	// backupconfig.DefaultKeepMonthly holds the default value on creation for the keep_monthly field.
+	backupconfig.DefaultKeepMonthly = backupconfigDescKeepMonthly.Default.(int)
+	// backupconfigDescKeepYearly is the schema descriptor for keep_yearly field.
+	backupconfigDescKeepYearly := backupconfigFields[19].Descriptor()
+	// backupconfig.DefaultKeepYearly holds the default value on creation for the keep_yearly field.
+	backupconfig.DefaultKeepYearly = backupconfigDescKeepYearly.Default.(int)
+	// backupconfigDescCheckEnabled is the schema descriptor for check_enabled field.
+	backupconfigDescCheckEnabled := backupconfigFields[20].Descriptor()
+	// backupconfig.DefaultCheckEnabled holds the default value on creation for the check_enabled field.
+	backupconfig.DefaultCheckEnabled = backupconfigDescCheckEnabled.Default.(bool)
+	// backupconfigDescCheckSubsetPercent is the schema descriptor for check_subset_percent field.
+	backupconfigDescCheckSubsetPercent := backupconfigFields[21].Descriptor()
+	// backupconfig.DefaultCheckSubsetPercent holds the default value on creation for the check_subset_percent field.
+	backupconfig.DefaultCheckSubsetPercent = backupconfigDescCheckSubsetPercent.Default.(int)
 	// backupconfigDescUpdatedBy is the schema descriptor for updated_by field.
-	backupconfigDescUpdatedBy := backupconfigFields[16].Descriptor()
+	backupconfigDescUpdatedBy := backupconfigFields[23].Descriptor()
 	// backupconfig.DefaultUpdatedBy holds the default value on creation for the updated_by field.
 	backupconfig.DefaultUpdatedBy = backupconfigDescUpdatedBy.Default.(string)
 	// backupconfigDescID is the schema descriptor for id field.

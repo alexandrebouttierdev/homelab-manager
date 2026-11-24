@@ -159,6 +159,7 @@ func main() {
 		alertUsecase = usecase.NewAlertUsecase(alertRepository, usecase.AlertSources{
 			Metrics: monitoringRepository, Collectors: monitoringUsecase, Units: serviceUsecase, Retention: monitoringUsecase,
 			Vulnerabilities: sqlite.NewVulnerabilityRepository(database.Client()),
+			Backups:         sqlite.NewBackupRepository(database.Client()),
 		}, logger).WithNotifications(notificationUsecase, notificationRepository)
 		alertsDone = make(chan struct{})
 		go func() {

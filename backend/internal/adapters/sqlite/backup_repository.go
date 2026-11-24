@@ -305,3 +305,28 @@ func toBackupRun(record *ent.BackupRun) domain.BackupRun {
 	}
 	return run
 }
+
+// BackupAlertStatus gives what the backup alert rule watches; known is
+// false while no repository is initialized.
+func (r *BackupRepository) BackupAlertStatus(ctx context.Context) (domain.BackupAlertStatus, bool, error) {
+	config, err := r.BackupConfig(ctx)
+	if err != nil {
+		return domain.BackupAlertStatus{}, false, err
+	}
+	if config.Repository == nil || config.InitializedAt == nil {
+		return domain.BackupAlertStatus{}, false, nil
+	}
+	latest, err := r.LatestBackupRuns(ctx)
+	if err != nil {
+		return domain.BackupAlertStatus{}, false, err
+	}
+	status := domain.BackupAlertStatus{Reference: *config.InitializedAt}
+	if latest.LastSuccess != nil {
+		status.Reference = latest.LastSuccess.StartedAt
+		if latest.LastSuccess.FinishedAt != nil {
+			status.Reference = *latest.LastSuccess.FinishedAt
+		}
+	}
+	status.LastRunFailed = latest.LastBackup != nil && latest.LastBackup.State == domain.BackupFailed
+	return status, true, nil
+}

@@ -43,8 +43,9 @@ func TestDefaultAlertRulesAreSeeded(t *testing.T) {
 	if err != nil {
 		t.Fatalf("AlertRules: %v", err)
 	}
-	if len(rules) != 6 {
-		t.Fatalf("seeded %d rules, want 6", len(rules))
+	// Six from 007, the backup rule from 011.
+	if len(rules) != 7 {
+		t.Fatalf("seeded %d rules, want 7", len(rules))
 	}
 	for _, rule := range rules {
 		if !rule.Default || !rule.Enabled {
@@ -128,7 +129,7 @@ func TestAlertRulesAreBounded(t *testing.T) {
 	ctx, cancel := context.WithTimeout(context.Background(), 60*time.Second)
 	defer cancel()
 	repository := NewAlertRepository(openTestDatabase(t, ctx).Client())
-	for i := 6; i < domain.MaxAlertRules; i++ {
+	for i := 7; i < domain.MaxAlertRules; i++ {
 		if err := repository.CreateAlertRule(ctx, customRule("rule"), alertAudit("alert_rule.create")); err != nil {
 			t.Fatalf("rule %d: %v", i, err)
 		}

@@ -10,7 +10,7 @@ import type {
   AlertSeverity,
   AlertState,
 } from './api/alerts'
-import { formatMetricValue } from './format'
+import { formatDecimal, formatMetricValue } from './format'
 import { vulnSeverityLabel } from './vulnerabilities'
 import { parseDecimal, type AlertRuleValues } from '../schemas/alertRule'
 
@@ -61,6 +61,7 @@ const ruleTypeLabels: Record<AlertRuleType, string> = {
   unit_failed: 'Unité systemd en échec',
   collector: 'Collecteur indisponible',
   vulnerabilities: 'Vulnérabilités des paquets',
+  backup: 'Sauvegarde en retard ou en échec',
 }
 
 export const ruleTypeOptions: ReadonlyArray<{ value: AlertRuleType; label: string }> = (
@@ -206,6 +207,8 @@ export function describeRule(rule: Pick<AlertRule, 'type' | 'params'>): string {
       const severity = vulnSeverityLabel(p.vulnSeverity ?? 'critical').toLowerCase()
       return `Une vulnérabilité ${severity} ou plus grave${p.fixableOnly ? ', corrigeable,' : ''} est présente`
     }
+    case 'backup':
+      return `Aucune sauvegarde réussie depuis ${p.maxAgeHours ?? 26} h, ou la dernière a échoué`
   }
 }
 
@@ -228,6 +231,8 @@ export function describeTarget(alert: Alert): string {
       return collectorLabel(target.collector ?? '')
     case 'vulnerabilities':
       return 'Paquets de la machine'
+    case 'backup':
+      return 'Sauvegardes'
   }
 }
 
@@ -235,6 +240,11 @@ export function describeTarget(alert: Alert): string {
 export function alertValueText(alert: Alert): string {
   if (alert.target.kind === 'vulnerabilities' && alert.value !== null)
     return `${alert.value} vulnérabilité${alert.value > 1 ? 's' : ''}`
+  if (alert.target.kind === 'backup') {
+    if (alert.observed === 'failed') return 'Dernière sauvegarde en échec'
+    if (alert.value !== null)
+      return `Dernier succès il y a ${formatDecimal(alert.value)} h (seuil ${alert.threshold ?? '—'} h)`
+  }
   if (alert.value !== null) {
     const unit = metricUnit(alert.target.metric)
     const value = formatMetricValue(alert.value, unit)
@@ -274,6 +284,8 @@ export function alertLink(alert: Alert): AlertLink | null {
         : { to: '/', label: 'Voir la synthèse' }
     case 'vulnerabilities':
       return { to: '/host?tab=vulnerabilities', label: 'Voir les vulnérabilités' }
+    case 'backup':
+      return { to: '/backups', label: 'Voir les sauvegardes' }
   }
 }
 
@@ -310,6 +322,7 @@ export const emptyRuleValues: AlertRuleValues = {
   forMinutes: '5',
   vulnSeverity: 'critical',
   fixableOnly: false,
+  maxAgeHours: '26',
 }
 
 /** Form values of an existing rule. The form edits one label; a rule from the API keeps its first one. */
@@ -337,6 +350,7 @@ export function ruleToValues(rule: AlertRule): AlertRuleValues {
         ? 'critical'
         : p.vulnSeverity,
     fixableOnly: p.fixableOnly ?? false,
+    maxAgeHours: String(p.maxAgeHours ?? 26),
   }
 }
 
@@ -378,6 +392,11 @@ export function alertRuleInput(values: AlertRuleValues): AlertRuleInput {
       if (values.fixableOnly) params.fixableOnly = true
       return { ...common, params }
     }
+    case 'backup':
+      return {
+        ...common,
+        params: { maxAgeHours: Math.round(parseDecimal(values.maxAgeHours) ?? 26), forSeconds: 0 },
+      }
   }
 }
 

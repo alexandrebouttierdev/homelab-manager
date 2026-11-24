@@ -69,14 +69,21 @@ type VulnerabilityCountReader interface {
 	VulnerabilityCounts(ctx context.Context) (counts []domain.VulnerabilityCount, known bool, err error)
 }
 
+// BackupStatusReader gives what a backup rule watches; known is false
+// while no repository is initialized.
+type BackupStatusReader interface {
+	BackupAlertStatus(ctx context.Context) (status domain.BackupAlertStatus, known bool, err error)
+}
+
 // AlertSources are the read-only views the engine evaluates.
-// Vulnerabilities may be nil: vulnerabilities rules then stay frozen.
+// Vulnerabilities and Backups may be nil: their rules then stay frozen.
 type AlertSources struct {
 	Metrics         AlertMetricsReader
 	Collectors      CollectorStatusReader
 	Units           UnitInventoryReader
 	Retention       RetentionReader
 	Vulnerabilities VulnerabilityCountReader
+	Backups         BackupStatusReader
 }
 
 // AlertUsecase evaluates the alert rules every 15 s on the data already
@@ -235,6 +242,17 @@ func (u *AlertUsecase) snapshot(ctx context.Context, now time.Time) domain.Alert
 			u.logger.Warn("alerts: could not count the vulnerabilities", zap.Error(err))
 		} else {
 			snapshot.VulnerabilitiesKnown, snapshot.VulnerabilityCounts = known, counts
+		}
+	}
+	if u.sources.Backups != nil {
+		status, known, err := u.sources.Backups.BackupAlertStatus(ctx)
+		switch {
+		case err != nil:
+			u.logger.Warn("alerts: could not read the backups", zap.Error(err))
+		case known:
+			snapshot.BackupKnown = true
+			snapshot.BackupAgeHours = max(0, u.now().Sub(status.Reference).Hours())
+			snapshot.BackupLastRunFailed = status.LastRunFailed
 		}
 	}
 	return snapshot

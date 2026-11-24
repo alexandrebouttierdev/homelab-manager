@@ -161,3 +161,59 @@ func TestBackupRunsAndSnapshots(t *testing.T) {
 		t.Fatalf("%d runs after the purge, want 2", count)
 	}
 }
+
+func TestBackupAlertStatus(t *testing.T) {
+	ctx := context.Background()
+	database := openTestDatabase(t, ctx)
+	repository := NewBackupRepository(database.Client())
+	if _, known, err := repository.BackupAlertStatus(ctx); err != nil || known {
+		t.Fatalf("without repository: known %v, %v", known, err)
+	}
+	initialized := time.Date(2026, 11, 20, 10, 0, 0, 0, time.UTC)
+	audit := domain.AuditEntry{Actor: "a", TargetType: "backup_config", TargetID: "local", Action: "update", Outcome: "success"}
+	if err := repository.SaveBackupConfig(ctx, domain.BackupConfig{
+		Repository: &domain.BackupRepository{Type: domain.RepositoryLocal, Location: "/mnt/backup"}, SealedCredentials: "s",
+		InitializedAt: &initialized, Schedule: domain.DefaultBackupSchedule,
+	}, audit); err != nil {
+		t.Fatal(err)
+	}
+	status, known, err := repository.BackupAlertStatus(ctx)
+	if err != nil || !known || !status.Reference.Equal(initialized) || status.LastRunFailed {
+		t.Fatalf("no backup yet = %+v, %v, %v", status, known, err)
+	}
+	finish := func(state domain.BackupRunState, at time.Time) {
+		run := domain.BackupRun{ID: uuid.New(), Operation: domain.BackupOpBackup, Origin: domain.BackupScheduled, StartedAt: at}
+		if err := repository.StartBackupRun(ctx, run, nil); err != nil {
+			t.Fatal(err)
+		}
+		end := at.Add(time.Minute)
+		run.State, run.FinishedAt = state, &end
+		if err := repository.FinishBackupRun(ctx, run, nil, nil); err != nil {
+			t.Fatal(err)
+		}
+	}
+	finish(domain.BackupSucceeded, initialized.Add(24*time.Hour))
+	finish(domain.BackupFailed, initialized.Add(48*time.Hour))
+	status, _, _ = repository.BackupAlertStatus(ctx)
+	if !status.Reference.Equal(initialized.Add(24*time.Hour+time.Minute)) || !status.LastRunFailed {
+		t.Fatalf("after a failure = %+v", status)
+	}
+}
+
+func TestBackupDefaultAlertRule(t *testing.T) {
+	ctx := context.Background()
+	database := openTestDatabase(t, ctx)
+	rules, err := NewAlertRepository(database.Client()).AlertRules(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, rule := range rules {
+		if rule.Type == domain.AlertRuleBackup {
+			if !rule.Default || !rule.Enabled || rule.Params.MaxAgeHours != 26 || rule.Validate() != nil {
+				t.Fatalf("default backup rule = %+v", rule)
+			}
+			return
+		}
+	}
+	t.Fatal("no default backup rule")
+}

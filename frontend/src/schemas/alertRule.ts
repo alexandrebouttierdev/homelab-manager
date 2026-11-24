@@ -22,6 +22,7 @@ export const alertRuleSchema = z
       'unit_failed',
       'collector',
       'vulnerabilities',
+      'backup',
     ]),
     severity: z.enum(['info', 'warning', 'critical']),
     enabled: z.boolean(),
@@ -37,6 +38,7 @@ export const alertRuleSchema = z
     forMinutes: z.string(),
     vulnSeverity: z.enum(['critical', 'high', 'medium', 'low']),
     fixableOnly: z.boolean(),
+    maxAgeHours: z.string(),
   })
   .superRefine((values, ctx) => {
     const metricRule = values.type === 'host_metric' || values.type === 'container_metric'
@@ -58,7 +60,20 @@ export const alertRuleSchema = z
       })
     if (values.type === 'collector' && !values.collector)
       ctx.addIssue({ code: 'custom', path: ['collector'], message: 'Collecteur requis' })
-    if (values.type !== 'unit_failed' && values.type !== 'vulnerabilities') {
+    if (values.type === 'backup') {
+      const hours = parseDecimal(values.maxAgeHours)
+      if (hours === null || !Number.isInteger(hours) || hours < 1 || hours > 720)
+        ctx.addIssue({
+          code: 'custom',
+          path: ['maxAgeHours'],
+          message: 'Nombre entier d’heures, de 1 à 720',
+        })
+    }
+    if (
+      values.type !== 'unit_failed' &&
+      values.type !== 'vulnerabilities' &&
+      values.type !== 'backup'
+    ) {
       const minutes = parseDecimal(values.forMinutes)
       if (minutes === null || minutes < 0 || minutes > 1440)
         ctx.addIssue({

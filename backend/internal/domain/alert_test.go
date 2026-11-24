@@ -408,3 +408,47 @@ func TestVulnerabilitiesRule(t *testing.T) {
 		t.Fatalf("message = %q", message.Body)
 	}
 }
+
+func TestBackupRule(t *testing.T) {
+	rule := AlertRule{ID: uuid.New(), Name: "Sauvegarde en retard", Type: AlertRuleBackup, Severity: AlertWarning, Enabled: true,
+		Params: AlertRuleParams{MaxAgeHours: 26}}
+	if err := rule.Validate(); err != nil {
+		t.Fatalf("Validate() = %v", err)
+	}
+	for name, params := range map[string]AlertRuleParams{
+		"no age":          {},
+		"too old":         {MaxAgeHours: MaxBackupAgeHours + 1},
+		"with a duration": {MaxAgeHours: 26, ForSeconds: 60},
+		"with a severity": {MaxAgeHours: 26, VulnSeverity: VulnHigh},
+	} {
+		invalid := rule
+		invalid.Params = params
+		if err := invalid.Validate(); !errors.Is(err, ErrInvalidAlertRule) {
+			t.Errorf("%s: Validate() = %v", name, err)
+		}
+	}
+	vulnerabilities := AlertRule{Type: AlertRuleVulnerabilities, Name: "v", Severity: AlertInfo, Params: AlertRuleParams{VulnSeverity: VulnHigh, MaxAgeHours: 3}}
+	if err := vulnerabilities.Validate(); !errors.Is(err, ErrInvalidAlertRule) {
+		t.Errorf("maxAgeHours on a vulnerabilities rule: %v", err)
+	}
+
+	if frozen := EvaluateAlerts([]AlertRule{rule}, AlertSnapshot{}, nil, AlertEngineState{}, alertNow); len(frozen.Fired) != 0 {
+		t.Fatal("a backup rule fired without an initialized repository")
+	}
+	fresh := EvaluateAlerts([]AlertRule{rule}, AlertSnapshot{BackupKnown: true, BackupAgeHours: 3}, nil, AlertEngineState{}, alertNow)
+	if len(fresh.Fired) != 0 {
+		t.Fatal("a recent backup fired the rule")
+	}
+	late := EvaluateAlerts([]AlertRule{rule}, AlertSnapshot{BackupKnown: true, BackupAgeHours: 30.04}, nil, AlertEngineState{}, alertNow)
+	if len(late.Fired) != 1 || *late.Fired[0].Value != 30 || *late.Fired[0].Threshold != 26 || late.Fired[0].Target.Kind != AlertTargetBackup {
+		t.Fatalf("late = %+v", late.Fired)
+	}
+	failed := EvaluateAlerts([]AlertRule{rule}, AlertSnapshot{BackupKnown: true, BackupAgeHours: 1, BackupLastRunFailed: true}, nil, AlertEngineState{}, alertNow)
+	if len(failed.Fired) != 1 || failed.Fired[0].Observed != "failed" {
+		t.Fatalf("failed = %+v", failed.Fired)
+	}
+	resolved := EvaluateAlerts([]AlertRule{rule}, AlertSnapshot{BackupKnown: true, BackupAgeHours: 0.5}, failed.Fired, AlertEngineState{}, alertNow)
+	if len(resolved.Resolved) != 1 || resolved.Resolved[0].Resolution != ResolutionConditionCleared {
+		t.Fatalf("resolved = %+v", resolved.Resolved)
+	}
+}

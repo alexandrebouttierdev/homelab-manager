@@ -300,7 +300,22 @@ function RuleForm({ page }: { page: AlertRulesPanelModel }) {
             </>
           )}
 
-          {type !== 'unit_failed' && type !== 'vulnerabilities' && (
+          {type === 'backup' && (
+            <Field
+              id="ruleMaxAge"
+              label="Dernier succès plus ancien que (heures)"
+              error={errors.maxAgeHours?.message}
+            >
+              <input
+                id="ruleMaxAge"
+                inputMode="numeric"
+                className={inputClass}
+                {...register('maxAgeHours')}
+              />
+            </Field>
+          )}
+
+          {type !== 'unit_failed' && type !== 'vulnerabilities' && type !== 'backup' && (
             <Field id="ruleDuration" label="Pendant (minutes)" error={errors.forMinutes?.message}>
               <input
                 id="ruleDuration"

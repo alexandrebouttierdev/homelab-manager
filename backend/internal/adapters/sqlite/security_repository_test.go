@@ -106,21 +106,21 @@ func TestSessionsAreListedTouchedAndRevoked(t *testing.T) {
 		t.Fatal(err)
 	}
 	expires := time.Now().Add(time.Hour)
-	first, err := auth.Create(ctx, admin.ID, "token-1", "192.0.2.1", "Firefox", expires)
+	first, err := auth.Create(ctx, admin.ID, "token-1", "192.0.2.1", "Firefox", "password", expires)
 	if err != nil {
 		t.Fatal(err)
 	}
 	if first.AuthMethod != "password" || first.LastSeenAt.IsZero() || first.IPAddress != "192.0.2.1" || first.Username != "admin" {
 		t.Fatalf("created session = %+v", first)
 	}
-	second, err := auth.Create(ctx, admin.ID, "token-2", "192.0.2.2", "Chrome", expires)
+	second, err := auth.Create(ctx, admin.ID, "token-2", "192.0.2.2", "Chrome", "password", expires)
 	if err != nil {
 		t.Fatal(err)
 	}
-	if _, err := auth.Create(ctx, alice.ID, "token-3", "192.0.2.3", "Safari", expires); err != nil {
+	if _, err := auth.Create(ctx, alice.ID, "token-3", "192.0.2.3", "Safari", "password", expires); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := auth.Create(ctx, alice.ID, "token-old", "192.0.2.3", "Safari", time.Now().Add(-time.Minute)); err != nil {
+	if _, err := auth.Create(ctx, alice.ID, "token-old", "192.0.2.3", "Safari", "password", time.Now().Add(-time.Minute)); err != nil {
 		t.Fatal(err)
 	}
 
@@ -155,7 +155,7 @@ func TestSessionsAreListedTouchedAndRevoked(t *testing.T) {
 	if _, err := auth.FindActiveByID(ctx, uuid.New()); !errors.Is(err, domain.ErrSessionNotFound) {
 		t.Fatalf("unknown session = %v, want ErrSessionNotFound", err)
 	}
-	if _, err := auth.Create(ctx, admin.ID, "token-4", "192.0.2.4", "Edge", expires); err != nil {
+	if _, err := auth.Create(ctx, admin.ID, "token-4", "192.0.2.4", "Edge", "password", expires); err != nil {
 		t.Fatal(err)
 	}
 	revoked, err := auth.RevokeAllForUserExcept(ctx, admin.ID, first.ID)

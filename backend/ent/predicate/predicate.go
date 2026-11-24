@@ -6,6 +6,15 @@ import (
 	"entgo.io/ent/dialect/sql"
 )
 
+// Alert is the predicate function for alert builders.
+type Alert func(*sql.Selector)
+
+// AlertRule is the predicate function for alertrule builders.
+type AlertRule func(*sql.Selector)
+
+// AlertSilence is the predicate function for alertsilence builders.
+type AlertSilence func(*sql.Selector)
+
 // AppSetting is the predicate function for appsetting builders.
 type AppSetting func(*sql.Selector)
 
@@ -21,11 +30,20 @@ type ContainerMetricSample func(*sql.Selector)
 // Event is the predicate function for event builders.
 type Event func(*sql.Selector)
 
+// FailedUnit is the predicate function for failedunit builders.
+type FailedUnit func(*sql.Selector)
+
 // HostInfo is the predicate function for hostinfo builders.
 type HostInfo func(*sql.Selector)
 
 // LoginFailure is the predicate function for loginfailure builders.
 type LoginFailure func(*sql.Selector)
+
+// NotificationChannel is the predicate function for notificationchannel builders.
+type NotificationChannel func(*sql.Selector)
+
+// RecoveryCode is the predicate function for recoverycode builders.
+type RecoveryCode func(*sql.Selector)
 
 // SecurityPolicy is the predicate function for securitypolicy builders.
 type SecurityPolicy func(*sql.Selector)
@@ -35,6 +53,9 @@ type Session func(*sql.Selector)
 
 // SystemMetricSample is the predicate function for systemmetricsample builders.
 type SystemMetricSample func(*sql.Selector)
+
+// TotpSecret is the predicate function for totpsecret builders.
+type TotpSecret func(*sql.Selector)
 
 // User is the predicate function for user builders.
 type User func(*sql.Selector)

@@ -49,11 +49,16 @@ describe('security API', () => {
     }
     const fetchMock = mockFetch(policy)
     await expect(getSecurityPolicy()).resolves.toEqual(policy)
-    await updateSecurityPolicy({ idleTimeoutMinutes: 30, allowedNetworks: ['10.0.0.0/8'] })
+    await updateSecurityPolicy({
+      idleTimeoutMinutes: 30,
+      allowedNetworks: ['10.0.0.0/8'],
+      requireAdminSecondFactor: false,
+    })
     expect(fetchMock.mock.calls[1][1].method).toBe('PUT')
     expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({
       idleTimeoutMinutes: 30,
       allowedNetworks: ['10.0.0.0/8'],
+      requireAdminSecondFactor: false,
     })
   })
 
@@ -72,7 +77,11 @@ describe('security API', () => {
   it('explains a self-exclusion', async () => {
     mockFetch({ error: { code: 'POLICY_EXCLUDES_CURRENT_ADDRESS', message: 'x' } }, 409)
     await expect(
-      updateSecurityPolicy({ idleTimeoutMinutes: 60, allowedNetworks: ['10.0.0.0/8'] }),
+      updateSecurityPolicy({
+        idleTimeoutMinutes: 60,
+        allowedNetworks: ['10.0.0.0/8'],
+        requireAdminSecondFactor: false,
+      }),
     ).rejects.toThrow(/votre propre adresse/)
   })
 })

@@ -50,7 +50,33 @@ export const errorMessages: Record<string, string> = {
   SESSION_REVOKE_FAILED: "La session n'a pas pu être révoquée.",
   SECURITY_POLICY_UPDATE_FAILED: "La politique de sécurité n'a pas pu être enregistrée.",
   AUDIT_UNAVAILABLE: "Journal d'audit momentanément indisponible.",
+  JOURNAL_UNAVAILABLE:
+    'Journal système indisponible : journalctl est introuvable sur la machine du Manager.',
+  JOURNAL_READ_FAILED: "Le journal système n'a pas pu être lu.",
+  SYSTEMD_UNAVAILABLE:
+    "Services système indisponibles : systemd n'est pas joignable sur le bus système de la machine.",
+  SYSTEMD_READ_FAILED: "L'unité systemd n'a pas pu être lue.",
+  ALERTS_UNAVAILABLE: "Alertes indisponibles : la base de données du Manager n'est pas accessible.",
+  ALERTS_FAILED: "Les alertes n'ont pas pu être lues ou enregistrées.",
+  ALERT_ALREADY_RESOLVED: "L'alerte est déjà résolue.",
+  DEFAULT_RULE: 'Une règle par défaut peut être désactivée, pas supprimée.',
+  TOO_MANY_RULES: 'Nombre maximal de règles atteint (200).',
+  TOO_MANY_SILENCES: 'Nombre maximal de silences en vigueur atteint (100).',
+  TOO_MANY_CHANNELS: 'Nombre maximal de canaux de notification atteint (20).',
+  SECRETS_UNAVAILABLE:
+    'Secrets indisponibles : la clé du coffre est absente. Les canaux sans secret restent utilisables.',
+  NOTIFICATION_FAILED: "L'envoi de test a échoué : voir la dernière erreur du canal.",
   OWN_PASSWORD_RESET: 'Changez votre propre mot de passe dans Paramètres.',
+  INVALID_SECOND_FACTOR: 'Code incorrect.',
+  LOGIN_CHALLENGE_EXPIRED: 'Délai dépassé : reconnectez-vous avec votre mot de passe.',
+  SECOND_FACTOR_REQUIRED: 'Activez la double authentification pour continuer.',
+  SECOND_FACTOR_UNAVAILABLE:
+    'Double authentification par application indisponible : la clé du coffre est absente. Utilisez un code de secours.',
+  SECOND_FACTOR_ALREADY_ENABLED: 'La double authentification est déjà activée.',
+  SECOND_FACTOR_NOT_ENABLED: "La double authentification n'est pas activée.",
+  NO_PENDING_ENROLLMENT: "Recommencez l'activation de la double authentification.",
+  SECOND_FACTOR_NOT_ENROLLED: "Activez d'abord votre propre double authentification.",
+  SECOND_FACTOR_UPDATE_FAILED: "La double authentification n'a pas pu être modifiée.",
   INTERNAL_ERROR: 'Erreur interne du Manager.',
 }
 

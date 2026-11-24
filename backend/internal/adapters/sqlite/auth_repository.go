@@ -72,13 +72,14 @@ func (r *AuthRepository) EnsureAdmin(ctx context.Context, username, passwordHash
 	return true, nil
 }
 
-func (r *AuthRepository) Create(ctx context.Context, userID uuid.UUID, tokenHash, ip, userAgent string, expiresAt time.Time) (domain.Session, error) {
+func (r *AuthRepository) Create(ctx context.Context, userID uuid.UUID, tokenHash, ip, userAgent, authMethod string, expiresAt time.Time) (domain.Session, error) {
 	record, err := r.client.Session.Create().
 		SetUserID(userID).
 		SetTokenHash(tokenHash).
 		SetExpiresAt(expiresAt).
 		SetIPAddress(ip).
 		SetUserAgent(userAgent).
+		SetAuthMethod(authMethod).
 		SetLastSeenAt(time.Now().UTC()).
 		Save(ctx)
 	if err != nil {

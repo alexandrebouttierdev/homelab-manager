@@ -24,7 +24,7 @@ jobs:
           fetch-depth: 0 # the whole history and its tags, for the version and the notes
       - uses: actions/setup-go@v6
         with:
-          go-version: "1.26.10"
+          go-version: "1.26.11"
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -32,9 +32,23 @@ jobs:
           cache-dependency-path: frontend/package-lock.json
       - run: go -C backend mod download
       - run: npm --prefix frontend ci
+      # systemd-journal-remote writes the journal files of the journalctl
+      # integration tests; dbus-daemon runs the private bus of the fake
+      # systemd (adapters/systemd), whose tests are skipped without it.
+      - run: sudo apt-get update && sudo apt-get install -y --no-install-recommends systemd-journal-remote dbus
+      - run: command -v dbus-daemon
 
       - name: Verify
         run: scripts/verify.sh
+
+      # No release with a known vulnerability in the dependencies or the Go
+      # standard library (docs/CODE_RULES.md § 6).
+      - name: Install the audit tools
+        run: |
+          scripts/install-audit-tools.sh
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - name: Audit the dependencies
+        run: scripts/audit.sh
 
       - name: Compute the version
         id: version

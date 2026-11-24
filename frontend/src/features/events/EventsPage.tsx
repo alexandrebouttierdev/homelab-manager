@@ -13,8 +13,9 @@ import { PageHeader } from '../../components/ui/PageHeader'
 import { SearchField } from '../../components/ui/SearchField'
 import { SegmentedTabs } from '../../components/ui/SegmentedTabs'
 import { Select } from '../../components/ui/Select'
-import { eventSeverityLabel, eventTone, eventTypeLabel } from '../../lib/events'
+import { eventSeverityLabel, eventTarget, eventTone, eventTypeLabel } from '../../lib/events'
 import { formatDateTime, formatRelativeTime } from '../../lib/format'
+import type { MonitorEvent } from '../../lib/api/monitoring'
 import { type RangeKey, ranges, useEventsPage } from './useEventsPage'
 
 export function EventsPage() {
@@ -41,7 +42,7 @@ export function EventsPage() {
             {all.length} événement(s)
           </Badge>
         }
-        description="Changements d'état des conteneurs détectés par la réconciliation Docker. Les événements de collecteur ne sont pas encore persistés."
+        description="Changements d'état des conteneurs détectés par la réconciliation Docker, unités systemd entrées en échec ou rétablies. Les événements de collecteur ne sont pas persistés."
         actions={
           <Button
             size="sm"
@@ -130,7 +131,7 @@ export function EventsPage() {
         <EmptyState
           icon={CheckCircle2}
           title="Aucun événement enregistré"
-          description="Aucun changement d'état de conteneur n'a été détecté sur la période. Les événements apparaîtront lors des démarrages, arrêts ou redémarrages."
+          description="Aucun changement d'état de conteneur ni d'unité systemd n'a été détecté sur la période. Les événements apparaîtront lors des démarrages, arrêts, redémarrages ou échecs."
         />
       )}
 
@@ -163,7 +164,7 @@ export function EventsPage() {
                 <TH>Gravité</TH>
                 <TH>Type</TH>
                 <TH>Message</TH>
-                <TH>Conteneur</TH>
+                <TH>Cible</TH>
                 <TH>Ancienneté</TH>
               </tr>
             </THead>
@@ -186,16 +187,7 @@ export function EventsPage() {
                     <span className="block max-w-[420px] text-xs">{event.message || '—'}</span>
                   </TD>
                   <TD>
-                    {event.containerId ? (
-                      <Link
-                        to={`/containers/${encodeURIComponent(event.containerId)}`}
-                        className="font-mono text-[10px] text-accent transition-colors hover:underline"
-                      >
-                        ouvrir le conteneur
-                      </Link>
-                    ) : (
-                      <span className="font-mono text-[10px] text-text-muted">—</span>
-                    )}
+                    <EventTargetLink event={event} />
                   </TD>
                   <TD className="font-mono text-[10px]">{formatRelativeTime(event.occurredAt)}</TD>
                 </TR>
@@ -235,5 +227,18 @@ function Summary({
         {icon}
       </span>
     </div>
+  )
+}
+
+function EventTargetLink({ event }: { event: MonitorEvent }) {
+  const target = eventTarget(event)
+  if (!target) return <span className="font-mono text-[10px] text-text-muted">—</span>
+  return (
+    <Link
+      to={target.to}
+      className="font-mono text-[10px] text-accent transition-colors hover:underline"
+    >
+      {target.label}
+    </Link>
   )
 }

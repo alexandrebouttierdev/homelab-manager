@@ -11,10 +11,27 @@ export type SessionUser = {
   role: Role
   /** The account must choose its own password before anything else. */
   mustChangePassword: boolean
+  /** The policy requires a second factor and this administrator has none. */
+  mustEnrollSecondFactor: boolean
+}
+
+export type SecondFactorMethod = 'totp' | 'recovery'
+
+/** A password accepted for an account that still has to give its second factor. */
+export type SecondFactorChallenge = {
+  secondFactorRequired: true
+  methods: SecondFactorMethod[]
+  expiresAt: string
+}
+
+export type LoginResponse = { user: SessionUser } | SecondFactorChallenge
+
+export function needsSecondFactor(response: LoginResponse): response is SecondFactorChallenge {
+  return 'secondFactorRequired' in response
 }
 
 export function login(username: string, password: string) {
-  return requestJSON<{ user: SessionUser }>('/api/v1/auth/login', {
+  return requestJSON<LoginResponse>('/api/v1/auth/login', {
     method: 'POST',
     body: JSON.stringify({ username, password }),
   })
@@ -32,5 +49,13 @@ export function changePassword(currentPassword: string, newPassword: string) {
   return requestJSON<{ changed: boolean }>('/api/v1/auth/password', {
     method: 'POST',
     body: JSON.stringify({ currentPassword, newPassword }),
+  })
+}
+
+/** Second step of a login, with the challenge cookie set by login. */
+export function completeSecondFactor(method: SecondFactorMethod, code: string) {
+  return requestJSON<{ user: SessionUser }>('/api/v1/auth/login/second-factor', {
+    method: 'POST',
+    body: JSON.stringify({ method, code }),
   })
 }

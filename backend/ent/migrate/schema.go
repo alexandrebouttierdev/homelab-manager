@@ -8,6 +8,69 @@ import (
 )
 
 var (
+	// AlertsColumns holds the columns for the "alerts" table.
+	AlertsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "rule_id", Type: field.TypeUUID},
+		{Name: "rule_name", Type: field.TypeString},
+		{Name: "rule_type", Type: field.TypeString},
+		{Name: "severity", Type: field.TypeString},
+		{Name: "target_key", Type: field.TypeString},
+		{Name: "target", Type: field.TypeString, Size: 2147483647, Default: "{}"},
+		{Name: "state", Type: field.TypeString},
+		{Name: "value", Type: field.TypeFloat64, Nullable: true},
+		{Name: "threshold", Type: field.TypeFloat64, Nullable: true},
+		{Name: "observed", Type: field.TypeString, Default: ""},
+		{Name: "fired_at", Type: field.TypeTime},
+		{Name: "acknowledged_at", Type: field.TypeTime, Nullable: true},
+		{Name: "acknowledged_by", Type: field.TypeString, Nullable: true},
+		{Name: "resolved_at", Type: field.TypeTime, Nullable: true},
+		{Name: "resolution", Type: field.TypeString, Nullable: true},
+		{Name: "last_notified_at", Type: field.TypeTime, Nullable: true},
+	}
+	// AlertsTable holds the schema information for the "alerts" table.
+	AlertsTable = &schema.Table{
+		Name:       "alerts",
+		Columns:    AlertsColumns,
+		PrimaryKey: []*schema.Column{AlertsColumns[0]},
+	}
+	// AlertRulesColumns holds the columns for the "alert_rules" table.
+	AlertRulesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "name", Type: field.TypeString},
+		{Name: "type", Type: field.TypeString},
+		{Name: "severity", Type: field.TypeString},
+		{Name: "enabled", Type: field.TypeBool, Default: true},
+		{Name: "is_default", Type: field.TypeBool, Default: false},
+		{Name: "params", Type: field.TypeString, Size: 2147483647, Default: "{}"},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// AlertRulesTable holds the schema information for the "alert_rules" table.
+	AlertRulesTable = &schema.Table{
+		Name:       "alert_rules",
+		Columns:    AlertRulesColumns,
+		PrimaryKey: []*schema.Column{AlertRulesColumns[0]},
+	}
+	// AlertSilencesColumns holds the columns for the "alert_silences" table.
+	AlertSilencesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "scope", Type: field.TypeString},
+		{Name: "rule_id", Type: field.TypeUUID, Nullable: true},
+		{Name: "target_key", Type: field.TypeString, Nullable: true},
+		{Name: "reason", Type: field.TypeString},
+		{Name: "created_by", Type: field.TypeString},
+		{Name: "starts_at", Type: field.TypeTime},
+		{Name: "ends_at", Type: field.TypeTime},
+		{Name: "lifted_at", Type: field.TypeTime, Nullable: true},
+		{Name: "lifted_by", Type: field.TypeString, Nullable: true},
+	}
+	// AlertSilencesTable holds the schema information for the "alert_silences" table.
+	AlertSilencesTable = &schema.Table{
+		Name:       "alert_silences",
+		Columns:    AlertSilencesColumns,
+		PrimaryKey: []*schema.Column{AlertSilencesColumns[0]},
+	}
 	// AppSettingsColumns holds the columns for the "app_settings" table.
 	AppSettingsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -112,6 +175,17 @@ var (
 			},
 		},
 	}
+	// FailedUnitsColumns holds the columns for the "failed_units" table.
+	FailedUnitsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString},
+		{Name: "failed_at", Type: field.TypeTime},
+	}
+	// FailedUnitsTable holds the schema information for the "failed_units" table.
+	FailedUnitsTable = &schema.Table{
+		Name:       "failed_units",
+		Columns:    FailedUnitsColumns,
+		PrimaryKey: []*schema.Column{FailedUnitsColumns[0]},
+	}
 	// HostInfosColumns holds the columns for the "host_infos" table.
 	HostInfosColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -142,12 +216,51 @@ var (
 		Columns:    LoginFailuresColumns,
 		PrimaryKey: []*schema.Column{LoginFailuresColumns[0]},
 	}
+	// NotificationChannelsColumns holds the columns for the "notification_channels" table.
+	NotificationChannelsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "name", Type: field.TypeString},
+		{Name: "type", Type: field.TypeString},
+		{Name: "enabled", Type: field.TypeBool, Default: true},
+		{Name: "min_severity", Type: field.TypeString},
+		{Name: "renotify_minutes", Type: field.TypeInt, Default: 30},
+		{Name: "settings", Type: field.TypeString, Size: 2147483647, Default: "{}"},
+		{Name: "secrets", Type: field.TypeString, Size: 2147483647, Default: ""},
+		{Name: "secret_names", Type: field.TypeString, Size: 2147483647, Default: "[]"},
+		{Name: "last_sent_at", Type: field.TypeTime, Nullable: true},
+		{Name: "last_error_at", Type: field.TypeTime, Nullable: true},
+		{Name: "last_error", Type: field.TypeString, Nullable: true},
+		{Name: "last_error_status", Type: field.TypeInt, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "updated_at", Type: field.TypeTime},
+	}
+	// NotificationChannelsTable holds the schema information for the "notification_channels" table.
+	NotificationChannelsTable = &schema.Table{
+		Name:       "notification_channels",
+		Columns:    NotificationChannelsColumns,
+		PrimaryKey: []*schema.Column{NotificationChannelsColumns[0]},
+	}
+	// RecoveryCodesColumns holds the columns for the "recovery_codes" table.
+	RecoveryCodesColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "user_id", Type: field.TypeUUID},
+		{Name: "code_hash", Type: field.TypeString, Unique: true},
+		{Name: "used_at", Type: field.TypeTime, Nullable: true},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// RecoveryCodesTable holds the schema information for the "recovery_codes" table.
+	RecoveryCodesTable = &schema.Table{
+		Name:       "recovery_codes",
+		Columns:    RecoveryCodesColumns,
+		PrimaryKey: []*schema.Column{RecoveryCodesColumns[0]},
+	}
 	// SecurityPoliciesColumns holds the columns for the "security_policies" table.
 	SecurityPoliciesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
 		{Name: "singleton_key", Type: field.TypeString, Unique: true},
 		{Name: "idle_timeout_minutes", Type: field.TypeInt},
 		{Name: "allowed_networks", Type: field.TypeJSON},
+		{Name: "require_admin_second_factor", Type: field.TypeBool, Default: false},
 		{Name: "updated_at", Type: field.TypeTime},
 	}
 	// SecurityPoliciesTable holds the schema information for the "security_policies" table.
@@ -198,6 +311,20 @@ var (
 		Columns:    SystemMetricSamplesColumns,
 		PrimaryKey: []*schema.Column{SystemMetricSamplesColumns[0]},
 	}
+	// TotpSecretsColumns holds the columns for the "totp_secrets" table.
+	TotpSecretsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "secret_sealed", Type: field.TypeString},
+		{Name: "confirmed_at", Type: field.TypeTime, Nullable: true},
+		{Name: "last_used_step", Type: field.TypeInt64, Default: 0},
+		{Name: "created_at", Type: field.TypeTime},
+	}
+	// TotpSecretsTable holds the schema information for the "totp_secrets" table.
+	TotpSecretsTable = &schema.Table{
+		Name:       "totp_secrets",
+		Columns:    TotpSecretsColumns,
+		PrimaryKey: []*schema.Column{TotpSecretsColumns[0]},
+	}
 	// UsersColumns holds the columns for the "users" table.
 	UsersColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -220,16 +347,23 @@ var (
 	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
+		AlertsTable,
+		AlertRulesTable,
+		AlertSilencesTable,
 		AppSettingsTable,
 		AuditLogsTable,
 		ContainersTable,
 		ContainerMetricSamplesTable,
 		EventsTable,
+		FailedUnitsTable,
 		HostInfosTable,
 		LoginFailuresTable,
+		NotificationChannelsTable,
+		RecoveryCodesTable,
 		SecurityPoliciesTable,
 		SessionsTable,
 		SystemMetricSamplesTable,
+		TotpSecretsTable,
 		UsersTable,
 	}
 )

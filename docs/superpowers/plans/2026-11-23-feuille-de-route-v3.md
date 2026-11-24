@@ -34,17 +34,18 @@ Chaque incrément, quel qu'il soit :
 | **1B** | Sessions (liste, révocation, inactivité), verrouillage de compte, politique de sécurité, journal d'audit consultable et exportable | 1A | `004_sessions_security.sql` | M |
 | **1C** | Coffre de secrets (AES-256-GCM, `systemd-creds`), TOTP, codes de secours, connexion en deux étapes, 2FA obligatoire pour les administrateurs | 1B | `005_second_factor.sql` | L |
 | **2** | Journaux système (lecture `journalctl`) | 1A, groupe `systemd-journal` | — | M |
-| **3** | Services système en lecture (D-Bus), événements `service.failed` / `service.recovered` | 1A, D-Bus | — | M |
-| **4** | Alertes et notifications : règles, cycle de vie, silences, canaux | 1C (secrets), 3 | `006_alerts.sql` | L |
+| **3** | Services système en lecture (D-Bus), événements `service.failed` / `service.recovered` | 1A, D-Bus | `006_failed_units.sql` | M |
+| **4** | Alertes et notifications : règles, cycle de vie, silences, canaux | 1C (secrets), 3 | `007_alerts.sql` (4A), `008_notifications.sql` (4B) | L |
 | **5** | Actions sur les services par polkit (`start`, `stop`, `restart`, `reload`) | 1B (audit), 3 | — | M |
-| **6** | Sauvegardes restic : dépôts, sources, exclusions, rétention, restauration en quarantaine | 1C, 4, 5 | `007_backups.sql` | XL |
+| **6** | Sauvegardes restic : dépôts, sources, exclusions, rétention, restauration en quarantaine | 1C, 4, 5 | `009_backups.sql` | XL |
 | **7** | Tâches planifiées en lecture (Cron et timers) | 2, 3 | — | S |
-| **8** | WebAuthn (passkeys, FIDO2) et jetons d'API en lecture | 1C, HTTPS | `008_webauthn_tokens.sql` | L |
+| **8** | WebAuthn (passkeys, FIDO2) et jetons d'API en lecture | 1C, HTTPS | `010_webauthn_tokens.sql` | L |
+| **V** | Vulnérabilités des paquets (Grype) : scans automatiques et manuels, onglet de la page Machine, synthèse du tableau de bord, historique | 4 | prochain numéro libre à la livraison | L |
 | *Option* | Dettes v2.1 : pagination par curseur, inventaire complet images/volumes/réseaux | Décision Q-4 | selon choix | M |
 
 Le coffre de secrets (§ 2.5 de la spécification) est avancé en **1C** et non en phase 4 : les secrets TOTP doivent être chiffrés (§ 3.6), ce qui en fait le premier consommateur.
 
-Ordre de réalisation : 1A → M → 1B → 1C → 2 → 3 → 4 → 5 → 6 → 7 → 8. Les phases 2 et 3 sont indépendantes de 1B et 1C et peuvent être avancées si le second facteur n'est pas prioritaire ; 7 peut suivre 2 et 3 sans attendre 4–6.
+Ordre de réalisation : 1A → M → 1B → 1C → 2 → 3 → 4 → V → 5 → 6 → 7 → 8. Le module V, demandé le 24 novembre 2026, est placé juste après la phase 4 ; il ne dépend que d'elle (règle d'alerte). Il livre le démarrage d'une unité par D-Bus et polkit, que la phase 5 réutilise. Les phases 2 et 3 sont indépendantes de 1B et 1C et peuvent être avancées si le second facteur n'est pas prioritaire ; 7 peut suivre 2 et 3 sans attendre 4–6.
 
 ## 4. Détail des incréments
 
@@ -82,39 +83,47 @@ Ordre de réalisation : 1A → M → 1B → 1C → 2 → 3 → 4 → 5 → 6 →
 - Interface : onglets Sessions, Politique et Journal d'audit dans « Utilisateurs & accès ».
 - Risques : charge d'écriture de `last_seen_at`, horloge injectable pour les fenêtres de verrouillage.
 
-### 1C — Coffre de secrets et second facteur
+### 1C — Coffre de secrets et second facteur (livrée)
 
-- Coffre : clé maître lue depuis `$CREDENTIALS_DIRECTORY` (`LoadCredentialEncrypted=` dans l'unité systemd), AES-256-GCM, nonce aléatoire, empreinte SHA-256 tronquée pour l'affichage ; démarrage en mode dégradé explicite si la clé manque (fonctions 2FA indisponibles, supervision intacte). Documentation `systemd-creds encrypt` dans le README.
-- TOTP interne (RFC 6238, SHA-1, 6 chiffres, 30 s, ±1 période, anti-rejeu) avec vecteurs de test de la RFC ; enrôlement par QR code (bibliothèque de génération à justifier, ou SVG produit côté serveur).
-- 10 codes de secours affichés une fois, stockés hachés.
-- Connexion en deux étapes : jeton d'étape intermédiaire court (5 min), puis `POST /auth/login/second-factor`.
-- Politique « 2FA obligatoire pour les administrateurs » (défaut : désactivée tant qu'aucun facteur n'est enrôlé).
-- Tables : `totp_secrets`, `recovery_codes`, `secrets` (si le coffre est générique).
+- Plan : [2026-11-23-phase-1c-second-facteur.md](./2026-11-23-phase-1c-second-facteur.md).
+- Coffre : clé maître de 32 octets importée par systemd (`ImportCredential=homelab-manager-secrets-key`, chiffrée par `systemd-creds`) ou lue dans `secrets_key_file` ; AES-256-GCM, nonce aléatoire, UUID du compte en données associées ; mode dégradé explicite si la clé manque (TOTP indisponible, codes de secours et supervision intacts). Commande `systemd-creds encrypt` dans le README.
+- TOTP interne (RFC 6238, SHA-1, 6 chiffres, 30 s, ±1 période, anti-rejeu par `last_used_step`) avec les vecteurs de la RFC ; QR code par `rsc.io/qr` v0.2.0, matrice dessinée en SVG par l'interface.
+- 10 codes de secours affichés une fois, stockés en SHA-256, usage unique.
+- Connexion en deux étapes : défi en mémoire de 5 minutes (cookie `homelab_login`), puis `POST /auth/login/second-factor` ; les codes faux comptent dans le verrouillage.
+- Politique « second facteur obligatoire pour les administrateurs », activable seulement par un administrateur qui en a un ; les autres sont limités à l'enrôlement.
+- Tables : `totp_secrets`, `recovery_codes` (migration `005`) ; pas encore de table `secrets` générique (phases 4 et 6).
+- Parcours vérifié dans Chromium contre le binaire réel : enrôlement, QR code décodé, anti-rejeu, codes de secours, obligation pour un nouvel administrateur, mode dégradé sans clé.
 
-### 2 — Journaux système
+### 2 — Journaux système (livrée)
 
+- Plan : [2026-11-23-phase-2-journaux-systeme.md](./2026-11-23-phase-2-journaux-systeme.md).
+- Constat du parcours réel : avec un curseur, `journalctl` refuse `--since` et ignore `--until` ; le Manager applique l'intervalle lui-même.
 - Adaptateur `journalctl` : `exec` sans shell, arguments construits depuis des options validées (`--since`, `--until`, `--priority`, `--unit`, `--boot`, `--lines`, curseurs), sortie JSON bornée en taille et en lignes, délai 10 s.
 - Recherche de sous-chaîne faite par le Manager (jamais une regex transmise), 500 entrées par page, pagination par curseur journald, suivi par interrogation toutes les 2 s (arrêt quand l'onglet est masqué).
 - Masquage de `_CMDLINE` et des champs contenant `PASSWORD`, `TOKEN`, `SECRET`.
 - Synthèse 24 h par tranches de 15 min, `--disk-usage`, export `.log` / `.json` (50 000 entrées au plus).
 - Déploiement : ajouter `homelab-manager` au groupe `systemd-journal` (README, unité).
-- Tests : fixtures JSON de `journalctl`, construction des arguments, bornes, masquage.
+- Tests : construction des arguments, décodage JSON, bornes, masquage, et intégration contre le vrai `journalctl` sur des fichiers fabriqués par `systemd-journal-remote` (installé aussi en CI).
 
-### 3 — Services système en lecture
+### 3 — Services système en lecture (livrée)
 
-- Dépendance `github.com/coreos/go-systemd/v22/dbus` (justifiée § 2.4 de la spécification).
+- Plan : [2026-11-23-phase-3-services-systeme.md](./2026-11-23-phase-3-services-systeme.md).
+- Dépendance : `github.com/godbus/dbus/v5`, déjà présente (module M), au lieu de `go-systemd` prévu au § 2.4 de la spécification ; méthodes `ListUnits`, `GetUnit` et `Properties.GetAll` seulement.
 - Collecte toutes les 30 s par une goroutine détenue par un usecase (arrêt par contexte, délai par cycle) ; inventaire services, timers, sockets avec états, PID, mémoire, CPU, dernier changement.
-- Événements `service.failed` (sévérité `error`) et `service.recovered` dans la table `events` existante.
+- Événements `service.failed` (sévérité `error`) et `service.recovered` dans la table `events` existante ; ensemble des unités en échec dans `failed_units` (migration `006`), pour ne signaler un échec qu'une fois.
 - Détail d'unité : `FragmentPath`, `ExecStart` affiché tel quel, dépendances, limites, slice, 50 dernières lignes du journal (phase 2).
-- Tests : port D-Bus simulé, transitions d'état.
+- Tests : faux systemd exporté par godbus sur un bus privé (`dbus-daemon`, installé en CI), transitions d'état, SQLite réel, routes `httptest`, page et fonctions pures de l'interface.
+- Parcours vérifié dans le navigateur contre le Manager et un faux systemd sur un bus privé (macOS, sans vrai systemd) : inventaire, détail, événements d'échec puis de rétablissement, aucun doublon après redémarrage du Manager.
 
-### 4 — Alertes et notifications
+### 4 — Alertes et notifications (livrée)
 
+- Plan : [2026-11-24-phase-4-alertes-notifications.md](./2026-11-24-phase-4-alertes-notifications.md), livré en deux parties : 4A (moteur, règles, cycle de vie, interface, sans communication sortante) puis 4B (canaux, silences, regroupement, renotification).
 - Moteur évalué toutes les 15 s sur les derniers échantillons (aucune requête historique lourde) ; six types de règles (§ 6.1) ; règles par défaut désactivables.
 - Cycle `firing` → `acknowledged` → `resolved`, silences (15 min à 7 jours), indicateurs.
 - Canaux : Telegram, Discord, Gotify, ntfy, SMTP, webhook (signature HMAC-SHA256 optionnelle) ; secrets dans le coffre (1C) ; bouton « Tester » ; regroupement 1/min/canal ; renotification toutes les N minutes.
 - Seule communication sortante du Manager : délais courts, échecs sans effet sur la supervision, file bornée.
-- Tables : `alert_rules`, `alerts`, `alert_silences`, `notification_channels`.
+- Tables : `alert_rules`, `alerts` (migration `007`), `alert_silences`, `notification_channels` (migration `008`).
+- Règle « Sauvegarde » et règle par défaut « sauvegarde en retard » : avec la phase 6, qui en fournit les données.
 - Retire « Alertes » de « à venir ».
 
 ### 5 — Actions sur les services
@@ -140,6 +149,15 @@ Ordre de réalisation : 1A → M → 1B → 1C → 2 → 3 → 4 → 5 → 6 →
 - Dernières exécutions depuis les lignes `CRON[pid]` du journal (phase 2) ; code de sortie seulement pour les timers.
 - Inspecteur d'expression sans enregistrement.
 
+### V — Vulnérabilités des paquets (Grype)
+
+- Spécification : SPEC_ADMINISTRATION.md § 8 ter. Machine du Manager seule, sans agent (D-9) ; base de Grype mise à jour automatiquement chaque jour, désactivable (D-10) ; Grype exécuté par l'unité dédiée et durcie `homelab-vulnscan.service`, démarrée par D-Bus avec une règle polkit limitée à cette unité (D-11) ; décisions tranchées le 24 novembre 2026.
+- Lecture des paquets en Go par gestionnaire (dpkg d'abord, puis RPM SQLite et apk), inventaire écrit pour l'unité, qui lance `grype sbom:` ; résultat JSON validé par le Manager ; un seul scan à la fois, délai de 15 min, ressources bornées par l'unité.
+- Scans au premier démarrage puis périodiques (24 h par défaut, réglable), manuels (`operator`, audités) ; états, dernier et prochain scan, nouvelle tentative après un échec ; jamais d'ancien résultat présenté comme récent.
+- Tables `vulnerability_scans` et `vulnerability_findings` (unicité, première et dernière détection, disparition), comparaison entre deux scans, rétention dédiée.
+- Onglet « Vulnérabilités » de la page Machine (totaux, tableau filtrable et paginé, détail, lien vers la fiche publique, bouton « Analyser maintenant »), section du tableau de bord, type de règle d'alerte « vulnérabilités ».
+- Installation de Grype documentée (paquet `.deb` officiel, somme de contrôle vérifiée, version figée) ; module indisponible sans lui.
+
 ### 8 — WebAuthn et jetons d'API
 
 - `github.com/go-webauthn/webauthn` ; configuration `webauthn_rp_id`, `webauthn_origins` ; HTTPS exigé hors `localhost`.
@@ -156,7 +174,11 @@ Questions nouvelles relevées en préparant ce plan, à trancher avant l'incrém
 | Q-1 | Un administrateur peut-il réinitialiser le mot de passe d'un autre compte ? | **Tranchée (oui)** le 23 novembre 2026 : nouveau mot de passe initial à changer, sessions révoquées, verrouillage levé ; livrée après 1B. | — |
 | Q-2 | Le compte `admin` créé avec le mot de passe par défaut `admin` doit-il être forcé à changer de mot de passe ? | **Tranchée (oui)** le 23 novembre 2026 : changement imposé à la création, et au démarrage si le compte accepte encore `admin` ; livrée après 1B. | — |
 | Q-3 | Les refus d'autorisation (`403 FORBIDDEN`) et les refus métier (`LAST_ADMIN`) sont-ils audités ? | Oui, avec `outcome = denied`, à partir de 1B (port `AuditRecorder`). En 1A, ils sont journalisés par zap avec le `request_id`. | 1B |
+| Q-5 | Faut-il une procédure dans l'interface pour retirer le second facteur d'un compte qui a perdu son appareil et ses codes de secours ? | Non pour l'instant : un administrateur supprime et recrée le compte ; pour le dernier administrateur, procédure SQLite documentée dans le README (non auditée). À réexaminer avec WebAuthn. | 8 |
 | Q-4 | Lever les limites v2.1 (pagination par curseur, images/volumes/réseaux inutilisés) ? La seconde exige d'ajouter au proxy des routes GET `images/json`, `volumes`, `networks`. | À planifier après la phase 3, si le besoin est confirmé. | Option |
+| Q-6 | Règle par défaut « température > seuil du capteur » : les seuils des capteurs ne sont pas collectés | Seuil fixe de 85 °C, modifiable ; collecter les seuils serait une évolution à part | 4A |
+| Q-7 | Un silence masque-t-il l'alerte dans l'interface ? | **Retenu (4B)** : non, alerte listée « sous silence », seules les notifications sont suspendues | — |
+| Q-8 | Vérification réelle de Telegram, Discord, Gotify, ntfy et SMTP | Tests contre des serveurs simulés ; webhook signé vérifié en conditions réelles ; les autres restent à vérifier par le propriétaire avec ses jetons (bilan 4B) | Propriétaire |
 
 ## 6. Vérifications manuelles à chaque version
 

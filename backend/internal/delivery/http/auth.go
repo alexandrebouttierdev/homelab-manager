@@ -74,17 +74,29 @@ func loginHandler(auth *usecase.AuthUsecase, secure bool) http.HandlerFunc {
 			writeError(w, r, http.StatusBadRequest, "VALIDATION_ERROR", "The credentials are invalid.")
 			return
 		}
-		token, user, expiresAt, err := auth.Login(r.Context(), request.Username, request.Password, clientIP(r), r.UserAgent())
+		result, err := auth.Login(r.Context(), request.Username, request.Password, clientIP(r), r.UserAgent())
 		if err != nil {
-			if usecase.IsInvalidCredentials(err) {
+			switch {
+			case usecase.IsInvalidCredentials(err):
 				writeError(w, r, http.StatusUnauthorized, "INVALID_CREDENTIALS", "The username or password is invalid.")
-				return
+			case errors.Is(err, usecase.ErrTooManyLoginChallenges):
+				writeError(w, r, http.StatusTooManyRequests, "RATE_LIMITED", "Too many pending logins.")
+			default:
+				writeError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "The authentication request could not be completed.")
 			}
-			writeError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "The authentication request could not be completed.")
 			return
 		}
-		http.SetCookie(w, sessionCookie(sessionCookieName, token, expiresAt, secure))
-		writeJSON(w, http.StatusOK, map[string]any{"user": toSessionUserDTO(user)})
+		if result.Challenge != "" {
+			http.SetCookie(w, challengeCookie(result.Challenge, result.ExpiresAt, secure))
+			writeJSON(w, http.StatusOK, map[string]any{
+				"secondFactorRequired": true,
+				"methods":              []domain.SecondFactorMethod{domain.SecondFactorTOTP, domain.SecondFactorRecovery},
+				"expiresAt":            result.ExpiresAt,
+			})
+			return
+		}
+		http.SetCookie(w, sessionCookie(sessionCookieName, result.Token, result.ExpiresAt, secure))
+		writeJSON(w, http.StatusOK, map[string]any{"user": toSessionUserDTO(result.User)})
 	}
 }
 

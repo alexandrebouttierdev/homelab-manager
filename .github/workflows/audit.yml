@@ -1,0 +1,32 @@
+name: Audit
+
+# Dependency security audits (docs/CODE_RULES.md § 6): npm audit, OSV-Scanner
+# and govulncheck through scripts/audit.sh. They query online vulnerability
+# databases, so they run apart from the CI checks: on every push and pull
+# request, and every week, since a new advisory can affect code that did not
+# change. A vulnerability, a missing tool or a failed run fails the job.
+on:
+  push:
+  pull_request:
+  schedule:
+    - cron: "17 6 * * 1" # Mondays, 06:17 UTC
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-go@v6
+        with:
+          go-version: "1.26.11"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+      - run: scripts/install-audit-tools.sh
+      - run: echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - run: scripts/audit.sh

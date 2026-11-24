@@ -32,3 +32,13 @@ export function canManageSettings(role: Role | undefined): boolean {
 export function canManagePower(role: Role | undefined): boolean {
   return role === 'admin'
 }
+
+/** Acknowledge alerts (and silences, phase 4B): operators and administrators. */
+export function canOperateAlerts(role: Role | undefined): boolean {
+  return role === 'operator' || role === 'admin'
+}
+
+/** Create, change and delete alert rules: administrators. */
+export function canManageAlerts(role: Role | undefined): boolean {
+  return role === 'admin'
+}

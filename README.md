@@ -35,6 +35,9 @@ Homelab Manager supervise **une seule machine Linux : celle qui l'héberge**. Le
 - Historiques bruts ou agrégés (1 min, 5 min, 1 h), rétention réglable
 - Découverte continue des conteneurs Docker, arrêtés compris, et métriques par conteneur
 - Événements de création, suppression, redémarrage et changement d'état
+- Journal systemd en lecture seule : filtres, recherche, suivi en direct, export, champs sensibles masqués
+- Services, timers et sockets systemd en lecture seule (D-Bus) : états, ressources, détail, événements d'échec et de rétablissement
+- Alertes : règles sur les métriques, l'état des conteneurs, les unités en échec et les collecteurs, évaluées toutes les 15 s, acquittement, historique, silences et notifications (Telegram, Discord, Gotify, ntfy, e-mail, webhook signé)
 - Aucune valeur inventée : une donnée absente s'affiche comme indisponible
 
 </td>
@@ -44,6 +47,7 @@ Homelab Manager supervise **une seule machine Linux : celle qui l'héberge**. Le
 
 - Comptes multiples, rôles `viewer`, `operator`, `admin`
 - Mot de passe initial imposé, réinitialisation par un administrateur
+- Double authentification : application TOTP, codes de secours, exigible des administrateurs
 - Sessions consultables et révocables, expiration après inactivité
 - Verrouillage après 5 échecs, réseaux autorisés (CIDR)
 - Journal d'audit filtrable, export CSV et JSON
@@ -61,6 +65,7 @@ Homelab Manager supervise **une seule machine Linux : celle qui l'héberge**. Le
 Navigateur ── HTTPS, même origine ──▶ homelab-manager (Go, Chi, Ent)
                                         ├── collecte /proc, /sys
                                         ├── SQLite  /var/lib/homelab-manager
+                                        ├── systemd via D-Bus (lecture des unités)
                                         ├── systemd-logind via D-Bus + polkit (optionnel)
                                         └── socket Unix ──▶ homelab-docker-proxy ──▶ Docker Engine
 ```
@@ -109,7 +114,17 @@ Chaque release publie, pour Linux `amd64` et `arm64`, une archive contenant les 
 
    Les secrets éventuels (`HOMELAB_ADMIN_PASSWORD`, …) vont dans `/etc/homelab-manager/manager.env`, en mode `0600`.
 
-4. **Démarrer** :
+4. **Créer la clé du coffre de secrets** (nécessaire à la double authentification) : 32 octets aléatoires, chiffrés par `systemd-creds` avec le TPM 2.0 de la machine s'il existe, sinon avec la clé de l'hôte. L'unité les importe au démarrage (`ImportCredential=`) ; la clé n'est lisible que par le service.
+
+   ```bash
+   sudo mkdir -p /etc/credstore.encrypted
+   head -c 32 /dev/urandom | base64 | sudo systemd-creds encrypt \
+     --name=homelab-manager-secrets-key - /etc/credstore.encrypted/homelab-manager-secrets-key
+   ```
+
+   Sans cette clé, le Manager démarre quand même : la supervision fonctionne, mais la double authentification ne peut pas être activée et les codes d'application sont refusés (les codes de secours restent valables). Le journal du service l'indique au démarrage.
+
+5. **Démarrer** :
 
    ```bash
    sudo systemctl daemon-reload
@@ -117,13 +132,13 @@ Chaque release publie, pour Linux `amd64` et `arm64`, une archive contenant les 
    journalctl -u homelab-manager -n 20   # la version démarrée y est journalisée
    ```
 
-5. Ouvrir `http://<machine>:8080`. Sans `HOMELAB_ADMIN_PASSWORD`, le premier compte est `admin` / `admin` et **l'interface impose d'en choisir un autre dès la première connexion**.
+6. Ouvrir `http://<machine>:8080`. Sans `HOMELAB_ADMIN_PASSWORD`, le premier compte est `admin` / `admin` et **l'interface impose d'en choisir un autre dès la première connexion**.
 
 **Mise à jour** : sauvegarder la base (voir plus bas), arrêter `homelab-manager.service`, remplacer les binaires et `/opt/homelab-manager/frontend/dist`, puis redémarrer. Les migrations SQLite s'appliquent seules au démarrage.
 
 ## Développement
 
-Prérequis : Go `1.26.10` ou plus récent, Node.js 22 et npm. Docker Engine est optionnel : sans lui, la collecte Docker est simplement indisponible.
+Prérequis : Go `1.26.11` ou plus récent, Node.js 22 et npm. Docker Engine est optionnel : sans lui, la collecte Docker est simplement indisponible. Les tests d'intégration du journal système lancent le vrai `journalctl` sur des fichiers fabriqués par `systemd-journal-remote` (`sudo apt install systemd-journal-remote`) ; sans lui, ils sont ignorés. Ceux des services système lancent un faux systemd sur un bus D-Bus privé par `dbus-daemon` (`sudo apt install dbus`, ou `brew install dbus` sur macOS) ; sans lui, ils sont ignorés.
 
 1. Copier [.env.example](.env.example) vers `.env`. Laisser `HOMELAB_ADMIN_PASSWORD` vide pour se connecter avec `admin` / `admin` (changement imposé à la première connexion), ou y définir un secret fort.
 2. Installer les paquets de l'interface :
@@ -138,7 +153,7 @@ Prérequis : Go `1.26.10` ou plus récent, Node.js 22 et npm. Docker Engine est 
    scripts/dev.sh
    ```
 
-   Vite écoute sur `http://127.0.0.1:5173` et transmet `/api` au Manager sur le port 8080. La base SQLite est créée au premier démarrage (`backend/data/homelab-manager.db` en développement) et les migrations versionnées sont appliquées automatiquement.
+   Vite écoute sur `http://127.0.0.1:5173` et transmet `/api` au Manager sur le port 8080 (si ce port est pris, lancer le Manager ailleurs avec `HOMELAB_HTTP_ADDRESS` et Vite avec `HOMELAB_DEV_API_TARGET=http://127.0.0.1:<port>`). La base SQLite est créée au premier démarrage (`backend/data/homelab-manager.db` en développement) et les migrations versionnées sont appliquées automatiquement. Le script crée aussi une clé de coffre de développement, `backend/data/secrets.key` (non versionnée), pour essayer la double authentification.
 
 Pour lancer les processus séparément :
 
@@ -156,7 +171,13 @@ Si la base ne peut pas être ouverte (répertoire non accessible en écriture, d
 scripts/verify.sh
 ```
 
-Le script enchaîne `gofmt`, `go vet`, `go test` avec et sans `-race`, Prettier, ESLint, TypeScript, Vitest, le build de l'interface et le test des scripts de release. Il doit passer avant chaque commit. Les règles de contribution sont dans [AGENTS.md](AGENTS.md) et [docs/CODE_RULES.md](docs/CODE_RULES.md) : code et commits en anglais, documentation et interface en français, [Conventional Commits](https://www.conventionalcommits.org/fr/).
+Le script enchaîne `gofmt`, `go vet`, `go test` avec et sans `-race`, Prettier, ESLint, TypeScript, Vitest, le build de l'interface et le test des scripts de release. Il doit passer avant chaque commit.
+
+```bash
+scripts/audit.sh
+```
+
+L'audit de sécurité des dépendances (`npm audit`, OSV-Scanner, `govulncheck`) interroge des bases en ligne : il tourne à part, dans le workflow GitHub « Audit » à chaque push, chaque pull request et chaque lundi, et avant chaque release, qu'une vulnérabilité bloque. En local, installer govulncheck et OSV-Scanner (`go install golang.org/x/vuln/cmd/govulncheck@latest`, `brew install osv-scanner`) ; le script signale un outil absent sans le compter comme un audit réussi. Les règles de contribution sont dans [AGENTS.md](AGENTS.md) et [docs/CODE_RULES.md](docs/CODE_RULES.md) : code et commits en anglais, documentation et interface en français, [Conventional Commits](https://www.conventionalcommits.org/fr/).
 
 ### Construire depuis les sources
 
@@ -187,6 +208,7 @@ La configuration est lue dans `manager.yaml` ([deployments/config/manager.yaml](
 | `HOMELAB_DOCKER_PROXY_SOCKET` | Socket du proxy local restreint |
 | `HOMELAB_DOCKER_ENGINE_SOCKET` | Socket Engine lu par le proxy, pas par le Manager |
 | `HOMELAB_WEB_ROOT` | Répertoire `dist` servi par le Manager |
+| `HOMELAB_SECRETS_KEY_FILE` | Fichier de la clé du coffre de secrets (32 octets en base64). Vide : la clé importée par systemd, `$CREDENTIALS_DIRECTORY/homelab-manager-secrets-key`. Absente ou invalide : double authentification indisponible, le reste fonctionne |
 | `HOMELAB_POWER_ACTIONS_ENABLED` | Autorise Redémarrer / Éteindre depuis la page Machine (défaut `false`) ; exige aussi la règle polkit |
 
 Ne pas enregistrer les secrets de production dans Git. Protéger le fichier d'environnement du service.
@@ -195,7 +217,7 @@ Ne pas enregistrer les secrets de production dans Git. Protéger le fichier d'en
 
 ### Proxy Docker et permissions
 
-Le socket du proxy (`/run/homelab-docker-proxy/docker.sock`) appartient au groupe `homelab-manager` (mode `0660`) : le Manager y accède par son groupe principal, le proxy n'a aucun droit sur les fichiers du Manager. Le proxy écoute seulement sur Unix, autorise les routes GET nécessaires, filtre `Env` et `Labels`, borne les réponses à 8 MiB et la concurrence à 16 requêtes. L'unité du Manager crée `/var/lib/homelab-manager` (`StateDirectory`, mode `0700`). Vérifier les permissions effectives et les journaux systemd après installation.
+Le socket du proxy (`/run/homelab-docker-proxy/docker.sock`) appartient au groupe `homelab-manager` (mode `0660`, dans un répertoire `root` en `0755` que le Manager doit pouvoir traverser) : le Manager y accède par son groupe principal, le proxy n'a aucun droit sur les fichiers du Manager. Le proxy écoute seulement sur Unix, autorise les routes GET nécessaires, filtre `Env` et `Labels`, borne les réponses à 8 MiB et la concurrence à 16 requêtes. L'unité du Manager crée `/var/lib/homelab-manager` (`StateDirectory`, mode `0700`). Vérifier les permissions effectives et les journaux systemd après installation.
 
 ### Réseaux autorisés et récupération
 
@@ -209,6 +231,39 @@ sudo systemctl start homelab-manager
 ```
 
 Un compte verrouillé après 5 mots de passe faux se déverrouille seul au bout de 15 minutes, ou immédiatement si un administrateur réinitialise son mot de passe.
+
+### Journaux système
+
+La page « Journaux système » lit le journal systemd par `journalctl`, en lecture seule, pour tous les rôles. L'unité fournie ajoute le groupe `systemd-journal` au service (`SupplementaryGroups=`) : sans lui, le Manager ne voit que ses propres entrées et la page l'indique. `journalctl` est cherché dans le `PATH` du service ; absent, la page affiche le journal comme indisponible et le reste fonctionne.
+
+Le Manager ne lance que `journalctl`, sans shell, avec des options construites à partir de filtres validés et sans lui transmettre ses variables d'environnement. Chaque appel est limité à 10 secondes. `_CMDLINE` et les champs dont le nom contient `PASSWORD`, `TOKEN` ou `SECRET` sont masqués ; un secret écrit dans le texte d'un message reste visible, comme dans `journalctl`. L'export est limité aux 50 000 entrées les plus récentes du filtre.
+
+### Services système
+
+La page « Services système » liste les services, timers et sockets systemd chargés, pour tous les rôles, en lecture seule : état, démarrage, PID, mémoire, temps CPU, prochaine exécution des timers, et un détail (fichier d'unité, `ExecStart`, dépendances, limites, 50 dernières entrées du journal). Le Manager lit systemd sur le bus système D-Bus, sans privilège ni règle polkit, toutes les 30 secondes ; il n'appelle aucune méthode qui modifie une unité et n'exécute pas `systemctl`. Une unité qui passe en échec crée un événement `service.failed`, son retour à l'état actif un événement `service.recovered`, une seule fois même après un redémarrage du Manager. Sans bus système (hors Linux, conteneur), la page l'indique et le reste fonctionne. Les actions (démarrer, arrêter, redémarrer) viendront en phase 5.
+
+### Alertes
+
+La page « Alertes » montre les alertes ouvertes (les plus graves d'abord, avec un lien vers l'unité, le conteneur ou les métriques en cause), l'historique et des indicateurs sur 24 heures. Le Manager évalue ses règles toutes les 15 secondes sur les données qu'il collecte déjà, sans requête externe. Six règles sont fournies : disque utilisé à plus de 85 %, mémoire disponible sous 10 %, température au-dessus de 85 °C (seuil fixe : les seuils des capteurs ne sont pas collectés), collecte système ou Docker indisponible depuis 2 minutes, unité systemd en échec. Elles se modifient et se désactivent, sans se supprimer. Un administrateur ajoute ses propres règles ; un opérateur ou un administrateur acquitte une alerte, qui reste ouverte jusqu'à sa résolution. Une source illisible (Docker arrêté, systemd injoignable) ne déclenche ni ne résout les règles qui en dépendent. Les alertes sont notifiées aux canaux qu'un administrateur configure dans l'onglet « Canaux » : Telegram, Discord, Gotify, ntfy, e-mail (SMTP avec STARTTLS ou TLS) et webhook JSON signé en HMAC-SHA256. Chaque canal a une sévérité minimale et une renotification (toutes les 30 minutes par défaut) tant que l'alerte n'est pas acquittée ; il reçoit au plus un message par minute, qui regroupe les déclenchements et les résolutions arrivés entre-temps. Le bouton « Tester » envoie un message aussitôt ; le dernier envoi réussi et la dernière erreur s'affichent sur le canal. Les jetons et mots de passe sont chiffrés par le coffre (clé maître `homelab-manager-secrets-key`, comme pour la double authentification) et ne sont jamais réaffichés : sans clé, seuls les canaux sans secret (ntfy public, webhook non signé) fonctionnent. Ces envois sont la seule communication sortante du Manager ; un échec n'est pas réessayé et n'affecte pas la supervision.
+
+Un opérateur ou un administrateur pose un **silence** depuis une alerte (sur sa cible ou sur toute sa règle) ou un silence global depuis l'onglet « Silences », de 15 minutes à 7 jours, avec un motif ; il le lève quand il veut. Les alertes sous silence restent ouvertes et visibles (« Sous silence ») ; seules leurs notifications sont suspendues. Le format du webhook et la vérification de sa signature sont décrits dans [docs/API_CONTRACTS.md](docs/API_CONTRACTS.md) § 4.8.
+
+### Double authentification
+
+Chaque utilisateur l'active dans « Configuration » › Double authentification : mot de passe actuel, QR code à scanner (Aegis, Google Authenticator, 1Password…), premier code, puis 10 codes de secours affichés une seule fois. La connexion demande ensuite un code après le mot de passe. Dans « Utilisateurs & accès » › Politique, un administrateur qui l'a lui-même activée peut l'exiger de tous les administrateurs : ceux qui ne l'ont pas encore ne peuvent plus que l'activer.
+
+**Appareil perdu** : se connecter avec un code de secours, puis désactiver et réactiver la double authentification (ou régénérer les codes). **Appareil et codes perdus** : un autre administrateur supprime le compte et le recrée. S'il s'agit du dernier administrateur, retirer son second facteur en base, service arrêté :
+
+```bash
+sudo systemctl stop homelab-manager
+sudo -u homelab-manager sqlite3 /var/lib/homelab-manager/homelab-manager.db <<'SQL'
+DELETE FROM recovery_codes WHERE user_id = (SELECT id FROM users WHERE username = 'admin');
+DELETE FROM totp_secrets WHERE id = (SELECT id FROM users WHERE username = 'admin');
+SQL
+sudo systemctl start homelab-manager
+```
+
+Cette intervention n'est pas tracée dans le journal d'audit. **Clé du coffre perdue ou remplacée** : les secrets TOTP existants deviennent illisibles ; chaque utilisateur se connecte avec un code de secours, puis désactive et réactive la double authentification. Sauvegarder la clé chiffrée avec la base ne suffit pas toujours : liée au TPM, elle ne se déchiffre que sur cette machine.
 
 ### Redémarrer et éteindre depuis l'interface (optionnel)
 
@@ -246,8 +301,8 @@ La première release est `v2.3.0`, alignée sur la [spécification produit](docs
 
 ## État et limites connues
 
-- **Livré** : supervision système et Docker, historique, événements, comptes et rôles, sessions, politique de sécurité, journal d'audit, redémarrage et extinction (optionnels).
-- **Spécifié, pas encore implémenté** : second facteur (TOTP, passkeys), coffre de secrets, journaux système, services systemd, alertes et notifications, sauvegardes restic, tâches planifiées. Voir [docs/SPEC_ADMINISTRATION.md](docs/SPEC_ADMINISTRATION.md) et la [feuille de route](docs/superpowers/plans/2026-11-23-feuille-de-route-v3.md).
+- **Livré** : supervision système et Docker, historique, événements, comptes et rôles, sessions, politique de sécurité, journal d'audit, double authentification (TOTP et codes de secours), journaux système, services système en lecture, alertes avec silences et notifications (phase 4), redémarrage et extinction (optionnels).
+- **Spécifié, pas encore implémenté** : passkeys (WebAuthn) et jetons d'API, actions sur les services systemd, vulnérabilités des paquets (Grype), sauvegardes restic, tâches planifiées. Voir [docs/SPEC_ADMINISTRATION.md](docs/SPEC_ADMINISTRATION.md) et la [feuille de route](docs/superpowers/plans/2026-11-23-feuille-de-route-v3.md).
 - Historiques bruts ou agrégés, 2 000 points au plus par requête ; l'interface choisit le pas selon la période.
 - À l'intervalle par défaut (10 s), la base croît d'environ 300 Mo par jour jusqu'à la rétention : ≈ 2 Go pour 7 jours.
 - Listes bornées, sans pagination ; images, volumes et réseaux Docker déduits des conteneurs.

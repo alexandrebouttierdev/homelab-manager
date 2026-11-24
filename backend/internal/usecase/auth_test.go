@@ -44,10 +44,12 @@ func (m *mockUserRepository) RecordLogin(_ context.Context, _ uuid.UUID, ip stri
 
 // mockSessionRepository finds active when it is set.
 type mockSessionRepository struct {
-	active *domain.Session
+	active     *domain.Session
+	authMethod string
 }
 
-func (m *mockSessionRepository) Create(_ context.Context, userID uuid.UUID, _ string, _ string, _ string, expiresAt time.Time) (domain.Session, error) {
+func (m *mockSessionRepository) Create(_ context.Context, userID uuid.UUID, _, _, _, authMethod string, expiresAt time.Time) (domain.Session, error) {
+	m.authMethod = authMethod
 	return domain.Session{ID: uuid.New(), UserID: userID, ExpiresAt: expiresAt}, nil
 }
 func (m *mockSessionRepository) FindActiveByTokenHash(context.Context, string) (domain.Session, error) {
@@ -93,17 +95,17 @@ func TestAuthUsecaseLogin(t *testing.T) {
 	}
 	usecase := NewAuthUsecase(users, &mockSessionRepository{}, &mockHasher{valid: true})
 
-	token, user, expiresAt, err := usecase.Login(context.Background(), "admin", "a-valid-password", "127.0.0.1", "test")
+	result, err := usecase.Login(context.Background(), "admin", "a-valid-password", "127.0.0.1", "test")
 	if err != nil {
 		t.Fatal(err)
 	}
-	if token == "" {
-		t.Fatal("expected a session token")
+	if result.Token == "" || result.Challenge != "" {
+		t.Fatal("expected a session token and no second factor challenge")
 	}
-	if user.ID != userID {
-		t.Fatalf("unexpected user ID: %s", user.ID)
+	if result.User.ID != userID {
+		t.Fatalf("unexpected user ID: %s", result.User.ID)
 	}
-	if !expiresAt.After(time.Now()) {
+	if !result.ExpiresAt.After(time.Now()) {
 		t.Fatal("session should expire in the future")
 	}
 }
@@ -115,7 +117,7 @@ func TestAuthUsecaseRejectsInvalidPassword(t *testing.T) {
 	}
 	usecase := NewAuthUsecase(users, &mockSessionRepository{}, &mockHasher{valid: false})
 
-	_, _, _, err := usecase.Login(context.Background(), "admin", "wrong", "", "")
+	_, err := usecase.Login(context.Background(), "admin", "wrong", "", "")
 	if err != domain.ErrInvalidCredentials {
 		t.Fatalf("got error %v, want %v", err, domain.ErrInvalidCredentials)
 	}
@@ -126,7 +128,7 @@ func TestAuthUsecaseUnknownUserStillVerifiesAHash(t *testing.T) {
 	usecase := NewAuthUsecase(&mockUserRepository{missing: true}, &mockSessionRepository{}, hasher)
 
 	for range 2 {
-		if _, _, _, err := usecase.Login(context.Background(), "nobody", "password", "", ""); err != domain.ErrInvalidCredentials {
+		if _, err := usecase.Login(context.Background(), "nobody", "password", "", ""); err != domain.ErrInvalidCredentials {
 			t.Fatalf("got error %v, want %v", err, domain.ErrInvalidCredentials)
 		}
 	}
@@ -143,7 +145,7 @@ func TestLoginRejectsADisabledAccount(t *testing.T) {
 	hasher := &mockHasher{valid: true}
 	auth := NewAuthUsecase(users, &mockSessionRepository{}, hasher)
 
-	_, _, _, err := auth.Login(context.Background(), "bob", "a-valid-password", "192.0.2.1", "test")
+	_, err := auth.Login(context.Background(), "bob", "a-valid-password", "192.0.2.1", "test")
 	if !errors.Is(err, domain.ErrInvalidCredentials) {
 		t.Fatalf("Login error = %v, want ErrInvalidCredentials", err)
 	}
@@ -164,7 +166,7 @@ func TestLoginRecordsTheLastLogin(t *testing.T) {
 	fixed := time.Date(2026, 11, 23, 9, 30, 0, 0, time.UTC)
 	auth.now = func() time.Time { return fixed }
 
-	if _, _, _, err := auth.Login(context.Background(), "alice", "a-valid-password", "192.0.2.7", "test"); err != nil {
+	if _, err := auth.Login(context.Background(), "alice", "a-valid-password", "192.0.2.7", "test"); err != nil {
 		t.Fatal(err)
 	}
 	if users.loginIP != "192.0.2.7" || !users.loginAt.Equal(fixed) {

@@ -15,12 +15,16 @@ type sessionUserDTO struct {
 	DisplayName        string    `json:"displayName"`
 	Role               string    `json:"role"`
 	MustChangePassword bool      `json:"mustChangePassword"`
+	// MustEnrollSecondFactor: the policy requires a second factor from
+	// administrators and this one has none.
+	MustEnrollSecondFactor bool `json:"mustEnrollSecondFactor"`
 }
 
 func toSessionUserDTO(user domain.User) sessionUserDTO {
 	return sessionUserDTO{
 		ID: user.ID, Username: user.Username, DisplayName: user.DisplayName,
 		Role: string(user.Role), MustChangePassword: user.MustChangePassword,
+		MustEnrollSecondFactor: user.MustEnrollSecondFactor,
 	}
 }
 

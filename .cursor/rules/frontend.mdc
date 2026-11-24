@@ -9,4 +9,6 @@ Appliquer @docs/CODE_RULES.md § 4 (Frontend). Points clés :
 - aucun code métier dans les pages et composants : tout (requêtes, mutations, formulaires, calculs, filtres) dans un hook `use<Page>.ts` qui renvoie un modèle de vue, et les calculs purs dans `src/lib/` (§ 4.3, contrôlé par ESLint) ;
 - réseau uniquement par `src/lib/api/`, appelé depuis un hook ; schémas Zod dans `src/schemas/` avec tests ;
 - textes de l'interface en français ; erreurs traduites depuis le `code` de l'API ;
-- jetons de couleur Tailwind du thème, accessibilité (labels, `role="alert"` / `role="status"`).
+- jetons de couleur Tailwind du thème, accessibilité (labels, `role="alert"` / `role="status"`) ;
+- bonnes pratiques React (§ 4.7) : règles des hooks, rendu pur, état immuable, effets avec nettoyage et dépendances complètes, clés stables, mémoïsation seulement si utile ;
+- dépendances npm : `npm audit` et `npm audit --omit=dev`, OSV-Scanner (§ 6), jamais `npm audit fix --force`.

@@ -12,6 +12,8 @@ import (
 	"time"
 
 	argon2adapter "homelab-manager/backend/internal/adapters/argon2"
+	"homelab-manager/backend/internal/adapters/qrcode"
+	"homelab-manager/backend/internal/adapters/secretbox"
 	"homelab-manager/backend/internal/adapters/sqlite"
 	"homelab-manager/backend/internal/domain"
 	"homelab-manager/backend/internal/ports"
@@ -177,6 +179,14 @@ func TestAccountAdministrationEndToEnd(t *testing.T) {
 // "admin" account. A nil controller leaves the power actions disabled.
 func newTestRouter(t *testing.T, controller ports.PowerController) (http.Handler, *sqlite.Database) {
 	t.Helper()
+	services, database := newTestServices(t, controller)
+	return NewRouter(zap.NewNop(), services, false, ""), database
+}
+
+// newTestServices builds the usecases of newTestRouter, for a test that
+// adds its own.
+func newTestServices(t *testing.T, controller ports.PowerController) (Services, *sqlite.Database) {
+	t.Helper()
 	ctx := context.Background()
 	database, err := sqlite.Open(ctx, filepath.Join(t.TempDir(), "manager.db"))
 	if err != nil {
@@ -194,19 +204,26 @@ func newTestRouter(t *testing.T, controller ports.PowerController) (http.Handler
 	}
 	auditRepository := sqlite.NewAuditRepository(database.Client())
 	securityRepository := sqlite.NewSecurityRepository(database.Client())
-	security := usecase.NewSecurityUsecase(securityRepository)
+	factorRepository := sqlite.NewSecondFactorRepository(database.Client())
+	box, err := secretbox.New(make([]byte, 32))
+	if err != nil {
+		t.Fatal(err)
+	}
+	security := usecase.NewSecurityUsecase(securityRepository).WithSecondFactors(factorRepository)
 	if err := security.Load(ctx); err != nil {
 		t.Fatal(err)
 	}
 	services := Services{
-		Health:   usecase.NewHealthUsecase(time.Now()),
-		Auth:     usecase.NewAuthUsecase(authRepository, authRepository, hasher).WithSecurity(securityRepository, auditRepository, security),
-		Accounts: usecase.NewAccountUsecase(sqlite.NewAccountRepository(database.Client()), authRepository, hasher).WithAudit(auditRepository),
-		Power:    usecase.NewPowerUsecase(controller, auditRepository, func() (string, error) { return "homelab", nil }, controller != nil),
-		Security: security,
-		Audit:    usecase.NewAuditUsecase(auditRepository, auditRepository),
+		Health: usecase.NewHealthUsecase(time.Now()),
+		Auth: usecase.NewAuthUsecase(authRepository, authRepository, hasher).
+			WithSecurity(securityRepository, auditRepository, security).WithSecondFactor(factorRepository, box),
+		Accounts:      usecase.NewAccountUsecase(sqlite.NewAccountRepository(database.Client()), authRepository, hasher).WithAudit(auditRepository),
+		Power:         usecase.NewPowerUsecase(controller, auditRepository, func() (string, error) { return "homelab", nil }, controller != nil),
+		Security:      security,
+		Audit:         usecase.NewAuditUsecase(auditRepository, auditRepository),
+		SecondFactors: usecase.NewSecondFactorUsecase(authRepository, factorRepository, box, qrcode.New(), hasher),
 	}
-	return NewRouter(zap.NewNop(), services, false, ""), database
+	return services, database
 }
 
 // testClientAddress is the address of every request sent by call.

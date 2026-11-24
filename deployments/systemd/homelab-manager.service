@@ -7,6 +7,8 @@ Wants=network-online.target homelab-docker-proxy.socket
 Type=simple
 User=homelab-manager
 Group=homelab-manager
+# Reads the whole system journal (module J), read-only.
+SupplementaryGroups=systemd-journal
 WorkingDirectory=/opt/homelab-manager
 ExecStart=/usr/local/bin/homelab-manager
 Restart=on-failure
@@ -25,6 +27,10 @@ StateDirectory=homelab-manager
 StateDirectoryMode=0700
 UMask=0077
 EnvironmentFile=-/etc/homelab-manager/manager.env
+# Master key of the secrets box (TOTP), encrypted with systemd-creds in
+# /etc/credstore.encrypted/ (see README). A missing credential does not
+# prevent the start: TOTP is then unavailable, recovery codes still work.
+ImportCredential=homelab-manager-secrets-key
 
 [Install]
 WantedBy=multi-user.target

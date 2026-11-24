@@ -23,6 +23,8 @@ export function useSession() {
     error: session.isError && !unauthenticated ? session.error : null,
     /** The account must choose its own password before anything else. */
     mustChangePassword: user?.mustChangePassword ?? false,
+    /** The policy requires a second factor and this administrator has none. */
+    mustEnrollSecondFactor: user?.mustEnrollSecondFactor ?? false,
     roleLabel: user ? roleLabel(user.role) : null,
     canManageUsers: canManageUsers(user?.role),
     canManageSettings: canManageSettings(user?.role),

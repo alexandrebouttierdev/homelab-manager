@@ -45,5 +45,9 @@ export function RequireAuth({ children }: { children: ReactNode }) {
     return <Navigate to="/password-change" replace />
   }
 
+  if (session.mustEnrollSecondFactor) {
+    return <Navigate to="/second-factor-setup" replace />
+  }
+
   return children
 }

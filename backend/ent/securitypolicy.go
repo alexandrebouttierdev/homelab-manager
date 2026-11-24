@@ -25,6 +25,8 @@ type SecurityPolicy struct {
 	IdleTimeoutMinutes int `json:"idle_timeout_minutes,omitempty"`
 	// AllowedNetworks holds the value of the "allowed_networks" field.
 	AllowedNetworks []string `json:"allowed_networks,omitempty"`
+	// RequireAdminSecondFactor holds the value of the "require_admin_second_factor" field.
+	RequireAdminSecondFactor bool `json:"require_admin_second_factor,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
 	UpdatedAt    time.Time `json:"updated_at,omitempty"`
 	selectValues sql.SelectValues
@@ -37,6 +39,8 @@ func (*SecurityPolicy) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case securitypolicy.FieldAllowedNetworks:
 			values[i] = new([]byte)
+		case securitypolicy.FieldRequireAdminSecondFactor:
+			values[i] = new(sql.NullBool)
 		case securitypolicy.FieldIdleTimeoutMinutes:
 			values[i] = new(sql.NullInt64)
 		case securitypolicy.FieldSingletonKey:
@@ -85,6 +89,12 @@ func (_m *SecurityPolicy) assignValues(columns []string, values []any) error {
 				if err := json.Unmarshal(*value, &_m.AllowedNetworks); err != nil {
 					return fmt.Errorf("unmarshal field allowed_networks: %w", err)
 				}
+			}
+		case securitypolicy.FieldRequireAdminSecondFactor:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field require_admin_second_factor", values[i])
+			} else if value.Valid {
+				_m.RequireAdminSecondFactor = value.Bool
 			}
 		case securitypolicy.FieldUpdatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -136,6 +146,9 @@ func (_m *SecurityPolicy) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("allowed_networks=")
 	builder.WriteString(fmt.Sprintf("%v", _m.AllowedNetworks))
+	builder.WriteString(", ")
+	builder.WriteString("require_admin_second_factor=")
+	builder.WriteString(fmt.Sprintf("%v", _m.RequireAdminSecondFactor))
 	builder.WriteString(", ")
 	builder.WriteString("updated_at=")
 	builder.WriteString(_m.UpdatedAt.Format(time.ANSIC))

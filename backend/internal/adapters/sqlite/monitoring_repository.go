@@ -214,16 +214,7 @@ func (r *MonitoringRepository) ReconcileContainers(ctx context.Context, current 
 		})
 	}
 	for _, event := range events {
-		create := tx.Event.Create().
-			SetID(event.ID).SetType(event.Type).SetSeverity(entevent.Severity(event.Severity)).
-			SetMessage(event.Message).SetOccurredAt(event.OccurredAt)
-		if event.ContainerID != nil {
-			create.SetContainerID(*event.ContainerID)
-		}
-		if event.Metadata != nil {
-			create.SetMetadata(event.Metadata)
-		}
-		if _, err := create.Save(ctx); err != nil {
+		if err := writeEvent(ctx, tx, event); err != nil {
 			return rollback(err)
 		}
 	}
@@ -543,6 +534,57 @@ func (r *MonitoringRepository) LatestMetrics(ctx context.Context, containerID *s
 			ID: record.ID, ContainerID: &id, Name: record.Name, Value: record.Value,
 			Unit: record.Unit, Labels: record.Labels, RecordedAt: record.RecordedAt,
 		})
+	}
+	return result, nil
+}
+
+// maxLatestContainerSamples bounds LatestContainerMetrics: 500 containers
+// of a few dozen samples each.
+const maxLatestContainerSamples = 50000
+
+// LatestContainerMetrics returns, in one query, the latest cycle of every
+// container recorded at or after since; a container without one is absent.
+func (r *MonitoringRepository) LatestContainerMetrics(ctx context.Context, since time.Time) (map[uuid.UUID][]domain.MetricSample, error) {
+	rows, err := r.db.QueryContext(ctx, `SELECT s.id, s.container_id, s.name, s.value, COALESCE(s.unit, ''), s.labels, s.recorded_at
+		FROM container_metric_samples s
+		JOIN (SELECT container_id, MAX(recorded_at) AS latest
+			FROM container_metric_samples WHERE recorded_at >= ? GROUP BY container_id) l
+		ON s.container_id = l.container_id AND s.recorded_at = l.latest
+		ORDER BY s.container_id, s.name
+		LIMIT ?`, since.UTC(), maxLatestContainerSamples)
+	if err != nil {
+		return nil, fmt.Errorf("read latest container metrics: %w", err)
+	}
+	defer rows.Close()
+	result := map[uuid.UUID][]domain.MetricSample{}
+	for rows.Next() {
+		var (
+			id, containerID string
+			sample          domain.MetricSample
+			rawLabels       sql.NullString
+		)
+		if err := rows.Scan(&id, &containerID, &sample.Name, &sample.Value, &sample.Unit, &rawLabels, &sample.RecordedAt); err != nil {
+			return nil, fmt.Errorf("scan latest container metric: %w", err)
+		}
+		parsedID, err := uuid.Parse(id)
+		if err != nil {
+			return nil, fmt.Errorf("decode metric id: %w", err)
+		}
+		container, err := uuid.Parse(containerID)
+		if err != nil {
+			return nil, fmt.Errorf("decode container id: %w", err)
+		}
+		if rawLabels.Valid && rawLabels.String != "" && rawLabels.String != "null" {
+			if err := json.Unmarshal([]byte(rawLabels.String), &sample.Labels); err != nil {
+				return nil, fmt.Errorf("decode metric labels: %w", err)
+			}
+		}
+		sample.ID = parsedID
+		sample.ContainerID = &container
+		result[container] = append(result[container], sample)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("read latest container metrics: %w", err)
 	}
 	return result, nil
 }

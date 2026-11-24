@@ -3,6 +3,7 @@ package main
 import (
 	"errors"
 	"fmt"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -25,6 +26,7 @@ type Config struct {
 	DockerDiscoveryIntervalSeconds int
 	MetricsRetentionDays           int
 	PowerActionsEnabled            bool
+	SecretsKeyFile                 string
 }
 
 func LoadConfig() (Config, error) {
@@ -54,6 +56,7 @@ func LoadConfig() (Config, error) {
 	// Rebooting and powering off also need the polkit rule of
 	// deployments/polkit; both are off by default.
 	v.SetDefault("power_actions_enabled", false)
+	v.SetDefault("secrets_key_file", "")
 
 	if err := v.ReadInConfig(); err != nil {
 		var notFound viper.ConfigFileNotFoundError
@@ -78,6 +81,7 @@ func LoadConfig() (Config, error) {
 		DockerDiscoveryIntervalSeconds: v.GetInt("docker_discovery_interval_seconds"),
 		MetricsRetentionDays:           v.GetInt("metrics_retention_days"),
 		PowerActionsEnabled:            v.GetBool("power_actions_enabled"),
+		SecretsKeyFile:                 v.GetString("secrets_key_file"),
 	}
 	if config.TLSCertFile != "" {
 		config.SessionSecure = true
@@ -134,4 +138,21 @@ func (c Config) Validate() error {
 		return fmt.Errorf("metrics retention must be between 1 and 365 days")
 	}
 	return nil
+}
+
+// secretsCredentialName is the systemd credential imported by the unit
+// (ImportCredential=), decrypted into $CREDENTIALS_DIRECTORY.
+const secretsCredentialName = "homelab-manager-secrets-key"
+
+// SecretsKeyPath returns the file holding the master key of the secrets
+// box: the configured file, else the systemd credential, else "" (TOTP
+// unavailable).
+func (c Config) SecretsKeyPath(credentialsDirectory string) string {
+	if c.SecretsKeyFile != "" {
+		return c.SecretsKeyFile
+	}
+	if credentialsDirectory != "" {
+		return filepath.Join(credentialsDirectory, secretsCredentialName)
+	}
+	return ""
 }

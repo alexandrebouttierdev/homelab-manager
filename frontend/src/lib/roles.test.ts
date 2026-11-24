@@ -1,8 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import {
+  canManageAlerts,
   canManagePower,
   canManageSettings,
   canManageUsers,
+  canOperateAlerts,
   isRole,
   roleLabel,
   roleOptions,
@@ -32,5 +34,10 @@ describe('roles', () => {
     expect(canManageSettings('viewer')).toBe(false)
     expect(canManagePower('admin')).toBe(true)
     expect(canManagePower('operator')).toBe(false)
+    expect(canOperateAlerts('operator')).toBe(true)
+    expect(canOperateAlerts('admin')).toBe(true)
+    expect(canOperateAlerts('viewer')).toBe(false)
+    expect(canManageAlerts('admin')).toBe(true)
+    expect(canManageAlerts('operator')).toBe(false)
   })
 })

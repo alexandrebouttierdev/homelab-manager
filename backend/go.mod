@@ -1,6 +1,6 @@
 module homelab-manager/backend
 
-go 1.26.10
+go 1.26.11
 
 require (
 	entgo.io/ent v0.14.6
@@ -10,8 +10,9 @@ require (
 	github.com/shirou/gopsutil/v4 v4.26.10
 	github.com/spf13/viper v1.21.0
 	go.uber.org/zap v1.28.0
-	golang.org/x/crypto v0.0.0-20220517005047-85d78b3ac167
+	golang.org/x/crypto v0.58.0
 	modernc.org/sqlite v1.62.0
+	rsc.io/qr v0.2.0
 )
 
 require (

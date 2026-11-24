@@ -6,16 +6,23 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"homelab-manager/backend/ent/alert"
+	"homelab-manager/backend/ent/alertrule"
+	"homelab-manager/backend/ent/alertsilence"
 	"homelab-manager/backend/ent/appsetting"
 	"homelab-manager/backend/ent/auditlog"
 	"homelab-manager/backend/ent/container"
 	"homelab-manager/backend/ent/containermetricsample"
 	"homelab-manager/backend/ent/event"
+	"homelab-manager/backend/ent/failedunit"
 	"homelab-manager/backend/ent/hostinfo"
 	"homelab-manager/backend/ent/loginfailure"
+	"homelab-manager/backend/ent/notificationchannel"
+	"homelab-manager/backend/ent/recoverycode"
 	"homelab-manager/backend/ent/securitypolicy"
 	"homelab-manager/backend/ent/session"
 	"homelab-manager/backend/ent/systemmetricsample"
+	"homelab-manager/backend/ent/totpsecret"
 	"homelab-manager/backend/ent/user"
 	"reflect"
 	"sync"
@@ -83,16 +90,23 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
+			alert.Table:                 alert.ValidColumn,
+			alertrule.Table:             alertrule.ValidColumn,
+			alertsilence.Table:          alertsilence.ValidColumn,
 			appsetting.Table:            appsetting.ValidColumn,
 			auditlog.Table:              auditlog.ValidColumn,
 			container.Table:             container.ValidColumn,
 			containermetricsample.Table: containermetricsample.ValidColumn,
 			event.Table:                 event.ValidColumn,
+			failedunit.Table:            failedunit.ValidColumn,
 			hostinfo.Table:              hostinfo.ValidColumn,
 			loginfailure.Table:          loginfailure.ValidColumn,
+			notificationchannel.Table:   notificationchannel.ValidColumn,
+			recoverycode.Table:          recoverycode.ValidColumn,
 			securitypolicy.Table:        securitypolicy.ValidColumn,
 			session.Table:               session.ValidColumn,
 			systemmetricsample.Table:    systemmetricsample.ValidColumn,
+			totpsecret.Table:            totpsecret.ValidColumn,
 			user.Table:                  user.ValidColumn,
 		})
 	})

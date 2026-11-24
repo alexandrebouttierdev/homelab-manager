@@ -153,11 +153,13 @@ describe('UsersPage', () => {
     vi.mocked(getSecurityPolicy).mockResolvedValue({
       idleTimeoutMinutes: 60,
       allowedNetworks: [],
+      requireAdminSecondFactor: false,
       currentAddress: '192.0.2.1',
     })
     vi.mocked(updateSecurityPolicy).mockResolvedValue({
       idleTimeoutMinutes: 60,
       allowedNetworks: ['10.0.0.0/8'],
+      requireAdminSecondFactor: false,
       currentAddress: '192.0.2.1',
     })
     const user = userEvent.setup()
@@ -180,6 +182,7 @@ describe('UsersPage', () => {
       expect(updateSecurityPolicy).toHaveBeenCalledWith({
         idleTimeoutMinutes: 60,
         allowedNetworks: ['10.0.0.0/8'],
+        requireAdminSecondFactor: false,
       }),
     )
   })

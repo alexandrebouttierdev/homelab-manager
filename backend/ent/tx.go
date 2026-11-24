@@ -12,6 +12,12 @@ import (
 // Tx is a transactional client that is created by calling Client.Tx().
 type Tx struct {
 	config
+	// Alert is the client for interacting with the Alert builders.
+	Alert *AlertClient
+	// AlertRule is the client for interacting with the AlertRule builders.
+	AlertRule *AlertRuleClient
+	// AlertSilence is the client for interacting with the AlertSilence builders.
+	AlertSilence *AlertSilenceClient
 	// AppSetting is the client for interacting with the AppSetting builders.
 	AppSetting *AppSettingClient
 	// AuditLog is the client for interacting with the AuditLog builders.
@@ -22,16 +28,24 @@ type Tx struct {
 	ContainerMetricSample *ContainerMetricSampleClient
 	// Event is the client for interacting with the Event builders.
 	Event *EventClient
+	// FailedUnit is the client for interacting with the FailedUnit builders.
+	FailedUnit *FailedUnitClient
 	// HostInfo is the client for interacting with the HostInfo builders.
 	HostInfo *HostInfoClient
 	// LoginFailure is the client for interacting with the LoginFailure builders.
 	LoginFailure *LoginFailureClient
+	// NotificationChannel is the client for interacting with the NotificationChannel builders.
+	NotificationChannel *NotificationChannelClient
+	// RecoveryCode is the client for interacting with the RecoveryCode builders.
+	RecoveryCode *RecoveryCodeClient
 	// SecurityPolicy is the client for interacting with the SecurityPolicy builders.
 	SecurityPolicy *SecurityPolicyClient
 	// Session is the client for interacting with the Session builders.
 	Session *SessionClient
 	// SystemMetricSample is the client for interacting with the SystemMetricSample builders.
 	SystemMetricSample *SystemMetricSampleClient
+	// TotpSecret is the client for interacting with the TotpSecret builders.
+	TotpSecret *TotpSecretClient
 	// User is the client for interacting with the User builders.
 	User *UserClient
 
@@ -165,16 +179,23 @@ func (tx *Tx) Client() *Client {
 }
 
 func (tx *Tx) init() {
+	tx.Alert = NewAlertClient(tx.config)
+	tx.AlertRule = NewAlertRuleClient(tx.config)
+	tx.AlertSilence = NewAlertSilenceClient(tx.config)
 	tx.AppSetting = NewAppSettingClient(tx.config)
 	tx.AuditLog = NewAuditLogClient(tx.config)
 	tx.Container = NewContainerClient(tx.config)
 	tx.ContainerMetricSample = NewContainerMetricSampleClient(tx.config)
 	tx.Event = NewEventClient(tx.config)
+	tx.FailedUnit = NewFailedUnitClient(tx.config)
 	tx.HostInfo = NewHostInfoClient(tx.config)
 	tx.LoginFailure = NewLoginFailureClient(tx.config)
+	tx.NotificationChannel = NewNotificationChannelClient(tx.config)
+	tx.RecoveryCode = NewRecoveryCodeClient(tx.config)
 	tx.SecurityPolicy = NewSecurityPolicyClient(tx.config)
 	tx.Session = NewSessionClient(tx.config)
 	tx.SystemMetricSample = NewSystemMetricSampleClient(tx.config)
+	tx.TotpSecret = NewTotpSecretClient(tx.config)
 	tx.User = NewUserClient(tx.config)
 }
 
@@ -185,7 +206,7 @@ func (tx *Tx) init() {
 // of them in order to commit or rollback the transaction.
 //
 // If a closed transaction is embedded in one of the generated entities, and the entity
-// applies a query, for example: AppSetting.QueryXXX(), the query will be executed
+// applies a query, for example: Alert.QueryXXX(), the query will be executed
 // through the driver which created this transaction.
 //
 // Note that txDriver is not goroutine safe.

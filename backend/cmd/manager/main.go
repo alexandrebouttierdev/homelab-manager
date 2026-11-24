@@ -11,10 +11,16 @@ import (
 
 	argon2adapter "homelab-manager/backend/internal/adapters/argon2"
 	"homelab-manager/backend/internal/adapters/dockerengine"
+	"homelab-manager/backend/internal/adapters/journalctl"
 	logindadapter "homelab-manager/backend/internal/adapters/logind"
+	"homelab-manager/backend/internal/adapters/notify"
+	"homelab-manager/backend/internal/adapters/qrcode"
+	"homelab-manager/backend/internal/adapters/secretbox"
 	"homelab-manager/backend/internal/adapters/sqlite"
+	"homelab-manager/backend/internal/adapters/systemd"
 	systemcollector "homelab-manager/backend/internal/collector/system"
 	httpdelivery "homelab-manager/backend/internal/delivery/http"
+	"homelab-manager/backend/internal/ports"
 	"homelab-manager/backend/internal/usecase"
 
 	"go.uber.org/zap"
@@ -51,10 +57,18 @@ func main() {
 	var powerUsecase *usecase.PowerUsecase
 	var securityUsecase *usecase.SecurityUsecase
 	var auditUsecase *usecase.AuditUsecase
+	var secondFactorUsecase *usecase.SecondFactorUsecase
 	var monitoringUsecase *usecase.MonitoringUsecase
 	var clientCloser interface{ Close() error }
 	var dockerClientCloser interface{ CloseIdleConnections() }
 	var schedulerDone chan struct{}
+	// failedUnits stays a nil interface without a database: the service
+	// inventory is then served without events.
+	var failedUnits ports.FailedUnitRepository
+	// secretBox seals the TOTP secrets and the notification secrets; nil
+	// without a master key.
+	var secretBox ports.SecretBox
+	var monitoringRepository *sqlite.MonitoringRepository
 	schedulerCtx, cancelScheduler := context.WithCancel(context.Background())
 	defer cancelScheduler()
 	if database != nil {
@@ -74,7 +88,10 @@ func main() {
 		}
 		auditRepository := sqlite.NewAuditRepository(client)
 		securityRepository := sqlite.NewSecurityRepository(client)
-		security := usecase.NewSecurityUsecase(securityRepository)
+		factorRepository := sqlite.NewSecondFactorRepository(client)
+		box := loadSecretBox(logger, config.SecretsKeyPath(os.Getenv("CREDENTIALS_DIRECTORY")))
+		secretBox = box
+		security := usecase.NewSecurityUsecase(securityRepository).WithSecondFactors(factorRepository)
 		// Without its policy the Manager cannot tell which networks may use
 		// the interface: authentication stays unavailable rather than open.
 		if err := security.Load(context.Background()); err != nil {
@@ -82,7 +99,9 @@ func main() {
 		} else {
 			securityUsecase = security
 			auditUsecase = usecase.NewAuditUsecase(auditRepository, auditRepository)
-			authUsecase = auth.WithSecurity(securityRepository, auditRepository, security)
+			authUsecase = auth.WithSecurity(securityRepository, auditRepository, security).
+				WithSecondFactor(factorRepository, box)
+			secondFactorUsecase = usecase.NewSecondFactorUsecase(authRepository, factorRepository, box, qrcode.New(), hasher)
 			accountUsecase = usecase.NewAccountUsecase(sqlite.NewAccountRepository(client), authRepository, hasher).
 				WithAudit(auditRepository)
 			powerUsecase = usecase.NewPowerUsecase(logindadapter.New(), auditRepository, os.Hostname, config.PowerActionsEnabled)
@@ -90,7 +109,8 @@ func main() {
 				logger.Info("Reboot and power off are enabled; they also require the polkit rule")
 			}
 		}
-		monitoringRepository := sqlite.NewMonitoringRepository(database)
+		failedUnits = sqlite.NewSystemUnitRepository(client)
+		monitoringRepository = sqlite.NewMonitoringRepository(database)
 		dockerClient := dockerengine.NewClient(config.DockerProxySocket)
 		dockerClientCloser = dockerClient
 		monitoringUsecase = usecase.NewMonitoringUsecase(
@@ -111,9 +131,44 @@ func main() {
 			monitoringUsecase.Run(schedulerCtx)
 		}()
 	}
+	journalUsecase := loadJournal(logger)
+	serviceUsecase := usecase.NewServiceUsecase(systemd.New(systemd.SystemBus), failedUnits, journalUsecase, logger)
+	servicesDone := make(chan struct{})
+	go func() {
+		defer close(servicesDone)
+		serviceUsecase.Run(schedulerCtx)
+	}()
+	// The alert engine evaluates the data stored by the collections: it
+	// needs the database.
+	var alertUsecase *usecase.AlertUsecase
+	var notificationUsecase *usecase.NotificationUsecase
+	var alertsDone, notificationsDone chan struct{}
+	var notifier *notify.Notifier
+	if database != nil {
+		alertRepository := sqlite.NewAlertRepository(database.Client())
+		notificationRepository := sqlite.NewNotificationRepository(database.Client())
+		notifier = notify.New()
+		notificationUsecase = usecase.NewNotificationUsecase(notificationRepository, alertRepository, secretBox, notifier,
+			sqlite.NewAuditRepository(database.Client()), monitoringUsecase, logger)
+		alertUsecase = usecase.NewAlertUsecase(alertRepository, usecase.AlertSources{
+			Metrics: monitoringRepository, Collectors: monitoringUsecase, Units: serviceUsecase, Retention: monitoringUsecase,
+		}, logger).WithNotifications(notificationUsecase, notificationRepository)
+		alertsDone = make(chan struct{})
+		go func() {
+			defer close(alertsDone)
+			alertUsecase.Run(schedulerCtx)
+		}()
+		notificationsDone = make(chan struct{})
+		go func() {
+			defer close(notificationsDone)
+			notificationUsecase.Run(schedulerCtx)
+		}()
+	}
 	router := httpdelivery.NewRouter(logger, httpdelivery.Services{
 		Health: healthUsecase, Auth: authUsecase, Monitoring: monitoringUsecase,
 		Accounts: accountUsecase, Power: powerUsecase, Security: securityUsecase, Audit: auditUsecase,
+		SecondFactors: secondFactorUsecase, Journal: journalUsecase, Units: serviceUsecase, Alerts: alertUsecase,
+		Notifications: notificationUsecase,
 	}, config.SessionSecure, config.WebRoot)
 
 	server := &http.Server{
@@ -152,6 +207,27 @@ func main() {
 			logger.Error("monitoring workers did not stop before deadline")
 		}
 	}
+	select {
+	case <-servicesDone:
+	case <-time.After(10 * time.Second):
+		logger.Error("system units collection did not stop before deadline")
+	}
+	if alertsDone != nil {
+		select {
+		case <-alertsDone:
+		case <-time.After(10 * time.Second):
+			logger.Error("alert evaluation did not stop before deadline")
+		}
+	}
+	if notificationsDone != nil {
+		// A send in progress ends within its 10 s timeout.
+		select {
+		case <-notificationsDone:
+		case <-time.After(15 * time.Second):
+			logger.Error("alert notifications did not stop before deadline")
+		}
+		notifier.CloseIdleConnections()
+	}
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := server.Shutdown(ctx); err != nil {
@@ -165,4 +241,41 @@ func main() {
 	if dockerClientCloser != nil {
 		dockerClientCloser.CloseIdleConnections()
 	}
+}
+
+// loadSecretBox opens the secrets box with the master key. Without a key the
+// Manager keeps running: TOTP and the notification channels with secrets
+// are unavailable, recovery codes still work (SPEC_ADMINISTRATION.md § 2.5).
+func loadSecretBox(logger *zap.Logger, path string) ports.SecretBox {
+	if path == "" {
+		logger.Warn("No secrets key configured: TOTP and notification secrets are unavailable, recovery codes still work")
+		return nil
+	}
+	key, err := secretbox.LoadKeyFile(path)
+	if err != nil {
+		logger.Error("Could not load the secrets key: TOTP is unavailable", zap.String("path", path), zap.Error(err))
+		return nil
+	}
+	box, err := secretbox.New(key)
+	if err != nil {
+		logger.Error("Invalid secrets key: TOTP is unavailable", zap.Error(err))
+		return nil
+	}
+	logger.Info("Secrets key loaded")
+	return box
+}
+
+// loadJournal finds journalctl; without it the journal routes answer
+// JOURNAL_UNAVAILABLE and the rest of the Manager works.
+func loadJournal(logger *zap.Logger) *usecase.JournalUsecase {
+	path, err := journalctl.Find()
+	if err != nil {
+		logger.Warn("journalctl not found: the system journal is unavailable", zap.Error(err))
+		return usecase.NewJournalUsecase(nil)
+	}
+	reader := journalctl.New(path)
+	if !reader.FullAccess() {
+		logger.Warn("The Manager is not in the systemd-journal group: the journal shows its own entries only")
+	}
+	return usecase.NewJournalUsecase(reader)
 }

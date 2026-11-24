@@ -3,17 +3,24 @@
 package ent
 
 import (
+	"homelab-manager/backend/ent/alert"
+	"homelab-manager/backend/ent/alertrule"
+	"homelab-manager/backend/ent/alertsilence"
 	"homelab-manager/backend/ent/appsetting"
 	"homelab-manager/backend/ent/auditlog"
 	"homelab-manager/backend/ent/container"
 	"homelab-manager/backend/ent/containermetricsample"
 	"homelab-manager/backend/ent/event"
+	"homelab-manager/backend/ent/failedunit"
 	"homelab-manager/backend/ent/hostinfo"
 	"homelab-manager/backend/ent/loginfailure"
+	"homelab-manager/backend/ent/notificationchannel"
+	"homelab-manager/backend/ent/recoverycode"
 	"homelab-manager/backend/ent/schema"
 	"homelab-manager/backend/ent/securitypolicy"
 	"homelab-manager/backend/ent/session"
 	"homelab-manager/backend/ent/systemmetricsample"
+	"homelab-manager/backend/ent/totpsecret"
 	"homelab-manager/backend/ent/user"
 	"time"
 
@@ -24,6 +31,96 @@ import (
 // (default values, validators, hooks and policies) and stitches it
 // to their package variables.
 func init() {
+	alertFields := schema.Alert{}.Fields()
+	_ = alertFields
+	// alertDescRuleName is the schema descriptor for rule_name field.
+	alertDescRuleName := alertFields[2].Descriptor()
+	// alert.RuleNameValidator is a validator for the "rule_name" field. It is called by the builders before save.
+	alert.RuleNameValidator = alertDescRuleName.Validators[0].(func(string) error)
+	// alertDescRuleType is the schema descriptor for rule_type field.
+	alertDescRuleType := alertFields[3].Descriptor()
+	// alert.RuleTypeValidator is a validator for the "rule_type" field. It is called by the builders before save.
+	alert.RuleTypeValidator = alertDescRuleType.Validators[0].(func(string) error)
+	// alertDescSeverity is the schema descriptor for severity field.
+	alertDescSeverity := alertFields[4].Descriptor()
+	// alert.SeverityValidator is a validator for the "severity" field. It is called by the builders before save.
+	alert.SeverityValidator = alertDescSeverity.Validators[0].(func(string) error)
+	// alertDescTargetKey is the schema descriptor for target_key field.
+	alertDescTargetKey := alertFields[5].Descriptor()
+	// alert.TargetKeyValidator is a validator for the "target_key" field. It is called by the builders before save.
+	alert.TargetKeyValidator = alertDescTargetKey.Validators[0].(func(string) error)
+	// alertDescTarget is the schema descriptor for target field.
+	alertDescTarget := alertFields[6].Descriptor()
+	// alert.DefaultTarget holds the default value on creation for the target field.
+	alert.DefaultTarget = alertDescTarget.Default.(string)
+	// alertDescState is the schema descriptor for state field.
+	alertDescState := alertFields[7].Descriptor()
+	// alert.StateValidator is a validator for the "state" field. It is called by the builders before save.
+	alert.StateValidator = alertDescState.Validators[0].(func(string) error)
+	// alertDescObserved is the schema descriptor for observed field.
+	alertDescObserved := alertFields[10].Descriptor()
+	// alert.DefaultObserved holds the default value on creation for the observed field.
+	alert.DefaultObserved = alertDescObserved.Default.(string)
+	// alertDescID is the schema descriptor for id field.
+	alertDescID := alertFields[0].Descriptor()
+	// alert.DefaultID holds the default value on creation for the id field.
+	alert.DefaultID = alertDescID.Default.(func() uuid.UUID)
+	alertruleFields := schema.AlertRule{}.Fields()
+	_ = alertruleFields
+	// alertruleDescName is the schema descriptor for name field.
+	alertruleDescName := alertruleFields[1].Descriptor()
+	// alertrule.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	alertrule.NameValidator = alertruleDescName.Validators[0].(func(string) error)
+	// alertruleDescType is the schema descriptor for type field.
+	alertruleDescType := alertruleFields[2].Descriptor()
+	// alertrule.TypeValidator is a validator for the "type" field. It is called by the builders before save.
+	alertrule.TypeValidator = alertruleDescType.Validators[0].(func(string) error)
+	// alertruleDescSeverity is the schema descriptor for severity field.
+	alertruleDescSeverity := alertruleFields[3].Descriptor()
+	// alertrule.SeverityValidator is a validator for the "severity" field. It is called by the builders before save.
+	alertrule.SeverityValidator = alertruleDescSeverity.Validators[0].(func(string) error)
+	// alertruleDescEnabled is the schema descriptor for enabled field.
+	alertruleDescEnabled := alertruleFields[4].Descriptor()
+	// alertrule.DefaultEnabled holds the default value on creation for the enabled field.
+	alertrule.DefaultEnabled = alertruleDescEnabled.Default.(bool)
+	// alertruleDescIsDefault is the schema descriptor for is_default field.
+	alertruleDescIsDefault := alertruleFields[5].Descriptor()
+	// alertrule.DefaultIsDefault holds the default value on creation for the is_default field.
+	alertrule.DefaultIsDefault = alertruleDescIsDefault.Default.(bool)
+	// alertruleDescParams is the schema descriptor for params field.
+	alertruleDescParams := alertruleFields[6].Descriptor()
+	// alertrule.DefaultParams holds the default value on creation for the params field.
+	alertrule.DefaultParams = alertruleDescParams.Default.(string)
+	// alertruleDescCreatedAt is the schema descriptor for created_at field.
+	alertruleDescCreatedAt := alertruleFields[7].Descriptor()
+	// alertrule.DefaultCreatedAt holds the default value on creation for the created_at field.
+	alertrule.DefaultCreatedAt = alertruleDescCreatedAt.Default.(func() time.Time)
+	// alertruleDescUpdatedAt is the schema descriptor for updated_at field.
+	alertruleDescUpdatedAt := alertruleFields[8].Descriptor()
+	// alertrule.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	alertrule.DefaultUpdatedAt = alertruleDescUpdatedAt.Default.(func() time.Time)
+	// alertruleDescID is the schema descriptor for id field.
+	alertruleDescID := alertruleFields[0].Descriptor()
+	// alertrule.DefaultID holds the default value on creation for the id field.
+	alertrule.DefaultID = alertruleDescID.Default.(func() uuid.UUID)
+	alertsilenceFields := schema.AlertSilence{}.Fields()
+	_ = alertsilenceFields
+	// alertsilenceDescScope is the schema descriptor for scope field.
+	alertsilenceDescScope := alertsilenceFields[1].Descriptor()
+	// alertsilence.ScopeValidator is a validator for the "scope" field. It is called by the builders before save.
+	alertsilence.ScopeValidator = alertsilenceDescScope.Validators[0].(func(string) error)
+	// alertsilenceDescReason is the schema descriptor for reason field.
+	alertsilenceDescReason := alertsilenceFields[4].Descriptor()
+	// alertsilence.ReasonValidator is a validator for the "reason" field. It is called by the builders before save.
+	alertsilence.ReasonValidator = alertsilenceDescReason.Validators[0].(func(string) error)
+	// alertsilenceDescCreatedBy is the schema descriptor for created_by field.
+	alertsilenceDescCreatedBy := alertsilenceFields[5].Descriptor()
+	// alertsilence.CreatedByValidator is a validator for the "created_by" field. It is called by the builders before save.
+	alertsilence.CreatedByValidator = alertsilenceDescCreatedBy.Validators[0].(func(string) error)
+	// alertsilenceDescID is the schema descriptor for id field.
+	alertsilenceDescID := alertsilenceFields[0].Descriptor()
+	// alertsilence.DefaultID holds the default value on creation for the id field.
+	alertsilence.DefaultID = alertsilenceDescID.Default.(func() uuid.UUID)
 	appsettingFields := schema.AppSetting{}.Fields()
 	_ = appsettingFields
 	// appsettingDescSingletonKey is the schema descriptor for singleton_key field.
@@ -140,6 +237,12 @@ func init() {
 	eventDescID := eventFields[0].Descriptor()
 	// event.DefaultID holds the default value on creation for the id field.
 	event.DefaultID = eventDescID.Default.(func() uuid.UUID)
+	failedunitFields := schema.FailedUnit{}.Fields()
+	_ = failedunitFields
+	// failedunitDescID is the schema descriptor for id field.
+	failedunitDescID := failedunitFields[0].Descriptor()
+	// failedunit.IDValidator is a validator for the "id" field. It is called by the builders before save.
+	failedunit.IDValidator = failedunitDescID.Validators[0].(func(string) error)
 	hostinfoFields := schema.HostInfo{}.Fields()
 	_ = hostinfoFields
 	// hostinfoDescSingletonKey is the schema descriptor for singleton_key field.
@@ -164,14 +267,74 @@ func init() {
 	loginfailureDescConsecutiveFailures := loginfailureFields[1].Descriptor()
 	// loginfailure.DefaultConsecutiveFailures holds the default value on creation for the consecutive_failures field.
 	loginfailure.DefaultConsecutiveFailures = loginfailureDescConsecutiveFailures.Default.(int)
+	notificationchannelFields := schema.NotificationChannel{}.Fields()
+	_ = notificationchannelFields
+	// notificationchannelDescName is the schema descriptor for name field.
+	notificationchannelDescName := notificationchannelFields[1].Descriptor()
+	// notificationchannel.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	notificationchannel.NameValidator = notificationchannelDescName.Validators[0].(func(string) error)
+	// notificationchannelDescType is the schema descriptor for type field.
+	notificationchannelDescType := notificationchannelFields[2].Descriptor()
+	// notificationchannel.TypeValidator is a validator for the "type" field. It is called by the builders before save.
+	notificationchannel.TypeValidator = notificationchannelDescType.Validators[0].(func(string) error)
+	// notificationchannelDescEnabled is the schema descriptor for enabled field.
+	notificationchannelDescEnabled := notificationchannelFields[3].Descriptor()
+	// notificationchannel.DefaultEnabled holds the default value on creation for the enabled field.
+	notificationchannel.DefaultEnabled = notificationchannelDescEnabled.Default.(bool)
+	// notificationchannelDescMinSeverity is the schema descriptor for min_severity field.
+	notificationchannelDescMinSeverity := notificationchannelFields[4].Descriptor()
+	// notificationchannel.MinSeverityValidator is a validator for the "min_severity" field. It is called by the builders before save.
+	notificationchannel.MinSeverityValidator = notificationchannelDescMinSeverity.Validators[0].(func(string) error)
+	// notificationchannelDescRenotifyMinutes is the schema descriptor for renotify_minutes field.
+	notificationchannelDescRenotifyMinutes := notificationchannelFields[5].Descriptor()
+	// notificationchannel.DefaultRenotifyMinutes holds the default value on creation for the renotify_minutes field.
+	notificationchannel.DefaultRenotifyMinutes = notificationchannelDescRenotifyMinutes.Default.(int)
+	// notificationchannelDescSettings is the schema descriptor for settings field.
+	notificationchannelDescSettings := notificationchannelFields[6].Descriptor()
+	// notificationchannel.DefaultSettings holds the default value on creation for the settings field.
+	notificationchannel.DefaultSettings = notificationchannelDescSettings.Default.(string)
+	// notificationchannelDescSecrets is the schema descriptor for secrets field.
+	notificationchannelDescSecrets := notificationchannelFields[7].Descriptor()
+	// notificationchannel.DefaultSecrets holds the default value on creation for the secrets field.
+	notificationchannel.DefaultSecrets = notificationchannelDescSecrets.Default.(string)
+	// notificationchannelDescSecretNames is the schema descriptor for secret_names field.
+	notificationchannelDescSecretNames := notificationchannelFields[8].Descriptor()
+	// notificationchannel.DefaultSecretNames holds the default value on creation for the secret_names field.
+	notificationchannel.DefaultSecretNames = notificationchannelDescSecretNames.Default.(string)
+	// notificationchannelDescCreatedAt is the schema descriptor for created_at field.
+	notificationchannelDescCreatedAt := notificationchannelFields[13].Descriptor()
+	// notificationchannel.DefaultCreatedAt holds the default value on creation for the created_at field.
+	notificationchannel.DefaultCreatedAt = notificationchannelDescCreatedAt.Default.(func() time.Time)
+	// notificationchannelDescUpdatedAt is the schema descriptor for updated_at field.
+	notificationchannelDescUpdatedAt := notificationchannelFields[14].Descriptor()
+	// notificationchannel.DefaultUpdatedAt holds the default value on creation for the updated_at field.
+	notificationchannel.DefaultUpdatedAt = notificationchannelDescUpdatedAt.Default.(func() time.Time)
+	// notificationchannelDescID is the schema descriptor for id field.
+	notificationchannelDescID := notificationchannelFields[0].Descriptor()
+	// notificationchannel.DefaultID holds the default value on creation for the id field.
+	notificationchannel.DefaultID = notificationchannelDescID.Default.(func() uuid.UUID)
+	recoverycodeFields := schema.RecoveryCode{}.Fields()
+	_ = recoverycodeFields
+	// recoverycodeDescCreatedAt is the schema descriptor for created_at field.
+	recoverycodeDescCreatedAt := recoverycodeFields[4].Descriptor()
+	// recoverycode.DefaultCreatedAt holds the default value on creation for the created_at field.
+	recoverycode.DefaultCreatedAt = recoverycodeDescCreatedAt.Default.(func() time.Time)
+	// recoverycodeDescID is the schema descriptor for id field.
+	recoverycodeDescID := recoverycodeFields[0].Descriptor()
+	// recoverycode.DefaultID holds the default value on creation for the id field.
+	recoverycode.DefaultID = recoverycodeDescID.Default.(func() uuid.UUID)
 	securitypolicyFields := schema.SecurityPolicy{}.Fields()
 	_ = securitypolicyFields
 	// securitypolicyDescSingletonKey is the schema descriptor for singleton_key field.
 	securitypolicyDescSingletonKey := securitypolicyFields[1].Descriptor()
 	// securitypolicy.SingletonKeyValidator is a validator for the "singleton_key" field. It is called by the builders before save.
 	securitypolicy.SingletonKeyValidator = securitypolicyDescSingletonKey.Validators[0].(func(string) error)
+	// securitypolicyDescRequireAdminSecondFactor is the schema descriptor for require_admin_second_factor field.
+	securitypolicyDescRequireAdminSecondFactor := securitypolicyFields[4].Descriptor()
+	// securitypolicy.DefaultRequireAdminSecondFactor holds the default value on creation for the require_admin_second_factor field.
+	securitypolicy.DefaultRequireAdminSecondFactor = securitypolicyDescRequireAdminSecondFactor.Default.(bool)
 	// securitypolicyDescUpdatedAt is the schema descriptor for updated_at field.
-	securitypolicyDescUpdatedAt := securitypolicyFields[4].Descriptor()
+	securitypolicyDescUpdatedAt := securitypolicyFields[5].Descriptor()
 	// securitypolicy.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	securitypolicy.DefaultUpdatedAt = securitypolicyDescUpdatedAt.Default.(func() time.Time)
 	// securitypolicy.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.
@@ -208,6 +371,16 @@ func init() {
 	systemmetricsampleDescID := systemmetricsampleFields[0].Descriptor()
 	// systemmetricsample.DefaultID holds the default value on creation for the id field.
 	systemmetricsample.DefaultID = systemmetricsampleDescID.Default.(func() uuid.UUID)
+	totpsecretFields := schema.TotpSecret{}.Fields()
+	_ = totpsecretFields
+	// totpsecretDescLastUsedStep is the schema descriptor for last_used_step field.
+	totpsecretDescLastUsedStep := totpsecretFields[3].Descriptor()
+	// totpsecret.DefaultLastUsedStep holds the default value on creation for the last_used_step field.
+	totpsecret.DefaultLastUsedStep = totpsecretDescLastUsedStep.Default.(int64)
+	// totpsecretDescCreatedAt is the schema descriptor for created_at field.
+	totpsecretDescCreatedAt := totpsecretFields[4].Descriptor()
+	// totpsecret.DefaultCreatedAt holds the default value on creation for the created_at field.
+	totpsecret.DefaultCreatedAt = totpsecretDescCreatedAt.Default.(func() time.Time)
 	userFields := schema.User{}.Fields()
 	_ = userFields
 	// userDescUsername is the schema descriptor for username field.

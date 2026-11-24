@@ -43,4 +43,25 @@ describe('RequireAuth', () => {
     expect(screen.getByText('Changement imposé')).toBeInTheDocument()
     expect(screen.queryByText('Contenu protégé')).not.toBeInTheDocument()
   })
+
+  it('sends an administrator without a required second factor to its enrollment', () => {
+    session.mustChangePassword = false
+    Object.assign(session, { mustEnrollSecondFactor: true })
+    render(
+      <MemoryRouter initialEntries={['/']}>
+        <Routes>
+          <Route
+            path="/"
+            element={
+              <RequireAuth>
+                <p>Contenu protégé</p>
+              </RequireAuth>
+            }
+          />
+          <Route path="/second-factor-setup" element={<p>Enrôlement imposé</p>} />
+        </Routes>
+      </MemoryRouter>,
+    )
+    expect(screen.getByText('Enrôlement imposé')).toBeInTheDocument()
+  })
 })

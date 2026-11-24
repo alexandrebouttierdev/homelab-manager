@@ -22,14 +22,21 @@ const (
 	PermManagePower Permission = "machine:power"
 	// PermViewAudit covers reading and exporting the audit log.
 	PermViewAudit Permission = "audit:view"
+	// PermOperateAlerts covers acknowledging alerts and silences.
+	PermOperateAlerts Permission = "alerts:operate"
+	// PermManageAlerts covers alert rules and notification channels.
+	PermManageAlerts Permission = "alerts:manage"
 )
 
 // rolePermissions is the single source of the role policy. Operators gain
 // their service and backup permissions with phases 5 and 6.
 var rolePermissions = map[Role]map[Permission]bool{
 	RoleViewer:   {},
-	RoleOperator: {},
-	RoleAdmin:    {PermManageSettings: true, PermManageUsers: true, PermManagePower: true, PermViewAudit: true},
+	RoleOperator: {PermOperateAlerts: true},
+	RoleAdmin: {
+		PermManageSettings: true, PermManageUsers: true, PermManagePower: true, PermViewAudit: true,
+		PermOperateAlerts: true, PermManageAlerts: true,
+	},
 }
 
 // Valid reports whether r is one of the defined roles.

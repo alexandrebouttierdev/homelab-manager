@@ -26,6 +26,8 @@ import { useSession, useSignOut } from '../../hooks/useSession'
 import { useChangePassword } from './useChangePassword'
 import { useSettings } from './useSettings'
 import { MySessionsCard } from './MySessionsCard'
+import { SecondFactorCard } from './SecondFactorCard'
+import { useSecondFactor } from './useSecondFactor'
 
 export function SettingsPage() {
   const { theme, setTheme } = useTheme()
@@ -33,6 +35,7 @@ export function SettingsPage() {
   const session = useSession()
   const signOut = useSignOut()
   const password = useChangePassword()
+  const secondFactor = useSecondFactor()
 
   return (
     <div className="space-y-4">
@@ -195,6 +198,8 @@ export function SettingsPage() {
               </CardBody>
             </Card>
           </div>
+
+          <SecondFactorCard model={secondFactor} />
 
           <MySessionsCard />
 

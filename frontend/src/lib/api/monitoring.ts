@@ -51,6 +51,8 @@ export type MonitorEvent = {
   type: string
   severity: string
   message: string
+  /** Bounded details of the event; absent for most container events. */
+  metadata?: Record<string, unknown>
   occurredAt: string
 }
 

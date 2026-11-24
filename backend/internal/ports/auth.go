@@ -24,7 +24,9 @@ type UserRepository interface {
 }
 
 type SessionRepository interface {
-	Create(ctx context.Context, userID uuid.UUID, tokenHash, ip, userAgent string, expiresAt time.Time) (domain.Session, error)
+	// Create opens a session; authMethod is "password", "password+totp" or
+	// "password+recovery".
+	Create(ctx context.Context, userID uuid.UUID, tokenHash, ip, userAgent, authMethod string, expiresAt time.Time) (domain.Session, error)
 	FindActiveByTokenHash(ctx context.Context, tokenHash string) (domain.Session, error)
 	RevokeByTokenHash(ctx context.Context, tokenHash string) error
 	RevokeAllForUser(ctx context.Context, userID uuid.UUID) error

@@ -26,7 +26,11 @@ export function browserLabel(userAgent: string): string {
   return system ? `${browser} · ${system}` : browser
 }
 
-const authMethods: Record<string, string> = { password: 'Mot de passe' }
+const authMethods: Record<string, string> = {
+  password: 'Mot de passe',
+  'password+totp': 'Mot de passe + application',
+  'password+recovery': 'Mot de passe + code de secours',
+}
 
 export type SessionRow = {
   id: string

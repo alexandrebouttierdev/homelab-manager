@@ -15,13 +15,23 @@ import { Logo } from '../../components/ui/Logo'
 import { StatusDot } from '../../components/ui/StatusDot'
 import { useTheme } from '../../lib/theme'
 import { APP_VERSION } from '../../lib/version'
+import { SecondFactorStep } from './SecondFactorStep'
 import { useLogin } from './useLogin'
 
 export function LoginPage() {
   const { theme, toggleTheme } = useTheme()
   const [showPassword, setShowPassword] = useState(false)
-  const { register, errors, onSubmit, remember, setRemember, isPending, errorMessage, notice } =
-    useLogin()
+  const {
+    register,
+    errors,
+    onSubmit,
+    remember,
+    setRemember,
+    isPending,
+    errorMessage,
+    notice,
+    secondFactor,
+  } = useLogin()
 
   return (
     <main className="relative flex min-h-screen flex-col overflow-hidden bg-background">
@@ -66,104 +76,110 @@ export function LoginPage() {
             </p>
           </div>
 
-          <form className="mt-6 space-y-4" onSubmit={onSubmit} noValidate>
-            <div>
-              <label
-                htmlFor="username"
-                className="mb-1.5 block font-mono text-[10px] font-medium uppercase tracking-wider text-text-secondary"
-              >
-                Nom d'utilisateur
-              </label>
-              <div className="flex items-center gap-2 rounded-md border border-line bg-surface px-3 transition-colors focus-within:border-accent/60">
-                <UserRound className="h-4 w-4 shrink-0 text-text-muted" aria-hidden="true" />
-                <input
-                  id="username"
-                  autoComplete="username"
-                  autoFocus
-                  placeholder="administrateur"
-                  className="h-10 w-full bg-transparent text-sm text-text-primary outline-none placeholder:text-text-muted"
-                  {...register('username')}
-                />
-              </div>
-              {errors.username && (
-                <p className="mt-1 text-xs text-danger">{errors.username.message}</p>
-              )}
-            </div>
-
-            <div>
-              <label
-                htmlFor="password"
-                className="mb-1.5 block font-mono text-[10px] font-medium uppercase tracking-wider text-text-secondary"
-              >
-                Mot de passe
-              </label>
-              <div className="flex items-center gap-2 rounded-md border border-line bg-surface px-3 transition-colors focus-within:border-accent/60">
-                <LockKeyhole className="h-4 w-4 shrink-0 text-text-muted" aria-hidden="true" />
-                <input
-                  id="password"
-                  type={showPassword ? 'text' : 'password'}
-                  autoComplete="current-password"
-                  placeholder="••••••••••••"
-                  className="h-10 w-full bg-transparent text-sm text-text-primary outline-none placeholder:text-text-muted"
-                  {...register('password')}
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword((visible) => !visible)}
-                  className="rounded-sm p-0.5 text-text-muted transition-colors hover:text-text-primary"
-                  aria-label={showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'}
+          {secondFactor ? (
+            <SecondFactorStep step={secondFactor} />
+          ) : (
+            <form className="mt-6 space-y-4" onSubmit={onSubmit} noValidate>
+              <div>
+                <label
+                  htmlFor="username"
+                  className="mb-1.5 block font-mono text-[10px] font-medium uppercase tracking-wider text-text-secondary"
                 >
-                  {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                </button>
+                  Nom d'utilisateur
+                </label>
+                <div className="flex items-center gap-2 rounded-md border border-line bg-surface px-3 transition-colors focus-within:border-accent/60">
+                  <UserRound className="h-4 w-4 shrink-0 text-text-muted" aria-hidden="true" />
+                  <input
+                    id="username"
+                    autoComplete="username"
+                    autoFocus
+                    placeholder="administrateur"
+                    className="h-10 w-full bg-transparent text-sm text-text-primary outline-none placeholder:text-text-muted"
+                    {...register('username')}
+                  />
+                </div>
+                {errors.username && (
+                  <p className="mt-1 text-xs text-danger">{errors.username.message}</p>
+                )}
               </div>
-              {errors.password && (
-                <p className="mt-1 text-xs text-danger">{errors.password.message}</p>
-              )}
-            </div>
 
-            <label className="flex cursor-pointer select-none items-center gap-2 text-xs text-text-secondary">
-              <input
-                type="checkbox"
-                checked={remember}
-                onChange={(event) => setRemember(event.target.checked)}
-                className="h-3.5 w-3.5 rounded-sm border-line bg-surface accent-accent"
-              />
-              Se souvenir de mon identifiant
-            </label>
-
-            {notice && (
-              <div
-                className="rounded-md border border-success/30 bg-success/10 px-3 py-2 text-xs text-success"
-                role="status"
-              >
-                {notice}
+              <div>
+                <label
+                  htmlFor="password"
+                  className="mb-1.5 block font-mono text-[10px] font-medium uppercase tracking-wider text-text-secondary"
+                >
+                  Mot de passe
+                </label>
+                <div className="flex items-center gap-2 rounded-md border border-line bg-surface px-3 transition-colors focus-within:border-accent/60">
+                  <LockKeyhole className="h-4 w-4 shrink-0 text-text-muted" aria-hidden="true" />
+                  <input
+                    id="password"
+                    type={showPassword ? 'text' : 'password'}
+                    autoComplete="current-password"
+                    placeholder="••••••••••••"
+                    className="h-10 w-full bg-transparent text-sm text-text-primary outline-none placeholder:text-text-muted"
+                    {...register('password')}
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowPassword((visible) => !visible)}
+                    className="rounded-sm p-0.5 text-text-muted transition-colors hover:text-text-primary"
+                    aria-label={
+                      showPassword ? 'Masquer le mot de passe' : 'Afficher le mot de passe'
+                    }
+                  >
+                    {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+                {errors.password && (
+                  <p className="mt-1 text-xs text-danger">{errors.password.message}</p>
+                )}
               </div>
-            )}
-            {errorMessage && (
-              <div
-                className="rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger"
-                role="alert"
-              >
-                {errorMessage}
-              </div>
-            )}
 
-            <button
-              type="submit"
-              disabled={isPending}
-              className="flex h-10 w-full items-center justify-center gap-2 rounded-md bg-accent px-4 text-sm font-medium text-on-accent transition-colors hover:bg-accent/90 disabled:cursor-wait disabled:opacity-60"
-            >
-              {isPending ? (
-                <span
-                  className="h-4 w-4 animate-spin rounded-full border-2 border-on-accent/30 border-t-on-accent"
-                  aria-hidden="true"
+              <label className="flex cursor-pointer select-none items-center gap-2 text-xs text-text-secondary">
+                <input
+                  type="checkbox"
+                  checked={remember}
+                  onChange={(event) => setRemember(event.target.checked)}
+                  className="h-3.5 w-3.5 rounded-sm border-line bg-surface accent-accent"
                 />
-              ) : (
-                <LogIn className="h-4 w-4" aria-hidden="true" />
+                Se souvenir de mon identifiant
+              </label>
+
+              {notice && (
+                <div
+                  className="rounded-md border border-success/30 bg-success/10 px-3 py-2 text-xs text-success"
+                  role="status"
+                >
+                  {notice}
+                </div>
               )}
-              {isPending ? 'Connexion…' : 'Se connecter'}
-            </button>
-          </form>
+              {errorMessage && (
+                <div
+                  className="rounded-md border border-danger/30 bg-danger/10 px-3 py-2 text-xs text-danger"
+                  role="alert"
+                >
+                  {errorMessage}
+                </div>
+              )}
+
+              <button
+                type="submit"
+                disabled={isPending}
+                className="flex h-10 w-full items-center justify-center gap-2 rounded-md bg-accent px-4 text-sm font-medium text-on-accent transition-colors hover:bg-accent/90 disabled:cursor-wait disabled:opacity-60"
+              >
+                {isPending ? (
+                  <span
+                    className="h-4 w-4 animate-spin rounded-full border-2 border-on-accent/30 border-t-on-accent"
+                    aria-hidden="true"
+                  />
+                ) : (
+                  <LogIn className="h-4 w-4" aria-hidden="true" />
+                )}
+                {isPending ? 'Connexion…' : 'Se connecter'}
+              </button>
+            </form>
+          )}
 
           <div className="mt-6 flex items-start gap-2 rounded-md border border-line/70 bg-surface/60 px-3 py-2.5">
             <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" aria-hidden="true" />

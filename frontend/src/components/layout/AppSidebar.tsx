@@ -51,14 +51,16 @@ const systemItems: NavItem[] = [
   { label: 'Stockage', to: '/storage', icon: HardDrive },
   { label: 'Réseau', to: '/network', icon: Cable },
   { label: 'Métriques', to: '/metrics', icon: Activity },
+  { label: 'Journaux système', to: '/logs', icon: ScrollText },
+  { label: 'Services système', to: '/services', icon: Wrench },
 ]
 
-const activityItems: NavItem[] = [{ label: 'Événements', to: '/events', icon: Gauge }]
+const activityItems: NavItem[] = [
+  { label: 'Alertes', to: '/alerts', icon: Bell },
+  { label: 'Événements', to: '/events', icon: Gauge },
+]
 
 const soonItems: SoonItem[] = [
-  { label: 'Services système', icon: Wrench },
-  { label: 'Journaux système', icon: ScrollText },
-  { label: 'Alertes', icon: Bell },
   { label: 'Sauvegardes', icon: DatabaseBackup },
   { label: 'Tâches Cron', icon: CalendarClock },
 ]

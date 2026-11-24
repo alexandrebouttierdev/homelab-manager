@@ -13,7 +13,7 @@ Lire `README.md` et tous les fichiers de `docs/` avant toute modification struct
 | `docs/ARCHITECTURE.md`, `docs/DATA_MODEL.md`, `docs/METRICS_COLLECTION.md` | Conception, schéma, formules |
 | `docs/SECURITY.md` | Exigences de sécurité |
 | `docs/TESTING.md` | Stratégie et couverture des tests |
-| `docs/CODE_RULES.md` | **Règles d'écriture du code**, Go et TypeScript, Git |
+| `docs/CODE_RULES.md` | **Règles d'écriture du code** : Go, React/TypeScript, dépendances et audits de sécurité, sécurité du code, Git |
 | `docs/SPEC_ADMINISTRATION.md` | Modules d'administration v3 (spécifiés, non implémentés) |
 
 ## Périmètre
@@ -48,7 +48,9 @@ Lire `README.md` et tous les fichiers de `docs/` avant toute modification struct
 - Ne jamais exposer au navigateur le socket Docker, le proxy, les variables d'environnement ni un secret.
 - Toute goroutine a un propriétaire, une stratégie d'arrêt et des limites de temps et de ressources.
 - Toute erreur est traitée explicitement ; pas de `panic` pour un cas attendu.
-- Toute dépendance nouvelle est justifiée (usage, impact) et figée à une version publiée depuis au moins deux semaines.
+- Toute dépendance nouvelle est justifiée (usage, impact, provenance vérifiée) et figée à une version publiée depuis au moins deux semaines ; ses vulnérabilités sont auditées (`docs/CODE_RULES.md` § 6).
+- Aucun secret dans le code ni dans les journaux, aucune protection désactivée pour contourner un problème, aucune alerte de sécurité masquée sans justification écrite (`docs/CODE_RULES.md` § 8).
+- Code React conforme aux règles officielles de React (`docs/CODE_RULES.md` § 4.7).
 
 ## Avant de livrer
 
@@ -57,6 +59,14 @@ scripts/verify.sh
 ```
 
 Il vérifie `gofmt`, `go vet`, `go test` (avec et sans `-race`), Prettier, ESLint, TypeScript, Vitest et le build. Il doit passer.
+
+Selon les fichiers modifiés (`docs/CODE_RULES.md` § 2.1), s'y ajoutent les audits de sécurité des dépendances : `npm audit` et `npm audit --omit=dev` pour le frontend, OSV-Scanner pour tous les lockfiles, `govulncheck ./...` pour le backend. `scripts/audit.sh` les enchaîne :
+
+```bash
+scripts/audit.sh
+```
+
+Chaque contrôle est rapporté avec son résultat réel : réussi, problèmes détectés, outil indisponible ou non exécuté (`docs/CODE_RULES.md` § 2.2). Ne jamais présenter comme réussi un audit qui n'a pas tourné.
 
 ## Règles de modification
 

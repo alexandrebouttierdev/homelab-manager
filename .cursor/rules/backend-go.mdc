@@ -9,4 +9,5 @@ Appliquer @docs/CODE_RULES.md § 3 (Backend Go). Points clés :
 - erreurs enveloppées avec `%w`, comparées avec `errors.Is` ; pas de `panic` ;
 - horodatages UTC, horloge injectable, goroutines avec propriétaire et arrêt par contexte ;
 - tests à côté du code, SQLite réel dans `t.TempDir()`, `httptest` pour HTTP ;
-- `gofmt` et `go vet` propres.
+- `gofmt` et `go vet` propres ;
+- dépendances Go : `govulncheck ./...` et OSV-Scanner (§ 6) ; aucun secret ni donnée sensible dans le code ou les journaux (§ 8).

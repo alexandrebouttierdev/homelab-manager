@@ -142,8 +142,9 @@ func revokeOtherSessionsHandler(auth *usecase.AuthUsecase) http.HandlerFunc {
 }
 
 type securityPolicyDTO struct {
-	IdleTimeoutMinutes int      `json:"idleTimeoutMinutes"`
-	AllowedNetworks    []string `json:"allowedNetworks"`
+	IdleTimeoutMinutes       int      `json:"idleTimeoutMinutes"`
+	AllowedNetworks          []string `json:"allowedNetworks"`
+	RequireAdminSecondFactor bool     `json:"requireAdminSecondFactor"`
 	// CurrentAddress lets the interface warn before a self-exclusion.
 	CurrentAddress string `json:"currentAddress"`
 }
@@ -151,6 +152,8 @@ type securityPolicyDTO struct {
 type securityPolicyRequest struct {
 	IdleTimeoutMinutes *int      `json:"idleTimeoutMinutes"`
 	AllowedNetworks    *[]string `json:"allowedNetworks"`
+	// RequireAdminSecondFactor keeps its current value when absent.
+	RequireAdminSecondFactor *bool `json:"requireAdminSecondFactor"`
 }
 
 func securityPolicyHandler(security *usecase.SecurityUsecase) http.HandlerFunc {
@@ -176,8 +179,16 @@ func updateSecurityPolicyHandler(security *usecase.SecurityUsecase) http.Handler
 			return
 		}
 		address := clientIP(r)
-		policy, err := security.UpdatePolicy(r.Context(), user, address, *request.IdleTimeoutMinutes, *request.AllowedNetworks, middleware.GetReqID(r.Context()))
+		requireSecondFactor := security.Policy().RequireAdminSecondFactor
+		if request.RequireAdminSecondFactor != nil {
+			requireSecondFactor = *request.RequireAdminSecondFactor
+		}
+		policy, err := security.UpdatePolicy(r.Context(), user, address, *request.IdleTimeoutMinutes, *request.AllowedNetworks, requireSecondFactor, middleware.GetReqID(r.Context()))
 		switch {
+		case errors.Is(err, domain.ErrSecondFactorNotEnrolled):
+			writeError(w, r, http.StatusConflict, "SECOND_FACTOR_NOT_ENROLLED", "Enroll your own second factor before requiring it.")
+		case errors.Is(err, domain.ErrSecondFactorUnavailable):
+			writeError(w, r, http.StatusServiceUnavailable, "SECOND_FACTOR_UNAVAILABLE", "The second factor is unavailable.")
 		case errors.Is(err, domain.ErrPolicyExcludesCurrentAddress):
 			writeError(w, r, http.StatusConflict, "POLICY_EXCLUDES_CURRENT_ADDRESS", "The policy would exclude the current address.")
 		case errors.Is(err, domain.ErrInvalidSecurityPolicy):
@@ -191,7 +202,10 @@ func updateSecurityPolicyHandler(security *usecase.SecurityUsecase) http.Handler
 }
 
 func toSecurityPolicyDTO(policy domain.SecurityPolicy, address string) securityPolicyDTO {
-	return securityPolicyDTO{IdleTimeoutMinutes: policy.IdleTimeoutMinutes, AllowedNetworks: policy.Networks(), CurrentAddress: address}
+	return securityPolicyDTO{
+		IdleTimeoutMinutes: policy.IdleTimeoutMinutes, AllowedNetworks: policy.Networks(),
+		RequireAdminSecondFactor: policy.RequireAdminSecondFactor, CurrentAddress: address,
+	}
 }
 
 type auditDTO struct {

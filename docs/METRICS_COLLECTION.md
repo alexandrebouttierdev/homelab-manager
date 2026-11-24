@@ -13,6 +13,7 @@ Le Backend démarre en arrière-plan des collecteurs locaux indépendants : syst
 | Découverte Docker (inventaire + événements) | `docker_discovery_interval_seconds` | 10–600 s | 30 s |
 | Rétention | `metrics_retention_days`, puis interface | 1–365 jours | 7 jours |
 | Purge | fixe | — | au démarrage puis toutes les heures |
+| Services systemd (inventaire + événements) | fixe | — | 30 s, 25 s au plus par cycle |
 
 Chaque cycle s'exécute une première fois au démarrage, puis à son intervalle, dans sa propre goroutine. Un cycle dispose d'un délai maximal de `min(max(intervalle, 10 s), 30 s)` ; au-delà, son contexte est annulé et l'erreur est journalisée. Une collecte système échouée ne bloque pas Docker, et inversement. Rien n'est mis en file d'attente en mémoire : un cycle manqué est perdu, le suivant repart de l'état courant.
 

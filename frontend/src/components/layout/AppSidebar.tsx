@@ -53,6 +53,7 @@ const systemItems: NavItem[] = [
   { label: 'Métriques', to: '/metrics', icon: Activity },
   { label: 'Journaux système', to: '/logs', icon: ScrollText },
   { label: 'Services système', to: '/services', icon: Wrench },
+  { label: 'Sauvegardes', to: '/backups', icon: DatabaseBackup },
 ]
 
 const activityItems: NavItem[] = [
@@ -60,10 +61,7 @@ const activityItems: NavItem[] = [
   { label: 'Événements', to: '/events', icon: Gauge },
 ]
 
-const soonItems: SoonItem[] = [
-  { label: 'Sauvegardes', icon: DatabaseBackup },
-  { label: 'Tâches Cron', icon: CalendarClock },
-]
+const soonItems: SoonItem[] = [{ label: 'Tâches Cron', icon: CalendarClock }]
 
 function navLinkClass({ isActive }: { isActive: boolean }) {
   return cn(

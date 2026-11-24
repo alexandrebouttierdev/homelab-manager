@@ -91,6 +91,14 @@ Ce document est le contrat exact de l'API implémentée. Toute différence entre
 | `GET /api/v1/vulnerabilities/{findingID}` | oui | Un constat (§ 4.9) |
 | `GET /api/v1/vulnerabilities/scans` | oui | Derniers scans (§ 4.9) |
 | `POST /api/v1/vulnerabilities/scans` | `operator` | Lance un scan (§ 4.9) |
+| `GET /api/v1/backups/summary` | oui | État des sauvegardes (§ 4.10) |
+| `GET /api/v1/backups/config` | oui | Configuration, sans secret (§ 4.10) |
+| `PUT /api/v1/backups/config` | admin | Dépôt, sources, exclusions, planification (§ 4.10) |
+| `POST /api/v1/backups/repository/init` | admin | Initialise le dépôt, renvoie son mot de passe une fois (§ 4.10) |
+| `GET /api/v1/backups/runs` | oui | Historique des exécutions (§ 4.10) |
+| `POST /api/v1/backups/runs` | `operator` | Lance une sauvegarde (§ 4.10) |
+| `GET /api/v1/backups/runs/{runID}` | oui | Une exécution (§ 4.10) |
+| `GET /api/v1/backups/snapshots` | oui | Instantanés du dépôt (§ 4.10) |
 
 Toutes les routes de supervision sont en lecture seule ; les seules écritures sont l'authentification, `PUT /api/v1/settings/retention`, la gestion des comptes, les demandes d'alimentation de la machine, les règles d'alerte, l'acquittement d'une alerte, les silences, les canaux de notification et le lancement d'un scan de vulnérabilités. La colonne « Session » indique `admin` pour les routes réservées au rôle administrateur, `operator` pour celles ouvertes aux opérateurs et administrateurs (§ 3.1). Une route inconnue sous `/api` répond `404 NOT_FOUND`, une méthode non prévue `405 METHOD_NOT_ALLOWED`, toujours au format d'erreur du § 8. Le journal système et les unités systemd ne sont lus qu'en lecture seule. Il n'existe aucune route d'Agent, d'hôte distant, de journaux de conteneurs, ni d'action Docker (création, suppression, démarrage, arrêt, restart, exec).
 
@@ -134,7 +142,7 @@ Toutes les routes de supervision sont en lecture seule ; les seules écritures s
 
 Comptes de Homelab Manager uniquement : aucun compte Linux n'est lu ni modifié.
 
-**Rôles** — `viewer` : consultation et son propre mot de passe. `operator` : idem, plus l'acquittement des alertes et les silences (permission `alerts:operate`), le lancement d'un scan de vulnérabilités (`vulnerabilities:scan`) et les actions sur les unités de la liste blanche (`services:manage`, § 4.7) ; sauvegardes dans une phase suivante. `admin` : idem, plus `PUT /api/v1/settings/retention`, les routes `/api/v1/users` et la gestion des règles d'alerte (`alerts:manage`). Un rôle insuffisant reçoit `403 FORBIDDEN`.
+**Rôles** — `viewer` : consultation et son propre mot de passe. `operator` : idem, plus l'acquittement des alertes et les silences (permission `alerts:operate`), le lancement d'un scan de vulnérabilités (`vulnerabilities:scan`) les actions sur les unités de la liste blanche (`services:manage`, § 4.7) et le lancement d'une sauvegarde (`backups:run`, § 4.10). `admin` : idem, plus `PUT /api/v1/settings/retention`, les routes `/api/v1/users`, la gestion des règles d'alerte (`alerts:manage`) et la configuration des sauvegardes (`backups:manage`). Un rôle insuffisant reçoit `403 FORBIDDEN`.
 
 **Mot de passe initial** — un compte créé par un administrateur a `mustChangePassword: true`. Tant qu'il ne l'a pas changé (`POST /api/v1/auth/password`), toutes les routes authentifiées sauf `/auth/session`, `/auth/logout` et `/auth/password` répondent `403 PASSWORD_CHANGE_REQUIRED`.
 
@@ -619,6 +627,63 @@ Vulnérabilités connues des paquets système de la machine du Manager (SPEC_ADM
 
 `PUT /api/v1/settings/vulnerability-scans` avec `{ "intervalHours": 48 }` (`admin`, de 6 à 168, champs inconnus refusés) → `200 { "intervalHours": 48, "defaultIntervalHours": 24, "intervalSource": "user" }` ; appliqué aussitôt (le prochain scan est recalculé depuis la fin du dernier) et audité (`settings` / `vulnerability_scan_interval_hours` / `update`) dans la même transaction. Hors bornes : `400 VALIDATION_ERROR`.
 
+### 4.10 Sauvegardes
+
+Sauvegardes chiffrées par restic (SPEC_ADMINISTRATION.md § 7, incrément 6A). restic ne s'exécute que dans l'unité root `homelab-backup@<opération>.service` (`init`, `backup`), démarrée par le Manager par D-Bus (règle polkit `50-homelab-manager-backup.rules`) ; le programme `homelab-backup-runner` y lit le fichier de travail écrit par le Manager, le valide de nouveau et lance restic sans shell. Une opération à la fois. Sans base de données : `503 BACKUPS_UNAVAILABLE` sur toutes les routes.
+
+`GET /api/v1/backups/config` (tous les rôles) :
+
+```json
+{
+  "repository": { "type": "s3", "location": "https://s3.eu-central-003.backblazeb2.com/bucket/homelab" },
+  "initialized": true, "initializedAt": "2026-11-24T10:00:00Z",
+  "credentials": { "password": true, "username": true, "secret": true },
+  "secretsAvailable": true,
+  "sources": ["/etc", "/var/lib/docker/volumes"], "excludes": ["*.tmp", "**/node_modules"],
+  "excludeCaches": true, "excludeIfPresent": ".nobackup",
+  "schedule": { "enabled": true, "frequency": "weekly", "weekday": 0, "time": "03:00" },
+  "updatedAt": "2026-11-24T10:00:00Z", "updatedBy": "alice"
+}
+```
+
+- `repository` : `null` tant qu'aucun dépôt n'est défini. `type` : `local` (chemin absolu, répertoire local ou monté), `rest` (rest-server) ou `s3` (S3 compatible, dont Backblaze B2) ; `location` d'un dépôt distant : adresse `https://` sans identifiant, requête ni fragment ; celle d'un dépôt S3 nomme le bucket.
+- `credentials` : seulement si chaque secret est défini, jamais sa valeur. `username` et `secret` : utilisateur et mot de passe du rest-server (facultatifs), ou clé d'accès et clé secrète S3 (obligatoires). `secretsAvailable` : `false` sans clé du coffre (§ 2.5 de la spécification) ; les sauvegardes sont alors impossibles.
+- `schedule` : planification tenue par le Manager (décision D-12) ; `frequency` `daily` ou `weekly`, `weekday` de 0 (dimanche) à 6, `time` `HH:MM` dans le fuseau de la machine.
+
+`PUT /api/v1/backups/config` (`admin`) remplace la configuration : mêmes champs, sans `initialized`, `credentials`, `secretsAvailable` ni `updated*`, plus `username` et `secret` (absents ou `null` : conservés ; `""` : supprimés). Réponse : la configuration. Audité (`backup_config` / `local` / `update`) dans la même transaction.
+
+- Validation : sources absolues, propres (sans `..`, `//` ni `/` final), 50 au plus, sans doublon ; motifs d'exclusion d'une ligne, 500 au plus, 4 Kio chacun, syntaxe glob valide, sans `#` initial ; `excludeIfPresent` vide ou nom de fichier (`[A-Za-z0-9._-]`) ; champs inconnus refusés. Sinon `400 VALIDATION_ERROR`, le message nommant le champ.
+- Changer de dépôt remet `initialized` à `false` et efface le mot de passe : le nouveau dépôt doit être initialisé. Refusé pendant une opération : `409 BACKUP_IN_PROGRESS`. Modifier une clé sans clé du coffre : `503 SECRETS_UNAVAILABLE`.
+
+`POST /api/v1/backups/repository/init` (`admin`, sans corps) → `202 { "password": "…", "run": Exécution }`, en-tête `Cache-Control: no-store`. Le Manager génère le mot de passe du dépôt (32 octets aléatoires, base64url), le scelle dans le coffre et lance `restic init` ; le mot de passe n'est plus jamais renvoyé. Audité (`backup_config` / `local` / `init_repository`). Sans dépôt : `409 BACKUP_NOT_CONFIGURED` ; déjà initialisé : `409 BACKUP_ALREADY_INITIALIZED` ; opération en cours : `409 BACKUP_IN_PROGRESS` ; sans clé du coffre : `503 SECRETS_UNAVAILABLE`. Un dépôt existant ne peut pas encore être rattaché (incrément 6B).
+
+`POST /api/v1/backups/runs` (`operator` ou `admin`, sans corps) → `202 { "run": Exécution }` (`state: running`). Audité (`backup_run` / UUID / `start`). Sans dépôt : `409 BACKUP_NOT_CONFIGURED` ; dépôt non initialisé : `409 BACKUP_NOT_INITIALIZED` ; aucune source : `400 VALIDATION_ERROR` ; opération en cours : `409 BACKUP_IN_PROGRESS` ; sans clé du coffre : `503 SECRETS_UNAVAILABLE`.
+
+Exécution :
+
+```json
+{
+  "id": "uuid", "operation": "backup", "origin": "schedule", "requestedBy": null,
+  "state": "succeeded", "failure": null, "message": null, "warning": false,
+  "snapshotId": "3a253ad8c9c7…",
+  "stats": { "filesNew": 2, "filesChanged": 0, "filesUnmodified": 10, "dirsNew": 3, "dirsChanged": 0,
+             "dirsUnmodified": 4, "dataAdded": 1851, "totalFilesProcessed": 12, "totalBytesProcessed": 34816,
+             "durationSeconds": 0.75 },
+  "startedAt": "2026-11-24T02:00:00Z", "finishedAt": "2026-11-24T02:00:01Z"
+}
+```
+
+- `operation` : `init` ou `backup`. `origin` : `manual`, `schedule`, `catchup` (sauvegarde planifiée manquée pendant un arrêt du Manager, lancée une fois, 2 min après son redémarrage). `state` : `running`, `succeeded`, `failed`.
+- `failure` (`null` sauf en échec) : `runner_not_installed` (unité ou programme absent), `not_allowed` (refus de polkit), `restic_failed` (`message` : l'erreur de restic, 2 Kio au plus), `timeout` (6 h pour une sauvegarde, 10 min pour une initialisation), `invalid_result` (résultat absent, ancien ou invalide), `secrets_unavailable`, `job_failed`, `systemd_unavailable`, `interrupted` (Manager arrêté pendant l'opération ; restic peut finir dans son unité, mais le résultat n'est pas relu).
+- `warning: true` : l'instantané existe mais restic n'a pas pu lire certains fichiers (code de sortie 3) ; `message` cite le dernier.
+- `stats` : résumé de `restic backup --json`, `null` pour une initialisation ou un échec.
+
+`GET /api/v1/backups/runs?limit=50` (tous les rôles, `limit` de 1 à 200, défaut 50) → `{ "runs": [Exécution] }`, les plus récentes d'abord ; conservées un an. `GET /api/v1/backups/runs/{runID}` → `{ "run": Exécution }` ; inconnue `404 NOT_FOUND` ; identifiant invalide `400 VALIDATION_ERROR`.
+
+`GET /api/v1/backups/snapshots` (tous les rôles) → `{ "snapshots": [{ "id", "shortId", "time", "hostname", "paths", "tags", "totalFiles", "totalBytes", "dataAdded" }] }` : instantanés du dépôt marqués `homelab-manager`, les plus récents d'abord, 500 au plus, relus après chaque sauvegarde réussie (`totalFiles`, `totalBytes` et `dataAdded` valent 0 si restic ne les a pas enregistrés).
+
+`GET /api/v1/backups/summary` (tous les rôles) → `{ "configured": true, "initialized": true, "running": Exécution | null, "lastRun": Exécution | null, "lastSuccess": Exécution | null, "nextRunAt": "…" | null }`. `lastRun` et `lastSuccess` ne portent que sur les sauvegardes ; `nextRunAt` : prochaine sauvegarde planifiée, `null` si la planification est désactivée ou si le dépôt n'est pas prêt.
+
 ## 5. Métriques
 
 ### 5.1 Échantillon
@@ -833,6 +898,12 @@ Les routes sont versionnées sous `/api/v1`. Un changement incompatible (champ s
 | `JOURNAL_READ_FAILED` | 500 | Lecture du journal système en échec |
 | `SYSTEMD_UNAVAILABLE` | 503 | systemd injoignable ou aucun inventaire des unités |
 | `SYSTEMD_READ_FAILED` | 500 | Lecture d'une unité systemd en échec |
+| `BACKUPS_UNAVAILABLE` | 503 | Module des sauvegardes arrêté (base de données indisponible) |
+| `BACKUPS_FAILED` | 500 | Lecture ou lancement des sauvegardes en échec |
+| `BACKUP_NOT_CONFIGURED` | 409 | Aucun dépôt de sauvegarde |
+| `BACKUP_NOT_INITIALIZED` | 409 | Dépôt de sauvegarde non initialisé |
+| `BACKUP_ALREADY_INITIALIZED` | 409 | Dépôt de sauvegarde déjà initialisé |
+| `BACKUP_IN_PROGRESS` | 409 | Une opération de sauvegarde est déjà en cours |
 | `UNIT_NOT_MANAGEABLE` | 409 | Unité hors de la liste blanche `systemd_manageable_units` |
 | `UNIT_ACTION_RATE_LIMITED` | 429 | Plus de 30 actions sur les unités dans la dernière minute |
 | `UNIT_ACTIONS_UNAVAILABLE` | 503 | Actions sur les unités indisponibles (base de données absente, Manager en arrêt) |

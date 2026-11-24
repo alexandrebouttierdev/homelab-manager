@@ -21,7 +21,7 @@ for arch in amd64 arm64; do
   name="homelab-manager_${version}_linux_${arch}"
   dir="$stage/$name"
   mkdir -p "$dir/bin" "$dir/frontend"
-  for command in manager docker-proxy; do
+  for command in manager docker-proxy backup-runner; do
     # Pure Go (modernc SQLite): no C toolchain, static binaries.
     CGO_ENABLED=0 GOOS=linux GOARCH="$arch" go -C "$root/backend" build -trimpath \
       -ldflags "-s -w -X main.version=$version" \

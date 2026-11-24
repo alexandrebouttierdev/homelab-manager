@@ -32,9 +32,9 @@ section "Autres changements" "$(grep -vE '^(feat|fix|perf)(\([^)]*\))?:|^[a-z]+(
 cat <<NOTES
 ### Installation
 
-Archives pour Linux \`amd64\` et \`arm64\` : binaires \`homelab-manager\` et
-\`homelab-docker-proxy\`, interface compilée (\`frontend/dist\`), unités systemd,
-configuration et règle polkit. Vérifier l'archive avec \`sha256sum -c SHA256SUMS\`,
+Archives pour Linux \`amd64\` et \`arm64\` : binaires \`homelab-manager\`,
+\`homelab-docker-proxy\` et \`homelab-backup-runner\`, interface compilée
+(\`frontend/dist\`), unités systemd, configuration et règles polkit. Vérifier l'archive avec \`sha256sum -c SHA256SUMS\`,
 puis suivre « Installation depuis une release » du README.
 NOTES
 if [[ -n "$repository" && -n "$last" ]]; then

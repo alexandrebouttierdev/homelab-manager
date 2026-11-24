@@ -16,6 +16,9 @@ import (
 	"homelab-manager/backend/ent/alertsilence"
 	"homelab-manager/backend/ent/appsetting"
 	"homelab-manager/backend/ent/auditlog"
+	"homelab-manager/backend/ent/backupconfig"
+	"homelab-manager/backend/ent/backuprun"
+	"homelab-manager/backend/ent/backupsnapshot"
 	"homelab-manager/backend/ent/container"
 	"homelab-manager/backend/ent/containermetricsample"
 	"homelab-manager/backend/ent/event"
@@ -54,6 +57,12 @@ type Client struct {
 	AppSetting *AppSettingClient
 	// AuditLog is the client for interacting with the AuditLog builders.
 	AuditLog *AuditLogClient
+	// BackupConfig is the client for interacting with the BackupConfig builders.
+	BackupConfig *BackupConfigClient
+	// BackupRun is the client for interacting with the BackupRun builders.
+	BackupRun *BackupRunClient
+	// BackupSnapshot is the client for interacting with the BackupSnapshot builders.
+	BackupSnapshot *BackupSnapshotClient
 	// Container is the client for interacting with the Container builders.
 	Container *ContainerClient
 	// ContainerMetricSample is the client for interacting with the ContainerMetricSample builders.
@@ -100,6 +109,9 @@ func (c *Client) init() {
 	c.AlertSilence = NewAlertSilenceClient(c.config)
 	c.AppSetting = NewAppSettingClient(c.config)
 	c.AuditLog = NewAuditLogClient(c.config)
+	c.BackupConfig = NewBackupConfigClient(c.config)
+	c.BackupRun = NewBackupRunClient(c.config)
+	c.BackupSnapshot = NewBackupSnapshotClient(c.config)
 	c.Container = NewContainerClient(c.config)
 	c.ContainerMetricSample = NewContainerMetricSampleClient(c.config)
 	c.Event = NewEventClient(c.config)
@@ -212,6 +224,9 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		AlertSilence:          NewAlertSilenceClient(cfg),
 		AppSetting:            NewAppSettingClient(cfg),
 		AuditLog:              NewAuditLogClient(cfg),
+		BackupConfig:          NewBackupConfigClient(cfg),
+		BackupRun:             NewBackupRunClient(cfg),
+		BackupSnapshot:        NewBackupSnapshotClient(cfg),
 		Container:             NewContainerClient(cfg),
 		ContainerMetricSample: NewContainerMetricSampleClient(cfg),
 		Event:                 NewEventClient(cfg),
@@ -251,6 +266,9 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		AlertSilence:          NewAlertSilenceClient(cfg),
 		AppSetting:            NewAppSettingClient(cfg),
 		AuditLog:              NewAuditLogClient(cfg),
+		BackupConfig:          NewBackupConfigClient(cfg),
+		BackupRun:             NewBackupRunClient(cfg),
+		BackupSnapshot:        NewBackupSnapshotClient(cfg),
 		Container:             NewContainerClient(cfg),
 		ContainerMetricSample: NewContainerMetricSampleClient(cfg),
 		Event:                 NewEventClient(cfg),
@@ -295,11 +313,11 @@ func (c *Client) Close() error {
 // In order to add hooks to a specific client, call: `client.Node.Use(...)`.
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
-		c.Alert, c.AlertRule, c.AlertSilence, c.AppSetting, c.AuditLog, c.Container,
-		c.ContainerMetricSample, c.Event, c.FailedUnit, c.HostInfo, c.LoginFailure,
-		c.NotificationChannel, c.RecoveryCode, c.SecurityPolicy, c.Session,
-		c.SystemMetricSample, c.TotpSecret, c.User, c.VulnerabilityFinding,
-		c.VulnerabilityScan,
+		c.Alert, c.AlertRule, c.AlertSilence, c.AppSetting, c.AuditLog, c.BackupConfig,
+		c.BackupRun, c.BackupSnapshot, c.Container, c.ContainerMetricSample, c.Event,
+		c.FailedUnit, c.HostInfo, c.LoginFailure, c.NotificationChannel,
+		c.RecoveryCode, c.SecurityPolicy, c.Session, c.SystemMetricSample,
+		c.TotpSecret, c.User, c.VulnerabilityFinding, c.VulnerabilityScan,
 	} {
 		n.Use(hooks...)
 	}
@@ -309,11 +327,11 @@ func (c *Client) Use(hooks ...Hook) {
 // In order to add interceptors to a specific client, call: `client.Node.Intercept(...)`.
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
-		c.Alert, c.AlertRule, c.AlertSilence, c.AppSetting, c.AuditLog, c.Container,
-		c.ContainerMetricSample, c.Event, c.FailedUnit, c.HostInfo, c.LoginFailure,
-		c.NotificationChannel, c.RecoveryCode, c.SecurityPolicy, c.Session,
-		c.SystemMetricSample, c.TotpSecret, c.User, c.VulnerabilityFinding,
-		c.VulnerabilityScan,
+		c.Alert, c.AlertRule, c.AlertSilence, c.AppSetting, c.AuditLog, c.BackupConfig,
+		c.BackupRun, c.BackupSnapshot, c.Container, c.ContainerMetricSample, c.Event,
+		c.FailedUnit, c.HostInfo, c.LoginFailure, c.NotificationChannel,
+		c.RecoveryCode, c.SecurityPolicy, c.Session, c.SystemMetricSample,
+		c.TotpSecret, c.User, c.VulnerabilityFinding, c.VulnerabilityScan,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -332,6 +350,12 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.AppSetting.mutate(ctx, m)
 	case *AuditLogMutation:
 		return c.AuditLog.mutate(ctx, m)
+	case *BackupConfigMutation:
+		return c.BackupConfig.mutate(ctx, m)
+	case *BackupRunMutation:
+		return c.BackupRun.mutate(ctx, m)
+	case *BackupSnapshotMutation:
+		return c.BackupSnapshot.mutate(ctx, m)
 	case *ContainerMutation:
 		return c.Container.mutate(ctx, m)
 	case *ContainerMetricSampleMutation:
@@ -1029,6 +1053,405 @@ func (c *AuditLogClient) mutate(ctx context.Context, m *AuditLogMutation) (Value
 		return (&AuditLogDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown AuditLog mutation op: %q", m.Op())
+	}
+}
+
+// BackupConfigClient is a client for the BackupConfig schema.
+type BackupConfigClient struct {
+	config
+}
+
+// NewBackupConfigClient returns a client for the BackupConfig from the given config.
+func NewBackupConfigClient(c config) *BackupConfigClient {
+	return &BackupConfigClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `backupconfig.Hooks(f(g(h())))`.
+func (c *BackupConfigClient) Use(hooks ...Hook) {
+	c.hooks.BackupConfig = append(c.hooks.BackupConfig, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `backupconfig.Intercept(f(g(h())))`.
+func (c *BackupConfigClient) Intercept(interceptors ...Interceptor) {
+	c.inters.BackupConfig = append(c.inters.BackupConfig, interceptors...)
+}
+
+// Create returns a builder for creating a BackupConfig entity.
+func (c *BackupConfigClient) Create() *BackupConfigCreate {
+	mutation := newBackupConfigMutation(c.config, OpCreate)
+	return &BackupConfigCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of BackupConfig entities.
+func (c *BackupConfigClient) CreateBulk(builders ...*BackupConfigCreate) *BackupConfigCreateBulk {
+	return &BackupConfigCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *BackupConfigClient) MapCreateBulk(slice any, setFunc func(*BackupConfigCreate, int)) *BackupConfigCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &BackupConfigCreateBulk{err: fmt.Errorf("calling to BackupConfigClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*BackupConfigCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &BackupConfigCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for BackupConfig.
+func (c *BackupConfigClient) Update() *BackupConfigUpdate {
+	mutation := newBackupConfigMutation(c.config, OpUpdate)
+	return &BackupConfigUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *BackupConfigClient) UpdateOne(_m *BackupConfig) *BackupConfigUpdateOne {
+	mutation := newBackupConfigMutation(c.config, OpUpdateOne, withBackupConfig(_m))
+	return &BackupConfigUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *BackupConfigClient) UpdateOneID(id uuid.UUID) *BackupConfigUpdateOne {
+	mutation := newBackupConfigMutation(c.config, OpUpdateOne, withBackupConfigID(id))
+	return &BackupConfigUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for BackupConfig.
+func (c *BackupConfigClient) Delete() *BackupConfigDelete {
+	mutation := newBackupConfigMutation(c.config, OpDelete)
+	return &BackupConfigDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *BackupConfigClient) DeleteOne(_m *BackupConfig) *BackupConfigDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *BackupConfigClient) DeleteOneID(id uuid.UUID) *BackupConfigDeleteOne {
+	builder := c.Delete().Where(backupconfig.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &BackupConfigDeleteOne{builder}
+}
+
+// Query returns a query builder for BackupConfig.
+func (c *BackupConfigClient) Query() *BackupConfigQuery {
+	return &BackupConfigQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeBackupConfig},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a BackupConfig entity by its id.
+func (c *BackupConfigClient) Get(ctx context.Context, id uuid.UUID) (*BackupConfig, error) {
+	return c.Query().Where(backupconfig.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *BackupConfigClient) GetX(ctx context.Context, id uuid.UUID) *BackupConfig {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *BackupConfigClient) Hooks() []Hook {
+	return c.hooks.BackupConfig
+}
+
+// Interceptors returns the client interceptors.
+func (c *BackupConfigClient) Interceptors() []Interceptor {
+	return c.inters.BackupConfig
+}
+
+func (c *BackupConfigClient) mutate(ctx context.Context, m *BackupConfigMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&BackupConfigCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&BackupConfigUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&BackupConfigUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&BackupConfigDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown BackupConfig mutation op: %q", m.Op())
+	}
+}
+
+// BackupRunClient is a client for the BackupRun schema.
+type BackupRunClient struct {
+	config
+}
+
+// NewBackupRunClient returns a client for the BackupRun from the given config.
+func NewBackupRunClient(c config) *BackupRunClient {
+	return &BackupRunClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `backuprun.Hooks(f(g(h())))`.
+func (c *BackupRunClient) Use(hooks ...Hook) {
+	c.hooks.BackupRun = append(c.hooks.BackupRun, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `backuprun.Intercept(f(g(h())))`.
+func (c *BackupRunClient) Intercept(interceptors ...Interceptor) {
+	c.inters.BackupRun = append(c.inters.BackupRun, interceptors...)
+}
+
+// Create returns a builder for creating a BackupRun entity.
+func (c *BackupRunClient) Create() *BackupRunCreate {
+	mutation := newBackupRunMutation(c.config, OpCreate)
+	return &BackupRunCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of BackupRun entities.
+func (c *BackupRunClient) CreateBulk(builders ...*BackupRunCreate) *BackupRunCreateBulk {
+	return &BackupRunCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *BackupRunClient) MapCreateBulk(slice any, setFunc func(*BackupRunCreate, int)) *BackupRunCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &BackupRunCreateBulk{err: fmt.Errorf("calling to BackupRunClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*BackupRunCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &BackupRunCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for BackupRun.
+func (c *BackupRunClient) Update() *BackupRunUpdate {
+	mutation := newBackupRunMutation(c.config, OpUpdate)
+	return &BackupRunUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *BackupRunClient) UpdateOne(_m *BackupRun) *BackupRunUpdateOne {
+	mutation := newBackupRunMutation(c.config, OpUpdateOne, withBackupRun(_m))
+	return &BackupRunUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *BackupRunClient) UpdateOneID(id uuid.UUID) *BackupRunUpdateOne {
+	mutation := newBackupRunMutation(c.config, OpUpdateOne, withBackupRunID(id))
+	return &BackupRunUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for BackupRun.
+func (c *BackupRunClient) Delete() *BackupRunDelete {
+	mutation := newBackupRunMutation(c.config, OpDelete)
+	return &BackupRunDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *BackupRunClient) DeleteOne(_m *BackupRun) *BackupRunDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *BackupRunClient) DeleteOneID(id uuid.UUID) *BackupRunDeleteOne {
+	builder := c.Delete().Where(backuprun.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &BackupRunDeleteOne{builder}
+}
+
+// Query returns a query builder for BackupRun.
+func (c *BackupRunClient) Query() *BackupRunQuery {
+	return &BackupRunQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeBackupRun},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a BackupRun entity by its id.
+func (c *BackupRunClient) Get(ctx context.Context, id uuid.UUID) (*BackupRun, error) {
+	return c.Query().Where(backuprun.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *BackupRunClient) GetX(ctx context.Context, id uuid.UUID) *BackupRun {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *BackupRunClient) Hooks() []Hook {
+	return c.hooks.BackupRun
+}
+
+// Interceptors returns the client interceptors.
+func (c *BackupRunClient) Interceptors() []Interceptor {
+	return c.inters.BackupRun
+}
+
+func (c *BackupRunClient) mutate(ctx context.Context, m *BackupRunMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&BackupRunCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&BackupRunUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&BackupRunUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&BackupRunDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown BackupRun mutation op: %q", m.Op())
+	}
+}
+
+// BackupSnapshotClient is a client for the BackupSnapshot schema.
+type BackupSnapshotClient struct {
+	config
+}
+
+// NewBackupSnapshotClient returns a client for the BackupSnapshot from the given config.
+func NewBackupSnapshotClient(c config) *BackupSnapshotClient {
+	return &BackupSnapshotClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `backupsnapshot.Hooks(f(g(h())))`.
+func (c *BackupSnapshotClient) Use(hooks ...Hook) {
+	c.hooks.BackupSnapshot = append(c.hooks.BackupSnapshot, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `backupsnapshot.Intercept(f(g(h())))`.
+func (c *BackupSnapshotClient) Intercept(interceptors ...Interceptor) {
+	c.inters.BackupSnapshot = append(c.inters.BackupSnapshot, interceptors...)
+}
+
+// Create returns a builder for creating a BackupSnapshot entity.
+func (c *BackupSnapshotClient) Create() *BackupSnapshotCreate {
+	mutation := newBackupSnapshotMutation(c.config, OpCreate)
+	return &BackupSnapshotCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of BackupSnapshot entities.
+func (c *BackupSnapshotClient) CreateBulk(builders ...*BackupSnapshotCreate) *BackupSnapshotCreateBulk {
+	return &BackupSnapshotCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *BackupSnapshotClient) MapCreateBulk(slice any, setFunc func(*BackupSnapshotCreate, int)) *BackupSnapshotCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &BackupSnapshotCreateBulk{err: fmt.Errorf("calling to BackupSnapshotClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*BackupSnapshotCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &BackupSnapshotCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for BackupSnapshot.
+func (c *BackupSnapshotClient) Update() *BackupSnapshotUpdate {
+	mutation := newBackupSnapshotMutation(c.config, OpUpdate)
+	return &BackupSnapshotUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *BackupSnapshotClient) UpdateOne(_m *BackupSnapshot) *BackupSnapshotUpdateOne {
+	mutation := newBackupSnapshotMutation(c.config, OpUpdateOne, withBackupSnapshot(_m))
+	return &BackupSnapshotUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *BackupSnapshotClient) UpdateOneID(id string) *BackupSnapshotUpdateOne {
+	mutation := newBackupSnapshotMutation(c.config, OpUpdateOne, withBackupSnapshotID(id))
+	return &BackupSnapshotUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for BackupSnapshot.
+func (c *BackupSnapshotClient) Delete() *BackupSnapshotDelete {
+	mutation := newBackupSnapshotMutation(c.config, OpDelete)
+	return &BackupSnapshotDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *BackupSnapshotClient) DeleteOne(_m *BackupSnapshot) *BackupSnapshotDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *BackupSnapshotClient) DeleteOneID(id string) *BackupSnapshotDeleteOne {
+	builder := c.Delete().Where(backupsnapshot.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &BackupSnapshotDeleteOne{builder}
+}
+
+// Query returns a query builder for BackupSnapshot.
+func (c *BackupSnapshotClient) Query() *BackupSnapshotQuery {
+	return &BackupSnapshotQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeBackupSnapshot},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a BackupSnapshot entity by its id.
+func (c *BackupSnapshotClient) Get(ctx context.Context, id string) (*BackupSnapshot, error) {
+	return c.Query().Where(backupsnapshot.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *BackupSnapshotClient) GetX(ctx context.Context, id string) *BackupSnapshot {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *BackupSnapshotClient) Hooks() []Hook {
+	return c.hooks.BackupSnapshot
+}
+
+// Interceptors returns the client interceptors.
+func (c *BackupSnapshotClient) Interceptors() []Interceptor {
+	return c.inters.BackupSnapshot
+}
+
+func (c *BackupSnapshotClient) mutate(ctx context.Context, m *BackupSnapshotMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&BackupSnapshotCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&BackupSnapshotUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&BackupSnapshotUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&BackupSnapshotDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown BackupSnapshot mutation op: %q", m.Op())
 	}
 }
 
@@ -3126,15 +3549,17 @@ func (c *VulnerabilityScanClient) mutate(ctx context.Context, m *VulnerabilitySc
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
-		Alert, AlertRule, AlertSilence, AppSetting, AuditLog, Container,
-		ContainerMetricSample, Event, FailedUnit, HostInfo, LoginFailure,
-		NotificationChannel, RecoveryCode, SecurityPolicy, Session, SystemMetricSample,
-		TotpSecret, User, VulnerabilityFinding, VulnerabilityScan []ent.Hook
+		Alert, AlertRule, AlertSilence, AppSetting, AuditLog, BackupConfig, BackupRun,
+		BackupSnapshot, Container, ContainerMetricSample, Event, FailedUnit, HostInfo,
+		LoginFailure, NotificationChannel, RecoveryCode, SecurityPolicy, Session,
+		SystemMetricSample, TotpSecret, User, VulnerabilityFinding,
+		VulnerabilityScan []ent.Hook
 	}
 	inters struct {
-		Alert, AlertRule, AlertSilence, AppSetting, AuditLog, Container,
-		ContainerMetricSample, Event, FailedUnit, HostInfo, LoginFailure,
-		NotificationChannel, RecoveryCode, SecurityPolicy, Session, SystemMetricSample,
-		TotpSecret, User, VulnerabilityFinding, VulnerabilityScan []ent.Interceptor
+		Alert, AlertRule, AlertSilence, AppSetting, AuditLog, BackupConfig, BackupRun,
+		BackupSnapshot, Container, ContainerMetricSample, Event, FailedUnit, HostInfo,
+		LoginFailure, NotificationChannel, RecoveryCode, SecurityPolicy, Session,
+		SystemMetricSample, TotpSecret, User, VulnerabilityFinding,
+		VulnerabilityScan []ent.Interceptor
 	}
 )

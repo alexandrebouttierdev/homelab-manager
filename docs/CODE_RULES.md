@@ -198,7 +198,7 @@ Références : [react.dev/learn](https://react.dev/learn), [Règles de React](ht
 
 - `docs/API_CONTRACTS.md` est le contrat exact : toute route, paramètre, borne, DTO ou code d'erreur ajouté ou modifié l'est dans le même commit que le code.
 - Un changement de comportement met à jour le document qui le décrit (METRICS_COLLECTION.md, DATA_MODEL.md, SECURITY.md…) dans le même commit.
-- Nouvelle table ou colonne : nouvelle migration numérotée (`00N_description.sql`), jamais de modification d'une migration livrée ; schéma Ent régénéré depuis `backend/` avec `GOTOOLCHAIN=go1.26.10 go run entgo.io/ent/cmd/ent@v0.14.6 generate ./ent/schema`. Fixer `GOTOOLCHAIN` est nécessaire : `go run …@v0.14.6` est lancé hors du module et prendrait sinon le Go de base de la machine, trop ancien pour le `go.mod` du projet ; en cas d'échec, restaurer `ent/runtime.go` (`git checkout`), que le générateur laisse modifié.
+- Nouvelle table ou colonne : nouvelle migration numérotée (`00N_description.sql`), jamais de modification d'une migration livrée ; schéma Ent régénéré depuis `backend/` avec `GOTOOLCHAIN=go1.26.11 go run entgo.io/ent/cmd/ent@v0.14.6 generate ./ent/schema`. Fixer `GOTOOLCHAIN` est nécessaire : `go run …@v0.14.6` est lancé hors du module et prendrait sinon le Go de base de la machine, trop ancien pour le `go.mod` du projet ; en cas d'échec, restaurer `ent/runtime.go` (`git checkout`), que le générateur laisse modifié.
 
 ## 6. Dépendances
 
@@ -231,6 +231,7 @@ Références : [react.dev/learn](https://react.dev/learn), [Règles de React](ht
 ### 6.5 Script d'audit
 
 - `scripts/audit.sh` enchaîne `npm audit`, `npm audit --omit=dev`, OSV-Scanner et `govulncheck` et rapporte chacun dans les catégories du § 2.2. Code de sortie : 0 si tout est réussi, 1 si des vulnérabilités sont détectées, 2 si un outil est indisponible ou a échoué. Il interroge des bases en ligne ; il n'est donc pas inclus dans `scripts/verify.sh`, qui reste exécutable hors ligne.
+- CI : le workflow `.github/workflows/audit.yml` le lance à chaque push, chaque pull request, chaque lundi et à la demande ; `release.yml` le lance avant de publier. Tout code de sortie non nul fait échouer le job : une vulnérabilité, un outil absent ou une base injoignable bloquent la release. Les outils y sont installés par `scripts/install-audit-tools.sh` à des versions figées, publiées depuis au moins deux semaines ; changer ces versions suit le § 6.1.
 - Installation des outils (outils de développement, hors dépendances du projet) : `go install golang.org/x/vuln/cmd/govulncheck@latest`, lancé hors de `backend/` pour être compilé avec le Go le plus récent de la machine (un `govulncheck` compilé avec un Go plus ancien que le `go` du `PATH` ne sait pas charger le code et échoue) ; le script l'exécute avec la version de Go de `backend/go.mod`, celle de la CI et des releases, pour que la bibliothèque standard analysée soit celle livrée ; OSV-Scanner par `brew install osv-scanner` (macOS) ou `go install github.com/google/osv-scanner/v2/cmd/osv-scanner@latest`.
 
 ### 6.6 Vulnérabilités non corrigées

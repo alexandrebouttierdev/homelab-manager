@@ -24,7 +24,7 @@ jobs:
           fetch-depth: 0 # the whole history and its tags, for the version and the notes
       - uses: actions/setup-go@v6
         with:
-          go-version: "1.26.10"
+          go-version: "1.26.11"
       - uses: actions/setup-node@v4
         with:
           node-version: "22"
@@ -40,6 +40,15 @@ jobs:
 
       - name: Verify
         run: scripts/verify.sh
+
+      # No release with a known vulnerability in the dependencies or the Go
+      # standard library (docs/CODE_RULES.md § 6).
+      - name: Install the audit tools
+        run: |
+          scripts/install-audit-tools.sh
+          echo "$(go env GOPATH)/bin" >> "$GITHUB_PATH"
+      - name: Audit the dependencies
+        run: scripts/audit.sh
 
       - name: Compute the version
         id: version

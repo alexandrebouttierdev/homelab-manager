@@ -138,7 +138,7 @@ Chaque release publie, pour Linux `amd64` et `arm64`, une archive contenant les 
 
 ## Développement
 
-Prérequis : Go `1.26.10` ou plus récent, Node.js 22 et npm. Docker Engine est optionnel : sans lui, la collecte Docker est simplement indisponible. Les tests d'intégration du journal système lancent le vrai `journalctl` sur des fichiers fabriqués par `systemd-journal-remote` (`sudo apt install systemd-journal-remote`) ; sans lui, ils sont ignorés. Ceux des services système lancent un faux systemd sur un bus D-Bus privé par `dbus-daemon` (`sudo apt install dbus`, ou `brew install dbus` sur macOS) ; sans lui, ils sont ignorés.
+Prérequis : Go `1.26.11` ou plus récent, Node.js 22 et npm. Docker Engine est optionnel : sans lui, la collecte Docker est simplement indisponible. Les tests d'intégration du journal système lancent le vrai `journalctl` sur des fichiers fabriqués par `systemd-journal-remote` (`sudo apt install systemd-journal-remote`) ; sans lui, ils sont ignorés. Ceux des services système lancent un faux systemd sur un bus D-Bus privé par `dbus-daemon` (`sudo apt install dbus`, ou `brew install dbus` sur macOS) ; sans lui, ils sont ignorés.
 
 1. Copier [.env.example](.env.example) vers `.env`. Laisser `HOMELAB_ADMIN_PASSWORD` vide pour se connecter avec `admin` / `admin` (changement imposé à la première connexion), ou y définir un secret fort.
 2. Installer les paquets de l'interface :
@@ -171,7 +171,13 @@ Si la base ne peut pas être ouverte (répertoire non accessible en écriture, d
 scripts/verify.sh
 ```
 
-Le script enchaîne `gofmt`, `go vet`, `go test` avec et sans `-race`, Prettier, ESLint, TypeScript, Vitest, le build de l'interface et le test des scripts de release. Il doit passer avant chaque commit. Les règles de contribution sont dans [AGENTS.md](AGENTS.md) et [docs/CODE_RULES.md](docs/CODE_RULES.md) : code et commits en anglais, documentation et interface en français, [Conventional Commits](https://www.conventionalcommits.org/fr/).
+Le script enchaîne `gofmt`, `go vet`, `go test` avec et sans `-race`, Prettier, ESLint, TypeScript, Vitest, le build de l'interface et le test des scripts de release. Il doit passer avant chaque commit.
+
+```bash
+scripts/audit.sh
+```
+
+L'audit de sécurité des dépendances (`npm audit`, OSV-Scanner, `govulncheck`) interroge des bases en ligne : il tourne à part, dans le workflow GitHub « Audit » à chaque push, chaque pull request et chaque lundi, et avant chaque release, qu'une vulnérabilité bloque. En local, installer govulncheck et OSV-Scanner (`go install golang.org/x/vuln/cmd/govulncheck@latest`, `brew install osv-scanner`) ; le script signale un outil absent sans le compter comme un audit réussi. Les règles de contribution sont dans [AGENTS.md](AGENTS.md) et [docs/CODE_RULES.md](docs/CODE_RULES.md) : code et commits en anglais, documentation et interface en français, [Conventional Commits](https://www.conventionalcommits.org/fr/).
 
 ### Construire depuis les sources
 

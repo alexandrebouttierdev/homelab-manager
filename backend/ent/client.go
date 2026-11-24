@@ -29,6 +29,8 @@ import (
 	"homelab-manager/backend/ent/systemmetricsample"
 	"homelab-manager/backend/ent/totpsecret"
 	"homelab-manager/backend/ent/user"
+	"homelab-manager/backend/ent/vulnerabilityfinding"
+	"homelab-manager/backend/ent/vulnerabilityscan"
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect"
@@ -78,6 +80,10 @@ type Client struct {
 	TotpSecret *TotpSecretClient
 	// User is the client for interacting with the User builders.
 	User *UserClient
+	// VulnerabilityFinding is the client for interacting with the VulnerabilityFinding builders.
+	VulnerabilityFinding *VulnerabilityFindingClient
+	// VulnerabilityScan is the client for interacting with the VulnerabilityScan builders.
+	VulnerabilityScan *VulnerabilityScanClient
 }
 
 // NewClient creates a new client configured with the given options.
@@ -107,6 +113,8 @@ func (c *Client) init() {
 	c.SystemMetricSample = NewSystemMetricSampleClient(c.config)
 	c.TotpSecret = NewTotpSecretClient(c.config)
 	c.User = NewUserClient(c.config)
+	c.VulnerabilityFinding = NewVulnerabilityFindingClient(c.config)
+	c.VulnerabilityScan = NewVulnerabilityScanClient(c.config)
 }
 
 type (
@@ -217,6 +225,8 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		SystemMetricSample:    NewSystemMetricSampleClient(cfg),
 		TotpSecret:            NewTotpSecretClient(cfg),
 		User:                  NewUserClient(cfg),
+		VulnerabilityFinding:  NewVulnerabilityFindingClient(cfg),
+		VulnerabilityScan:     NewVulnerabilityScanClient(cfg),
 	}, nil
 }
 
@@ -254,6 +264,8 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		SystemMetricSample:    NewSystemMetricSampleClient(cfg),
 		TotpSecret:            NewTotpSecretClient(cfg),
 		User:                  NewUserClient(cfg),
+		VulnerabilityFinding:  NewVulnerabilityFindingClient(cfg),
+		VulnerabilityScan:     NewVulnerabilityScanClient(cfg),
 	}, nil
 }
 
@@ -286,7 +298,8 @@ func (c *Client) Use(hooks ...Hook) {
 		c.Alert, c.AlertRule, c.AlertSilence, c.AppSetting, c.AuditLog, c.Container,
 		c.ContainerMetricSample, c.Event, c.FailedUnit, c.HostInfo, c.LoginFailure,
 		c.NotificationChannel, c.RecoveryCode, c.SecurityPolicy, c.Session,
-		c.SystemMetricSample, c.TotpSecret, c.User,
+		c.SystemMetricSample, c.TotpSecret, c.User, c.VulnerabilityFinding,
+		c.VulnerabilityScan,
 	} {
 		n.Use(hooks...)
 	}
@@ -299,7 +312,8 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.Alert, c.AlertRule, c.AlertSilence, c.AppSetting, c.AuditLog, c.Container,
 		c.ContainerMetricSample, c.Event, c.FailedUnit, c.HostInfo, c.LoginFailure,
 		c.NotificationChannel, c.RecoveryCode, c.SecurityPolicy, c.Session,
-		c.SystemMetricSample, c.TotpSecret, c.User,
+		c.SystemMetricSample, c.TotpSecret, c.User, c.VulnerabilityFinding,
+		c.VulnerabilityScan,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -344,6 +358,10 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.TotpSecret.mutate(ctx, m)
 	case *UserMutation:
 		return c.User.mutate(ctx, m)
+	case *VulnerabilityFindingMutation:
+		return c.VulnerabilityFinding.mutate(ctx, m)
+	case *VulnerabilityScanMutation:
+		return c.VulnerabilityScan.mutate(ctx, m)
 	default:
 		return nil, fmt.Errorf("ent: unknown mutation type %T", m)
 	}
@@ -2839,18 +2857,284 @@ func (c *UserClient) mutate(ctx context.Context, m *UserMutation) (Value, error)
 	}
 }
 
+// VulnerabilityFindingClient is a client for the VulnerabilityFinding schema.
+type VulnerabilityFindingClient struct {
+	config
+}
+
+// NewVulnerabilityFindingClient returns a client for the VulnerabilityFinding from the given config.
+func NewVulnerabilityFindingClient(c config) *VulnerabilityFindingClient {
+	return &VulnerabilityFindingClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `vulnerabilityfinding.Hooks(f(g(h())))`.
+func (c *VulnerabilityFindingClient) Use(hooks ...Hook) {
+	c.hooks.VulnerabilityFinding = append(c.hooks.VulnerabilityFinding, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `vulnerabilityfinding.Intercept(f(g(h())))`.
+func (c *VulnerabilityFindingClient) Intercept(interceptors ...Interceptor) {
+	c.inters.VulnerabilityFinding = append(c.inters.VulnerabilityFinding, interceptors...)
+}
+
+// Create returns a builder for creating a VulnerabilityFinding entity.
+func (c *VulnerabilityFindingClient) Create() *VulnerabilityFindingCreate {
+	mutation := newVulnerabilityFindingMutation(c.config, OpCreate)
+	return &VulnerabilityFindingCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of VulnerabilityFinding entities.
+func (c *VulnerabilityFindingClient) CreateBulk(builders ...*VulnerabilityFindingCreate) *VulnerabilityFindingCreateBulk {
+	return &VulnerabilityFindingCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *VulnerabilityFindingClient) MapCreateBulk(slice any, setFunc func(*VulnerabilityFindingCreate, int)) *VulnerabilityFindingCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &VulnerabilityFindingCreateBulk{err: fmt.Errorf("calling to VulnerabilityFindingClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*VulnerabilityFindingCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &VulnerabilityFindingCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for VulnerabilityFinding.
+func (c *VulnerabilityFindingClient) Update() *VulnerabilityFindingUpdate {
+	mutation := newVulnerabilityFindingMutation(c.config, OpUpdate)
+	return &VulnerabilityFindingUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *VulnerabilityFindingClient) UpdateOne(_m *VulnerabilityFinding) *VulnerabilityFindingUpdateOne {
+	mutation := newVulnerabilityFindingMutation(c.config, OpUpdateOne, withVulnerabilityFinding(_m))
+	return &VulnerabilityFindingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *VulnerabilityFindingClient) UpdateOneID(id uuid.UUID) *VulnerabilityFindingUpdateOne {
+	mutation := newVulnerabilityFindingMutation(c.config, OpUpdateOne, withVulnerabilityFindingID(id))
+	return &VulnerabilityFindingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for VulnerabilityFinding.
+func (c *VulnerabilityFindingClient) Delete() *VulnerabilityFindingDelete {
+	mutation := newVulnerabilityFindingMutation(c.config, OpDelete)
+	return &VulnerabilityFindingDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *VulnerabilityFindingClient) DeleteOne(_m *VulnerabilityFinding) *VulnerabilityFindingDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *VulnerabilityFindingClient) DeleteOneID(id uuid.UUID) *VulnerabilityFindingDeleteOne {
+	builder := c.Delete().Where(vulnerabilityfinding.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &VulnerabilityFindingDeleteOne{builder}
+}
+
+// Query returns a query builder for VulnerabilityFinding.
+func (c *VulnerabilityFindingClient) Query() *VulnerabilityFindingQuery {
+	return &VulnerabilityFindingQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeVulnerabilityFinding},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a VulnerabilityFinding entity by its id.
+func (c *VulnerabilityFindingClient) Get(ctx context.Context, id uuid.UUID) (*VulnerabilityFinding, error) {
+	return c.Query().Where(vulnerabilityfinding.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *VulnerabilityFindingClient) GetX(ctx context.Context, id uuid.UUID) *VulnerabilityFinding {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *VulnerabilityFindingClient) Hooks() []Hook {
+	return c.hooks.VulnerabilityFinding
+}
+
+// Interceptors returns the client interceptors.
+func (c *VulnerabilityFindingClient) Interceptors() []Interceptor {
+	return c.inters.VulnerabilityFinding
+}
+
+func (c *VulnerabilityFindingClient) mutate(ctx context.Context, m *VulnerabilityFindingMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&VulnerabilityFindingCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&VulnerabilityFindingUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&VulnerabilityFindingUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&VulnerabilityFindingDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown VulnerabilityFinding mutation op: %q", m.Op())
+	}
+}
+
+// VulnerabilityScanClient is a client for the VulnerabilityScan schema.
+type VulnerabilityScanClient struct {
+	config
+}
+
+// NewVulnerabilityScanClient returns a client for the VulnerabilityScan from the given config.
+func NewVulnerabilityScanClient(c config) *VulnerabilityScanClient {
+	return &VulnerabilityScanClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `vulnerabilityscan.Hooks(f(g(h())))`.
+func (c *VulnerabilityScanClient) Use(hooks ...Hook) {
+	c.hooks.VulnerabilityScan = append(c.hooks.VulnerabilityScan, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `vulnerabilityscan.Intercept(f(g(h())))`.
+func (c *VulnerabilityScanClient) Intercept(interceptors ...Interceptor) {
+	c.inters.VulnerabilityScan = append(c.inters.VulnerabilityScan, interceptors...)
+}
+
+// Create returns a builder for creating a VulnerabilityScan entity.
+func (c *VulnerabilityScanClient) Create() *VulnerabilityScanCreate {
+	mutation := newVulnerabilityScanMutation(c.config, OpCreate)
+	return &VulnerabilityScanCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of VulnerabilityScan entities.
+func (c *VulnerabilityScanClient) CreateBulk(builders ...*VulnerabilityScanCreate) *VulnerabilityScanCreateBulk {
+	return &VulnerabilityScanCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *VulnerabilityScanClient) MapCreateBulk(slice any, setFunc func(*VulnerabilityScanCreate, int)) *VulnerabilityScanCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &VulnerabilityScanCreateBulk{err: fmt.Errorf("calling to VulnerabilityScanClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*VulnerabilityScanCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &VulnerabilityScanCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for VulnerabilityScan.
+func (c *VulnerabilityScanClient) Update() *VulnerabilityScanUpdate {
+	mutation := newVulnerabilityScanMutation(c.config, OpUpdate)
+	return &VulnerabilityScanUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *VulnerabilityScanClient) UpdateOne(_m *VulnerabilityScan) *VulnerabilityScanUpdateOne {
+	mutation := newVulnerabilityScanMutation(c.config, OpUpdateOne, withVulnerabilityScan(_m))
+	return &VulnerabilityScanUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *VulnerabilityScanClient) UpdateOneID(id uuid.UUID) *VulnerabilityScanUpdateOne {
+	mutation := newVulnerabilityScanMutation(c.config, OpUpdateOne, withVulnerabilityScanID(id))
+	return &VulnerabilityScanUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for VulnerabilityScan.
+func (c *VulnerabilityScanClient) Delete() *VulnerabilityScanDelete {
+	mutation := newVulnerabilityScanMutation(c.config, OpDelete)
+	return &VulnerabilityScanDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *VulnerabilityScanClient) DeleteOne(_m *VulnerabilityScan) *VulnerabilityScanDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *VulnerabilityScanClient) DeleteOneID(id uuid.UUID) *VulnerabilityScanDeleteOne {
+	builder := c.Delete().Where(vulnerabilityscan.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &VulnerabilityScanDeleteOne{builder}
+}
+
+// Query returns a query builder for VulnerabilityScan.
+func (c *VulnerabilityScanClient) Query() *VulnerabilityScanQuery {
+	return &VulnerabilityScanQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeVulnerabilityScan},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a VulnerabilityScan entity by its id.
+func (c *VulnerabilityScanClient) Get(ctx context.Context, id uuid.UUID) (*VulnerabilityScan, error) {
+	return c.Query().Where(vulnerabilityscan.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *VulnerabilityScanClient) GetX(ctx context.Context, id uuid.UUID) *VulnerabilityScan {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *VulnerabilityScanClient) Hooks() []Hook {
+	return c.hooks.VulnerabilityScan
+}
+
+// Interceptors returns the client interceptors.
+func (c *VulnerabilityScanClient) Interceptors() []Interceptor {
+	return c.inters.VulnerabilityScan
+}
+
+func (c *VulnerabilityScanClient) mutate(ctx context.Context, m *VulnerabilityScanMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&VulnerabilityScanCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&VulnerabilityScanUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&VulnerabilityScanUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&VulnerabilityScanDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown VulnerabilityScan mutation op: %q", m.Op())
+	}
+}
+
 // hooks and interceptors per client, for fast access.
 type (
 	hooks struct {
 		Alert, AlertRule, AlertSilence, AppSetting, AuditLog, Container,
 		ContainerMetricSample, Event, FailedUnit, HostInfo, LoginFailure,
 		NotificationChannel, RecoveryCode, SecurityPolicy, Session, SystemMetricSample,
-		TotpSecret, User []ent.Hook
+		TotpSecret, User, VulnerabilityFinding, VulnerabilityScan []ent.Hook
 	}
 	inters struct {
 		Alert, AlertRule, AlertSilence, AppSetting, AuditLog, Container,
 		ContainerMetricSample, Event, FailedUnit, HostInfo, LoginFailure,
 		NotificationChannel, RecoveryCode, SecurityPolicy, Session, SystemMetricSample,
-		TotpSecret, User []ent.Interceptor
+		TotpSecret, User, VulnerabilityFinding, VulnerabilityScan []ent.Interceptor
 	}
 )

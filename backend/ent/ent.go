@@ -24,6 +24,8 @@ import (
 	"homelab-manager/backend/ent/systemmetricsample"
 	"homelab-manager/backend/ent/totpsecret"
 	"homelab-manager/backend/ent/user"
+	"homelab-manager/backend/ent/vulnerabilityfinding"
+	"homelab-manager/backend/ent/vulnerabilityscan"
 	"reflect"
 	"sync"
 
@@ -108,6 +110,8 @@ func checkColumn(t, c string) error {
 			systemmetricsample.Table:    systemmetricsample.ValidColumn,
 			totpsecret.Table:            totpsecret.ValidColumn,
 			user.Table:                  user.ValidColumn,
+			vulnerabilityfinding.Table:  vulnerabilityfinding.ValidColumn,
+			vulnerabilityscan.Table:     vulnerabilityscan.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

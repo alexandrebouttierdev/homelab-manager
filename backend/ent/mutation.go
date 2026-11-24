@@ -25,6 +25,8 @@ import (
 	"homelab-manager/backend/ent/systemmetricsample"
 	"homelab-manager/backend/ent/totpsecret"
 	"homelab-manager/backend/ent/user"
+	"homelab-manager/backend/ent/vulnerabilityfinding"
+	"homelab-manager/backend/ent/vulnerabilityscan"
 	"sync"
 	"time"
 
@@ -60,6 +62,8 @@ const (
 	TypeSystemMetricSample    = "SystemMetricSample"
 	TypeTotpSecret            = "TotpSecret"
 	TypeUser                  = "User"
+	TypeVulnerabilityFinding  = "VulnerabilityFinding"
+	TypeVulnerabilityScan     = "VulnerabilityScan"
 )
 
 // AlertMutation represents an operation that mutates the Alert nodes in the graph.
@@ -14038,4 +14042,2941 @@ func (m *UserMutation) ResetEdge(name string) error {
 		return nil
 	}
 	return fmt.Errorf("unknown User edge %s", name)
+}
+
+// VulnerabilityFindingMutation represents an operation that mutates the VulnerabilityFinding nodes in the graph.
+type VulnerabilityFindingMutation struct {
+	config
+	op               Op
+	typ              string
+	id               *uuid.UUID
+	vulnerability_id *string
+	severity         *string
+	severity_rank    *int
+	addseverity_rank *int
+	_package         *string
+	version          *string
+	package_type     *string
+	fix_state        *string
+	fixed_versions   *string
+	description      *string
+	urls             *string
+	data_source      *string
+	first_seen_at    *time.Time
+	last_seen_at     *time.Time
+	resolved_at      *time.Time
+	first_scan_id    *uuid.UUID
+	last_scan_id     *uuid.UUID
+	clearedFields    map[string]struct{}
+	done             bool
+	oldValue         func(context.Context) (*VulnerabilityFinding, error)
+	predicates       []predicate.VulnerabilityFinding
+}
+
+var _ ent.Mutation = (*VulnerabilityFindingMutation)(nil)
+
+// vulnerabilityfindingOption allows management of the mutation configuration using functional options.
+type vulnerabilityfindingOption func(*VulnerabilityFindingMutation)
+
+// newVulnerabilityFindingMutation creates new mutation for the VulnerabilityFinding entity.
+func newVulnerabilityFindingMutation(c config, op Op, opts ...vulnerabilityfindingOption) *VulnerabilityFindingMutation {
+	m := &VulnerabilityFindingMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeVulnerabilityFinding,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withVulnerabilityFindingID sets the ID field of the mutation.
+func withVulnerabilityFindingID(id uuid.UUID) vulnerabilityfindingOption {
+	return func(m *VulnerabilityFindingMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *VulnerabilityFinding
+		)
+		m.oldValue = func(ctx context.Context) (*VulnerabilityFinding, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().VulnerabilityFinding.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withVulnerabilityFinding sets the old VulnerabilityFinding of the mutation.
+func withVulnerabilityFinding(node *VulnerabilityFinding) vulnerabilityfindingOption {
+	return func(m *VulnerabilityFindingMutation) {
+		m.oldValue = func(context.Context) (*VulnerabilityFinding, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m VulnerabilityFindingMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m VulnerabilityFindingMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of VulnerabilityFinding entities.
+func (m *VulnerabilityFindingMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *VulnerabilityFindingMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *VulnerabilityFindingMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().VulnerabilityFinding.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetVulnerabilityID sets the "vulnerability_id" field.
+func (m *VulnerabilityFindingMutation) SetVulnerabilityID(s string) {
+	m.vulnerability_id = &s
+}
+
+// VulnerabilityID returns the value of the "vulnerability_id" field in the mutation.
+func (m *VulnerabilityFindingMutation) VulnerabilityID() (r string, exists bool) {
+	v := m.vulnerability_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldVulnerabilityID returns the old "vulnerability_id" field's value of the VulnerabilityFinding entity.
+// If the VulnerabilityFinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VulnerabilityFindingMutation) OldVulnerabilityID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldVulnerabilityID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldVulnerabilityID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldVulnerabilityID: %w", err)
+	}
+	return oldValue.VulnerabilityID, nil
+}
+
+// ResetVulnerabilityID resets all changes to the "vulnerability_id" field.
+func (m *VulnerabilityFindingMutation) ResetVulnerabilityID() {
+	m.vulnerability_id = nil
+}
+
+// SetSeverity sets the "severity" field.
+func (m *VulnerabilityFindingMutation) SetSeverity(s string) {
+	m.severity = &s
+}
+
+// Severity returns the value of the "severity" field in the mutation.
+func (m *VulnerabilityFindingMutation) Severity() (r string, exists bool) {
+	v := m.severity
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSeverity returns the old "severity" field's value of the VulnerabilityFinding entity.
+// If the VulnerabilityFinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VulnerabilityFindingMutation) OldSeverity(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSeverity is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSeverity requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSeverity: %w", err)
+	}
+	return oldValue.Severity, nil
+}
+
+// ResetSeverity resets all changes to the "severity" field.
+func (m *VulnerabilityFindingMutation) ResetSeverity() {
+	m.severity = nil
+}
+
+// SetSeverityRank sets the "severity_rank" field.
+func (m *VulnerabilityFindingMutation) SetSeverityRank(i int) {
+	m.severity_rank = &i
+	m.addseverity_rank = nil
+}
+
+// SeverityRank returns the value of the "severity_rank" field in the mutation.
+func (m *VulnerabilityFindingMutation) SeverityRank() (r int, exists bool) {
+	v := m.severity_rank
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSeverityRank returns the old "severity_rank" field's value of the VulnerabilityFinding entity.
+// If the VulnerabilityFinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VulnerabilityFindingMutation) OldSeverityRank(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSeverityRank is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSeverityRank requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSeverityRank: %w", err)
+	}
+	return oldValue.SeverityRank, nil
+}
+
+// AddSeverityRank adds i to the "severity_rank" field.
+func (m *VulnerabilityFindingMutation) AddSeverityRank(i int) {
+	if m.addseverity_rank != nil {
+		*m.addseverity_rank += i
+	} else {
+		m.addseverity_rank = &i
+	}
+}
+
+// AddedSeverityRank returns the value that was added to the "severity_rank" field in this mutation.
+func (m *VulnerabilityFindingMutation) AddedSeverityRank() (r int, exists bool) {
+	v := m.addseverity_rank
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetSeverityRank resets all changes to the "severity_rank" field.
+func (m *VulnerabilityFindingMutation) ResetSeverityRank() {
+	m.severity_rank = nil
+	m.addseverity_rank = nil
+}
+
+// SetPackage sets the "package" field.
+func (m *VulnerabilityFindingMutation) SetPackage(s string) {
+	m._package = &s
+}
+
+// Package returns the value of the "package" field in the mutation.
+func (m *VulnerabilityFindingMutation) Package() (r string, exists bool) {
+	v := m._package
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPackage returns the old "package" field's value of the VulnerabilityFinding entity.
+// If the VulnerabilityFinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VulnerabilityFindingMutation) OldPackage(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPackage is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPackage requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPackage: %w", err)
+	}
+	return oldValue.Package, nil
+}
+
+// ResetPackage resets all changes to the "package" field.
+func (m *VulnerabilityFindingMutation) ResetPackage() {
+	m._package = nil
+}
+
+// SetVersion sets the "version" field.
+func (m *VulnerabilityFindingMutation) SetVersion(s string) {
+	m.version = &s
+}
+
+// Version returns the value of the "version" field in the mutation.
+func (m *VulnerabilityFindingMutation) Version() (r string, exists bool) {
+	v := m.version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldVersion returns the old "version" field's value of the VulnerabilityFinding entity.
+// If the VulnerabilityFinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VulnerabilityFindingMutation) OldVersion(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldVersion is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldVersion requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldVersion: %w", err)
+	}
+	return oldValue.Version, nil
+}
+
+// ResetVersion resets all changes to the "version" field.
+func (m *VulnerabilityFindingMutation) ResetVersion() {
+	m.version = nil
+}
+
+// SetPackageType sets the "package_type" field.
+func (m *VulnerabilityFindingMutation) SetPackageType(s string) {
+	m.package_type = &s
+}
+
+// PackageType returns the value of the "package_type" field in the mutation.
+func (m *VulnerabilityFindingMutation) PackageType() (r string, exists bool) {
+	v := m.package_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPackageType returns the old "package_type" field's value of the VulnerabilityFinding entity.
+// If the VulnerabilityFinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VulnerabilityFindingMutation) OldPackageType(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPackageType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPackageType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPackageType: %w", err)
+	}
+	return oldValue.PackageType, nil
+}
+
+// ResetPackageType resets all changes to the "package_type" field.
+func (m *VulnerabilityFindingMutation) ResetPackageType() {
+	m.package_type = nil
+}
+
+// SetFixState sets the "fix_state" field.
+func (m *VulnerabilityFindingMutation) SetFixState(s string) {
+	m.fix_state = &s
+}
+
+// FixState returns the value of the "fix_state" field in the mutation.
+func (m *VulnerabilityFindingMutation) FixState() (r string, exists bool) {
+	v := m.fix_state
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFixState returns the old "fix_state" field's value of the VulnerabilityFinding entity.
+// If the VulnerabilityFinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VulnerabilityFindingMutation) OldFixState(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFixState is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFixState requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFixState: %w", err)
+	}
+	return oldValue.FixState, nil
+}
+
+// ResetFixState resets all changes to the "fix_state" field.
+func (m *VulnerabilityFindingMutation) ResetFixState() {
+	m.fix_state = nil
+}
+
+// SetFixedVersions sets the "fixed_versions" field.
+func (m *VulnerabilityFindingMutation) SetFixedVersions(s string) {
+	m.fixed_versions = &s
+}
+
+// FixedVersions returns the value of the "fixed_versions" field in the mutation.
+func (m *VulnerabilityFindingMutation) FixedVersions() (r string, exists bool) {
+	v := m.fixed_versions
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFixedVersions returns the old "fixed_versions" field's value of the VulnerabilityFinding entity.
+// If the VulnerabilityFinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VulnerabilityFindingMutation) OldFixedVersions(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFixedVersions is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFixedVersions requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFixedVersions: %w", err)
+	}
+	return oldValue.FixedVersions, nil
+}
+
+// ResetFixedVersions resets all changes to the "fixed_versions" field.
+func (m *VulnerabilityFindingMutation) ResetFixedVersions() {
+	m.fixed_versions = nil
+}
+
+// SetDescription sets the "description" field.
+func (m *VulnerabilityFindingMutation) SetDescription(s string) {
+	m.description = &s
+}
+
+// Description returns the value of the "description" field in the mutation.
+func (m *VulnerabilityFindingMutation) Description() (r string, exists bool) {
+	v := m.description
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDescription returns the old "description" field's value of the VulnerabilityFinding entity.
+// If the VulnerabilityFinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VulnerabilityFindingMutation) OldDescription(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDescription is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDescription requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDescription: %w", err)
+	}
+	return oldValue.Description, nil
+}
+
+// ResetDescription resets all changes to the "description" field.
+func (m *VulnerabilityFindingMutation) ResetDescription() {
+	m.description = nil
+}
+
+// SetUrls sets the "urls" field.
+func (m *VulnerabilityFindingMutation) SetUrls(s string) {
+	m.urls = &s
+}
+
+// Urls returns the value of the "urls" field in the mutation.
+func (m *VulnerabilityFindingMutation) Urls() (r string, exists bool) {
+	v := m.urls
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUrls returns the old "urls" field's value of the VulnerabilityFinding entity.
+// If the VulnerabilityFinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VulnerabilityFindingMutation) OldUrls(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUrls is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUrls requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUrls: %w", err)
+	}
+	return oldValue.Urls, nil
+}
+
+// ResetUrls resets all changes to the "urls" field.
+func (m *VulnerabilityFindingMutation) ResetUrls() {
+	m.urls = nil
+}
+
+// SetDataSource sets the "data_source" field.
+func (m *VulnerabilityFindingMutation) SetDataSource(s string) {
+	m.data_source = &s
+}
+
+// DataSource returns the value of the "data_source" field in the mutation.
+func (m *VulnerabilityFindingMutation) DataSource() (r string, exists bool) {
+	v := m.data_source
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDataSource returns the old "data_source" field's value of the VulnerabilityFinding entity.
+// If the VulnerabilityFinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VulnerabilityFindingMutation) OldDataSource(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDataSource is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDataSource requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDataSource: %w", err)
+	}
+	return oldValue.DataSource, nil
+}
+
+// ResetDataSource resets all changes to the "data_source" field.
+func (m *VulnerabilityFindingMutation) ResetDataSource() {
+	m.data_source = nil
+}
+
+// SetFirstSeenAt sets the "first_seen_at" field.
+func (m *VulnerabilityFindingMutation) SetFirstSeenAt(t time.Time) {
+	m.first_seen_at = &t
+}
+
+// FirstSeenAt returns the value of the "first_seen_at" field in the mutation.
+func (m *VulnerabilityFindingMutation) FirstSeenAt() (r time.Time, exists bool) {
+	v := m.first_seen_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFirstSeenAt returns the old "first_seen_at" field's value of the VulnerabilityFinding entity.
+// If the VulnerabilityFinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VulnerabilityFindingMutation) OldFirstSeenAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFirstSeenAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFirstSeenAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFirstSeenAt: %w", err)
+	}
+	return oldValue.FirstSeenAt, nil
+}
+
+// ResetFirstSeenAt resets all changes to the "first_seen_at" field.
+func (m *VulnerabilityFindingMutation) ResetFirstSeenAt() {
+	m.first_seen_at = nil
+}
+
+// SetLastSeenAt sets the "last_seen_at" field.
+func (m *VulnerabilityFindingMutation) SetLastSeenAt(t time.Time) {
+	m.last_seen_at = &t
+}
+
+// LastSeenAt returns the value of the "last_seen_at" field in the mutation.
+func (m *VulnerabilityFindingMutation) LastSeenAt() (r time.Time, exists bool) {
+	v := m.last_seen_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastSeenAt returns the old "last_seen_at" field's value of the VulnerabilityFinding entity.
+// If the VulnerabilityFinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VulnerabilityFindingMutation) OldLastSeenAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastSeenAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastSeenAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastSeenAt: %w", err)
+	}
+	return oldValue.LastSeenAt, nil
+}
+
+// ResetLastSeenAt resets all changes to the "last_seen_at" field.
+func (m *VulnerabilityFindingMutation) ResetLastSeenAt() {
+	m.last_seen_at = nil
+}
+
+// SetResolvedAt sets the "resolved_at" field.
+func (m *VulnerabilityFindingMutation) SetResolvedAt(t time.Time) {
+	m.resolved_at = &t
+}
+
+// ResolvedAt returns the value of the "resolved_at" field in the mutation.
+func (m *VulnerabilityFindingMutation) ResolvedAt() (r time.Time, exists bool) {
+	v := m.resolved_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldResolvedAt returns the old "resolved_at" field's value of the VulnerabilityFinding entity.
+// If the VulnerabilityFinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VulnerabilityFindingMutation) OldResolvedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldResolvedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldResolvedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldResolvedAt: %w", err)
+	}
+	return oldValue.ResolvedAt, nil
+}
+
+// ClearResolvedAt clears the value of the "resolved_at" field.
+func (m *VulnerabilityFindingMutation) ClearResolvedAt() {
+	m.resolved_at = nil
+	m.clearedFields[vulnerabilityfinding.FieldResolvedAt] = struct{}{}
+}
+
+// ResolvedAtCleared returns if the "resolved_at" field was cleared in this mutation.
+func (m *VulnerabilityFindingMutation) ResolvedAtCleared() bool {
+	_, ok := m.clearedFields[vulnerabilityfinding.FieldResolvedAt]
+	return ok
+}
+
+// ResetResolvedAt resets all changes to the "resolved_at" field.
+func (m *VulnerabilityFindingMutation) ResetResolvedAt() {
+	m.resolved_at = nil
+	delete(m.clearedFields, vulnerabilityfinding.FieldResolvedAt)
+}
+
+// SetFirstScanID sets the "first_scan_id" field.
+func (m *VulnerabilityFindingMutation) SetFirstScanID(u uuid.UUID) {
+	m.first_scan_id = &u
+}
+
+// FirstScanID returns the value of the "first_scan_id" field in the mutation.
+func (m *VulnerabilityFindingMutation) FirstScanID() (r uuid.UUID, exists bool) {
+	v := m.first_scan_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFirstScanID returns the old "first_scan_id" field's value of the VulnerabilityFinding entity.
+// If the VulnerabilityFinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VulnerabilityFindingMutation) OldFirstScanID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFirstScanID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFirstScanID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFirstScanID: %w", err)
+	}
+	return oldValue.FirstScanID, nil
+}
+
+// ResetFirstScanID resets all changes to the "first_scan_id" field.
+func (m *VulnerabilityFindingMutation) ResetFirstScanID() {
+	m.first_scan_id = nil
+}
+
+// SetLastScanID sets the "last_scan_id" field.
+func (m *VulnerabilityFindingMutation) SetLastScanID(u uuid.UUID) {
+	m.last_scan_id = &u
+}
+
+// LastScanID returns the value of the "last_scan_id" field in the mutation.
+func (m *VulnerabilityFindingMutation) LastScanID() (r uuid.UUID, exists bool) {
+	v := m.last_scan_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastScanID returns the old "last_scan_id" field's value of the VulnerabilityFinding entity.
+// If the VulnerabilityFinding object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VulnerabilityFindingMutation) OldLastScanID(ctx context.Context) (v uuid.UUID, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastScanID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastScanID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastScanID: %w", err)
+	}
+	return oldValue.LastScanID, nil
+}
+
+// ResetLastScanID resets all changes to the "last_scan_id" field.
+func (m *VulnerabilityFindingMutation) ResetLastScanID() {
+	m.last_scan_id = nil
+}
+
+// Where appends a list predicates to the VulnerabilityFindingMutation builder.
+func (m *VulnerabilityFindingMutation) Where(ps ...predicate.VulnerabilityFinding) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the VulnerabilityFindingMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *VulnerabilityFindingMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.VulnerabilityFinding, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *VulnerabilityFindingMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *VulnerabilityFindingMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (VulnerabilityFinding).
+func (m *VulnerabilityFindingMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *VulnerabilityFindingMutation) Fields() []string {
+	fields := make([]string, 0, 16)
+	if m.vulnerability_id != nil {
+		fields = append(fields, vulnerabilityfinding.FieldVulnerabilityID)
+	}
+	if m.severity != nil {
+		fields = append(fields, vulnerabilityfinding.FieldSeverity)
+	}
+	if m.severity_rank != nil {
+		fields = append(fields, vulnerabilityfinding.FieldSeverityRank)
+	}
+	if m._package != nil {
+		fields = append(fields, vulnerabilityfinding.FieldPackage)
+	}
+	if m.version != nil {
+		fields = append(fields, vulnerabilityfinding.FieldVersion)
+	}
+	if m.package_type != nil {
+		fields = append(fields, vulnerabilityfinding.FieldPackageType)
+	}
+	if m.fix_state != nil {
+		fields = append(fields, vulnerabilityfinding.FieldFixState)
+	}
+	if m.fixed_versions != nil {
+		fields = append(fields, vulnerabilityfinding.FieldFixedVersions)
+	}
+	if m.description != nil {
+		fields = append(fields, vulnerabilityfinding.FieldDescription)
+	}
+	if m.urls != nil {
+		fields = append(fields, vulnerabilityfinding.FieldUrls)
+	}
+	if m.data_source != nil {
+		fields = append(fields, vulnerabilityfinding.FieldDataSource)
+	}
+	if m.first_seen_at != nil {
+		fields = append(fields, vulnerabilityfinding.FieldFirstSeenAt)
+	}
+	if m.last_seen_at != nil {
+		fields = append(fields, vulnerabilityfinding.FieldLastSeenAt)
+	}
+	if m.resolved_at != nil {
+		fields = append(fields, vulnerabilityfinding.FieldResolvedAt)
+	}
+	if m.first_scan_id != nil {
+		fields = append(fields, vulnerabilityfinding.FieldFirstScanID)
+	}
+	if m.last_scan_id != nil {
+		fields = append(fields, vulnerabilityfinding.FieldLastScanID)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *VulnerabilityFindingMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case vulnerabilityfinding.FieldVulnerabilityID:
+		return m.VulnerabilityID()
+	case vulnerabilityfinding.FieldSeverity:
+		return m.Severity()
+	case vulnerabilityfinding.FieldSeverityRank:
+		return m.SeverityRank()
+	case vulnerabilityfinding.FieldPackage:
+		return m.Package()
+	case vulnerabilityfinding.FieldVersion:
+		return m.Version()
+	case vulnerabilityfinding.FieldPackageType:
+		return m.PackageType()
+	case vulnerabilityfinding.FieldFixState:
+		return m.FixState()
+	case vulnerabilityfinding.FieldFixedVersions:
+		return m.FixedVersions()
+	case vulnerabilityfinding.FieldDescription:
+		return m.Description()
+	case vulnerabilityfinding.FieldUrls:
+		return m.Urls()
+	case vulnerabilityfinding.FieldDataSource:
+		return m.DataSource()
+	case vulnerabilityfinding.FieldFirstSeenAt:
+		return m.FirstSeenAt()
+	case vulnerabilityfinding.FieldLastSeenAt:
+		return m.LastSeenAt()
+	case vulnerabilityfinding.FieldResolvedAt:
+		return m.ResolvedAt()
+	case vulnerabilityfinding.FieldFirstScanID:
+		return m.FirstScanID()
+	case vulnerabilityfinding.FieldLastScanID:
+		return m.LastScanID()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *VulnerabilityFindingMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case vulnerabilityfinding.FieldVulnerabilityID:
+		return m.OldVulnerabilityID(ctx)
+	case vulnerabilityfinding.FieldSeverity:
+		return m.OldSeverity(ctx)
+	case vulnerabilityfinding.FieldSeverityRank:
+		return m.OldSeverityRank(ctx)
+	case vulnerabilityfinding.FieldPackage:
+		return m.OldPackage(ctx)
+	case vulnerabilityfinding.FieldVersion:
+		return m.OldVersion(ctx)
+	case vulnerabilityfinding.FieldPackageType:
+		return m.OldPackageType(ctx)
+	case vulnerabilityfinding.FieldFixState:
+		return m.OldFixState(ctx)
+	case vulnerabilityfinding.FieldFixedVersions:
+		return m.OldFixedVersions(ctx)
+	case vulnerabilityfinding.FieldDescription:
+		return m.OldDescription(ctx)
+	case vulnerabilityfinding.FieldUrls:
+		return m.OldUrls(ctx)
+	case vulnerabilityfinding.FieldDataSource:
+		return m.OldDataSource(ctx)
+	case vulnerabilityfinding.FieldFirstSeenAt:
+		return m.OldFirstSeenAt(ctx)
+	case vulnerabilityfinding.FieldLastSeenAt:
+		return m.OldLastSeenAt(ctx)
+	case vulnerabilityfinding.FieldResolvedAt:
+		return m.OldResolvedAt(ctx)
+	case vulnerabilityfinding.FieldFirstScanID:
+		return m.OldFirstScanID(ctx)
+	case vulnerabilityfinding.FieldLastScanID:
+		return m.OldLastScanID(ctx)
+	}
+	return nil, fmt.Errorf("unknown VulnerabilityFinding field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *VulnerabilityFindingMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case vulnerabilityfinding.FieldVulnerabilityID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetVulnerabilityID(v)
+		return nil
+	case vulnerabilityfinding.FieldSeverity:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSeverity(v)
+		return nil
+	case vulnerabilityfinding.FieldSeverityRank:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSeverityRank(v)
+		return nil
+	case vulnerabilityfinding.FieldPackage:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPackage(v)
+		return nil
+	case vulnerabilityfinding.FieldVersion:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetVersion(v)
+		return nil
+	case vulnerabilityfinding.FieldPackageType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPackageType(v)
+		return nil
+	case vulnerabilityfinding.FieldFixState:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFixState(v)
+		return nil
+	case vulnerabilityfinding.FieldFixedVersions:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFixedVersions(v)
+		return nil
+	case vulnerabilityfinding.FieldDescription:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDescription(v)
+		return nil
+	case vulnerabilityfinding.FieldUrls:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUrls(v)
+		return nil
+	case vulnerabilityfinding.FieldDataSource:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDataSource(v)
+		return nil
+	case vulnerabilityfinding.FieldFirstSeenAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFirstSeenAt(v)
+		return nil
+	case vulnerabilityfinding.FieldLastSeenAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastSeenAt(v)
+		return nil
+	case vulnerabilityfinding.FieldResolvedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetResolvedAt(v)
+		return nil
+	case vulnerabilityfinding.FieldFirstScanID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFirstScanID(v)
+		return nil
+	case vulnerabilityfinding.FieldLastScanID:
+		v, ok := value.(uuid.UUID)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastScanID(v)
+		return nil
+	}
+	return fmt.Errorf("unknown VulnerabilityFinding field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *VulnerabilityFindingMutation) AddedFields() []string {
+	var fields []string
+	if m.addseverity_rank != nil {
+		fields = append(fields, vulnerabilityfinding.FieldSeverityRank)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *VulnerabilityFindingMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case vulnerabilityfinding.FieldSeverityRank:
+		return m.AddedSeverityRank()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *VulnerabilityFindingMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case vulnerabilityfinding.FieldSeverityRank:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddSeverityRank(v)
+		return nil
+	}
+	return fmt.Errorf("unknown VulnerabilityFinding numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *VulnerabilityFindingMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(vulnerabilityfinding.FieldResolvedAt) {
+		fields = append(fields, vulnerabilityfinding.FieldResolvedAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *VulnerabilityFindingMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *VulnerabilityFindingMutation) ClearField(name string) error {
+	switch name {
+	case vulnerabilityfinding.FieldResolvedAt:
+		m.ClearResolvedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown VulnerabilityFinding nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *VulnerabilityFindingMutation) ResetField(name string) error {
+	switch name {
+	case vulnerabilityfinding.FieldVulnerabilityID:
+		m.ResetVulnerabilityID()
+		return nil
+	case vulnerabilityfinding.FieldSeverity:
+		m.ResetSeverity()
+		return nil
+	case vulnerabilityfinding.FieldSeverityRank:
+		m.ResetSeverityRank()
+		return nil
+	case vulnerabilityfinding.FieldPackage:
+		m.ResetPackage()
+		return nil
+	case vulnerabilityfinding.FieldVersion:
+		m.ResetVersion()
+		return nil
+	case vulnerabilityfinding.FieldPackageType:
+		m.ResetPackageType()
+		return nil
+	case vulnerabilityfinding.FieldFixState:
+		m.ResetFixState()
+		return nil
+	case vulnerabilityfinding.FieldFixedVersions:
+		m.ResetFixedVersions()
+		return nil
+	case vulnerabilityfinding.FieldDescription:
+		m.ResetDescription()
+		return nil
+	case vulnerabilityfinding.FieldUrls:
+		m.ResetUrls()
+		return nil
+	case vulnerabilityfinding.FieldDataSource:
+		m.ResetDataSource()
+		return nil
+	case vulnerabilityfinding.FieldFirstSeenAt:
+		m.ResetFirstSeenAt()
+		return nil
+	case vulnerabilityfinding.FieldLastSeenAt:
+		m.ResetLastSeenAt()
+		return nil
+	case vulnerabilityfinding.FieldResolvedAt:
+		m.ResetResolvedAt()
+		return nil
+	case vulnerabilityfinding.FieldFirstScanID:
+		m.ResetFirstScanID()
+		return nil
+	case vulnerabilityfinding.FieldLastScanID:
+		m.ResetLastScanID()
+		return nil
+	}
+	return fmt.Errorf("unknown VulnerabilityFinding field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *VulnerabilityFindingMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *VulnerabilityFindingMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *VulnerabilityFindingMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *VulnerabilityFindingMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *VulnerabilityFindingMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *VulnerabilityFindingMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *VulnerabilityFindingMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown VulnerabilityFinding unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *VulnerabilityFindingMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown VulnerabilityFinding edge %s", name)
+}
+
+// VulnerabilityScanMutation represents an operation that mutates the VulnerabilityScan nodes in the graph.
+type VulnerabilityScanMutation struct {
+	config
+	op                  Op
+	typ                 string
+	id                  *uuid.UUID
+	origin              *string
+	requested_by        *string
+	state               *string
+	failure             *string
+	started_at          *time.Time
+	finished_at         *time.Time
+	grype_version       *string
+	db_built_at         *time.Time
+	distro_id           *string
+	distro_version      *string
+	distro_name         *string
+	package_count       *int
+	addpackage_count    *int
+	critical_count      *int
+	addcritical_count   *int
+	high_count          *int
+	addhigh_count       *int
+	medium_count        *int
+	addmedium_count     *int
+	low_count           *int
+	addlow_count        *int
+	negligible_count    *int
+	addnegligible_count *int
+	unknown_count       *int
+	addunknown_count    *int
+	new_count           *int
+	addnew_count        *int
+	resolved_count      *int
+	addresolved_count   *int
+	clearedFields       map[string]struct{}
+	done                bool
+	oldValue            func(context.Context) (*VulnerabilityScan, error)
+	predicates          []predicate.VulnerabilityScan
+}
+
+var _ ent.Mutation = (*VulnerabilityScanMutation)(nil)
+
+// vulnerabilityscanOption allows management of the mutation configuration using functional options.
+type vulnerabilityscanOption func(*VulnerabilityScanMutation)
+
+// newVulnerabilityScanMutation creates new mutation for the VulnerabilityScan entity.
+func newVulnerabilityScanMutation(c config, op Op, opts ...vulnerabilityscanOption) *VulnerabilityScanMutation {
+	m := &VulnerabilityScanMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeVulnerabilityScan,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withVulnerabilityScanID sets the ID field of the mutation.
+func withVulnerabilityScanID(id uuid.UUID) vulnerabilityscanOption {
+	return func(m *VulnerabilityScanMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *VulnerabilityScan
+		)
+		m.oldValue = func(ctx context.Context) (*VulnerabilityScan, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().VulnerabilityScan.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withVulnerabilityScan sets the old VulnerabilityScan of the mutation.
+func withVulnerabilityScan(node *VulnerabilityScan) vulnerabilityscanOption {
+	return func(m *VulnerabilityScanMutation) {
+		m.oldValue = func(context.Context) (*VulnerabilityScan, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m VulnerabilityScanMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m VulnerabilityScanMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of VulnerabilityScan entities.
+func (m *VulnerabilityScanMutation) SetID(id uuid.UUID) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *VulnerabilityScanMutation) ID() (id uuid.UUID, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *VulnerabilityScanMutation) IDs(ctx context.Context) ([]uuid.UUID, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []uuid.UUID{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().VulnerabilityScan.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetOrigin sets the "origin" field.
+func (m *VulnerabilityScanMutation) SetOrigin(s string) {
+	m.origin = &s
+}
+
+// Origin returns the value of the "origin" field in the mutation.
+func (m *VulnerabilityScanMutation) Origin() (r string, exists bool) {
+	v := m.origin
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldOrigin returns the old "origin" field's value of the VulnerabilityScan entity.
+// If the VulnerabilityScan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VulnerabilityScanMutation) OldOrigin(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldOrigin is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldOrigin requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldOrigin: %w", err)
+	}
+	return oldValue.Origin, nil
+}
+
+// ResetOrigin resets all changes to the "origin" field.
+func (m *VulnerabilityScanMutation) ResetOrigin() {
+	m.origin = nil
+}
+
+// SetRequestedBy sets the "requested_by" field.
+func (m *VulnerabilityScanMutation) SetRequestedBy(s string) {
+	m.requested_by = &s
+}
+
+// RequestedBy returns the value of the "requested_by" field in the mutation.
+func (m *VulnerabilityScanMutation) RequestedBy() (r string, exists bool) {
+	v := m.requested_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRequestedBy returns the old "requested_by" field's value of the VulnerabilityScan entity.
+// If the VulnerabilityScan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VulnerabilityScanMutation) OldRequestedBy(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRequestedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRequestedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRequestedBy: %w", err)
+	}
+	return oldValue.RequestedBy, nil
+}
+
+// ClearRequestedBy clears the value of the "requested_by" field.
+func (m *VulnerabilityScanMutation) ClearRequestedBy() {
+	m.requested_by = nil
+	m.clearedFields[vulnerabilityscan.FieldRequestedBy] = struct{}{}
+}
+
+// RequestedByCleared returns if the "requested_by" field was cleared in this mutation.
+func (m *VulnerabilityScanMutation) RequestedByCleared() bool {
+	_, ok := m.clearedFields[vulnerabilityscan.FieldRequestedBy]
+	return ok
+}
+
+// ResetRequestedBy resets all changes to the "requested_by" field.
+func (m *VulnerabilityScanMutation) ResetRequestedBy() {
+	m.requested_by = nil
+	delete(m.clearedFields, vulnerabilityscan.FieldRequestedBy)
+}
+
+// SetState sets the "state" field.
+func (m *VulnerabilityScanMutation) SetState(s string) {
+	m.state = &s
+}
+
+// State returns the value of the "state" field in the mutation.
+func (m *VulnerabilityScanMutation) State() (r string, exists bool) {
+	v := m.state
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldState returns the old "state" field's value of the VulnerabilityScan entity.
+// If the VulnerabilityScan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VulnerabilityScanMutation) OldState(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldState is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldState requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldState: %w", err)
+	}
+	return oldValue.State, nil
+}
+
+// ResetState resets all changes to the "state" field.
+func (m *VulnerabilityScanMutation) ResetState() {
+	m.state = nil
+}
+
+// SetFailure sets the "failure" field.
+func (m *VulnerabilityScanMutation) SetFailure(s string) {
+	m.failure = &s
+}
+
+// Failure returns the value of the "failure" field in the mutation.
+func (m *VulnerabilityScanMutation) Failure() (r string, exists bool) {
+	v := m.failure
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFailure returns the old "failure" field's value of the VulnerabilityScan entity.
+// If the VulnerabilityScan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VulnerabilityScanMutation) OldFailure(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFailure is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFailure requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFailure: %w", err)
+	}
+	return oldValue.Failure, nil
+}
+
+// ClearFailure clears the value of the "failure" field.
+func (m *VulnerabilityScanMutation) ClearFailure() {
+	m.failure = nil
+	m.clearedFields[vulnerabilityscan.FieldFailure] = struct{}{}
+}
+
+// FailureCleared returns if the "failure" field was cleared in this mutation.
+func (m *VulnerabilityScanMutation) FailureCleared() bool {
+	_, ok := m.clearedFields[vulnerabilityscan.FieldFailure]
+	return ok
+}
+
+// ResetFailure resets all changes to the "failure" field.
+func (m *VulnerabilityScanMutation) ResetFailure() {
+	m.failure = nil
+	delete(m.clearedFields, vulnerabilityscan.FieldFailure)
+}
+
+// SetStartedAt sets the "started_at" field.
+func (m *VulnerabilityScanMutation) SetStartedAt(t time.Time) {
+	m.started_at = &t
+}
+
+// StartedAt returns the value of the "started_at" field in the mutation.
+func (m *VulnerabilityScanMutation) StartedAt() (r time.Time, exists bool) {
+	v := m.started_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldStartedAt returns the old "started_at" field's value of the VulnerabilityScan entity.
+// If the VulnerabilityScan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VulnerabilityScanMutation) OldStartedAt(ctx context.Context) (v time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldStartedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldStartedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldStartedAt: %w", err)
+	}
+	return oldValue.StartedAt, nil
+}
+
+// ResetStartedAt resets all changes to the "started_at" field.
+func (m *VulnerabilityScanMutation) ResetStartedAt() {
+	m.started_at = nil
+}
+
+// SetFinishedAt sets the "finished_at" field.
+func (m *VulnerabilityScanMutation) SetFinishedAt(t time.Time) {
+	m.finished_at = &t
+}
+
+// FinishedAt returns the value of the "finished_at" field in the mutation.
+func (m *VulnerabilityScanMutation) FinishedAt() (r time.Time, exists bool) {
+	v := m.finished_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFinishedAt returns the old "finished_at" field's value of the VulnerabilityScan entity.
+// If the VulnerabilityScan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VulnerabilityScanMutation) OldFinishedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFinishedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFinishedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFinishedAt: %w", err)
+	}
+	return oldValue.FinishedAt, nil
+}
+
+// ClearFinishedAt clears the value of the "finished_at" field.
+func (m *VulnerabilityScanMutation) ClearFinishedAt() {
+	m.finished_at = nil
+	m.clearedFields[vulnerabilityscan.FieldFinishedAt] = struct{}{}
+}
+
+// FinishedAtCleared returns if the "finished_at" field was cleared in this mutation.
+func (m *VulnerabilityScanMutation) FinishedAtCleared() bool {
+	_, ok := m.clearedFields[vulnerabilityscan.FieldFinishedAt]
+	return ok
+}
+
+// ResetFinishedAt resets all changes to the "finished_at" field.
+func (m *VulnerabilityScanMutation) ResetFinishedAt() {
+	m.finished_at = nil
+	delete(m.clearedFields, vulnerabilityscan.FieldFinishedAt)
+}
+
+// SetGrypeVersion sets the "grype_version" field.
+func (m *VulnerabilityScanMutation) SetGrypeVersion(s string) {
+	m.grype_version = &s
+}
+
+// GrypeVersion returns the value of the "grype_version" field in the mutation.
+func (m *VulnerabilityScanMutation) GrypeVersion() (r string, exists bool) {
+	v := m.grype_version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldGrypeVersion returns the old "grype_version" field's value of the VulnerabilityScan entity.
+// If the VulnerabilityScan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VulnerabilityScanMutation) OldGrypeVersion(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldGrypeVersion is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldGrypeVersion requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldGrypeVersion: %w", err)
+	}
+	return oldValue.GrypeVersion, nil
+}
+
+// ResetGrypeVersion resets all changes to the "grype_version" field.
+func (m *VulnerabilityScanMutation) ResetGrypeVersion() {
+	m.grype_version = nil
+}
+
+// SetDbBuiltAt sets the "db_built_at" field.
+func (m *VulnerabilityScanMutation) SetDbBuiltAt(t time.Time) {
+	m.db_built_at = &t
+}
+
+// DbBuiltAt returns the value of the "db_built_at" field in the mutation.
+func (m *VulnerabilityScanMutation) DbBuiltAt() (r time.Time, exists bool) {
+	v := m.db_built_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDbBuiltAt returns the old "db_built_at" field's value of the VulnerabilityScan entity.
+// If the VulnerabilityScan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VulnerabilityScanMutation) OldDbBuiltAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDbBuiltAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDbBuiltAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDbBuiltAt: %w", err)
+	}
+	return oldValue.DbBuiltAt, nil
+}
+
+// ClearDbBuiltAt clears the value of the "db_built_at" field.
+func (m *VulnerabilityScanMutation) ClearDbBuiltAt() {
+	m.db_built_at = nil
+	m.clearedFields[vulnerabilityscan.FieldDbBuiltAt] = struct{}{}
+}
+
+// DbBuiltAtCleared returns if the "db_built_at" field was cleared in this mutation.
+func (m *VulnerabilityScanMutation) DbBuiltAtCleared() bool {
+	_, ok := m.clearedFields[vulnerabilityscan.FieldDbBuiltAt]
+	return ok
+}
+
+// ResetDbBuiltAt resets all changes to the "db_built_at" field.
+func (m *VulnerabilityScanMutation) ResetDbBuiltAt() {
+	m.db_built_at = nil
+	delete(m.clearedFields, vulnerabilityscan.FieldDbBuiltAt)
+}
+
+// SetDistroID sets the "distro_id" field.
+func (m *VulnerabilityScanMutation) SetDistroID(s string) {
+	m.distro_id = &s
+}
+
+// DistroID returns the value of the "distro_id" field in the mutation.
+func (m *VulnerabilityScanMutation) DistroID() (r string, exists bool) {
+	v := m.distro_id
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDistroID returns the old "distro_id" field's value of the VulnerabilityScan entity.
+// If the VulnerabilityScan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VulnerabilityScanMutation) OldDistroID(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDistroID is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDistroID requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDistroID: %w", err)
+	}
+	return oldValue.DistroID, nil
+}
+
+// ResetDistroID resets all changes to the "distro_id" field.
+func (m *VulnerabilityScanMutation) ResetDistroID() {
+	m.distro_id = nil
+}
+
+// SetDistroVersion sets the "distro_version" field.
+func (m *VulnerabilityScanMutation) SetDistroVersion(s string) {
+	m.distro_version = &s
+}
+
+// DistroVersion returns the value of the "distro_version" field in the mutation.
+func (m *VulnerabilityScanMutation) DistroVersion() (r string, exists bool) {
+	v := m.distro_version
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDistroVersion returns the old "distro_version" field's value of the VulnerabilityScan entity.
+// If the VulnerabilityScan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VulnerabilityScanMutation) OldDistroVersion(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDistroVersion is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDistroVersion requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDistroVersion: %w", err)
+	}
+	return oldValue.DistroVersion, nil
+}
+
+// ResetDistroVersion resets all changes to the "distro_version" field.
+func (m *VulnerabilityScanMutation) ResetDistroVersion() {
+	m.distro_version = nil
+}
+
+// SetDistroName sets the "distro_name" field.
+func (m *VulnerabilityScanMutation) SetDistroName(s string) {
+	m.distro_name = &s
+}
+
+// DistroName returns the value of the "distro_name" field in the mutation.
+func (m *VulnerabilityScanMutation) DistroName() (r string, exists bool) {
+	v := m.distro_name
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldDistroName returns the old "distro_name" field's value of the VulnerabilityScan entity.
+// If the VulnerabilityScan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VulnerabilityScanMutation) OldDistroName(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldDistroName is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldDistroName requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldDistroName: %w", err)
+	}
+	return oldValue.DistroName, nil
+}
+
+// ResetDistroName resets all changes to the "distro_name" field.
+func (m *VulnerabilityScanMutation) ResetDistroName() {
+	m.distro_name = nil
+}
+
+// SetPackageCount sets the "package_count" field.
+func (m *VulnerabilityScanMutation) SetPackageCount(i int) {
+	m.package_count = &i
+	m.addpackage_count = nil
+}
+
+// PackageCount returns the value of the "package_count" field in the mutation.
+func (m *VulnerabilityScanMutation) PackageCount() (r int, exists bool) {
+	v := m.package_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldPackageCount returns the old "package_count" field's value of the VulnerabilityScan entity.
+// If the VulnerabilityScan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VulnerabilityScanMutation) OldPackageCount(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldPackageCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldPackageCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldPackageCount: %w", err)
+	}
+	return oldValue.PackageCount, nil
+}
+
+// AddPackageCount adds i to the "package_count" field.
+func (m *VulnerabilityScanMutation) AddPackageCount(i int) {
+	if m.addpackage_count != nil {
+		*m.addpackage_count += i
+	} else {
+		m.addpackage_count = &i
+	}
+}
+
+// AddedPackageCount returns the value that was added to the "package_count" field in this mutation.
+func (m *VulnerabilityScanMutation) AddedPackageCount() (r int, exists bool) {
+	v := m.addpackage_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetPackageCount resets all changes to the "package_count" field.
+func (m *VulnerabilityScanMutation) ResetPackageCount() {
+	m.package_count = nil
+	m.addpackage_count = nil
+}
+
+// SetCriticalCount sets the "critical_count" field.
+func (m *VulnerabilityScanMutation) SetCriticalCount(i int) {
+	m.critical_count = &i
+	m.addcritical_count = nil
+}
+
+// CriticalCount returns the value of the "critical_count" field in the mutation.
+func (m *VulnerabilityScanMutation) CriticalCount() (r int, exists bool) {
+	v := m.critical_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCriticalCount returns the old "critical_count" field's value of the VulnerabilityScan entity.
+// If the VulnerabilityScan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VulnerabilityScanMutation) OldCriticalCount(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCriticalCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCriticalCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCriticalCount: %w", err)
+	}
+	return oldValue.CriticalCount, nil
+}
+
+// AddCriticalCount adds i to the "critical_count" field.
+func (m *VulnerabilityScanMutation) AddCriticalCount(i int) {
+	if m.addcritical_count != nil {
+		*m.addcritical_count += i
+	} else {
+		m.addcritical_count = &i
+	}
+}
+
+// AddedCriticalCount returns the value that was added to the "critical_count" field in this mutation.
+func (m *VulnerabilityScanMutation) AddedCriticalCount() (r int, exists bool) {
+	v := m.addcritical_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetCriticalCount resets all changes to the "critical_count" field.
+func (m *VulnerabilityScanMutation) ResetCriticalCount() {
+	m.critical_count = nil
+	m.addcritical_count = nil
+}
+
+// SetHighCount sets the "high_count" field.
+func (m *VulnerabilityScanMutation) SetHighCount(i int) {
+	m.high_count = &i
+	m.addhigh_count = nil
+}
+
+// HighCount returns the value of the "high_count" field in the mutation.
+func (m *VulnerabilityScanMutation) HighCount() (r int, exists bool) {
+	v := m.high_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldHighCount returns the old "high_count" field's value of the VulnerabilityScan entity.
+// If the VulnerabilityScan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VulnerabilityScanMutation) OldHighCount(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldHighCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldHighCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldHighCount: %w", err)
+	}
+	return oldValue.HighCount, nil
+}
+
+// AddHighCount adds i to the "high_count" field.
+func (m *VulnerabilityScanMutation) AddHighCount(i int) {
+	if m.addhigh_count != nil {
+		*m.addhigh_count += i
+	} else {
+		m.addhigh_count = &i
+	}
+}
+
+// AddedHighCount returns the value that was added to the "high_count" field in this mutation.
+func (m *VulnerabilityScanMutation) AddedHighCount() (r int, exists bool) {
+	v := m.addhigh_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetHighCount resets all changes to the "high_count" field.
+func (m *VulnerabilityScanMutation) ResetHighCount() {
+	m.high_count = nil
+	m.addhigh_count = nil
+}
+
+// SetMediumCount sets the "medium_count" field.
+func (m *VulnerabilityScanMutation) SetMediumCount(i int) {
+	m.medium_count = &i
+	m.addmedium_count = nil
+}
+
+// MediumCount returns the value of the "medium_count" field in the mutation.
+func (m *VulnerabilityScanMutation) MediumCount() (r int, exists bool) {
+	v := m.medium_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMediumCount returns the old "medium_count" field's value of the VulnerabilityScan entity.
+// If the VulnerabilityScan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VulnerabilityScanMutation) OldMediumCount(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMediumCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMediumCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMediumCount: %w", err)
+	}
+	return oldValue.MediumCount, nil
+}
+
+// AddMediumCount adds i to the "medium_count" field.
+func (m *VulnerabilityScanMutation) AddMediumCount(i int) {
+	if m.addmedium_count != nil {
+		*m.addmedium_count += i
+	} else {
+		m.addmedium_count = &i
+	}
+}
+
+// AddedMediumCount returns the value that was added to the "medium_count" field in this mutation.
+func (m *VulnerabilityScanMutation) AddedMediumCount() (r int, exists bool) {
+	v := m.addmedium_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetMediumCount resets all changes to the "medium_count" field.
+func (m *VulnerabilityScanMutation) ResetMediumCount() {
+	m.medium_count = nil
+	m.addmedium_count = nil
+}
+
+// SetLowCount sets the "low_count" field.
+func (m *VulnerabilityScanMutation) SetLowCount(i int) {
+	m.low_count = &i
+	m.addlow_count = nil
+}
+
+// LowCount returns the value of the "low_count" field in the mutation.
+func (m *VulnerabilityScanMutation) LowCount() (r int, exists bool) {
+	v := m.low_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLowCount returns the old "low_count" field's value of the VulnerabilityScan entity.
+// If the VulnerabilityScan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VulnerabilityScanMutation) OldLowCount(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLowCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLowCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLowCount: %w", err)
+	}
+	return oldValue.LowCount, nil
+}
+
+// AddLowCount adds i to the "low_count" field.
+func (m *VulnerabilityScanMutation) AddLowCount(i int) {
+	if m.addlow_count != nil {
+		*m.addlow_count += i
+	} else {
+		m.addlow_count = &i
+	}
+}
+
+// AddedLowCount returns the value that was added to the "low_count" field in this mutation.
+func (m *VulnerabilityScanMutation) AddedLowCount() (r int, exists bool) {
+	v := m.addlow_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetLowCount resets all changes to the "low_count" field.
+func (m *VulnerabilityScanMutation) ResetLowCount() {
+	m.low_count = nil
+	m.addlow_count = nil
+}
+
+// SetNegligibleCount sets the "negligible_count" field.
+func (m *VulnerabilityScanMutation) SetNegligibleCount(i int) {
+	m.negligible_count = &i
+	m.addnegligible_count = nil
+}
+
+// NegligibleCount returns the value of the "negligible_count" field in the mutation.
+func (m *VulnerabilityScanMutation) NegligibleCount() (r int, exists bool) {
+	v := m.negligible_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNegligibleCount returns the old "negligible_count" field's value of the VulnerabilityScan entity.
+// If the VulnerabilityScan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VulnerabilityScanMutation) OldNegligibleCount(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNegligibleCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNegligibleCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNegligibleCount: %w", err)
+	}
+	return oldValue.NegligibleCount, nil
+}
+
+// AddNegligibleCount adds i to the "negligible_count" field.
+func (m *VulnerabilityScanMutation) AddNegligibleCount(i int) {
+	if m.addnegligible_count != nil {
+		*m.addnegligible_count += i
+	} else {
+		m.addnegligible_count = &i
+	}
+}
+
+// AddedNegligibleCount returns the value that was added to the "negligible_count" field in this mutation.
+func (m *VulnerabilityScanMutation) AddedNegligibleCount() (r int, exists bool) {
+	v := m.addnegligible_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetNegligibleCount resets all changes to the "negligible_count" field.
+func (m *VulnerabilityScanMutation) ResetNegligibleCount() {
+	m.negligible_count = nil
+	m.addnegligible_count = nil
+}
+
+// SetUnknownCount sets the "unknown_count" field.
+func (m *VulnerabilityScanMutation) SetUnknownCount(i int) {
+	m.unknown_count = &i
+	m.addunknown_count = nil
+}
+
+// UnknownCount returns the value of the "unknown_count" field in the mutation.
+func (m *VulnerabilityScanMutation) UnknownCount() (r int, exists bool) {
+	v := m.unknown_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUnknownCount returns the old "unknown_count" field's value of the VulnerabilityScan entity.
+// If the VulnerabilityScan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VulnerabilityScanMutation) OldUnknownCount(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUnknownCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUnknownCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUnknownCount: %w", err)
+	}
+	return oldValue.UnknownCount, nil
+}
+
+// AddUnknownCount adds i to the "unknown_count" field.
+func (m *VulnerabilityScanMutation) AddUnknownCount(i int) {
+	if m.addunknown_count != nil {
+		*m.addunknown_count += i
+	} else {
+		m.addunknown_count = &i
+	}
+}
+
+// AddedUnknownCount returns the value that was added to the "unknown_count" field in this mutation.
+func (m *VulnerabilityScanMutation) AddedUnknownCount() (r int, exists bool) {
+	v := m.addunknown_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetUnknownCount resets all changes to the "unknown_count" field.
+func (m *VulnerabilityScanMutation) ResetUnknownCount() {
+	m.unknown_count = nil
+	m.addunknown_count = nil
+}
+
+// SetNewCount sets the "new_count" field.
+func (m *VulnerabilityScanMutation) SetNewCount(i int) {
+	m.new_count = &i
+	m.addnew_count = nil
+}
+
+// NewCount returns the value of the "new_count" field in the mutation.
+func (m *VulnerabilityScanMutation) NewCount() (r int, exists bool) {
+	v := m.new_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldNewCount returns the old "new_count" field's value of the VulnerabilityScan entity.
+// If the VulnerabilityScan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VulnerabilityScanMutation) OldNewCount(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldNewCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldNewCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldNewCount: %w", err)
+	}
+	return oldValue.NewCount, nil
+}
+
+// AddNewCount adds i to the "new_count" field.
+func (m *VulnerabilityScanMutation) AddNewCount(i int) {
+	if m.addnew_count != nil {
+		*m.addnew_count += i
+	} else {
+		m.addnew_count = &i
+	}
+}
+
+// AddedNewCount returns the value that was added to the "new_count" field in this mutation.
+func (m *VulnerabilityScanMutation) AddedNewCount() (r int, exists bool) {
+	v := m.addnew_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetNewCount resets all changes to the "new_count" field.
+func (m *VulnerabilityScanMutation) ResetNewCount() {
+	m.new_count = nil
+	m.addnew_count = nil
+}
+
+// SetResolvedCount sets the "resolved_count" field.
+func (m *VulnerabilityScanMutation) SetResolvedCount(i int) {
+	m.resolved_count = &i
+	m.addresolved_count = nil
+}
+
+// ResolvedCount returns the value of the "resolved_count" field in the mutation.
+func (m *VulnerabilityScanMutation) ResolvedCount() (r int, exists bool) {
+	v := m.resolved_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldResolvedCount returns the old "resolved_count" field's value of the VulnerabilityScan entity.
+// If the VulnerabilityScan object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *VulnerabilityScanMutation) OldResolvedCount(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldResolvedCount is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldResolvedCount requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldResolvedCount: %w", err)
+	}
+	return oldValue.ResolvedCount, nil
+}
+
+// AddResolvedCount adds i to the "resolved_count" field.
+func (m *VulnerabilityScanMutation) AddResolvedCount(i int) {
+	if m.addresolved_count != nil {
+		*m.addresolved_count += i
+	} else {
+		m.addresolved_count = &i
+	}
+}
+
+// AddedResolvedCount returns the value that was added to the "resolved_count" field in this mutation.
+func (m *VulnerabilityScanMutation) AddedResolvedCount() (r int, exists bool) {
+	v := m.addresolved_count
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetResolvedCount resets all changes to the "resolved_count" field.
+func (m *VulnerabilityScanMutation) ResetResolvedCount() {
+	m.resolved_count = nil
+	m.addresolved_count = nil
+}
+
+// Where appends a list predicates to the VulnerabilityScanMutation builder.
+func (m *VulnerabilityScanMutation) Where(ps ...predicate.VulnerabilityScan) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the VulnerabilityScanMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *VulnerabilityScanMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.VulnerabilityScan, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *VulnerabilityScanMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *VulnerabilityScanMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (VulnerabilityScan).
+func (m *VulnerabilityScanMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *VulnerabilityScanMutation) Fields() []string {
+	fields := make([]string, 0, 20)
+	if m.origin != nil {
+		fields = append(fields, vulnerabilityscan.FieldOrigin)
+	}
+	if m.requested_by != nil {
+		fields = append(fields, vulnerabilityscan.FieldRequestedBy)
+	}
+	if m.state != nil {
+		fields = append(fields, vulnerabilityscan.FieldState)
+	}
+	if m.failure != nil {
+		fields = append(fields, vulnerabilityscan.FieldFailure)
+	}
+	if m.started_at != nil {
+		fields = append(fields, vulnerabilityscan.FieldStartedAt)
+	}
+	if m.finished_at != nil {
+		fields = append(fields, vulnerabilityscan.FieldFinishedAt)
+	}
+	if m.grype_version != nil {
+		fields = append(fields, vulnerabilityscan.FieldGrypeVersion)
+	}
+	if m.db_built_at != nil {
+		fields = append(fields, vulnerabilityscan.FieldDbBuiltAt)
+	}
+	if m.distro_id != nil {
+		fields = append(fields, vulnerabilityscan.FieldDistroID)
+	}
+	if m.distro_version != nil {
+		fields = append(fields, vulnerabilityscan.FieldDistroVersion)
+	}
+	if m.distro_name != nil {
+		fields = append(fields, vulnerabilityscan.FieldDistroName)
+	}
+	if m.package_count != nil {
+		fields = append(fields, vulnerabilityscan.FieldPackageCount)
+	}
+	if m.critical_count != nil {
+		fields = append(fields, vulnerabilityscan.FieldCriticalCount)
+	}
+	if m.high_count != nil {
+		fields = append(fields, vulnerabilityscan.FieldHighCount)
+	}
+	if m.medium_count != nil {
+		fields = append(fields, vulnerabilityscan.FieldMediumCount)
+	}
+	if m.low_count != nil {
+		fields = append(fields, vulnerabilityscan.FieldLowCount)
+	}
+	if m.negligible_count != nil {
+		fields = append(fields, vulnerabilityscan.FieldNegligibleCount)
+	}
+	if m.unknown_count != nil {
+		fields = append(fields, vulnerabilityscan.FieldUnknownCount)
+	}
+	if m.new_count != nil {
+		fields = append(fields, vulnerabilityscan.FieldNewCount)
+	}
+	if m.resolved_count != nil {
+		fields = append(fields, vulnerabilityscan.FieldResolvedCount)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *VulnerabilityScanMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case vulnerabilityscan.FieldOrigin:
+		return m.Origin()
+	case vulnerabilityscan.FieldRequestedBy:
+		return m.RequestedBy()
+	case vulnerabilityscan.FieldState:
+		return m.State()
+	case vulnerabilityscan.FieldFailure:
+		return m.Failure()
+	case vulnerabilityscan.FieldStartedAt:
+		return m.StartedAt()
+	case vulnerabilityscan.FieldFinishedAt:
+		return m.FinishedAt()
+	case vulnerabilityscan.FieldGrypeVersion:
+		return m.GrypeVersion()
+	case vulnerabilityscan.FieldDbBuiltAt:
+		return m.DbBuiltAt()
+	case vulnerabilityscan.FieldDistroID:
+		return m.DistroID()
+	case vulnerabilityscan.FieldDistroVersion:
+		return m.DistroVersion()
+	case vulnerabilityscan.FieldDistroName:
+		return m.DistroName()
+	case vulnerabilityscan.FieldPackageCount:
+		return m.PackageCount()
+	case vulnerabilityscan.FieldCriticalCount:
+		return m.CriticalCount()
+	case vulnerabilityscan.FieldHighCount:
+		return m.HighCount()
+	case vulnerabilityscan.FieldMediumCount:
+		return m.MediumCount()
+	case vulnerabilityscan.FieldLowCount:
+		return m.LowCount()
+	case vulnerabilityscan.FieldNegligibleCount:
+		return m.NegligibleCount()
+	case vulnerabilityscan.FieldUnknownCount:
+		return m.UnknownCount()
+	case vulnerabilityscan.FieldNewCount:
+		return m.NewCount()
+	case vulnerabilityscan.FieldResolvedCount:
+		return m.ResolvedCount()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *VulnerabilityScanMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case vulnerabilityscan.FieldOrigin:
+		return m.OldOrigin(ctx)
+	case vulnerabilityscan.FieldRequestedBy:
+		return m.OldRequestedBy(ctx)
+	case vulnerabilityscan.FieldState:
+		return m.OldState(ctx)
+	case vulnerabilityscan.FieldFailure:
+		return m.OldFailure(ctx)
+	case vulnerabilityscan.FieldStartedAt:
+		return m.OldStartedAt(ctx)
+	case vulnerabilityscan.FieldFinishedAt:
+		return m.OldFinishedAt(ctx)
+	case vulnerabilityscan.FieldGrypeVersion:
+		return m.OldGrypeVersion(ctx)
+	case vulnerabilityscan.FieldDbBuiltAt:
+		return m.OldDbBuiltAt(ctx)
+	case vulnerabilityscan.FieldDistroID:
+		return m.OldDistroID(ctx)
+	case vulnerabilityscan.FieldDistroVersion:
+		return m.OldDistroVersion(ctx)
+	case vulnerabilityscan.FieldDistroName:
+		return m.OldDistroName(ctx)
+	case vulnerabilityscan.FieldPackageCount:
+		return m.OldPackageCount(ctx)
+	case vulnerabilityscan.FieldCriticalCount:
+		return m.OldCriticalCount(ctx)
+	case vulnerabilityscan.FieldHighCount:
+		return m.OldHighCount(ctx)
+	case vulnerabilityscan.FieldMediumCount:
+		return m.OldMediumCount(ctx)
+	case vulnerabilityscan.FieldLowCount:
+		return m.OldLowCount(ctx)
+	case vulnerabilityscan.FieldNegligibleCount:
+		return m.OldNegligibleCount(ctx)
+	case vulnerabilityscan.FieldUnknownCount:
+		return m.OldUnknownCount(ctx)
+	case vulnerabilityscan.FieldNewCount:
+		return m.OldNewCount(ctx)
+	case vulnerabilityscan.FieldResolvedCount:
+		return m.OldResolvedCount(ctx)
+	}
+	return nil, fmt.Errorf("unknown VulnerabilityScan field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *VulnerabilityScanMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case vulnerabilityscan.FieldOrigin:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetOrigin(v)
+		return nil
+	case vulnerabilityscan.FieldRequestedBy:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRequestedBy(v)
+		return nil
+	case vulnerabilityscan.FieldState:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetState(v)
+		return nil
+	case vulnerabilityscan.FieldFailure:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFailure(v)
+		return nil
+	case vulnerabilityscan.FieldStartedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetStartedAt(v)
+		return nil
+	case vulnerabilityscan.FieldFinishedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFinishedAt(v)
+		return nil
+	case vulnerabilityscan.FieldGrypeVersion:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetGrypeVersion(v)
+		return nil
+	case vulnerabilityscan.FieldDbBuiltAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDbBuiltAt(v)
+		return nil
+	case vulnerabilityscan.FieldDistroID:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDistroID(v)
+		return nil
+	case vulnerabilityscan.FieldDistroVersion:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDistroVersion(v)
+		return nil
+	case vulnerabilityscan.FieldDistroName:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetDistroName(v)
+		return nil
+	case vulnerabilityscan.FieldPackageCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetPackageCount(v)
+		return nil
+	case vulnerabilityscan.FieldCriticalCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCriticalCount(v)
+		return nil
+	case vulnerabilityscan.FieldHighCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetHighCount(v)
+		return nil
+	case vulnerabilityscan.FieldMediumCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMediumCount(v)
+		return nil
+	case vulnerabilityscan.FieldLowCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLowCount(v)
+		return nil
+	case vulnerabilityscan.FieldNegligibleCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNegligibleCount(v)
+		return nil
+	case vulnerabilityscan.FieldUnknownCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUnknownCount(v)
+		return nil
+	case vulnerabilityscan.FieldNewCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetNewCount(v)
+		return nil
+	case vulnerabilityscan.FieldResolvedCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetResolvedCount(v)
+		return nil
+	}
+	return fmt.Errorf("unknown VulnerabilityScan field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *VulnerabilityScanMutation) AddedFields() []string {
+	var fields []string
+	if m.addpackage_count != nil {
+		fields = append(fields, vulnerabilityscan.FieldPackageCount)
+	}
+	if m.addcritical_count != nil {
+		fields = append(fields, vulnerabilityscan.FieldCriticalCount)
+	}
+	if m.addhigh_count != nil {
+		fields = append(fields, vulnerabilityscan.FieldHighCount)
+	}
+	if m.addmedium_count != nil {
+		fields = append(fields, vulnerabilityscan.FieldMediumCount)
+	}
+	if m.addlow_count != nil {
+		fields = append(fields, vulnerabilityscan.FieldLowCount)
+	}
+	if m.addnegligible_count != nil {
+		fields = append(fields, vulnerabilityscan.FieldNegligibleCount)
+	}
+	if m.addunknown_count != nil {
+		fields = append(fields, vulnerabilityscan.FieldUnknownCount)
+	}
+	if m.addnew_count != nil {
+		fields = append(fields, vulnerabilityscan.FieldNewCount)
+	}
+	if m.addresolved_count != nil {
+		fields = append(fields, vulnerabilityscan.FieldResolvedCount)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *VulnerabilityScanMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case vulnerabilityscan.FieldPackageCount:
+		return m.AddedPackageCount()
+	case vulnerabilityscan.FieldCriticalCount:
+		return m.AddedCriticalCount()
+	case vulnerabilityscan.FieldHighCount:
+		return m.AddedHighCount()
+	case vulnerabilityscan.FieldMediumCount:
+		return m.AddedMediumCount()
+	case vulnerabilityscan.FieldLowCount:
+		return m.AddedLowCount()
+	case vulnerabilityscan.FieldNegligibleCount:
+		return m.AddedNegligibleCount()
+	case vulnerabilityscan.FieldUnknownCount:
+		return m.AddedUnknownCount()
+	case vulnerabilityscan.FieldNewCount:
+		return m.AddedNewCount()
+	case vulnerabilityscan.FieldResolvedCount:
+		return m.AddedResolvedCount()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *VulnerabilityScanMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case vulnerabilityscan.FieldPackageCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddPackageCount(v)
+		return nil
+	case vulnerabilityscan.FieldCriticalCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddCriticalCount(v)
+		return nil
+	case vulnerabilityscan.FieldHighCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddHighCount(v)
+		return nil
+	case vulnerabilityscan.FieldMediumCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddMediumCount(v)
+		return nil
+	case vulnerabilityscan.FieldLowCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddLowCount(v)
+		return nil
+	case vulnerabilityscan.FieldNegligibleCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddNegligibleCount(v)
+		return nil
+	case vulnerabilityscan.FieldUnknownCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddUnknownCount(v)
+		return nil
+	case vulnerabilityscan.FieldNewCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddNewCount(v)
+		return nil
+	case vulnerabilityscan.FieldResolvedCount:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddResolvedCount(v)
+		return nil
+	}
+	return fmt.Errorf("unknown VulnerabilityScan numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *VulnerabilityScanMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(vulnerabilityscan.FieldRequestedBy) {
+		fields = append(fields, vulnerabilityscan.FieldRequestedBy)
+	}
+	if m.FieldCleared(vulnerabilityscan.FieldFailure) {
+		fields = append(fields, vulnerabilityscan.FieldFailure)
+	}
+	if m.FieldCleared(vulnerabilityscan.FieldFinishedAt) {
+		fields = append(fields, vulnerabilityscan.FieldFinishedAt)
+	}
+	if m.FieldCleared(vulnerabilityscan.FieldDbBuiltAt) {
+		fields = append(fields, vulnerabilityscan.FieldDbBuiltAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *VulnerabilityScanMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *VulnerabilityScanMutation) ClearField(name string) error {
+	switch name {
+	case vulnerabilityscan.FieldRequestedBy:
+		m.ClearRequestedBy()
+		return nil
+	case vulnerabilityscan.FieldFailure:
+		m.ClearFailure()
+		return nil
+	case vulnerabilityscan.FieldFinishedAt:
+		m.ClearFinishedAt()
+		return nil
+	case vulnerabilityscan.FieldDbBuiltAt:
+		m.ClearDbBuiltAt()
+		return nil
+	}
+	return fmt.Errorf("unknown VulnerabilityScan nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *VulnerabilityScanMutation) ResetField(name string) error {
+	switch name {
+	case vulnerabilityscan.FieldOrigin:
+		m.ResetOrigin()
+		return nil
+	case vulnerabilityscan.FieldRequestedBy:
+		m.ResetRequestedBy()
+		return nil
+	case vulnerabilityscan.FieldState:
+		m.ResetState()
+		return nil
+	case vulnerabilityscan.FieldFailure:
+		m.ResetFailure()
+		return nil
+	case vulnerabilityscan.FieldStartedAt:
+		m.ResetStartedAt()
+		return nil
+	case vulnerabilityscan.FieldFinishedAt:
+		m.ResetFinishedAt()
+		return nil
+	case vulnerabilityscan.FieldGrypeVersion:
+		m.ResetGrypeVersion()
+		return nil
+	case vulnerabilityscan.FieldDbBuiltAt:
+		m.ResetDbBuiltAt()
+		return nil
+	case vulnerabilityscan.FieldDistroID:
+		m.ResetDistroID()
+		return nil
+	case vulnerabilityscan.FieldDistroVersion:
+		m.ResetDistroVersion()
+		return nil
+	case vulnerabilityscan.FieldDistroName:
+		m.ResetDistroName()
+		return nil
+	case vulnerabilityscan.FieldPackageCount:
+		m.ResetPackageCount()
+		return nil
+	case vulnerabilityscan.FieldCriticalCount:
+		m.ResetCriticalCount()
+		return nil
+	case vulnerabilityscan.FieldHighCount:
+		m.ResetHighCount()
+		return nil
+	case vulnerabilityscan.FieldMediumCount:
+		m.ResetMediumCount()
+		return nil
+	case vulnerabilityscan.FieldLowCount:
+		m.ResetLowCount()
+		return nil
+	case vulnerabilityscan.FieldNegligibleCount:
+		m.ResetNegligibleCount()
+		return nil
+	case vulnerabilityscan.FieldUnknownCount:
+		m.ResetUnknownCount()
+		return nil
+	case vulnerabilityscan.FieldNewCount:
+		m.ResetNewCount()
+		return nil
+	case vulnerabilityscan.FieldResolvedCount:
+		m.ResetResolvedCount()
+		return nil
+	}
+	return fmt.Errorf("unknown VulnerabilityScan field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *VulnerabilityScanMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *VulnerabilityScanMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *VulnerabilityScanMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *VulnerabilityScanMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *VulnerabilityScanMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *VulnerabilityScanMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *VulnerabilityScanMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown VulnerabilityScan unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *VulnerabilityScanMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown VulnerabilityScan edge %s", name)
 }

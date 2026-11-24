@@ -345,6 +345,62 @@ var (
 		Columns:    UsersColumns,
 		PrimaryKey: []*schema.Column{UsersColumns[0]},
 	}
+	// VulnerabilityFindingsColumns holds the columns for the "vulnerability_findings" table.
+	VulnerabilityFindingsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "vulnerability_id", Type: field.TypeString},
+		{Name: "severity", Type: field.TypeString},
+		{Name: "severity_rank", Type: field.TypeInt},
+		{Name: "package", Type: field.TypeString},
+		{Name: "version", Type: field.TypeString},
+		{Name: "package_type", Type: field.TypeString, Default: ""},
+		{Name: "fix_state", Type: field.TypeString},
+		{Name: "fixed_versions", Type: field.TypeString, Size: 2147483647, Default: "[]"},
+		{Name: "description", Type: field.TypeString, Size: 2147483647, Default: ""},
+		{Name: "urls", Type: field.TypeString, Size: 2147483647, Default: "[]"},
+		{Name: "data_source", Type: field.TypeString, Default: ""},
+		{Name: "first_seen_at", Type: field.TypeTime},
+		{Name: "last_seen_at", Type: field.TypeTime},
+		{Name: "resolved_at", Type: field.TypeTime, Nullable: true},
+		{Name: "first_scan_id", Type: field.TypeUUID},
+		{Name: "last_scan_id", Type: field.TypeUUID},
+	}
+	// VulnerabilityFindingsTable holds the schema information for the "vulnerability_findings" table.
+	VulnerabilityFindingsTable = &schema.Table{
+		Name:       "vulnerability_findings",
+		Columns:    VulnerabilityFindingsColumns,
+		PrimaryKey: []*schema.Column{VulnerabilityFindingsColumns[0]},
+	}
+	// VulnerabilityScansColumns holds the columns for the "vulnerability_scans" table.
+	VulnerabilityScansColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "origin", Type: field.TypeString},
+		{Name: "requested_by", Type: field.TypeString, Nullable: true},
+		{Name: "state", Type: field.TypeString},
+		{Name: "failure", Type: field.TypeString, Nullable: true},
+		{Name: "started_at", Type: field.TypeTime},
+		{Name: "finished_at", Type: field.TypeTime, Nullable: true},
+		{Name: "grype_version", Type: field.TypeString, Default: ""},
+		{Name: "db_built_at", Type: field.TypeTime, Nullable: true},
+		{Name: "distro_id", Type: field.TypeString, Default: ""},
+		{Name: "distro_version", Type: field.TypeString, Default: ""},
+		{Name: "distro_name", Type: field.TypeString, Default: ""},
+		{Name: "package_count", Type: field.TypeInt, Default: 0},
+		{Name: "critical_count", Type: field.TypeInt, Default: 0},
+		{Name: "high_count", Type: field.TypeInt, Default: 0},
+		{Name: "medium_count", Type: field.TypeInt, Default: 0},
+		{Name: "low_count", Type: field.TypeInt, Default: 0},
+		{Name: "negligible_count", Type: field.TypeInt, Default: 0},
+		{Name: "unknown_count", Type: field.TypeInt, Default: 0},
+		{Name: "new_count", Type: field.TypeInt, Default: 0},
+		{Name: "resolved_count", Type: field.TypeInt, Default: 0},
+	}
+	// VulnerabilityScansTable holds the schema information for the "vulnerability_scans" table.
+	VulnerabilityScansTable = &schema.Table{
+		Name:       "vulnerability_scans",
+		Columns:    VulnerabilityScansColumns,
+		PrimaryKey: []*schema.Column{VulnerabilityScansColumns[0]},
+	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		AlertsTable,
@@ -365,6 +421,8 @@ var (
 		SystemMetricSamplesTable,
 		TotpSecretsTable,
 		UsersTable,
+		VulnerabilityFindingsTable,
+		VulnerabilityScansTable,
 	}
 )
 

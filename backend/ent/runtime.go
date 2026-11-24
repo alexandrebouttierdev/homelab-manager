@@ -22,6 +22,8 @@ import (
 	"homelab-manager/backend/ent/systemmetricsample"
 	"homelab-manager/backend/ent/totpsecret"
 	"homelab-manager/backend/ent/user"
+	"homelab-manager/backend/ent/vulnerabilityfinding"
+	"homelab-manager/backend/ent/vulnerabilityscan"
 	"time"
 
 	"github.com/google/uuid"
@@ -409,4 +411,116 @@ func init() {
 	userDescID := userFields[0].Descriptor()
 	// user.DefaultID holds the default value on creation for the id field.
 	user.DefaultID = userDescID.Default.(func() uuid.UUID)
+	vulnerabilityfindingFields := schema.VulnerabilityFinding{}.Fields()
+	_ = vulnerabilityfindingFields
+	// vulnerabilityfindingDescVulnerabilityID is the schema descriptor for vulnerability_id field.
+	vulnerabilityfindingDescVulnerabilityID := vulnerabilityfindingFields[1].Descriptor()
+	// vulnerabilityfinding.VulnerabilityIDValidator is a validator for the "vulnerability_id" field. It is called by the builders before save.
+	vulnerabilityfinding.VulnerabilityIDValidator = vulnerabilityfindingDescVulnerabilityID.Validators[0].(func(string) error)
+	// vulnerabilityfindingDescSeverity is the schema descriptor for severity field.
+	vulnerabilityfindingDescSeverity := vulnerabilityfindingFields[2].Descriptor()
+	// vulnerabilityfinding.SeverityValidator is a validator for the "severity" field. It is called by the builders before save.
+	vulnerabilityfinding.SeverityValidator = vulnerabilityfindingDescSeverity.Validators[0].(func(string) error)
+	// vulnerabilityfindingDescPackage is the schema descriptor for package field.
+	vulnerabilityfindingDescPackage := vulnerabilityfindingFields[4].Descriptor()
+	// vulnerabilityfinding.PackageValidator is a validator for the "package" field. It is called by the builders before save.
+	vulnerabilityfinding.PackageValidator = vulnerabilityfindingDescPackage.Validators[0].(func(string) error)
+	// vulnerabilityfindingDescVersion is the schema descriptor for version field.
+	vulnerabilityfindingDescVersion := vulnerabilityfindingFields[5].Descriptor()
+	// vulnerabilityfinding.VersionValidator is a validator for the "version" field. It is called by the builders before save.
+	vulnerabilityfinding.VersionValidator = vulnerabilityfindingDescVersion.Validators[0].(func(string) error)
+	// vulnerabilityfindingDescPackageType is the schema descriptor for package_type field.
+	vulnerabilityfindingDescPackageType := vulnerabilityfindingFields[6].Descriptor()
+	// vulnerabilityfinding.DefaultPackageType holds the default value on creation for the package_type field.
+	vulnerabilityfinding.DefaultPackageType = vulnerabilityfindingDescPackageType.Default.(string)
+	// vulnerabilityfindingDescFixState is the schema descriptor for fix_state field.
+	vulnerabilityfindingDescFixState := vulnerabilityfindingFields[7].Descriptor()
+	// vulnerabilityfinding.FixStateValidator is a validator for the "fix_state" field. It is called by the builders before save.
+	vulnerabilityfinding.FixStateValidator = vulnerabilityfindingDescFixState.Validators[0].(func(string) error)
+	// vulnerabilityfindingDescFixedVersions is the schema descriptor for fixed_versions field.
+	vulnerabilityfindingDescFixedVersions := vulnerabilityfindingFields[8].Descriptor()
+	// vulnerabilityfinding.DefaultFixedVersions holds the default value on creation for the fixed_versions field.
+	vulnerabilityfinding.DefaultFixedVersions = vulnerabilityfindingDescFixedVersions.Default.(string)
+	// vulnerabilityfindingDescDescription is the schema descriptor for description field.
+	vulnerabilityfindingDescDescription := vulnerabilityfindingFields[9].Descriptor()
+	// vulnerabilityfinding.DefaultDescription holds the default value on creation for the description field.
+	vulnerabilityfinding.DefaultDescription = vulnerabilityfindingDescDescription.Default.(string)
+	// vulnerabilityfindingDescUrls is the schema descriptor for urls field.
+	vulnerabilityfindingDescUrls := vulnerabilityfindingFields[10].Descriptor()
+	// vulnerabilityfinding.DefaultUrls holds the default value on creation for the urls field.
+	vulnerabilityfinding.DefaultUrls = vulnerabilityfindingDescUrls.Default.(string)
+	// vulnerabilityfindingDescDataSource is the schema descriptor for data_source field.
+	vulnerabilityfindingDescDataSource := vulnerabilityfindingFields[11].Descriptor()
+	// vulnerabilityfinding.DefaultDataSource holds the default value on creation for the data_source field.
+	vulnerabilityfinding.DefaultDataSource = vulnerabilityfindingDescDataSource.Default.(string)
+	// vulnerabilityfindingDescID is the schema descriptor for id field.
+	vulnerabilityfindingDescID := vulnerabilityfindingFields[0].Descriptor()
+	// vulnerabilityfinding.DefaultID holds the default value on creation for the id field.
+	vulnerabilityfinding.DefaultID = vulnerabilityfindingDescID.Default.(func() uuid.UUID)
+	vulnerabilityscanFields := schema.VulnerabilityScan{}.Fields()
+	_ = vulnerabilityscanFields
+	// vulnerabilityscanDescOrigin is the schema descriptor for origin field.
+	vulnerabilityscanDescOrigin := vulnerabilityscanFields[1].Descriptor()
+	// vulnerabilityscan.OriginValidator is a validator for the "origin" field. It is called by the builders before save.
+	vulnerabilityscan.OriginValidator = vulnerabilityscanDescOrigin.Validators[0].(func(string) error)
+	// vulnerabilityscanDescState is the schema descriptor for state field.
+	vulnerabilityscanDescState := vulnerabilityscanFields[3].Descriptor()
+	// vulnerabilityscan.StateValidator is a validator for the "state" field. It is called by the builders before save.
+	vulnerabilityscan.StateValidator = vulnerabilityscanDescState.Validators[0].(func(string) error)
+	// vulnerabilityscanDescGrypeVersion is the schema descriptor for grype_version field.
+	vulnerabilityscanDescGrypeVersion := vulnerabilityscanFields[7].Descriptor()
+	// vulnerabilityscan.DefaultGrypeVersion holds the default value on creation for the grype_version field.
+	vulnerabilityscan.DefaultGrypeVersion = vulnerabilityscanDescGrypeVersion.Default.(string)
+	// vulnerabilityscanDescDistroID is the schema descriptor for distro_id field.
+	vulnerabilityscanDescDistroID := vulnerabilityscanFields[9].Descriptor()
+	// vulnerabilityscan.DefaultDistroID holds the default value on creation for the distro_id field.
+	vulnerabilityscan.DefaultDistroID = vulnerabilityscanDescDistroID.Default.(string)
+	// vulnerabilityscanDescDistroVersion is the schema descriptor for distro_version field.
+	vulnerabilityscanDescDistroVersion := vulnerabilityscanFields[10].Descriptor()
+	// vulnerabilityscan.DefaultDistroVersion holds the default value on creation for the distro_version field.
+	vulnerabilityscan.DefaultDistroVersion = vulnerabilityscanDescDistroVersion.Default.(string)
+	// vulnerabilityscanDescDistroName is the schema descriptor for distro_name field.
+	vulnerabilityscanDescDistroName := vulnerabilityscanFields[11].Descriptor()
+	// vulnerabilityscan.DefaultDistroName holds the default value on creation for the distro_name field.
+	vulnerabilityscan.DefaultDistroName = vulnerabilityscanDescDistroName.Default.(string)
+	// vulnerabilityscanDescPackageCount is the schema descriptor for package_count field.
+	vulnerabilityscanDescPackageCount := vulnerabilityscanFields[12].Descriptor()
+	// vulnerabilityscan.DefaultPackageCount holds the default value on creation for the package_count field.
+	vulnerabilityscan.DefaultPackageCount = vulnerabilityscanDescPackageCount.Default.(int)
+	// vulnerabilityscanDescCriticalCount is the schema descriptor for critical_count field.
+	vulnerabilityscanDescCriticalCount := vulnerabilityscanFields[13].Descriptor()
+	// vulnerabilityscan.DefaultCriticalCount holds the default value on creation for the critical_count field.
+	vulnerabilityscan.DefaultCriticalCount = vulnerabilityscanDescCriticalCount.Default.(int)
+	// vulnerabilityscanDescHighCount is the schema descriptor for high_count field.
+	vulnerabilityscanDescHighCount := vulnerabilityscanFields[14].Descriptor()
+	// vulnerabilityscan.DefaultHighCount holds the default value on creation for the high_count field.
+	vulnerabilityscan.DefaultHighCount = vulnerabilityscanDescHighCount.Default.(int)
+	// vulnerabilityscanDescMediumCount is the schema descriptor for medium_count field.
+	vulnerabilityscanDescMediumCount := vulnerabilityscanFields[15].Descriptor()
+	// vulnerabilityscan.DefaultMediumCount holds the default value on creation for the medium_count field.
+	vulnerabilityscan.DefaultMediumCount = vulnerabilityscanDescMediumCount.Default.(int)
+	// vulnerabilityscanDescLowCount is the schema descriptor for low_count field.
+	vulnerabilityscanDescLowCount := vulnerabilityscanFields[16].Descriptor()
+	// vulnerabilityscan.DefaultLowCount holds the default value on creation for the low_count field.
+	vulnerabilityscan.DefaultLowCount = vulnerabilityscanDescLowCount.Default.(int)
+	// vulnerabilityscanDescNegligibleCount is the schema descriptor for negligible_count field.
+	vulnerabilityscanDescNegligibleCount := vulnerabilityscanFields[17].Descriptor()
+	// vulnerabilityscan.DefaultNegligibleCount holds the default value on creation for the negligible_count field.
+	vulnerabilityscan.DefaultNegligibleCount = vulnerabilityscanDescNegligibleCount.Default.(int)
+	// vulnerabilityscanDescUnknownCount is the schema descriptor for unknown_count field.
+	vulnerabilityscanDescUnknownCount := vulnerabilityscanFields[18].Descriptor()
+	// vulnerabilityscan.DefaultUnknownCount holds the default value on creation for the unknown_count field.
+	vulnerabilityscan.DefaultUnknownCount = vulnerabilityscanDescUnknownCount.Default.(int)
+	// vulnerabilityscanDescNewCount is the schema descriptor for new_count field.
+	vulnerabilityscanDescNewCount := vulnerabilityscanFields[19].Descriptor()
+	// vulnerabilityscan.DefaultNewCount holds the default value on creation for the new_count field.
+	vulnerabilityscan.DefaultNewCount = vulnerabilityscanDescNewCount.Default.(int)
+	// vulnerabilityscanDescResolvedCount is the schema descriptor for resolved_count field.
+	vulnerabilityscanDescResolvedCount := vulnerabilityscanFields[20].Descriptor()
+	// vulnerabilityscan.DefaultResolvedCount holds the default value on creation for the resolved_count field.
+	vulnerabilityscan.DefaultResolvedCount = vulnerabilityscanDescResolvedCount.Default.(int)
+	// vulnerabilityscanDescID is the schema descriptor for id field.
+	vulnerabilityscanDescID := vulnerabilityscanFields[0].Descriptor()
+	// vulnerabilityscan.DefaultID holds the default value on creation for the id field.
+	vulnerabilityscan.DefaultID = vulnerabilityscanDescID.Default.(func() uuid.UUID)
 }

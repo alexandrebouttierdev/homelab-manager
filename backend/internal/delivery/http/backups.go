@@ -190,6 +190,8 @@ func writeBackupError(w http.ResponseWriter, r *http.Request, err error) {
 		writeError(w, r, http.StatusConflict, "BACKUP_ALREADY_INITIALIZED", "The backup repository is already initialized.")
 	case errors.Is(err, domain.ErrBackupAlreadyRunning), errors.Is(err, domain.ErrBackupRepositoryInUse):
 		writeError(w, r, http.StatusConflict, "BACKUP_IN_PROGRESS", "A backup operation is already running.")
+	case errors.Is(err, domain.ErrBackupsNotReady):
+		writeError(w, r, http.StatusServiceUnavailable, "BACKUPS_UNAVAILABLE", "Backups are starting or stopping.")
 	case errors.Is(err, domain.ErrBackupSecretsMissing):
 		writeError(w, r, http.StatusServiceUnavailable, "SECRETS_UNAVAILABLE", "The secrets key is unavailable.")
 	default:

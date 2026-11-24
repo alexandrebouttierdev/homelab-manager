@@ -52,7 +52,9 @@ var (
 	ErrBackupRunNotFound        = errors.New("backup run not found")
 	ErrInvalidBackupRunFilter   = errors.New("backup run filter values are out of bounds")
 	ErrBackupRepositoryInUse    = errors.New("the repository cannot change while an operation is running")
-	backupExcludeMarkerPattern  = regexp.MustCompile(`^[A-Za-z0-9._-]{1,255}$`)
+	// ErrBackupsNotReady: the Manager is starting or stopping.
+	ErrBackupsNotReady         = errors.New("backups are starting or stopping")
+	backupExcludeMarkerPattern = regexp.MustCompile(`^[A-Za-z0-9._-]{1,255}$`)
 )
 
 // BackupValidationError names the invalid field of a backup setting.

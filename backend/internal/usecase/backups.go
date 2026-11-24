@@ -74,6 +74,9 @@ type BackupUsecase struct {
 
 	mu      sync.Mutex
 	running bool
+	// accepting is set once Run closed the runs left by a stop, and
+	// cleared when it ends: no run starts outside of it.
+	accepting bool
 	// requests holds one run already recorded and claimed.
 	requests chan pendingBackup
 }
@@ -98,6 +101,8 @@ func (u *BackupUsecase) Run(ctx context.Context) {
 	if err := u.store.InterruptRunningBackupRuns(ctx, u.now().UTC()); err != nil {
 		u.logger.Warn("could not close the interrupted backup runs", zap.Error(err))
 	}
+	u.setAccepting(true)
+	defer u.setAccepting(false)
 	ticker := time.NewTicker(u.tick)
 	defer ticker.Stop()
 	lastPurge := time.Time{}
@@ -117,14 +122,24 @@ func (u *BackupUsecase) Run(ctx context.Context) {
 	}
 }
 
-func (u *BackupUsecase) claim() bool {
+func (u *BackupUsecase) setAccepting(accepting bool) {
+	u.mu.Lock()
+	u.accepting = accepting
+	u.mu.Unlock()
+}
+
+// claim reserves the single operation slot.
+func (u *BackupUsecase) claim() error {
 	u.mu.Lock()
 	defer u.mu.Unlock()
-	if u.running {
-		return false
+	switch {
+	case !u.accepting:
+		return domain.ErrBackupsNotReady
+	case u.running:
+		return domain.ErrBackupAlreadyRunning
 	}
 	u.running = true
-	return true
+	return nil
 }
 
 func (u *BackupUsecase) release() {
@@ -292,8 +307,8 @@ func (u *BackupUsecase) InitRepository(ctx context.Context, actor domain.User, r
 	if err := domain.ValidateBackupCredentials(config.Repository.Type, credentials); err != nil {
 		return "", domain.BackupRun{}, err
 	}
-	if !u.claim() {
-		return "", domain.BackupRun{}, domain.ErrBackupAlreadyRunning
+	if err := u.claim(); err != nil {
+		return "", domain.BackupRun{}, err
 	}
 	if config.SealedCredentials, err = u.sealCredentials(credentials); err != nil {
 		u.release()
@@ -319,18 +334,19 @@ func (u *BackupUsecase) InitRepository(ctx context.Context, actor domain.User, r
 // RequestBackup records a manual backup as running and hands it to Run.
 // Callers must hold domain.PermRunBackups.
 func (u *BackupUsecase) RequestBackup(ctx context.Context, actor domain.User, requestID string) (domain.BackupRun, error) {
+	if err := u.claim(); err != nil {
+		return domain.BackupRun{}, err
+	}
 	config, err := u.store.BackupConfig(ctx)
+	if err == nil {
+		err = config.Ready()
+	}
+	if err == nil && u.box == nil {
+		err = domain.ErrBackupSecretsMissing
+	}
 	if err != nil {
+		u.release()
 		return domain.BackupRun{}, err
-	}
-	if err := config.Ready(); err != nil {
-		return domain.BackupRun{}, err
-	}
-	if u.box == nil {
-		return domain.BackupRun{}, domain.ErrBackupSecretsMissing
-	}
-	if !u.claim() {
-		return domain.BackupRun{}, domain.ErrBackupAlreadyRunning
 	}
 	id := uuid.New()
 	audit := domain.AuditEntry{
@@ -372,7 +388,7 @@ func (u *BackupUsecase) checkSchedule(ctx context.Context) {
 			return
 		}
 	}
-	if !u.claim() {
+	if u.claim() != nil {
 		return
 	}
 	storeCtx, cancel := context.WithTimeout(ctx, backupStoreTimeout)

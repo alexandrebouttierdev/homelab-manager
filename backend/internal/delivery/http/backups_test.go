@@ -2,6 +2,7 @@ package httpdelivery
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strings"
 	"testing"
@@ -48,6 +49,16 @@ func newBackupsRouter(t *testing.T) http.Handler {
 		<-done
 	})
 	services.Backups = backups
+	// Run accepts operations once it closed the runs left by a stop.
+	for deadline := time.Now().Add(5 * time.Second); ; {
+		if _, err := backups.RequestBackup(context.Background(), domain.User{Username: "probe"}, ""); !errors.Is(err, domain.ErrBackupsNotReady) {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatal("backups never started")
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
 	return NewRouter(zap.NewNop(), services, false, "")
 }
 

@@ -194,7 +194,30 @@ func newBackups(t *testing.T, store *memoryBackupStore, executor *fakeBackupExec
 		cancel()
 		<-done
 	})
+	waitAccepting(t, backups)
 	return backups, cancel
+}
+
+// waitAccepting waits until Run closed the runs left by a stop.
+func waitAccepting(t *testing.T, backups *BackupUsecase) {
+	t.Helper()
+	waitFor(t, func() bool {
+		backups.mu.Lock()
+		defer backups.mu.Unlock()
+		return backups.accepting
+	})
+}
+
+func TestBackupRefusedBeforeRun(t *testing.T) {
+	store := newMemoryBackupStore()
+	backups := NewBackupUsecase(store, &fakeBackupExecutor{}, fakeBox{}, zap.NewNop())
+	initialized := time.Now()
+	store.config.Repository = &domain.BackupRepository{Type: domain.RepositoryLocal, Location: "/mnt/backup"}
+	store.config.SealedCredentials, store.config.InitializedAt = "s", &initialized
+	store.config.Selection.Sources = []string{"/etc"}
+	if _, err := backups.RequestBackup(context.Background(), backupAdmin, "r"); !errors.Is(err, domain.ErrBackupsNotReady) {
+		t.Fatalf("before Run = %v, want ErrBackupsNotReady", err)
+	}
 }
 
 func finishedRun(t *testing.T, store *memoryBackupStore, id uuid.UUID) domain.BackupRun {

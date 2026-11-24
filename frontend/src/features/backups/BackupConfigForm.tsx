@@ -16,7 +16,7 @@ export function BackupConfigForm({ model }: { model: BackupConfigFormModel }) {
     <div className="space-y-4">
       {model.password && <PasswordReveal model={model} />}
       <form onSubmit={model.onSubmit} noValidate className="space-y-4">
-        <fieldset disabled={readOnly || model.isSaving} className="space-y-4">
+        <fieldset disabled={readOnly || model.isSaving} className="min-w-0 space-y-4">
           <Card>
             <CardHeader title="Dépôt" subtitle="Où restic range les instantanés, chiffrés" />
             <CardBody className="grid gap-4 md:grid-cols-2">
@@ -122,11 +122,12 @@ export function BackupConfigForm({ model }: { model: BackupConfigFormModel }) {
           </Card>
 
           <Card>
-            <CardHeader
-              title="Planification"
-              subtitle="Lancée par le Manager, à l'heure de la machine ; une sauvegarde manquée pendant un arrêt est rattrapée au redémarrage"
-            />
+            <CardHeader title="Planification" subtitle="Lancée par le Manager" />
             <CardBody className="grid gap-4 md:grid-cols-4">
+              <p className="text-xs text-text-secondary md:col-span-4">
+                À l&apos;heure de la machine. Une sauvegarde manquée pendant un arrêt du Manager est
+                lancée une fois à son redémarrage.
+              </p>
               <label className="flex items-center gap-2 text-xs text-text-secondary md:col-span-4">
                 <input type="checkbox" {...model.register('scheduleEnabled')} />
                 Sauvegarder automatiquement

@@ -171,7 +171,7 @@ function Runs({ page }: { page: BackupsPageModel }) {
               {formatRelativeTime(row.startedAt)}
             </TD>
             <TD className="whitespace-nowrap text-xs">{row.duration}</TD>
-            <TD className="text-xs">
+            <TD className="max-w-[420px] break-words text-xs">
               {row.result && <p>{row.result}</p>}
               {row.snapshot && (
                 <p className="font-mono text-[10px] text-text-muted">instantané {row.snapshot}</p>

@@ -467,10 +467,11 @@ Moteur d'alertes intégré (SPEC_ADMINISTRATION.md § 6), évalué toutes les 15
 | `unit_failed` | `unitPattern` (nom ou motif shell `*`, `?`, `[…]`) | Une unité de l'inventaire qui correspond est en `failed` ; immédiat |
 | `collector` | `collector` (`system`, `docker`, `services`), `forSeconds` | Le collecteur n'est ni `ok`, ni en démarrage (`starting`, `pending`) |
 | `vulnerabilities` | `vulnSeverity` (`critical`, `high`, `medium`, `low` : sévérité minimale), `fixableOnly` (facultatif) | Au moins un constat présent (§ 4.9) de cette sévérité ou plus grave, corrigeable si `fixableOnly` ; immédiat. Gelée tant qu'aucun scan n'a réussi. Une alerte par règle (cible `vulnerabilities`), `value` = nombre de constats |
+| `backup` | `maxAgeHours` (1 à 720) | Dernière sauvegarde réussie (§ 4.10) plus ancienne que `maxAgeHours` heures (à défaut, l'initialisation du dépôt), ou dernière sauvegarde en échec ; immédiat. Gelée tant qu'aucun dépôt n'est initialisé. Une alerte par règle (cible `backup`), `value` = âge du dernier succès en heures (au dixième), `threshold` = `maxAgeHours`, `observed` = `failed` après un échec |
 
 - `name` : 1 à 100 octets sans caractère de contrôle ; `severity` : `info`, `warning`, `critical` ; `operator` : `>`, `>=`, `<`, `<=` ; `threshold` : nombre fini ; `forSeconds` : 0 à 86 400 (durée pendant laquelle la condition doit rester vraie) ; `labels` : 5 au plus, clés parmi celles de la métrique, valeurs de 1 à 255 octets. Un paramètre qui n'appartient pas au type est refusé.
 - Métriques : celles du catalogue renvoyé par `GET /api/v1/alert-rules` (`catalog.hostMetrics` et `catalog.containerMetrics`, chacune avec ses labels), sous-ensemble des § 5.4 et § 5.5 sans compteurs cumulés ni totaux, plus `memory.available_percent` (hôte), dérivée par le moteur : `memory.available / memory.total × 100`. `catalog.containerStates`, `catalog.collectors` et `catalog.vulnerabilitySeverities` listent les autres valeurs acceptées.
-- Six règles par défaut (`default: true`) : disque `filesystem.percent > 85` 5 min, mémoire `memory.available_percent < 10` 5 min (`warning`) ; température `temperature.celsius > 85` 2 min (`critical`, seuil fixe : les seuils des capteurs ne sont pas collectés) ; collecte système et collecte Docker indisponibles 2 min (`warning`) ; unité en échec, motif `*` (`critical`). Modifiables et désactivables, non supprimables.
+- Sept règles par défaut (`default: true`) : disque `filesystem.percent > 85` 5 min, mémoire `memory.available_percent < 10` 5 min (`warning`) ; température `temperature.celsius > 85` 2 min (`critical`, seuil fixe : les seuils des capteurs ne sont pas collectés) ; collecte système et collecte Docker indisponibles 2 min (`warning`) ; unité en échec, motif `*` (`critical`) ; sauvegarde en retard ou en échec, `maxAgeHours` 26 (`warning`, migration `011`). Modifiables et désactivables, non supprimables.
 
 **Alerte** :
 
@@ -629,7 +630,7 @@ Vulnérabilités connues des paquets système de la machine du Manager (SPEC_ADM
 
 ### 4.10 Sauvegardes
 
-Sauvegardes chiffrées par restic (SPEC_ADMINISTRATION.md § 7, incrément 6A). restic ne s'exécute que dans l'unité root `homelab-backup@<opération>.service` (`init`, `backup`), démarrée par le Manager par D-Bus (règle polkit `50-homelab-manager-backup.rules`) ; le programme `homelab-backup-runner` y lit le fichier de travail écrit par le Manager, le valide de nouveau et lance restic sans shell. Une opération à la fois. Sans base de données : `503 BACKUPS_UNAVAILABLE` sur toutes les routes.
+Sauvegardes chiffrées par restic (SPEC_ADMINISTRATION.md § 7, incrément 6A). restic ne s'exécute que dans l'unité root `homelab-backup@<opération>.service` (`init`, `backup`), démarrée par le Manager par D-Bus (règle polkit `50-homelab-manager-backup.rules`) ; le programme `homelab-backup-runner` y lit le fichier de travail écrit par le Manager, le valide de nouveau et lance restic sans shell. Une opération à la fois. Sans base de données : `503 BACKUPS_UNAVAILABLE` sur toutes les routes ; pendant le démarrage du Manager (avant que les exécutions laissées en cours par un arrêt soient closes) et pendant son arrêt, une demande d'opération reçoit aussi `503 BACKUPS_UNAVAILABLE`.
 
 `GET /api/v1/backups/config` (tous les rôles) :
 

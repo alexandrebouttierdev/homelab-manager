@@ -6,7 +6,7 @@
 
 **Prérequis :** phase 1C (coffre de secrets), phase 4 (alertes), phase 5 et module V (démarrage d'une unité par D-Bus et polkit). restic : paquet Debian 13 `restic` 0.18.0.
 
-**Statut :** D-12 tranchée le 24 novembre 2026 (option A : le Manager planifie). Incrément 6A livré sauf la règle d'alerte « Sauvegarde » (tâche 7), à faire ensuite ; 6B à venir.
+**Statut :** D-12 tranchée le 24 novembre 2026 (option A : le Manager planifie). Incrément 6A livré, règle d'alerte comprise ; 6B à venir.
 
 ## Découpage
 
@@ -70,4 +70,7 @@ Le § 7.1 prévoit un timer `homelab-backup-schedule.timer` dont l'expression `O
 - Livré : domaine, `homelab-backup-runner`, migration `010` et dépôt SQLite, exécuteur (contrôleur D-Bus de la phase 5), usecase (configuration, initialisation, sauvegarde manuelle, planification et rattrapage), routes, page « Sauvegardes », unité, `tmpfiles.d`, règle polkit, documentation.
 - Écarts : `ReadWritePaths=` de l'unité étendu aux points de montage usuels (`/mnt`, `/media`, `/srv`, `/var/backups`) pour qu'un dépôt local soit inscriptible avec `ProtectSystem=strict` ; capacités limitées à `CAP_DAC_READ_SEARCH` et `CAP_DAC_OVERRIDE` ; un dépôt existant ne peut pas encore être rattaché (6B).
 - Recette dans la VM Debian 13 (restic 0.18.0, systemd, polkitd 126) : test réel du programme d'entrée (initialisation, sauvegarde avec exclusions, mauvais mot de passe) ; parcours par l'API : configuration d'un dépôt local sous `/srv`, initialisation, sauvegarde avec exclusion de `*.tmp`, instantané listé, fichiers de secrets supprimés, résultats lisibles par le groupe du Manager, prochaine sauvegarde calculée dans le fuseau de la machine.
-- Reste : règle d'alerte `backup` et règle par défaut « aucune sauvegarde réussie depuis 26 h » ; vérification visuelle de la page (thèmes, mobile) ; rest-server et S3 réels.
+- Règle d'alerte `backup` (`maxAgeHours`, 1 à 720) et règle par défaut de 26 h (migration `011`, qui reconstruit `alert_rules`) ; gelée tant qu'aucun dépôt n'est initialisé, déclenchée par l'âge du dernier succès ou un échec.
+- rest-server 0.13 de Debian en HTTPS avec authentification : initialisation et sauvegarde réussies ; le mot de passe du rest-server ne figure dans aucun fichier de travail. (Le serveur de test refusait un `htpasswd` en `apr1`, que rest-server ne lit pas : `{SHA}` ou bcrypt.)
+- Vérification visuelle (thème sombre, thème clair, largeur mobile) : corrigé un débordement horizontal du formulaire (`<fieldset>` sans `min-w-0`) et un sous-titre trop long ; les messages d'erreur longs passent à la ligne.
+- Reste : S3 réel (demande un serveur à télécharger) ; planification réelle sur plusieurs jours.

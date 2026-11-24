@@ -74,7 +74,7 @@ Navigateur ── HTTPS, même origine ──▶ homelab-manager (Go, Chi, Ent)
 |---|---|
 | `backend/` | Module Go unique : API REST Chi v5, Ent/SQLite (`modernc.org/sqlite`, sans CGO), collecte Linux et Docker, architecture hexagonale |
 | `frontend/` | React, TypeScript strict, Vite, React Router, TanStack Query, React Hook Form, Zod, Tailwind CSS, ECharts |
-| `deployments/` | Unités systemd (Manager, proxy Docker), configuration, règle polkit |
+| `deployments/` | Unités systemd (Manager, proxy Docker, scan de vulnérabilités), configuration, règles polkit, `tmpfiles.d` |
 | `scripts/` | Développement, vérification complète, construction des releases |
 | `docs/` | Spécification, architecture, contrat d'API, données, sécurité, tests, règles de code |
 
@@ -275,6 +275,39 @@ sudo install -o root -g root -m 0644 deployments/polkit/50-homelab-manager-power
 ```
 
 puis mettre `power_actions_enabled: true` dans `/etc/homelab-manager/manager.yaml` et redémarrer `homelab-manager.service`. La règle n'autorise que le redémarrage et l'extinction, par le seul compte `homelab-manager`, et respecte les verrous d'inhibition. Seuls les administrateurs voient la carte « Alimentation » de la page Machine ; la confirmation demande de saisir le nom de la machine. Après une extinction, il faut un accès physique (ou Wake-on-LAN configuré hors de Homelab Manager) pour rallumer la machine.
+
+### Vulnérabilités des paquets (Grype)
+
+Le Manager recherche les vulnérabilités connues (CVE et avis des distributions) des paquets système de sa machine avec [Grype](https://github.com/anchore/grype) : il lit lui-même la liste des paquets (Debian, Ubuntu et dérivées, Alpine ; Fedora, Rocky Linux et AlmaLinux sont reconnues mais pas encore prises en charge), puis fait analyser cet inventaire par l'unité dédiée `homelab-vulnscan.service`, qu'il démarre par D-Bus. Grype ne tourne jamais dans le Manager : il s'exécute sous son propre compte, avec des commandes fixes, une priorité minimale, 1 Gio de mémoire et 15 minutes au plus. Un scan a lieu 2 minutes après le premier démarrage, puis toutes les 24 heures (`vulnerability_scan_interval_hours`, de 6 à 168), et à la demande (rôle opérateur au moins, API `POST /api/v1/vulnerabilities/scans`). Une vulnérabilité listée est connue pour la version installée, pas forcément exploitable sur la machine.
+
+Installation, une fois (Grype n'est pas dans les dépôts Debian : paquet officiel d'Anchore, version figée **0.121.3**) :
+
+```bash
+GRYPE_VERSION=0.121.3
+ARCH=amd64   # ou arm64
+BASE=https://github.com/anchore/grype/releases/download/v$GRYPE_VERSION
+curl -fsSLO "$BASE/grype_${GRYPE_VERSION}_linux_${ARCH}.deb"
+curl -fsSLO "$BASE/grype_${GRYPE_VERSION}_checksums.txt"
+curl -fsSLO "$BASE/grype_${GRYPE_VERSION}_checksums.txt.sigstore.json"
+# Signature des sommes (cosign, facultatif mais recommandé), puis somme du paquet :
+cosign verify-blob "grype_${GRYPE_VERSION}_checksums.txt" \
+  --bundle "grype_${GRYPE_VERSION}_checksums.txt.sigstore.json" \
+  --certificate-identity-regexp '^https://github.com/anchore/grype/' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+sha256sum -c --ignore-missing "grype_${GRYPE_VERSION}_checksums.txt"
+sudo apt install "./grype_${GRYPE_VERSION}_linux_${ARCH}.deb"
+
+# Compte de l'unité, répertoires d'échange, règle polkit (start de cette seule unité)
+sudo adduser --system --group --no-create-home homelab-vulnscan
+sudo install -m 0644 deployments/tmpfiles/homelab-vulnscan.conf /etc/tmpfiles.d/
+sudo systemd-tmpfiles --create /etc/tmpfiles.d/homelab-vulnscan.conf
+sudo install -o root -g root -m 0644 deployments/polkit/50-homelab-manager-vulnscan.rules /etc/polkit-1/rules.d/
+sudo install -m 0644 deployments/systemd/homelab-vulnscan.service /etc/systemd/system/
+sudo systemctl daemon-reload
+sudo systemctl restart homelab-manager.service   # prend en compte ReadWritePaths=
+```
+
+`polkitd` est nécessaire (`sudo apt install polkitd`). L'unité télécharge la base de Grype (environ 100 Mo) depuis `grype.anchore.io` avant un scan quand une base plus récente est publiée (une par jour) ; une base de plus de 5 jours fait échouer le scan plutôt que donner un résultat trompeur. Pour une machine sans accès à Internet, désactiver ce téléchargement (`sudo systemctl edit homelab-vulnscan.service`, puis `Environment=GRYPE_DB_AUTO_UPDATE=false` sous `[Service]`) et importer une base à la main : `sudo -u homelab-vulnscan env GRYPE_DB_CACHE_DIR=/var/cache/homelab-vulnscan/db grype db import <archive>`. Un scan en échec indique sa cause (Grype ou unité absents, règle polkit absente, délai dépassé, base injoignable ou périmée) ; le détail est dans `journalctl -u homelab-vulnscan`. Sans Grype, le reste du Manager fonctionne normalement.
 
 ### Sauvegarde et restauration
 

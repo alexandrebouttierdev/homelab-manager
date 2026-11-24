@@ -48,6 +48,9 @@ type Services struct {
 	// Notifications sends the alerts and manages silences and channels;
 	// nil (no database) answers 503.
 	Notifications *usecase.NotificationUsecase
+	// Vulnerabilities scans the system packages; nil (no database) answers
+	// 503.
+	Vulnerabilities *usecase.VulnerabilityUsecase
 }
 
 func NewRouter(logger *zap.Logger, services Services, sessionSecure bool, webRoot string) http.Handler {
@@ -59,6 +62,7 @@ func NewRouter(logger *zap.Logger, services Services, sessionSecure bool, webRoo
 		journal = usecase.NewJournalUsecase(nil)
 	}
 	units, alerts, notifications := services.Units, services.Alerts, services.Notifications
+	vulnerabilities := services.Vulnerabilities
 	if units == nil {
 		// Never run: its inventory stays pending and its detail unavailable.
 		units = usecase.NewServiceUsecase(nil, nil, nil, logger)
@@ -187,6 +191,14 @@ func NewRouter(logger *zap.Logger, services Services, sessionSecure bool, webRoo
 						channels.Put("/{channelID}", updateChannelHandler(notifications))
 						channels.Delete("/{channelID}", deleteChannelHandler(notifications))
 						channels.Post("/{channelID}/test", testChannelHandler(notifications))
+					})
+					active.Route("/vulnerabilities", func(vulns chi.Router) {
+						vulns.Use(requireVulnerabilities(vulnerabilities))
+						vulns.Get("/", listFindingsHandler(vulnerabilities))
+						vulns.Get("/summary", vulnerabilitySummaryHandler(vulnerabilities))
+						vulns.Get("/scans", listScansHandler(vulnerabilities))
+						vulns.With(requirePermission(deny, domain.PermScanVulnerabilities)).Post("/scans", requestScanHandler(vulnerabilities))
+						vulns.Get("/{findingID}", findingHandler(vulnerabilities))
 					})
 					active.Route("/machine/power", func(machine chi.Router) {
 						machine.Use(requirePermission(deny, domain.PermManagePower))

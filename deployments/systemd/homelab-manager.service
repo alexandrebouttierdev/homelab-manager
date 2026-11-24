@@ -24,6 +24,9 @@ RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
 CapabilityBoundingSet=
 AmbientCapabilities=
 StateDirectory=homelab-manager
+# Package inventory for homelab-vulnscan.service (module V); ignored when
+# the directory does not exist.
+ReadWritePaths=-/var/lib/homelab-vulnscan/inventory
 StateDirectoryMode=0700
 UMask=0077
 EnvironmentFile=-/etc/homelab-manager/manager.env

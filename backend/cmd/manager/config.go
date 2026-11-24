@@ -27,6 +27,9 @@ type Config struct {
 	MetricsRetentionDays           int
 	PowerActionsEnabled            bool
 	SecretsKeyFile                 string
+	VulnerabilityScanIntervalHours int
+	VulnscanInventoryPath          string
+	VulnscanResultPath             string
 }
 
 func LoadConfig() (Config, error) {
@@ -57,6 +60,11 @@ func LoadConfig() (Config, error) {
 	// deployments/polkit; both are off by default.
 	v.SetDefault("power_actions_enabled", false)
 	v.SetDefault("secrets_key_file", "")
+	// Package vulnerabilities (module V): files exchanged with the
+	// homelab-vulnscan.service unit, created by its tmpfiles.d entry.
+	v.SetDefault("vulnerability_scan_interval_hours", 24)
+	v.SetDefault("vulnscan_inventory_path", "/var/lib/homelab-vulnscan/inventory/inventory.json")
+	v.SetDefault("vulnscan_result_path", "/var/lib/homelab-vulnscan/result/result.json")
 
 	if err := v.ReadInConfig(); err != nil {
 		var notFound viper.ConfigFileNotFoundError
@@ -82,6 +90,9 @@ func LoadConfig() (Config, error) {
 		MetricsRetentionDays:           v.GetInt("metrics_retention_days"),
 		PowerActionsEnabled:            v.GetBool("power_actions_enabled"),
 		SecretsKeyFile:                 v.GetString("secrets_key_file"),
+		VulnerabilityScanIntervalHours: v.GetInt("vulnerability_scan_interval_hours"),
+		VulnscanInventoryPath:          v.GetString("vulnscan_inventory_path"),
+		VulnscanResultPath:             v.GetString("vulnscan_result_path"),
 	}
 	if config.TLSCertFile != "" {
 		config.SessionSecure = true
@@ -136,6 +147,12 @@ func (c Config) Validate() error {
 	}
 	if c.MetricsRetentionDays < 1 || c.MetricsRetentionDays > 365 {
 		return fmt.Errorf("metrics retention must be between 1 and 365 days")
+	}
+	if c.VulnerabilityScanIntervalHours < 6 || c.VulnerabilityScanIntervalHours > 168 {
+		return fmt.Errorf("vulnerability scan interval must be between 6 and 168 hours")
+	}
+	if !filepath.IsAbs(c.VulnscanInventoryPath) || !filepath.IsAbs(c.VulnscanResultPath) {
+		return fmt.Errorf("vulnscan inventory and result paths must be absolute")
 	}
 	return nil
 }

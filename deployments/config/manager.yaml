@@ -14,3 +14,9 @@ power_actions_enabled: false
 # Clé maître du coffre de secrets (TOTP). Vide : la clé importée par systemd
 # (ImportCredential=homelab-manager-secrets-key, voir README).
 secrets_key_file: ""
+# Vulnérabilités des paquets (module V) : intervalle des scans automatiques
+# (6 à 168 h) et fichiers échangés avec l'unité homelab-vulnscan.service
+# (créés par deployments/tmpfiles/homelab-vulnscan.conf, voir README).
+vulnerability_scan_interval_hours: 24
+vulnscan_inventory_path: "/var/lib/homelab-vulnscan/inventory/inventory.json"
+vulnscan_result_path: "/var/lib/homelab-vulnscan/result/result.json"

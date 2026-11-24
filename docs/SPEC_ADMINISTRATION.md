@@ -236,11 +236,11 @@ Ajouté le 23 novembre 2026 à la demande du propriétaire du projet : redémarr
 
 ## 8 ter. Vulnérabilités des paquets (module V)
 
-Ajouté le 24 novembre 2026 à la demande du propriétaire du projet : détecter les vulnérabilités connues (CVE et avis des distributions) des paquets système installés avec [Grype](https://github.com/anchore/grype) (Anchore, licence Apache 2.0), les consulter et en voir la synthèse sur le tableau de bord. **Spécifié, non implémenté** ; trois décisions (D-9 à D-11, § 10) sont à trancher avant le plan détaillé.
+Ajouté le 24 novembre 2026 à la demande du propriétaire du projet : détecter les vulnérabilités connues (CVE et avis des distributions) des paquets système installés avec [Grype](https://github.com/anchore/grype) (Anchore, licence Apache 2.0), les consulter et en voir la synthèse sur le tableau de bord. **Spécifié, non implémenté** ; D-9 est tranchée (machine du Manager seule), D-10 et D-11 (§ 10) restent à trancher avant le plan détaillé.
 
 ### 8 ter.1 Périmètre
 
-- **Machine** : celle du Manager (règle du projet : une seule machine, aucun agent ni hôte distant). La demande initiale prévoit un agent par machine supervisée ; c'est la décision D-9. Le modèle de données porte l'identifiant de l'hôte pour ne pas fermer cette porte.
+- **Machine** : uniquement celle du Manager, sans agent ni hôte distant (décision D-9, tranchée le 24 novembre 2026). Les scans sont faits par le Manager lui-même.
 - **Distributions** : détection par `/etc/os-release` (`ID`, `VERSION_ID`, `ID_LIKE`). Debian 13, cible de déploiement, d'abord ; Ubuntu (même format de paquets), puis Fedora, Rocky Linux, AlmaLinux (base RPM SQLite) et Alpine (`/lib/apk/db/installed`). Un lecteur par gestionnaire de paquets derrière un port unique : ajouter une distribution = ajouter un lecteur et ses tests. Une distribution non reconnue est signalée comme telle, sans scan.
 - **Paquets** : lus par le Manager en Go, sans privilège (fichiers de base de paquets lisibles par tous), puis transmis à Grype sous forme d'inventaire (SBOM au format JSON de Syft) sur son entrée standard (`grype sbom:-`). Grype ne parcourt donc pas le système de fichiers : scan rapide, sans accès root, limité aux paquets système. Les dépendances embarquées dans des binaires ou des images Docker sont hors périmètre de ce module.
 - **Résultat présenté comme une vulnérabilité identifiée**, jamais comme une exploitabilité mesurée : une vulnérabilité d'un paquet installé peut ne pas être atteignable dans la configuration de la machine.
@@ -267,7 +267,7 @@ Ajouté le 24 novembre 2026 à la demande du propriétaire du projet : détecter
 ### 8 ter.5 Interface
 
 - **Page Machine, onglet « Vulnérabilités »** : totaux (total, critiques, élevées, moyennes, faibles, inconnues), dernier scan (date, état, nombre trouvé) et prochain scan, bouton « Analyser maintenant » ; tableau CVE, sévérité, paquet, version installée, version corrigée, publication, état (`corrigeable`, `non corrigée`, `ne sera pas corrigée`, `inconnu`, d'après Grype), trié par sévérité, recherche par identifiant ou paquet, filtres par sévérité, pagination côté serveur ; détail d'une vulnérabilité (description, versions, références) avec lien vers la fiche publique quand l'URL vient d'une source reconnue (NVD, avis Debian, Ubuntu, Red Hat, Alpine, GitHub).
-- **Tableau de bord** : totaux par sévérité, dernières vulnérabilités détectées (identifiant, paquet, sévérité, date) menant à l'onglet ; état distinct « aucune analyse encore » et « aucune vulnérabilité ». La répartition par machine n'a de sens qu'avec plusieurs machines (D-9).
+- **Tableau de bord** : totaux par sévérité, dernières vulnérabilités détectées (identifiant, paquet, sévérité, date) menant à l'onglet ; état distinct « aucune analyse encore » et « aucune vulnérabilité ». Pas de répartition par machine : il n'y en a qu'une (D-9).
 - **Alertes** : un type de règle « vulnérabilités » (par exemple, au moins une critique corrigeable) s'ajoute au module A.
 
 ## 9. Ordre de réalisation
@@ -283,7 +283,7 @@ Ajouté le 24 novembre 2026 à la demande du propriétaire du projet : détecter
 | 6 | Module B : dépôts, sauvegarde, rétention, restauration en quarantaine | Phases 1 et 4 |
 | 7 | Module C en lecture | Phase 2 |
 | 8 | WebAuthn, jetons d'API | Phase 1, HTTPS |
-| V | Module V : vulnérabilités des paquets (Grype), placé après la phase 4 | Phase 4 (règle d'alerte), décisions D-9 à D-11 |
+| V | Module V : vulnérabilités des paquets (Grype) de la machine du Manager, placé après la phase 4 | Phase 4 (règle d'alerte), décisions D-10 et D-11 |
 
 Chaque phase livre son contrat dans API_CONTRACTS.md, ses tables dans DATA_MODEL.md, ses risques dans SECURITY.md, ses tests, et retire la mention « à venir » de son entrée de navigation.
 
@@ -296,11 +296,12 @@ Chaque phase livre son contrat dans API_CONTRACTS.md, ses tables dans DATA_MODEL
 - **[D-5] Actions Docker** (démarrer, arrêter, redémarrer un conteneur) et **journaux de conteneur** (maquettes `d_tails_conteneur_*`, `journaux_docker_*`). La lecture des journaux est compatible avec les règles via une route en lecture seule du proxy ; les actions exigent d'élargir le proxy et une décision explicite. `exec` et la suppression restent exclus par les règles 1 et 3.
 - **[D-6] Préférences système** (maquette `param_tres_syst_me_*` : nom d'hôte, fuseau, langue). Modifient la machine ; hors de ce lot.
 
-- **[D-9] Machines supervisées par le module V.** La demande initiale prévoit un agent Grype sur chaque machine supervisée, alors que le projet n'en supervise qu'une, sans agent (règles du projet). Proposition : livrer le module pour la machine du Manager ; un mode multi-machine exigerait de réviser la règle (agents, authentification et chiffrement de leurs échanges, inscription des machines) dans une version ultérieure.
 - **[D-10] Mise à jour de la base de Grype.** Elle impose une communication sortante vers Anchore, aujourd'hui limitée aux notifications (§ 6.3). Proposition : mise à jour automatique quotidienne, désactivable, seule autre communication sortante autorisée ; sans elle, import manuel d'une base téléchargée ailleurs (`grype db import`) et scans refusés quand la base a plus de 5 jours.
 - **[D-11] Mode d'exécution de Grype.** Proposition : unité systemd dédiée et durcie, lancée par le Manager par D-Bus avec une règle polkit limitée à cette unité (modèle du § 2.1, partagé avec la phase 5), qui borne processeur, disque et mémoire ; à défaut, exécution directe par le Manager avec une priorité minimale.
 
 ### Décisions tranchées
+
+- **[D-9] Machines du module V** — tranchée le 24 novembre 2026 par le propriétaire du projet : Homelab Manager tourne sur une seule machine ; le module V n'analyse que celle-ci, sans agent ni hôte distant. La demande initiale (un agent Grype par machine supervisée) n'est pas retenue.
 
 - **[D-7] Rôle des actions d'alimentation** — tranchée le 23 novembre 2026 par le propriétaire du projet : `admin` uniquement, car elles interrompent tous les services. Les `operator` n'y ont pas accès, contrairement aux actions sur les services (§ 5.2).
 - **[D-8] Arrêt programmé et annulable** (`ScheduleShutdown` de logind, compte à rebours, bouton « Annuler ») — tranchée le 23 novembre 2026 : non retenu. La demande est transmise immédiatement après la confirmation par le nom de la machine.

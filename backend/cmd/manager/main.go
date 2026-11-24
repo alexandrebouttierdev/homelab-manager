@@ -150,7 +150,7 @@ func main() {
 	router := httpdelivery.NewRouter(logger, httpdelivery.Services{
 		Health: healthUsecase, Auth: authUsecase, Monitoring: monitoringUsecase,
 		Accounts: accountUsecase, Power: powerUsecase, Security: securityUsecase, Audit: auditUsecase,
-		SecondFactors: secondFactorUsecase, Journal: journalUsecase, Units: serviceUsecase,
+		SecondFactors: secondFactorUsecase, Journal: journalUsecase, Units: serviceUsecase, Alerts: alertUsecase,
 	}, config.SessionSecure, config.WebRoot)
 
 	server := &http.Server{

@@ -66,14 +66,24 @@ Ce document est le contrat exact de l'API implémentée. Toute différence entre
 | `GET /api/v1/journal/export` | oui | Export `.log` ou `.json` (§ 4.6) |
 | `GET /api/v1/system/units` | oui | Inventaire des services, timers et sockets systemd (§ 4.7) |
 | `GET /api/v1/system/units/{unitName}` | oui | Détail d'une unité et extrait de son journal (§ 4.7) |
+| `GET /api/v1/alerts` | oui | Alertes ouvertes et historique (§ 4.8) |
+| `GET /api/v1/alerts/summary` | oui | Indicateurs des alertes (§ 4.8) |
+| `GET /api/v1/alerts/{alertID}` | oui | Une alerte (§ 4.8) |
+| `POST /api/v1/alerts/{alertID}/acknowledge` | `operator` | Acquitte une alerte ouverte (§ 4.8) |
+| `GET /api/v1/alert-rules` | oui | Règles d'alerte et catalogue des valeurs acceptées (§ 4.8) |
+| `GET /api/v1/alert-rules/{ruleID}` | oui | Une règle (§ 4.8) |
+| `POST /api/v1/alert-rules` | admin | Crée une règle (§ 4.8) |
+| `PUT /api/v1/alert-rules/{ruleID}` | admin | Remplace une règle (§ 4.8) |
+| `DELETE /api/v1/alert-rules/{ruleID}` | admin | Supprime une règle qui n'est pas une règle par défaut (§ 4.8) |
 
-Toutes les routes de supervision sont en lecture seule ; les seules écritures sont l'authentification, `PUT /api/v1/settings/retention`, la gestion des comptes et les demandes d'alimentation de la machine. La colonne « Session » indique `admin` pour les routes réservées au rôle administrateur (§ 3.1). Une route inconnue sous `/api` répond `404 NOT_FOUND`, une méthode non prévue `405 METHOD_NOT_ALLOWED`, toujours au format d'erreur du § 8. Le journal système et les unités systemd ne sont lus qu'en lecture seule. Il n'existe aucune route d'Agent, d'hôte distant, de journaux de conteneurs, ni d'action Docker (création, suppression, démarrage, arrêt, restart, exec).
+Toutes les routes de supervision sont en lecture seule ; les seules écritures sont l'authentification, `PUT /api/v1/settings/retention`, la gestion des comptes, les demandes d'alimentation de la machine, les règles d'alerte et l'acquittement d'une alerte. La colonne « Session » indique `admin` pour les routes réservées au rôle administrateur, `operator` pour celles ouvertes aux opérateurs et administrateurs (§ 3.1). Une route inconnue sous `/api` répond `404 NOT_FOUND`, une méthode non prévue `405 METHOD_NOT_ALLOWED`, toujours au format d'erreur du § 8. Le journal système et les unités systemd ne sont lus qu'en lecture seule. Il n'existe aucune route d'Agent, d'hôte distant, de journaux de conteneurs, ni d'action Docker (création, suppression, démarrage, arrêt, restart, exec).
 
 ### Paramètres de chemin
 
 - `containerID` : UUID Manager (`8-4-4-4-12` hexadécimal minuscule) ou ID Docker de 12 à 64 caractères hexadécimaux minuscules. Sinon `400 VALIDATION_ERROR` ; inconnu → `404 NOT_FOUND`.
 - `userID` : UUID Manager en minuscules (`8-4-4-4-12`). Sinon `400 VALIDATION_ERROR` ; inconnu → `404 NOT_FOUND`.
 - `action` : `reboot` ou `poweroff`. Sinon `400 VALIDATION_ERROR`.
+- `alertID`, `ruleID` : UUID en minuscules (`8-4-4-4-12`). Sinon `400 VALIDATION_ERROR` ; inconnu → `404 NOT_FOUND`.
 - `unitName` : nom d'unité systemd, éventuellement encodé (`getty%40tty1.service`), motif `^[A-Za-z0-9@._:\-]{1,255}\.(service|timer|socket)$`. Sinon `400 VALIDATION_ERROR` ; absent du dernier inventaire → `404 NOT_FOUND`.
 - `metricName` : 64 caractères au plus, motif `^[a-z][a-z0-9_]*(\.[a-z0-9_]+)+$` (ex. `cpu.percent`). Sinon `400 VALIDATION_ERROR`. Un nom valide mais jamais collecté renvoie une liste vide.
 
@@ -108,7 +118,7 @@ Toutes les routes de supervision sont en lecture seule ; les seules écritures s
 
 Comptes de Homelab Manager uniquement : aucun compte Linux n'est lu ni modifié.
 
-**Rôles** — `viewer` : consultation et son propre mot de passe. `operator` : idem pour l'instant (actions sur les services et sauvegardes dans les phases suivantes). `admin` : idem, plus `PUT /api/v1/settings/retention` et les routes `/api/v1/users`. Un rôle insuffisant reçoit `403 FORBIDDEN`.
+**Rôles** — `viewer` : consultation et son propre mot de passe. `operator` : idem, plus l'acquittement des alertes (permission `alerts:operate` ; actions sur les services et sauvegardes dans les phases suivantes). `admin` : idem, plus `PUT /api/v1/settings/retention`, les routes `/api/v1/users` et la gestion des règles d'alerte (`alerts:manage`). Un rôle insuffisant reçoit `403 FORBIDDEN`.
 
 **Mot de passe initial** — un compte créé par un administrateur a `mustChangePassword: true`. Tant qu'il ne l'a pas changé (`POST /api/v1/auth/password`), toutes les routes authentifiées sauf `/auth/session`, `/auth/logout` et `/auth/password` répondent `403 PASSWORD_CHANGE_REQUIRED`.
 
@@ -390,6 +400,61 @@ Lecture seule des unités systemd par D-Bus (SPEC_ADMINISTRATION.md § 5.1), ouv
 - `journal.entries` : les 50 entrées les plus récentes de l'unité, toutes priorités, de la plus récente à la plus ancienne, au format du § 4.6. `available: false` et `entries: []` si le journal ne peut pas être lu (`journalctl` absent ou en échec) ; le détail reste servi.
 - Erreurs : nom invalide `400 VALIDATION_ERROR` (un nom échappé par systemd, contenant `\`, est hors du motif : l'unité figure dans l'inventaire mais son détail est refusé) ; unité absente du dernier inventaire ou disparue `404 NOT_FOUND` ; aucun inventaire réussi ou systemd injoignable `503 SYSTEMD_UNAVAILABLE` ; autre échec de lecture `500 SYSTEMD_READ_FAILED`.
 
+### 4.8 Alertes
+
+Moteur d'alertes intégré (SPEC_ADMINISTRATION.md § 6), évalué toutes les 15 s sur les données déjà collectées, sans requête d'historique. Phase 4A : aucune notification n'est envoyée ; les canaux et les silences arrivent avec la phase 4B. Sans base de données, toutes ces routes répondent `503 ALERTS_UNAVAILABLE`.
+
+**Règle** :
+
+```json
+{
+  "id": "6f1c2a10-7a4e-4c4b-9a51-000000000001", "name": "Disque presque plein",
+  "type": "host_metric", "severity": "warning", "enabled": true, "default": true,
+  "params": { "metric": "filesystem.percent", "labels": { "mountpoint": "/" }, "operator": ">", "threshold": 85, "forSeconds": 300 },
+  "createdAt": "2026-11-24T00:00:00Z", "updatedAt": "2026-11-24T00:00:00Z"
+}
+```
+
+| `type` | Paramètres (`params`) | Condition vraie |
+|---|---|---|
+| `host_metric` | `metric`, `labels` (facultatif), `operator`, `threshold`, `forSeconds` | Une série du dernier cycle hôte compare vrai au seuil ; chaque série (labels) est une cible |
+| `container_metric` | `containerId` (facultatif : tous), `metric`, `labels`, `operator`, `threshold`, `forSeconds` | Idem sur le dernier cycle de chaque conteneur |
+| `container_state` | `containerId` (facultatif), `states` (non vide, valeurs distinctes), `forSeconds` | L'état Docker du conteneur est l'un des `states` |
+| `unit_failed` | `unitPattern` (nom ou motif shell `*`, `?`, `[…]`) | Une unité de l'inventaire qui correspond est en `failed` ; immédiat |
+| `collector` | `collector` (`system`, `docker`, `services`), `forSeconds` | Le collecteur n'est ni `ok`, ni en démarrage (`starting`, `pending`) |
+
+- `name` : 1 à 100 octets sans caractère de contrôle ; `severity` : `info`, `warning`, `critical` ; `operator` : `>`, `>=`, `<`, `<=` ; `threshold` : nombre fini ; `forSeconds` : 0 à 86 400 (durée pendant laquelle la condition doit rester vraie) ; `labels` : 5 au plus, clés parmi celles de la métrique, valeurs de 1 à 255 octets. Un paramètre qui n'appartient pas au type est refusé.
+- Métriques : celles du catalogue renvoyé par `GET /api/v1/alert-rules` (`catalog.hostMetrics` et `catalog.containerMetrics`, chacune avec ses labels), sous-ensemble des § 5.4 et § 5.5 sans compteurs cumulés ni totaux, plus `memory.available_percent` (hôte), dérivée par le moteur : `memory.available / memory.total × 100`. `catalog.containerStates` et `catalog.collectors` listent les autres valeurs acceptées.
+- Six règles par défaut (`default: true`) : disque `filesystem.percent > 85` 5 min, mémoire `memory.available_percent < 10` 5 min (`warning`) ; température `temperature.celsius > 85` 2 min (`critical`, seuil fixe : les seuils des capteurs ne sont pas collectés) ; collecte système et collecte Docker indisponibles 2 min (`warning`) ; unité en échec, motif `*` (`critical`). Modifiables et désactivables, non supprimables.
+
+**Alerte** :
+
+```json
+{
+  "id": "uuid", "ruleId": "uuid", "ruleName": "Disque presque plein", "ruleType": "host_metric",
+  "severity": "warning", "state": "firing",
+  "target": { "kind": "host", "metric": "filesystem.percent", "labels": { "mountpoint": "/", "device": "sda1" },
+              "containerId": null, "containerName": null, "unit": null, "collector": null },
+  "value": 91.5, "threshold": 85, "observed": null,
+  "firedAt": "2026-11-24T10:05:00Z", "acknowledgedAt": null, "acknowledgedBy": null,
+  "resolvedAt": null, "resolution": null
+}
+```
+
+- `target.kind` : `host`, `container`, `unit` ou `collector`. `value` et `threshold` : règles de métrique (valeur au déclenchement) ; `observed` : état qui a déclenché les autres règles (`exited`, `failed (exit-code)`, `unavailable`). `ruleName`, `ruleType` et `severity` sont copiés au déclenchement.
+- Cycle : `firing` → `acknowledged` (facultatif) → `resolved`. Une seule alerte ouverte par règle et par cible ; une condition de nouveau vraie après la résolution ouvre une nouvelle alerte. `resolution` : `condition_cleared` (condition fausse), `no_data` (série absente d'un cycle à jour depuis 5 min), `target_gone` (conteneur ou unité sorti de l'inventaire), `rule_disabled`, `rule_deleted`, `rule_changed` (type, sévérité ou paramètres modifiés ; un simple renommage garde les alertes).
+- Une source illisible ou périmée (aucun cycle hôte de moins de 5 min, collecte Docker hors `ok`, inventaire systemd hors `ok`) ne déclenche ni ne résout les règles qui en dépendent. Le début d'une condition qui n'a pas encore tenu sa durée est gardé en mémoire : après un redémarrage du Manager, la durée recommence ; les alertes ouvertes, elles, sont conservées.
+
+`GET /api/v1/alerts[?state=open|resolved|all&from=…&to=…&limit=…]` → `{ "alerts": [...] }`, de la plus récente à la plus ancienne (`firedAt`). `state` par défaut `all` ; `from` et `to` RFC 3339 facultatifs, intervalle `[from, to)` sur `firedAt` ; `limit` 1 à 1 000, défaut 200. Tout autre paramètre, ou un paramètre répété → `400 VALIDATION_ERROR`.
+
+`GET /api/v1/alerts/summary` → `{ "open": { "info": 0, "warning": 1, "critical": 0 }, "resolvedLast24h": 3, "meanResolutionSeconds24h": 840 }` ; `meanResolutionSeconds24h` est `null` sans alerte résolue sur 24 h.
+
+`POST /api/v1/alerts/{alertID}/acknowledge` (sans corps, `operator` ou `admin`) → `200 { "alert": Alerte }`. L'alerte reste ouverte jusqu'à sa résolution. Déjà acquittée : renvoyée inchangée. Résolue : `409 ALERT_ALREADY_RESOLVED`. Audité (`alert` / UUID / `acknowledge`).
+
+`GET /api/v1/alert-rules` → `{ "rules": [...], "catalog": { "hostMetrics": { "filesystem.percent": ["mountpoint", "device"], … }, "containerMetrics": { … }, "containerStates": [...], "collectors": [...] } }`, règles par défaut d'abord puis par nom.
+
+`POST /api/v1/alert-rules` avec `{ "name", "type", "severity", "enabled", "params" }` (`enabled` obligatoire, champs inconnus refusés) → `201 { "rule": Règle }` ; `PUT /api/v1/alert-rules/{ruleID}` avec le même corps → `200 { "rule": Règle }` (une règle par défaut le reste) ; `DELETE /api/v1/alert-rules/{ruleID}` → `200 { "deleted": true }`, ses alertes ouvertes sont résolues (`rule_deleted`). Règle invalide : `400 VALIDATION_ERROR` avec le motif ; règle par défaut supprimée : `409 DEFAULT_RULE` ; au-delà de 200 règles : `409 TOO_MANY_RULES`. Chaque modification est auditée (`alert_rule` / UUID / `create`, `update`, `delete`) dans la même transaction.
+
 ## 5. Métriques
 
 ### 5.1 Échantillon
@@ -604,6 +669,11 @@ Les routes sont versionnées sous `/api/v1`. Un changement incompatible (champ s
 | `JOURNAL_READ_FAILED` | 500 | Lecture du journal système en échec |
 | `SYSTEMD_UNAVAILABLE` | 503 | systemd injoignable ou aucun inventaire des unités |
 | `SYSTEMD_READ_FAILED` | 500 | Lecture d'une unité systemd en échec |
+| `ALERT_ALREADY_RESOLVED` | 409 | Acquittement d'une alerte résolue |
+| `DEFAULT_RULE` | 409 | Suppression d'une règle d'alerte par défaut |
+| `TOO_MANY_RULES` | 409 | Plus de 200 règles d'alerte |
+| `ALERTS_UNAVAILABLE` | 503 | Moteur d'alertes arrêté (base de données indisponible) |
+| `ALERTS_FAILED` | 500 | Lecture ou écriture des alertes en échec |
 | `INTERNAL_ERROR` | 500 | Autre erreur serveur |
 
 Aucune trace de pile, chemin local, secret ou réponse Docker brute dans les erreurs. `requestId` correspond au champ `request_id` des journaux du Manager.

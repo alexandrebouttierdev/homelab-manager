@@ -115,10 +115,15 @@ var containerAlertMetrics = map[string][]string{
 func HostAlertMetrics() map[string][]string      { return cloneMetricList(hostAlertMetrics) }
 func ContainerAlertMetrics() map[string][]string { return cloneMetricList(containerAlertMetrics) }
 
+// AlertContainerStates and AlertCollectors list the values a container
+// state rule and a collector rule accept.
+func AlertContainerStates() []string { return slices.Clone(containerStates) }
+func AlertCollectors() []string      { return slices.Clone(alertCollectors) }
+
 func cloneMetricList(list map[string][]string) map[string][]string {
 	out := make(map[string][]string, len(list))
 	for name, labels := range list {
-		out[name] = slices.Clone(labels)
+		out[name] = append([]string{}, labels...)
 	}
 	return out
 }

@@ -43,6 +43,8 @@ type Services struct {
 	Journal *usecase.JournalUsecase
 	// Units serves the systemd units inventory; nil means unavailable.
 	Units *usecase.ServiceUsecase
+	// Alerts evaluates the alert rules; nil (no database) answers 503.
+	Alerts *usecase.AlertUsecase
 }
 
 func NewRouter(logger *zap.Logger, services Services, sessionSecure bool, webRoot string) http.Handler {
@@ -53,7 +55,7 @@ func NewRouter(logger *zap.Logger, services Services, sessionSecure bool, webRoo
 	if journal == nil {
 		journal = usecase.NewJournalUsecase(nil)
 	}
-	units := services.Units
+	units, alerts := services.Units, services.Alerts
 	if units == nil {
 		// Never run: its inventory stays pending and its detail unavailable.
 		units = usecase.NewServiceUsecase(nil, nil, nil, logger)
@@ -146,6 +148,24 @@ func NewRouter(logger *zap.Logger, services Services, sessionSecure bool, webRoo
 					active.Route("/system/units", func(system chi.Router) {
 						system.Get("/", listUnitsHandler(units))
 						system.Get("/{unitName}", unitDetailHandler(logger, units))
+					})
+					active.Route("/alerts", func(list chi.Router) {
+						list.Use(requireAlerts(alerts))
+						list.Get("/", listAlertsHandler(alerts))
+						list.Get("/summary", alertSummaryHandler(alerts))
+						list.Get("/{alertID}", alertHandler(alerts))
+						list.With(requirePermission(deny, domain.PermOperateAlerts)).Post("/{alertID}/acknowledge", acknowledgeAlertHandler(alerts))
+					})
+					active.Route("/alert-rules", func(rules chi.Router) {
+						rules.Use(requireAlerts(alerts))
+						rules.Get("/", listAlertRulesHandler(alerts))
+						rules.Get("/{ruleID}", alertRuleHandler(alerts))
+						rules.Group(func(manage chi.Router) {
+							manage.Use(requirePermission(deny, domain.PermManageAlerts))
+							manage.Post("/", createAlertRuleHandler(alerts))
+							manage.Put("/{ruleID}", updateAlertRuleHandler(alerts))
+							manage.Delete("/{ruleID}", deleteAlertRuleHandler(alerts))
+						})
 					})
 					active.Route("/machine/power", func(machine chi.Router) {
 						machine.Use(requirePermission(deny, domain.PermManagePower))

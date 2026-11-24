@@ -53,6 +53,7 @@ Un mode direct sur socket rootful ne peut être retenu qu'en décision explicite
 - Pas de fonctions de création, suppression, démarrage, arrêt ou exec de conteneurs dans le périmètre.
 - Limiter et filtrer labels, noms, chemins, métadonnées et journaux ; ne pas exposer les variables d'environnement.
 - Rétention bornée des métriques et événements, avec purge par lots.
+- Alertes (phase 4A) : évaluées dans le Manager sur les données déjà collectées, sans commande ni requête externe ; aucune communication sortante (les notifications arrivent en 4B). Consultation pour tous les rôles ; acquittement réservé à `alerts:operate` (`operator`, `admin`), règles à `alerts:manage` (`admin`), vérifiés côté serveur. Les règles n'acceptent que des valeurs de listes blanches (métriques, labels, états, collecteurs) et un motif d'unité borné ; aucune ne déclenche d'action. Chaque modification de règle et chaque acquittement sont audités dans la même transaction. Nombre de règles (200), historique et durée d'évaluation (10 s) bornés ; les alertes résolues suivent la rétention.
 - Gestion séparée des erreurs Docker/SQLite ; ne pas exposer chemin local, secrets ou détails internes.
 
 ## Système et déploiement

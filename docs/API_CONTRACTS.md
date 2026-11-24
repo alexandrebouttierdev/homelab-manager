@@ -84,6 +84,7 @@ Ce document est le contrat exact de l'API implémentée. Toute différence entre
 | `DELETE /api/v1/notification-channels/{channelID}` | admin | Supprime un canal (§ 4.8) |
 | `POST /api/v1/notification-channels/{channelID}/test` | admin | Envoie un message de test (§ 4.8) |
 | `GET /api/v1/vulnerabilities/summary` | oui | Synthèse des vulnérabilités des paquets (§ 4.9) |
+| `PUT /api/v1/settings/vulnerability-scans` | admin | Modifie l'intervalle des scans de vulnérabilités (§ 4.9) |
 | `GET /api/v1/vulnerabilities` | oui | Constats filtrés et paginés (§ 4.9) |
 | `GET /api/v1/vulnerabilities/{findingID}` | oui | Un constat (§ 4.9) |
 | `GET /api/v1/vulnerabilities/scans` | oui | Derniers scans (§ 4.9) |
@@ -435,9 +436,10 @@ Moteur d'alertes intégré (SPEC_ADMINISTRATION.md § 6), évalué toutes les 15
 | `container_state` | `containerId` (facultatif), `states` (non vide, valeurs distinctes), `forSeconds` | L'état Docker du conteneur est l'un des `states` |
 | `unit_failed` | `unitPattern` (nom ou motif shell `*`, `?`, `[…]`) | Une unité de l'inventaire qui correspond est en `failed` ; immédiat |
 | `collector` | `collector` (`system`, `docker`, `services`), `forSeconds` | Le collecteur n'est ni `ok`, ni en démarrage (`starting`, `pending`) |
+| `vulnerabilities` | `vulnSeverity` (`critical`, `high`, `medium`, `low` : sévérité minimale), `fixableOnly` (facultatif) | Au moins un constat présent (§ 4.9) de cette sévérité ou plus grave, corrigeable si `fixableOnly` ; immédiat. Gelée tant qu'aucun scan n'a réussi. Une alerte par règle (cible `vulnerabilities`), `value` = nombre de constats |
 
 - `name` : 1 à 100 octets sans caractère de contrôle ; `severity` : `info`, `warning`, `critical` ; `operator` : `>`, `>=`, `<`, `<=` ; `threshold` : nombre fini ; `forSeconds` : 0 à 86 400 (durée pendant laquelle la condition doit rester vraie) ; `labels` : 5 au plus, clés parmi celles de la métrique, valeurs de 1 à 255 octets. Un paramètre qui n'appartient pas au type est refusé.
-- Métriques : celles du catalogue renvoyé par `GET /api/v1/alert-rules` (`catalog.hostMetrics` et `catalog.containerMetrics`, chacune avec ses labels), sous-ensemble des § 5.4 et § 5.5 sans compteurs cumulés ni totaux, plus `memory.available_percent` (hôte), dérivée par le moteur : `memory.available / memory.total × 100`. `catalog.containerStates` et `catalog.collectors` listent les autres valeurs acceptées.
+- Métriques : celles du catalogue renvoyé par `GET /api/v1/alert-rules` (`catalog.hostMetrics` et `catalog.containerMetrics`, chacune avec ses labels), sous-ensemble des § 5.4 et § 5.5 sans compteurs cumulés ni totaux, plus `memory.available_percent` (hôte), dérivée par le moteur : `memory.available / memory.total × 100`. `catalog.containerStates`, `catalog.collectors` et `catalog.vulnerabilitySeverities` listent les autres valeurs acceptées.
 - Six règles par défaut (`default: true`) : disque `filesystem.percent > 85` 5 min, mémoire `memory.available_percent < 10` 5 min (`warning`) ; température `temperature.celsius > 85` 2 min (`critical`, seuil fixe : les seuils des capteurs ne sont pas collectés) ; collecte système et collecte Docker indisponibles 2 min (`warning`) ; unité en échec, motif `*` (`critical`). Modifiables et désactivables, non supprimables.
 
 **Alerte** :
@@ -455,7 +457,7 @@ Moteur d'alertes intégré (SPEC_ADMINISTRATION.md § 6), évalué toutes les 15
 }
 ```
 
-- `target.kind` : `host`, `container`, `unit` ou `collector`. `value` et `threshold` : règles de métrique (valeur au déclenchement) ; `observed` : état qui a déclenché les autres règles (`exited`, `failed (exit-code)`, `unavailable`). `ruleName`, `ruleType` et `severity` sont copiés au déclenchement.
+- `target.kind` : `host`, `container`, `unit`, `collector` ou `vulnerabilities` (paquets de la machine). `value` et `threshold` : règles de métrique (valeur au déclenchement) ; `observed` : état qui a déclenché les autres règles (`exited`, `failed (exit-code)`, `unavailable`). `ruleName`, `ruleType` et `severity` sont copiés au déclenchement.
 - Cycle : `firing` → `acknowledged` (facultatif) → `resolved`. Une seule alerte ouverte par règle et par cible ; une condition de nouveau vraie après la résolution ouvre une nouvelle alerte. `resolution` : `condition_cleared` (condition fausse), `no_data` (série absente d'un cycle à jour depuis 5 min), `target_gone` (conteneur ou unité sorti de l'inventaire), `rule_disabled`, `rule_deleted`, `rule_changed` (type, sévérité ou paramètres modifiés ; un simple renommage garde les alertes).
 - `targetKey` : clé stable de la cible, reprise par un silence de portée `target`. `silenced` : un silence en vigueur couvre l'alerte ouverte (toujours `false` pour une alerte résolue) ; l'alerte reste listée, seules ses notifications sont suspendues. `lastNotifiedAt` : dernier message envoyé à son sujet, tous canaux confondus, `null` sinon.
 - Une source illisible ou périmée (aucun cycle hôte de moins de 5 min, collecte Docker hors `ok`, inventaire systemd hors `ok`) ne déclenche ni ne résout les règles qui en dépendent. Le début d'une condition qui n'a pas encore tenu sa durée est gardé en mémoire : après un redémarrage du Manager, la durée recommence ; les alertes ouvertes, elles, sont conservées.
@@ -583,7 +585,7 @@ Vulnérabilités connues des paquets système de la machine du Manager (SPEC_ADM
 - `severity` : `critical`, `high`, `medium`, `low`, `negligible`, `unknown`. `fixState` : `fixed` (une version corrige), `not-fixed`, `wont-fix`, `unknown`, d'après Grype. `description` (4 Kio au plus) et `dataSource` peuvent être `null` ; `urls` : 10 adresses `http`/`https` au plus.
 - Un constat est présent tant que `resolvedAt` est `null` ; un scan réussi qui ne le trouve plus le résout. La même vulnérabilité retrouvée plus tard ouvre un nouveau constat. Constats résolus et scans conservés 180 jours (le dernier scan réussi toujours).
 
-`GET /api/v1/vulnerabilities/summary` → `{ "totals": {…}, "total": 104, "fixable": 37, "latestScan": Scan | null, "lastSuccessfulScan": Scan | null, "running": false, "nextScanAt": "…" | null, "intervalHours": 24, "recent": [Constat × 5] }`. `totals` et `fixable` comptent les constats présents ; `recent` : les 5 constats présents les plus récemment apparus ; `nextScanAt` est `null` pendant un scan. `latestScan` peut être un échec plus récent que `lastSuccessfulScan` : l'interface affiche les deux dates.
+`GET /api/v1/vulnerabilities/summary` → `{ "totals": {…}, "total": 104, "fixable": 37, "latestScan": Scan | null, "lastSuccessfulScan": Scan | null, "running": false, "nextScanAt": "…" | null, "intervalHours": 24, "defaultIntervalHours": 24, "intervalSource": "config", "recent": [Constat × 5] }`. `intervalHours` : intervalle effectif des scans automatiques ; `defaultIntervalHours` : celui de la configuration (`vulnerability_scan_interval_hours`) ; `intervalSource` : `config`, ou `user` une fois l'intervalle choisi dans l'interface. `totals` et `fixable` comptent les constats présents ; `recent` : les 5 constats présents les plus récemment apparus ; `nextScanAt` est `null` pendant un scan. `latestScan` peut être un échec plus récent que `lastSuccessfulScan` : l'interface affiche les deux dates.
 
 `GET /api/v1/vulnerabilities[?state=present|resolved&severity=critical,high&fixable=true&q=…&limit=…&offset=…]` → `{ "findings": [...], "total": 104, "limit": 100, "offset": 0 }`. `state` par défaut `present` (tri : sévérité puis apparition la plus récente) ; `resolved` trie par résolution la plus récente. `severity` : liste séparée par des virgules ; `q` : 100 caractères au plus, cherché sans casse dans l'identifiant et le nom du paquet ; `limit` 1 à 500 (défaut 100) ; `offset` 0 à 100 000. Tout autre paramètre, ou un paramètre répété → `400 VALIDATION_ERROR`.
 
@@ -592,6 +594,8 @@ Vulnérabilités connues des paquets système de la machine du Manager (SPEC_ADM
 `GET /api/v1/vulnerabilities/scans[?limit=…]` → `{ "scans": [...] }`, du plus récent au plus ancien, `limit` 1 à 100 (défaut 20).
 
 `POST /api/v1/vulnerabilities/scans` (sans corps, `operator` ou `admin`) → `202 { "scan": Scan }` (`state: running`) ; le scan s'exécute en arrière-plan (une minute environ, 15 au plus). Un scan déjà en cours, automatique ou manuel : `409 SCAN_IN_PROGRESS` ; moins de 5 min après le précédent scan manuel : `429 SCAN_RATE_LIMITED`. Audité (`vulnerability_scan` / UUID / `start`).
+
+`PUT /api/v1/settings/vulnerability-scans` avec `{ "intervalHours": 48 }` (`admin`, de 6 à 168, champs inconnus refusés) → `200 { "intervalHours": 48, "defaultIntervalHours": 24, "intervalSource": "user" }` ; appliqué aussitôt (le prochain scan est recalculé depuis la fin du dernier) et audité (`settings` / `vulnerability_scan_interval_hours` / `update`) dans la même transaction. Hors bornes : `400 VALIDATION_ERROR`.
 
 ## 5. Métriques
 

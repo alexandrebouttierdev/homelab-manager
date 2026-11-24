@@ -2971,17 +2971,19 @@ func (m *AlertSilenceMutation) ResetEdge(name string) error {
 // AppSettingMutation represents an operation that mutates the AppSetting nodes in the graph.
 type AppSettingMutation struct {
 	config
-	op                        Op
-	typ                       string
-	id                        *uuid.UUID
-	singleton_key             *string
-	metrics_retention_days    *int
-	addmetrics_retention_days *int
-	updated_at                *time.Time
-	clearedFields             map[string]struct{}
-	done                      bool
-	oldValue                  func(context.Context) (*AppSetting, error)
-	predicates                []predicate.AppSetting
+	op                                   Op
+	typ                                  string
+	id                                   *uuid.UUID
+	singleton_key                        *string
+	metrics_retention_days               *int
+	addmetrics_retention_days            *int
+	vulnerability_scan_interval_hours    *int
+	addvulnerability_scan_interval_hours *int
+	updated_at                           *time.Time
+	clearedFields                        map[string]struct{}
+	done                                 bool
+	oldValue                             func(context.Context) (*AppSetting, error)
+	predicates                           []predicate.AppSetting
 }
 
 var _ ent.Mutation = (*AppSettingMutation)(nil)
@@ -3194,6 +3196,76 @@ func (m *AppSettingMutation) ResetMetricsRetentionDays() {
 	delete(m.clearedFields, appsetting.FieldMetricsRetentionDays)
 }
 
+// SetVulnerabilityScanIntervalHours sets the "vulnerability_scan_interval_hours" field.
+func (m *AppSettingMutation) SetVulnerabilityScanIntervalHours(i int) {
+	m.vulnerability_scan_interval_hours = &i
+	m.addvulnerability_scan_interval_hours = nil
+}
+
+// VulnerabilityScanIntervalHours returns the value of the "vulnerability_scan_interval_hours" field in the mutation.
+func (m *AppSettingMutation) VulnerabilityScanIntervalHours() (r int, exists bool) {
+	v := m.vulnerability_scan_interval_hours
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldVulnerabilityScanIntervalHours returns the old "vulnerability_scan_interval_hours" field's value of the AppSetting entity.
+// If the AppSetting object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *AppSettingMutation) OldVulnerabilityScanIntervalHours(ctx context.Context) (v *int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldVulnerabilityScanIntervalHours is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldVulnerabilityScanIntervalHours requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldVulnerabilityScanIntervalHours: %w", err)
+	}
+	return oldValue.VulnerabilityScanIntervalHours, nil
+}
+
+// AddVulnerabilityScanIntervalHours adds i to the "vulnerability_scan_interval_hours" field.
+func (m *AppSettingMutation) AddVulnerabilityScanIntervalHours(i int) {
+	if m.addvulnerability_scan_interval_hours != nil {
+		*m.addvulnerability_scan_interval_hours += i
+	} else {
+		m.addvulnerability_scan_interval_hours = &i
+	}
+}
+
+// AddedVulnerabilityScanIntervalHours returns the value that was added to the "vulnerability_scan_interval_hours" field in this mutation.
+func (m *AppSettingMutation) AddedVulnerabilityScanIntervalHours() (r int, exists bool) {
+	v := m.addvulnerability_scan_interval_hours
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ClearVulnerabilityScanIntervalHours clears the value of the "vulnerability_scan_interval_hours" field.
+func (m *AppSettingMutation) ClearVulnerabilityScanIntervalHours() {
+	m.vulnerability_scan_interval_hours = nil
+	m.addvulnerability_scan_interval_hours = nil
+	m.clearedFields[appsetting.FieldVulnerabilityScanIntervalHours] = struct{}{}
+}
+
+// VulnerabilityScanIntervalHoursCleared returns if the "vulnerability_scan_interval_hours" field was cleared in this mutation.
+func (m *AppSettingMutation) VulnerabilityScanIntervalHoursCleared() bool {
+	_, ok := m.clearedFields[appsetting.FieldVulnerabilityScanIntervalHours]
+	return ok
+}
+
+// ResetVulnerabilityScanIntervalHours resets all changes to the "vulnerability_scan_interval_hours" field.
+func (m *AppSettingMutation) ResetVulnerabilityScanIntervalHours() {
+	m.vulnerability_scan_interval_hours = nil
+	m.addvulnerability_scan_interval_hours = nil
+	delete(m.clearedFields, appsetting.FieldVulnerabilityScanIntervalHours)
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (m *AppSettingMutation) SetUpdatedAt(t time.Time) {
 	m.updated_at = &t
@@ -3264,12 +3336,15 @@ func (m *AppSettingMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *AppSettingMutation) Fields() []string {
-	fields := make([]string, 0, 3)
+	fields := make([]string, 0, 4)
 	if m.singleton_key != nil {
 		fields = append(fields, appsetting.FieldSingletonKey)
 	}
 	if m.metrics_retention_days != nil {
 		fields = append(fields, appsetting.FieldMetricsRetentionDays)
+	}
+	if m.vulnerability_scan_interval_hours != nil {
+		fields = append(fields, appsetting.FieldVulnerabilityScanIntervalHours)
 	}
 	if m.updated_at != nil {
 		fields = append(fields, appsetting.FieldUpdatedAt)
@@ -3286,6 +3361,8 @@ func (m *AppSettingMutation) Field(name string) (ent.Value, bool) {
 		return m.SingletonKey()
 	case appsetting.FieldMetricsRetentionDays:
 		return m.MetricsRetentionDays()
+	case appsetting.FieldVulnerabilityScanIntervalHours:
+		return m.VulnerabilityScanIntervalHours()
 	case appsetting.FieldUpdatedAt:
 		return m.UpdatedAt()
 	}
@@ -3301,6 +3378,8 @@ func (m *AppSettingMutation) OldField(ctx context.Context, name string) (ent.Val
 		return m.OldSingletonKey(ctx)
 	case appsetting.FieldMetricsRetentionDays:
 		return m.OldMetricsRetentionDays(ctx)
+	case appsetting.FieldVulnerabilityScanIntervalHours:
+		return m.OldVulnerabilityScanIntervalHours(ctx)
 	case appsetting.FieldUpdatedAt:
 		return m.OldUpdatedAt(ctx)
 	}
@@ -3326,6 +3405,13 @@ func (m *AppSettingMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetMetricsRetentionDays(v)
 		return nil
+	case appsetting.FieldVulnerabilityScanIntervalHours:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetVulnerabilityScanIntervalHours(v)
+		return nil
 	case appsetting.FieldUpdatedAt:
 		v, ok := value.(time.Time)
 		if !ok {
@@ -3344,6 +3430,9 @@ func (m *AppSettingMutation) AddedFields() []string {
 	if m.addmetrics_retention_days != nil {
 		fields = append(fields, appsetting.FieldMetricsRetentionDays)
 	}
+	if m.addvulnerability_scan_interval_hours != nil {
+		fields = append(fields, appsetting.FieldVulnerabilityScanIntervalHours)
+	}
 	return fields
 }
 
@@ -3354,6 +3443,8 @@ func (m *AppSettingMutation) AddedField(name string) (ent.Value, bool) {
 	switch name {
 	case appsetting.FieldMetricsRetentionDays:
 		return m.AddedMetricsRetentionDays()
+	case appsetting.FieldVulnerabilityScanIntervalHours:
+		return m.AddedVulnerabilityScanIntervalHours()
 	}
 	return nil, false
 }
@@ -3370,6 +3461,13 @@ func (m *AppSettingMutation) AddField(name string, value ent.Value) error {
 		}
 		m.AddMetricsRetentionDays(v)
 		return nil
+	case appsetting.FieldVulnerabilityScanIntervalHours:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddVulnerabilityScanIntervalHours(v)
+		return nil
 	}
 	return fmt.Errorf("unknown AppSetting numeric field %s", name)
 }
@@ -3380,6 +3478,9 @@ func (m *AppSettingMutation) ClearedFields() []string {
 	var fields []string
 	if m.FieldCleared(appsetting.FieldMetricsRetentionDays) {
 		fields = append(fields, appsetting.FieldMetricsRetentionDays)
+	}
+	if m.FieldCleared(appsetting.FieldVulnerabilityScanIntervalHours) {
+		fields = append(fields, appsetting.FieldVulnerabilityScanIntervalHours)
 	}
 	return fields
 }
@@ -3398,6 +3499,9 @@ func (m *AppSettingMutation) ClearField(name string) error {
 	case appsetting.FieldMetricsRetentionDays:
 		m.ClearMetricsRetentionDays()
 		return nil
+	case appsetting.FieldVulnerabilityScanIntervalHours:
+		m.ClearVulnerabilityScanIntervalHours()
+		return nil
 	}
 	return fmt.Errorf("unknown AppSetting nullable field %s", name)
 }
@@ -3411,6 +3515,9 @@ func (m *AppSettingMutation) ResetField(name string) error {
 		return nil
 	case appsetting.FieldMetricsRetentionDays:
 		m.ResetMetricsRetentionDays()
+		return nil
+	case appsetting.FieldVulnerabilityScanIntervalHours:
+		m.ResetVulnerabilityScanIntervalHours()
 		return nil
 	case appsetting.FieldUpdatedAt:
 		m.ResetUpdatedAt()

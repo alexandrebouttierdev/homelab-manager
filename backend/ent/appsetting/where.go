@@ -65,6 +65,11 @@ func MetricsRetentionDays(v int) predicate.AppSetting {
 	return predicate.AppSetting(sql.FieldEQ(FieldMetricsRetentionDays, v))
 }
 
+// VulnerabilityScanIntervalHours applies equality check predicate on the "vulnerability_scan_interval_hours" field. It's identical to VulnerabilityScanIntervalHoursEQ.
+func VulnerabilityScanIntervalHours(v int) predicate.AppSetting {
+	return predicate.AppSetting(sql.FieldEQ(FieldVulnerabilityScanIntervalHours, v))
+}
+
 // UpdatedAt applies equality check predicate on the "updated_at" field. It's identical to UpdatedAtEQ.
 func UpdatedAt(v time.Time) predicate.AppSetting {
 	return predicate.AppSetting(sql.FieldEQ(FieldUpdatedAt, v))
@@ -183,6 +188,56 @@ func MetricsRetentionDaysIsNil() predicate.AppSetting {
 // MetricsRetentionDaysNotNil applies the NotNil predicate on the "metrics_retention_days" field.
 func MetricsRetentionDaysNotNil() predicate.AppSetting {
 	return predicate.AppSetting(sql.FieldNotNull(FieldMetricsRetentionDays))
+}
+
+// VulnerabilityScanIntervalHoursEQ applies the EQ predicate on the "vulnerability_scan_interval_hours" field.
+func VulnerabilityScanIntervalHoursEQ(v int) predicate.AppSetting {
+	return predicate.AppSetting(sql.FieldEQ(FieldVulnerabilityScanIntervalHours, v))
+}
+
+// VulnerabilityScanIntervalHoursNEQ applies the NEQ predicate on the "vulnerability_scan_interval_hours" field.
+func VulnerabilityScanIntervalHoursNEQ(v int) predicate.AppSetting {
+	return predicate.AppSetting(sql.FieldNEQ(FieldVulnerabilityScanIntervalHours, v))
+}
+
+// VulnerabilityScanIntervalHoursIn applies the In predicate on the "vulnerability_scan_interval_hours" field.
+func VulnerabilityScanIntervalHoursIn(vs ...int) predicate.AppSetting {
+	return predicate.AppSetting(sql.FieldIn(FieldVulnerabilityScanIntervalHours, vs...))
+}
+
+// VulnerabilityScanIntervalHoursNotIn applies the NotIn predicate on the "vulnerability_scan_interval_hours" field.
+func VulnerabilityScanIntervalHoursNotIn(vs ...int) predicate.AppSetting {
+	return predicate.AppSetting(sql.FieldNotIn(FieldVulnerabilityScanIntervalHours, vs...))
+}
+
+// VulnerabilityScanIntervalHoursGT applies the GT predicate on the "vulnerability_scan_interval_hours" field.
+func VulnerabilityScanIntervalHoursGT(v int) predicate.AppSetting {
+	return predicate.AppSetting(sql.FieldGT(FieldVulnerabilityScanIntervalHours, v))
+}
+
+// VulnerabilityScanIntervalHoursGTE applies the GTE predicate on the "vulnerability_scan_interval_hours" field.
+func VulnerabilityScanIntervalHoursGTE(v int) predicate.AppSetting {
+	return predicate.AppSetting(sql.FieldGTE(FieldVulnerabilityScanIntervalHours, v))
+}
+
+// VulnerabilityScanIntervalHoursLT applies the LT predicate on the "vulnerability_scan_interval_hours" field.
+func VulnerabilityScanIntervalHoursLT(v int) predicate.AppSetting {
+	return predicate.AppSetting(sql.FieldLT(FieldVulnerabilityScanIntervalHours, v))
+}
+
+// VulnerabilityScanIntervalHoursLTE applies the LTE predicate on the "vulnerability_scan_interval_hours" field.
+func VulnerabilityScanIntervalHoursLTE(v int) predicate.AppSetting {
+	return predicate.AppSetting(sql.FieldLTE(FieldVulnerabilityScanIntervalHours, v))
+}
+
+// VulnerabilityScanIntervalHoursIsNil applies the IsNil predicate on the "vulnerability_scan_interval_hours" field.
+func VulnerabilityScanIntervalHoursIsNil() predicate.AppSetting {
+	return predicate.AppSetting(sql.FieldIsNull(FieldVulnerabilityScanIntervalHours))
+}
+
+// VulnerabilityScanIntervalHoursNotNil applies the NotNil predicate on the "vulnerability_scan_interval_hours" field.
+func VulnerabilityScanIntervalHoursNotNil() predicate.AppSetting {
+	return predicate.AppSetting(sql.FieldNotNull(FieldVulnerabilityScanIntervalHours))
 }
 
 // UpdatedAtEQ applies the EQ predicate on the "updated_at" field.

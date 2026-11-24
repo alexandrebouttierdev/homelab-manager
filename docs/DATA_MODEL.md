@@ -83,7 +83,7 @@ Modèle logique d'Ent et SQLite. Il décrit un hôte unique et ses conteneurs lo
 ### VulnerabilityFinding
 - `vulnerability_findings` (migration `009`) : UUID, `vulnerability_id` (CVE, GHSA ou avis de distribution), `severity` (`critical`, `high`, `medium`, `low`, `negligible`, `unknown`) et `severity_rank` (0 à 5, pour le tri), `package`, `version`, `package_type`, `fix_state` (`fixed`, `not-fixed`, `wont-fix`, `unknown`), `fixed_versions` et `urls` (tableaux JSON), `description` (4 Kio au plus), `data_source`, `first_seen_at`, `last_seen_at`, `resolved_at`, `first_scan_id`, `last_scan_id`.
 - Index unique partiel `(vulnerability_id, package, version) WHERE resolved_at IS NULL` : un seul constat présent par vulnérabilité et version de paquet. Un scan réussi met à jour les constats retrouvés, ajoute les nouveaux et résout les absents dans une seule transaction ; une vulnérabilité retrouvée après sa disparition ouvre une nouvelle ligne. Les constats présents ne sont jamais purgés ; les constats disparus depuis plus de 180 jours le sont.
-- La migration `009` reconstruit aussi `alert_rules` pour accepter le type `vulnerabilities` (SQLite ne modifie pas une contrainte `CHECK`), lignes conservées.
+- La migration `009` reconstruit aussi `alert_rules` pour accepter le type `vulnerabilities` (SQLite ne modifie pas une contrainte `CHECK`), lignes conservées, et ajoute `app_settings.vulnerability_scan_interval_hours` (6 à 168, `NULL` : valeur de la configuration).
 
 ### AuditLog
 - UUID, acteur local, cible (`target_type`, `target_id`), action, request ID, résultat, timestamp.

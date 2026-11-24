@@ -63,12 +63,20 @@ type ActiveSilenceReader interface {
 	ActiveSilences(ctx context.Context, now time.Time) ([]domain.AlertSilence, error)
 }
 
+// VulnerabilityCountReader counts the present vulnerability findings;
+// known is false until a scan succeeded.
+type VulnerabilityCountReader interface {
+	VulnerabilityCounts(ctx context.Context) (counts []domain.VulnerabilityCount, known bool, err error)
+}
+
 // AlertSources are the read-only views the engine evaluates.
+// Vulnerabilities may be nil: vulnerabilities rules then stay frozen.
 type AlertSources struct {
-	Metrics    AlertMetricsReader
-	Collectors CollectorStatusReader
-	Units      UnitInventoryReader
-	Retention  RetentionReader
+	Metrics         AlertMetricsReader
+	Collectors      CollectorStatusReader
+	Units           UnitInventoryReader
+	Retention       RetentionReader
+	Vulnerabilities VulnerabilityCountReader
 }
 
 // AlertUsecase evaluates the alert rules every 15 s on the data already
@@ -220,6 +228,14 @@ func (u *AlertUsecase) snapshot(ctx context.Context, now time.Time) domain.Alert
 	}
 	if inventory.Status == domain.UnitsOK && inventory.CollectedAt != nil {
 		snapshot.UnitsKnown, snapshot.Units = true, inventory.Units
+	}
+	if u.sources.Vulnerabilities != nil {
+		counts, known, err := u.sources.Vulnerabilities.VulnerabilityCounts(ctx)
+		if err != nil {
+			u.logger.Warn("alerts: could not count the vulnerabilities", zap.Error(err))
+		} else {
+			snapshot.VulnerabilitiesKnown, snapshot.VulnerabilityCounts = known, counts
+		}
 	}
 	return snapshot
 }

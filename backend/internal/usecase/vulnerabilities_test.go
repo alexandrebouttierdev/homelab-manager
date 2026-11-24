@@ -363,3 +363,60 @@ func TestScansLimit(t *testing.T) {
 		t.Fatal("SetInterval did not apply")
 	}
 }
+
+type memoryScanSettings struct {
+	hours  *int
+	audits []domain.AuditEntry
+}
+
+func (m *memoryScanSettings) VulnerabilityScanIntervalHours(context.Context) (*int, error) {
+	return m.hours, nil
+}
+
+func (m *memoryScanSettings) SetVulnerabilityScanIntervalHours(_ context.Context, hours int, audit domain.AuditEntry) error {
+	m.hours, m.audits = &hours, append(m.audits, audit)
+	return nil
+}
+
+func TestScanIntervalFromTheInterface(t *testing.T) {
+	usecase, _, _ := newVulnerabilityFixture(debianInventory, &fakeScanner{})
+	stored := 72
+	settings := &memoryScanSettings{hours: &stored}
+	usecase.WithSettings(settings)
+	usecase.loadInterval(context.Background())
+	if got := usecase.Intervals(); got.Interval != 72*time.Hour || got.DefaultInterval != 24*time.Hour || got.Source != "user" {
+		t.Fatalf("Intervals() after loading = %+v", got)
+	}
+	if _, err := usecase.UpdateInterval(context.Background(), domain.User{Username: "admin"}, 5, "req"); !errors.Is(err, domain.ErrInvalidScanInterval) {
+		t.Fatalf("UpdateInterval(5) = %v", err)
+	}
+	got, err := usecase.UpdateInterval(context.Background(), domain.User{Username: "admin"}, 12, "req")
+	if err != nil || got.Interval != 12*time.Hour || *settings.hours != 12 || settings.audits[0].TargetID != "vulnerability_scan_interval_hours" {
+		t.Fatalf("UpdateInterval(12) = (%+v, %v)", got, err)
+	}
+	select {
+	case <-usecase.changed:
+	default:
+		t.Fatal("the scheduler was not woken")
+	}
+}
+
+type countSource struct {
+	counts []domain.VulnerabilityCount
+	known  bool
+}
+
+func (c countSource) VulnerabilityCounts(context.Context) ([]domain.VulnerabilityCount, bool, error) {
+	return c.counts, c.known, nil
+}
+
+func TestAlertEngineReadsTheVulnerabilityCounts(t *testing.T) {
+	usecase, repo, _, _ := newAlertFixture(t)
+	usecase.sources.Vulnerabilities = countSource{known: true, counts: []domain.VulnerabilityCount{{Severity: domain.VulnCritical, Count: 1}}}
+	repo.rules = []domain.AlertRule{{ID: uuid.New(), Name: "vulns", Type: domain.AlertRuleVulnerabilities, Severity: domain.AlertCritical, Enabled: true,
+		Params: domain.AlertRuleParams{VulnSeverity: domain.VulnCritical}}}
+	usecase.evaluate(context.Background())
+	if open := repo.open(); len(open) != 1 || open[0].Target.Kind != domain.AlertTargetVulnerabilities {
+		t.Fatalf("open = %+v", open)
+	}
+}

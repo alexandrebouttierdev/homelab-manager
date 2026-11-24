@@ -76,6 +76,7 @@ var (
 		{Name: "id", Type: field.TypeUUID},
 		{Name: "singleton_key", Type: field.TypeString, Unique: true},
 		{Name: "metrics_retention_days", Type: field.TypeInt, Nullable: true},
+		{Name: "vulnerability_scan_interval_hours", Type: field.TypeInt, Nullable: true},
 		{Name: "updated_at", Type: field.TypeTime},
 	}
 	// AppSettingsTable holds the schema information for the "app_settings" table.

@@ -76,3 +76,8 @@ INSERT INTO alert_rules_v2 (id, name, type, severity, enabled, is_default, param
     SELECT id, name, type, severity, enabled, is_default, params, created_at, updated_at FROM alert_rules;
 DROP TABLE alert_rules;
 ALTER TABLE alert_rules_v2 RENAME TO alert_rules;
+
+-- Interval of the automatic vulnerability scans chosen in the interface;
+-- NULL keeps vulnerability_scan_interval_hours of the configuration.
+ALTER TABLE app_settings ADD COLUMN vulnerability_scan_interval_hours INTEGER
+    CHECK (vulnerability_scan_interval_hours IS NULL OR vulnerability_scan_interval_hours BETWEEN 6 AND 168);

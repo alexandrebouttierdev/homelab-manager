@@ -154,6 +154,7 @@ func main() {
 			sqlite.NewAuditRepository(database.Client()), monitoringUsecase, logger)
 		alertUsecase = usecase.NewAlertUsecase(alertRepository, usecase.AlertSources{
 			Metrics: monitoringRepository, Collectors: monitoringUsecase, Units: serviceUsecase, Retention: monitoringUsecase,
+			Vulnerabilities: sqlite.NewVulnerabilityRepository(database.Client()),
 		}, logger).WithNotifications(notificationUsecase, notificationRepository)
 		alertsDone = make(chan struct{})
 		go func() {
@@ -179,7 +180,7 @@ func main() {
 				Timeout: vulnscan.DefaultTimeout, Version: version,
 			}, vulnscan.NewUnitStarter(vulnscan.SystemBus)),
 			time.Duration(config.VulnerabilityScanIntervalHours)*time.Hour, logger,
-		)
+		).WithSettings(sqlite.NewSettingsRepository(database))
 		vulnerabilitiesDone = make(chan struct{})
 		go func() {
 			defer close(vulnerabilitiesDone)

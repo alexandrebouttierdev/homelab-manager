@@ -28,7 +28,10 @@ type alertRuleParamsDTO struct {
 	States      []string          `json:"states,omitempty"`
 	UnitPattern string            `json:"unitPattern,omitempty"`
 	Collector   string            `json:"collector,omitempty"`
-	ForSeconds  int               `json:"forSeconds"`
+	// VulnSeverity and FixableOnly: vulnerabilities rule.
+	VulnSeverity string `json:"vulnSeverity,omitempty"`
+	FixableOnly  bool   `json:"fixableOnly,omitempty"`
+	ForSeconds   int    `json:"forSeconds"`
 }
 
 type alertRuleDTO struct {
@@ -87,6 +90,9 @@ type alertCatalogDTO struct {
 	ContainerMetrics map[string][]string `json:"containerMetrics"`
 	ContainerStates  []string            `json:"containerStates"`
 	Collectors       []string            `json:"collectors"`
+	// VulnerabilitySeverities are the minimum severities of a
+	// vulnerabilities rule.
+	VulnerabilitySeverities []domain.VulnSeverity `json:"vulnerabilitySeverities"`
 }
 
 func optional(value string) *string {
@@ -101,6 +107,7 @@ func toAlertRuleDTO(rule domain.AlertRule) alertRuleDTO {
 	params := alertRuleParamsDTO{
 		Metric: p.Metric, Labels: p.Labels, Operator: string(p.Operator), Threshold: p.Threshold,
 		States: p.States, UnitPattern: p.UnitPattern, Collector: p.Collector, ForSeconds: p.ForSeconds,
+		VulnSeverity: string(p.VulnSeverity), FixableOnly: p.FixableOnly,
 	}
 	if p.ContainerID != nil {
 		id := p.ContainerID.String()
@@ -142,6 +149,7 @@ func alertRuleInput(request alertRuleRequest) (domain.AlertRule, bool) {
 	params := domain.AlertRuleParams{
 		Metric: p.Metric, Labels: p.Labels, Operator: domain.AlertOperator(p.Operator), Threshold: p.Threshold,
 		States: p.States, UnitPattern: p.UnitPattern, Collector: p.Collector, ForSeconds: p.ForSeconds,
+		VulnSeverity: domain.VulnSeverity(p.VulnSeverity), FixableOnly: p.FixableOnly,
 	}
 	if p.ContainerID != nil {
 		id, err := uuid.Parse(*p.ContainerID)
@@ -282,6 +290,7 @@ func listAlertRulesHandler(alerts *usecase.AlertUsecase) http.HandlerFunc {
 		writeJSON(w, http.StatusOK, map[string]any{"rules": response, "catalog": alertCatalogDTO{
 			HostMetrics: domain.HostAlertMetrics(), ContainerMetrics: domain.ContainerAlertMetrics(),
 			ContainerStates: domain.AlertContainerStates(), Collectors: domain.AlertCollectors(),
+			VulnerabilitySeverities: domain.AlertVulnSeverities(),
 		}})
 	}
 }

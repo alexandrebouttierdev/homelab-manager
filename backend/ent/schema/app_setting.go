@@ -15,6 +15,7 @@ func (AppSetting) Fields() []ent.Field {
 		field.UUID("id", uuid.UUID{}).Default(uuid.New),
 		field.String("singleton_key").NotEmpty().Unique(),
 		field.Int("metrics_retention_days").Optional().Nillable(),
+		field.Int("vulnerability_scan_interval_hours").Optional().Nillable(),
 		field.Time("updated_at").Default(timeNow).UpdateDefault(timeNow),
 	}
 }

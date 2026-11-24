@@ -164,3 +164,40 @@ func TestVulnerabilityRoutesWithoutTheModule(t *testing.T) {
 		t.Fatalf("summary without the module = %d %s", response.Code, response.Body)
 	}
 }
+
+func TestScanIntervalSettingAndVulnerabilitiesRule(t *testing.T) {
+	resetLoginRateLimit(t)
+	services, database := newTestServices(t, nil)
+	repository := sqlite.NewVulnerabilityRepository(database.Client())
+	services.Vulnerabilities = usecase.NewVulnerabilityUsecase(repository, noInventory{}, noScanner{}, domain.DefaultScanInterval, zap.NewNop()).
+		WithSettings(sqlite.NewSettingsRepository(database))
+	services.Alerts = usecase.NewAlertUsecase(sqlite.NewAlertRepository(database.Client()), usecase.AlertSources{
+		Metrics: noAlertSources{}, Collectors: noAlertSources{}, Units: noAlertSources{}, Retention: noAlertSources{},
+	}, zap.NewNop())
+	router := NewRouter(zap.NewNop(), services, false, "")
+	admin := signIn(t, router, "admin", "admin-password-1")
+	operator := signInWithRole(t, router, admin, "otto", "operator")
+	if response := call(router, http.MethodPut, "/api/v1/settings/vulnerability-scans", `{"intervalHours":48}`, operator); response.Code != http.StatusForbidden {
+		t.Fatalf("operator interval = %d", response.Code)
+	}
+	for _, invalid := range []string{`{"intervalHours":5}`, `{}`, `{"intervalHours":"24"}`} {
+		if response := call(router, http.MethodPut, "/api/v1/settings/vulnerability-scans", invalid, admin); response.Code != http.StatusBadRequest {
+			t.Errorf("%s = %d", invalid, response.Code)
+		}
+	}
+	response := call(router, http.MethodPut, "/api/v1/settings/vulnerability-scans", `{"intervalHours":48}`, admin)
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"intervalHours":48`) || !strings.Contains(response.Body.String(), `"intervalSource":"user"`) {
+		t.Fatalf("interval = %d %s", response.Code, response.Body)
+	}
+	if response := call(router, http.MethodGet, "/api/v1/vulnerabilities/summary", "", operator); !strings.Contains(response.Body.String(), `"intervalHours":48,"defaultIntervalHours":24`) &&
+		!strings.Contains(response.Body.String(), `"defaultIntervalHours":24`) {
+		t.Fatalf("summary = %s", response.Body)
+	}
+	response = call(router, http.MethodPost, "/api/v1/alert-rules", `{"name":"Vulnérabilités","type":"vulnerabilities","severity":"critical","enabled":true,"params":{"vulnSeverity":"high","fixableOnly":true,"forSeconds":0}}`, admin)
+	if response.Code != http.StatusCreated || !strings.Contains(response.Body.String(), `"vulnSeverity":"high","fixableOnly":true`) {
+		t.Fatalf("vulnerabilities rule = %d %s", response.Code, response.Body)
+	}
+	if response := call(router, http.MethodGet, "/api/v1/alert-rules", "", admin); !strings.Contains(response.Body.String(), `"vulnerabilitySeverities":["critical","high","medium","low"]`) {
+		t.Fatalf("catalog = %s", response.Body)
+	}
+}

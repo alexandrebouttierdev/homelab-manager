@@ -135,6 +135,7 @@ func vulnerabilitySummaryHandler(vulnerabilities *usecase.VulnerabilityUsecase) 
 			"totals": toTotalsDTO(summary.Totals), "total": summary.Totals.Sum(), "fixable": summary.Fixable,
 			"latestScan": toScanDTO(summary.LatestScan), "lastSuccessfulScan": toScanDTO(summary.LastSuccess),
 			"running": summary.Running, "nextScanAt": summary.NextScanAt, "intervalHours": int(summary.Interval / time.Hour),
+			"defaultIntervalHours": int(summary.DefaultInterval / time.Hour), "intervalSource": summary.Source,
 			"recent": recent,
 		})
 	}
@@ -261,8 +262,38 @@ func requestScanHandler(vulnerabilities *usecase.VulnerabilityUsecase) http.Hand
 	}
 }
 
+type scanIntervalRequest struct {
+	IntervalHours *int `json:"intervalHours"`
+}
+
+func updateScanIntervalHandler(vulnerabilities *usecase.VulnerabilityUsecase) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var request scanIntervalRequest
+		if err := decodeJSON(r, &request); err != nil || request.IntervalHours == nil {
+			writeError(w, r, http.StatusBadRequest, "VALIDATION_ERROR", "intervalHours is required.")
+			return
+		}
+		actor, ok := sessionUser(r)
+		if !ok {
+			writeError(w, r, http.StatusUnauthorized, "SESSION_NOT_FOUND", "Authentication is required.")
+			return
+		}
+		settings, err := vulnerabilities.UpdateInterval(r.Context(), actor, *request.IntervalHours, middleware.GetReqID(r.Context()))
+		if err != nil {
+			writeVulnerabilityError(w, r, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, map[string]any{
+			"intervalHours": int(settings.Interval / time.Hour), "defaultIntervalHours": int(settings.DefaultInterval / time.Hour),
+			"intervalSource": settings.Source,
+		})
+	}
+}
+
 func writeVulnerabilityError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
+	case errors.Is(err, domain.ErrInvalidScanInterval):
+		writeError(w, r, http.StatusBadRequest, "VALIDATION_ERROR", "intervalHours must be 6 to 168.")
 	case errors.Is(err, domain.ErrInvalidFindingFilter):
 		writeError(w, r, http.StatusBadRequest, "VALIDATION_ERROR", "The vulnerability filter is invalid.")
 	case errors.Is(err, domain.ErrFindingNotFound):

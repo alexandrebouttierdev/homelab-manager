@@ -130,7 +130,7 @@ func init() {
 	// appsetting.SingletonKeyValidator is a validator for the "singleton_key" field. It is called by the builders before save.
 	appsetting.SingletonKeyValidator = appsettingDescSingletonKey.Validators[0].(func(string) error)
 	// appsettingDescUpdatedAt is the schema descriptor for updated_at field.
-	appsettingDescUpdatedAt := appsettingFields[3].Descriptor()
+	appsettingDescUpdatedAt := appsettingFields[4].Descriptor()
 	// appsetting.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	appsetting.DefaultUpdatedAt = appsettingDescUpdatedAt.Default.(func() time.Time)
 	// appsetting.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

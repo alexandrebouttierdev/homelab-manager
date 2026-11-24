@@ -123,6 +123,8 @@ func NewRouter(logger *zap.Logger, services Services, sessionSecure bool, webRoo
 					active.Get("/events", listEventsHandler(monitoring, false))
 					active.Get("/settings", settingsHandler(monitoring))
 					active.With(requirePermission(deny, domain.PermManageSettings)).Put("/settings/retention", updateRetentionHandler(monitoring))
+					active.With(requireVulnerabilities(vulnerabilities), requirePermission(deny, domain.PermManageSettings)).
+						Put("/settings/vulnerability-scans", updateScanIntervalHandler(vulnerabilities))
 					active.Route("/users", func(users chi.Router) {
 						users.Use(requirePermission(deny, domain.PermManageUsers))
 						users.Get("/", listUsersHandler(accounts))

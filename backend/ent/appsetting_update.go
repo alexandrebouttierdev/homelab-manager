@@ -69,6 +69,33 @@ func (_u *AppSettingUpdate) ClearMetricsRetentionDays() *AppSettingUpdate {
 	return _u
 }
 
+// SetVulnerabilityScanIntervalHours sets the "vulnerability_scan_interval_hours" field.
+func (_u *AppSettingUpdate) SetVulnerabilityScanIntervalHours(v int) *AppSettingUpdate {
+	_u.mutation.ResetVulnerabilityScanIntervalHours()
+	_u.mutation.SetVulnerabilityScanIntervalHours(v)
+	return _u
+}
+
+// SetNillableVulnerabilityScanIntervalHours sets the "vulnerability_scan_interval_hours" field if the given value is not nil.
+func (_u *AppSettingUpdate) SetNillableVulnerabilityScanIntervalHours(v *int) *AppSettingUpdate {
+	if v != nil {
+		_u.SetVulnerabilityScanIntervalHours(*v)
+	}
+	return _u
+}
+
+// AddVulnerabilityScanIntervalHours adds value to the "vulnerability_scan_interval_hours" field.
+func (_u *AppSettingUpdate) AddVulnerabilityScanIntervalHours(v int) *AppSettingUpdate {
+	_u.mutation.AddVulnerabilityScanIntervalHours(v)
+	return _u
+}
+
+// ClearVulnerabilityScanIntervalHours clears the value of the "vulnerability_scan_interval_hours" field.
+func (_u *AppSettingUpdate) ClearVulnerabilityScanIntervalHours() *AppSettingUpdate {
+	_u.mutation.ClearVulnerabilityScanIntervalHours()
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *AppSettingUpdate) SetUpdatedAt(v time.Time) *AppSettingUpdate {
 	_u.mutation.SetUpdatedAt(v)
@@ -150,6 +177,15 @@ func (_u *AppSettingUpdate) sqlSave(ctx context.Context) (_node int, err error) 
 	if _u.mutation.MetricsRetentionDaysCleared() {
 		_spec.ClearField(appsetting.FieldMetricsRetentionDays, field.TypeInt)
 	}
+	if value, ok := _u.mutation.VulnerabilityScanIntervalHours(); ok {
+		_spec.SetField(appsetting.FieldVulnerabilityScanIntervalHours, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedVulnerabilityScanIntervalHours(); ok {
+		_spec.AddField(appsetting.FieldVulnerabilityScanIntervalHours, field.TypeInt, value)
+	}
+	if _u.mutation.VulnerabilityScanIntervalHoursCleared() {
+		_spec.ClearField(appsetting.FieldVulnerabilityScanIntervalHours, field.TypeInt)
+	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(appsetting.FieldUpdatedAt, field.TypeTime, value)
 	}
@@ -211,6 +247,33 @@ func (_u *AppSettingUpdateOne) AddMetricsRetentionDays(v int) *AppSettingUpdateO
 // ClearMetricsRetentionDays clears the value of the "metrics_retention_days" field.
 func (_u *AppSettingUpdateOne) ClearMetricsRetentionDays() *AppSettingUpdateOne {
 	_u.mutation.ClearMetricsRetentionDays()
+	return _u
+}
+
+// SetVulnerabilityScanIntervalHours sets the "vulnerability_scan_interval_hours" field.
+func (_u *AppSettingUpdateOne) SetVulnerabilityScanIntervalHours(v int) *AppSettingUpdateOne {
+	_u.mutation.ResetVulnerabilityScanIntervalHours()
+	_u.mutation.SetVulnerabilityScanIntervalHours(v)
+	return _u
+}
+
+// SetNillableVulnerabilityScanIntervalHours sets the "vulnerability_scan_interval_hours" field if the given value is not nil.
+func (_u *AppSettingUpdateOne) SetNillableVulnerabilityScanIntervalHours(v *int) *AppSettingUpdateOne {
+	if v != nil {
+		_u.SetVulnerabilityScanIntervalHours(*v)
+	}
+	return _u
+}
+
+// AddVulnerabilityScanIntervalHours adds value to the "vulnerability_scan_interval_hours" field.
+func (_u *AppSettingUpdateOne) AddVulnerabilityScanIntervalHours(v int) *AppSettingUpdateOne {
+	_u.mutation.AddVulnerabilityScanIntervalHours(v)
+	return _u
+}
+
+// ClearVulnerabilityScanIntervalHours clears the value of the "vulnerability_scan_interval_hours" field.
+func (_u *AppSettingUpdateOne) ClearVulnerabilityScanIntervalHours() *AppSettingUpdateOne {
+	_u.mutation.ClearVulnerabilityScanIntervalHours()
 	return _u
 }
 
@@ -324,6 +387,15 @@ func (_u *AppSettingUpdateOne) sqlSave(ctx context.Context) (_node *AppSetting, 
 	}
 	if _u.mutation.MetricsRetentionDaysCleared() {
 		_spec.ClearField(appsetting.FieldMetricsRetentionDays, field.TypeInt)
+	}
+	if value, ok := _u.mutation.VulnerabilityScanIntervalHours(); ok {
+		_spec.SetField(appsetting.FieldVulnerabilityScanIntervalHours, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.AddedVulnerabilityScanIntervalHours(); ok {
+		_spec.AddField(appsetting.FieldVulnerabilityScanIntervalHours, field.TypeInt, value)
+	}
+	if _u.mutation.VulnerabilityScanIntervalHoursCleared() {
+		_spec.ClearField(appsetting.FieldVulnerabilityScanIntervalHours, field.TypeInt)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(appsetting.FieldUpdatedAt, field.TypeTime, value)

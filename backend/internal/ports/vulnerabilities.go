@@ -58,3 +58,14 @@ type VulnerabilityRepository interface {
 	// findings that ended before the time, at most limit of each.
 	DeleteVulnerabilityHistoryBefore(ctx context.Context, before time.Time, limit int) (int, error)
 }
+
+// VulnerabilitySettings stores the interval of the automatic scans chosen
+// in the interface.
+type VulnerabilitySettings interface {
+	// VulnerabilityScanIntervalHours returns nil when the service
+	// configuration applies.
+	VulnerabilityScanIntervalHours(ctx context.Context) (*int, error)
+	// SetVulnerabilityScanIntervalHours stores the interval and its audit
+	// entry atomically.
+	SetVulnerabilityScanIntervalHours(ctx context.Context, hours int, audit domain.AuditEntry) error
+}

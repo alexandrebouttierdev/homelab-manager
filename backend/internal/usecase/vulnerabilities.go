@@ -32,7 +32,16 @@ type VulnerabilitySummary struct {
 	domain.VulnerabilityBrief
 	Running    bool
 	NextScanAt *time.Time
-	Interval   time.Duration
+	IntervalSettings
+}
+
+// IntervalSettings is the effective interval of the automatic scans, the
+// configured one and where the effective one comes from ("config" or
+// "user").
+type IntervalSettings struct {
+	Interval        time.Duration
+	DefaultInterval time.Duration
+	Source          string
 }
 
 // VulnerabilityUsecase scans the system packages with Grype
@@ -40,6 +49,7 @@ type VulnerabilitySummary struct {
 // scan, automatic or manual: at most one at a time.
 type VulnerabilityUsecase struct {
 	repo      ports.VulnerabilityRepository
+	settings  ports.VulnerabilitySettings
 	inventory ports.PackageInventory
 	scanner   ports.VulnerabilityScanner
 	logger    *zap.Logger
@@ -48,7 +58,11 @@ type VulnerabilityUsecase struct {
 
 	mu       sync.Mutex
 	interval time.Duration
-	running  bool
+	// configured is the interval of the service configuration; fromUser
+	// tells that interval comes from the interface.
+	configured time.Duration
+	fromUser   bool
+	running    bool
 	// requests carries the manual scans already recorded as running.
 	requests chan domain.Scan
 	// changed wakes Run when the interval changes.
@@ -60,8 +74,65 @@ func NewVulnerabilityUsecase(repo ports.VulnerabilityRepository, inventory ports
 	now := time.Now().UTC()
 	return &VulnerabilityUsecase{
 		repo: repo, inventory: inventory, scanner: scanner, logger: logger, now: time.Now, started: now,
-		interval: interval, requests: make(chan domain.Scan, 1), changed: make(chan struct{}, 1),
+		interval: interval, configured: interval, requests: make(chan domain.Scan, 1), changed: make(chan struct{}, 1),
 	}
+}
+
+// WithSettings reads and stores the interval chosen in the interface.
+func (u *VulnerabilityUsecase) WithSettings(settings ports.VulnerabilitySettings) *VulnerabilityUsecase {
+	u.settings = settings
+	return u
+}
+
+// loadInterval applies the interval stored from the interface, if any.
+func (u *VulnerabilityUsecase) loadInterval(ctx context.Context) {
+	if u.settings == nil {
+		return
+	}
+	hours, err := u.settings.VulnerabilityScanIntervalHours(ctx)
+	if err != nil {
+		u.logger.Warn("could not load the vulnerability scan interval; using the configured one", zap.Error(err))
+		return
+	}
+	if hours != nil && domain.ValidateScanInterval(*hours) == nil {
+		u.mu.Lock()
+		u.interval, u.fromUser = time.Duration(*hours)*time.Hour, true
+		u.mu.Unlock()
+	}
+}
+
+// Intervals returns the effective and the configured intervals.
+func (u *VulnerabilityUsecase) Intervals() IntervalSettings {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	source := "config"
+	if u.fromUser {
+		source = "user"
+	}
+	return IntervalSettings{Interval: u.interval, DefaultInterval: u.configured, Source: source}
+}
+
+// UpdateInterval stores the interval of the automatic scans chosen by an
+// administrator, audited, and applies it at once.
+func (u *VulnerabilityUsecase) UpdateInterval(ctx context.Context, actor domain.User, hours int, requestID string) (IntervalSettings, error) {
+	if err := domain.ValidateScanInterval(hours); err != nil {
+		return IntervalSettings{}, err
+	}
+	if u.settings == nil {
+		return IntervalSettings{}, errors.New("settings storage is unavailable")
+	}
+	audit := domain.AuditEntry{
+		Actor: actor.Username, TargetType: "settings", TargetID: "vulnerability_scan_interval_hours", Action: "update",
+		RequestID: requestID, Outcome: domain.AuditSuccess,
+	}
+	if err := u.settings.SetVulnerabilityScanIntervalHours(ctx, hours, audit); err != nil {
+		return IntervalSettings{}, err
+	}
+	u.mu.Lock()
+	u.fromUser = true
+	u.mu.Unlock()
+	u.SetInterval(time.Duration(hours) * time.Hour)
+	return u.Intervals(), nil
 }
 
 // Interval returns the period of the automatic scans.
@@ -86,6 +157,7 @@ func (u *VulnerabilityUsecase) SetInterval(interval time.Duration) {
 // then runs the planned and the requested scans until ctx is cancelled;
 // a scan in progress is then recorded as interrupted.
 func (u *VulnerabilityUsecase) Run(ctx context.Context) {
+	u.loadInterval(ctx)
 	if err := u.repo.InterruptRunningScans(ctx, u.now().UTC()); err != nil {
 		u.logger.Warn("could not close the interrupted vulnerability scans", zap.Error(err))
 	}
@@ -285,7 +357,7 @@ func (u *VulnerabilityUsecase) Summary(ctx context.Context) (VulnerabilitySummar
 	if err != nil {
 		return VulnerabilitySummary{}, err
 	}
-	summary := VulnerabilitySummary{VulnerabilityBrief: brief, Interval: u.Interval()}
+	summary := VulnerabilitySummary{VulnerabilityBrief: brief, IntervalSettings: u.Intervals()}
 	summary.Running = brief.LatestScan != nil && brief.LatestScan.State == domain.ScanRunning
 	if at, _, ok := domain.PlanNextScan(brief.LatestScan, brief.LastSuccess != nil, u.started, summary.Interval); ok {
 		at = at.UTC()

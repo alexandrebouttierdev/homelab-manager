@@ -56,6 +56,8 @@ type Services struct {
 	Vulnerabilities *usecase.VulnerabilityUsecase
 	// Backups configures and runs restic; nil (no database) answers 503.
 	Backups *usecase.BackupUsecase
+	// Cron reads the scheduled tasks; nil answers 503.
+	Cron *usecase.CronUsecase
 }
 
 func NewRouter(logger *zap.Logger, services Services, sessionSecure bool, webRoot string) http.Handler {
@@ -70,6 +72,7 @@ func NewRouter(logger *zap.Logger, services Services, sessionSecure bool, webRoo
 	vulnerabilities := services.Vulnerabilities
 	unitActions := services.UnitActions
 	backups := services.Backups
+	cron := services.Cron
 	if units == nil {
 		// Never run: its inventory stays pending and its detail unavailable.
 		units = usecase.NewServiceUsecase(nil, nil, nil, logger)
@@ -226,6 +229,19 @@ func NewRouter(logger *zap.Logger, services Services, sessionSecure bool, webRoo
 						backup.With(requirePermission(deny, domain.PermRunBackups)).Post("/runs", requestBackupHandler(backups))
 						backup.Get("/runs/{runID}", backupRunHandler(backups))
 						backup.Get("/snapshots", listBackupSnapshotsHandler(backups))
+					})
+					active.Route("/cron", func(tasks chi.Router) {
+						tasks.Use(func(next http.Handler) http.Handler {
+							return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+								if cron == nil {
+									writeError(w, r, http.StatusServiceUnavailable, "CRON_UNAVAILABLE", "Scheduled tasks are unavailable.")
+									return
+								}
+								next.ServeHTTP(w, r)
+							})
+						})
+						tasks.Get("/", cronHandler(logger, cron))
+						tasks.Get("/inspect", cronInspectHandler(cron))
 					})
 					active.Route("/machine/power", func(machine chi.Router) {
 						machine.Use(requirePermission(deny, domain.PermManagePower))

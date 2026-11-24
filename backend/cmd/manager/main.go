@@ -11,6 +11,7 @@ import (
 
 	argon2adapter "homelab-manager/backend/internal/adapters/argon2"
 	"homelab-manager/backend/internal/adapters/backupunit"
+	"homelab-manager/backend/internal/adapters/crontab"
 	"homelab-manager/backend/internal/adapters/dockerengine"
 	"homelab-manager/backend/internal/adapters/journalctl"
 	logindadapter "homelab-manager/backend/internal/adapters/logind"
@@ -227,12 +228,16 @@ func main() {
 			backupUsecase.Run(schedulerCtx)
 		}()
 	}
+	// Scheduled tasks (phase 7): system crontabs read-only, the timers of
+	// the units inventory and the CRON lines of the journal.
+	cronUsecase := usecase.NewCronUsecase(crontab.New("/"), serviceUsecase, journalUsecase, logger)
 	router := httpdelivery.NewRouter(logger, httpdelivery.Services{
 		Health: healthUsecase, Auth: authUsecase, Monitoring: monitoringUsecase,
 		Accounts: accountUsecase, Power: powerUsecase, Security: securityUsecase, Audit: auditUsecase,
 		SecondFactors: secondFactorUsecase, Journal: journalUsecase, Units: serviceUsecase, UnitActions: unitActionUsecase,
 		Alerts:        alertUsecase,
 		Notifications: notificationUsecase, Vulnerabilities: vulnerabilityUsecase, Backups: backupUsecase,
+		Cron: cronUsecase,
 	}, config.SessionSecure, config.WebRoot)
 
 	server := &http.Server{

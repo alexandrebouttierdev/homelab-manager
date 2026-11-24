@@ -54,6 +54,11 @@ func TestArguments(t *testing.T) {
 			[]string{"--no-pager", "--quiet", "--output=json", "--all", "--reverse", "--after-cursor=s=z", "--lines=2", "--priority=info"},
 		},
 		{
+			"cron lines",
+			ports.JournalRead{Filter: domain.JournalFilter{Priority: 7, Identifier: "CRON"}, Reverse: true, Limit: 500},
+			[]string{"--no-pager", "--quiet", "--output=json", "--all", "--reverse", "--lines=500", "--priority=debug", "--identifier=CRON"},
+		},
+		{
 			"docker daemon",
 			ports.JournalRead{Filter: domain.JournalFilter{Priority: 6, Source: domain.JournalSourceDocker}, Limit: 1},
 			[]string{"--no-pager", "--quiet", "--output=json", "--all", "--lines=1", "--priority=info", "--unit=docker.service"},

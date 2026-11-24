@@ -120,6 +120,9 @@ func (r *Reader) arguments(request ports.JournalRead) []string {
 	if filter.Unit != "" {
 		args = append(args, "--unit="+filter.Unit)
 	}
+	if filter.Identifier != "" {
+		args = append(args, "--identifier="+filter.Identifier)
+	}
 	if filter.BootID != "" {
 		args = append(args, "--boot="+filter.BootID)
 	}

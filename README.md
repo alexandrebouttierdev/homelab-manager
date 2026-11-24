@@ -37,7 +37,7 @@ Homelab Manager supervise **une seule machine Linux : celle qui l'héberge**. Le
 - Événements de création, suppression, redémarrage et changement d'état
 - Journal systemd en lecture seule : filtres, recherche, suivi en direct, export, champs sensibles masqués
 - Services, timers et sockets systemd en lecture seule (D-Bus) : états, ressources, détail, événements d'échec et de rétablissement
-- Alertes : règles sur les métriques, l'état des conteneurs, les unités en échec et les collecteurs, évaluées toutes les 15 s, acquittement et historique (notifications en phase 4B)
+- Alertes : règles sur les métriques, l'état des conteneurs, les unités en échec et les collecteurs, évaluées toutes les 15 s, acquittement, historique, silences et notifications (Telegram, Discord, Gotify, ntfy, e-mail, webhook signé)
 - Aucune valeur inventée : une donnée absente s'affiche comme indisponible
 
 </td>
@@ -244,7 +244,9 @@ La page « Services système » liste les services, timers et sockets systemd ch
 
 ### Alertes
 
-La page « Alertes » montre les alertes ouvertes (les plus graves d'abord, avec un lien vers l'unité, le conteneur ou les métriques en cause), l'historique et des indicateurs sur 24 heures. Le Manager évalue ses règles toutes les 15 secondes sur les données qu'il collecte déjà, sans requête externe. Six règles sont fournies : disque utilisé à plus de 85 %, mémoire disponible sous 10 %, température au-dessus de 85 °C (seuil fixe : les seuils des capteurs ne sont pas collectés), collecte système ou Docker indisponible depuis 2 minutes, unité systemd en échec. Elles se modifient et se désactivent, sans se supprimer. Un administrateur ajoute ses propres règles ; un opérateur ou un administrateur acquitte une alerte, qui reste ouverte jusqu'à sa résolution. Une source illisible (Docker arrêté, systemd injoignable) ne déclenche ni ne résout les règles qui en dépendent. Aucune notification n'est encore envoyée : les canaux (Telegram, Discord, Gotify, ntfy, e-mail, webhook) et les silences arrivent en phase 4B.
+La page « Alertes » montre les alertes ouvertes (les plus graves d'abord, avec un lien vers l'unité, le conteneur ou les métriques en cause), l'historique et des indicateurs sur 24 heures. Le Manager évalue ses règles toutes les 15 secondes sur les données qu'il collecte déjà, sans requête externe. Six règles sont fournies : disque utilisé à plus de 85 %, mémoire disponible sous 10 %, température au-dessus de 85 °C (seuil fixe : les seuils des capteurs ne sont pas collectés), collecte système ou Docker indisponible depuis 2 minutes, unité systemd en échec. Elles se modifient et se désactivent, sans se supprimer. Un administrateur ajoute ses propres règles ; un opérateur ou un administrateur acquitte une alerte, qui reste ouverte jusqu'à sa résolution. Une source illisible (Docker arrêté, systemd injoignable) ne déclenche ni ne résout les règles qui en dépendent. Les alertes sont notifiées aux canaux qu'un administrateur configure dans l'onglet « Canaux » : Telegram, Discord, Gotify, ntfy, e-mail (SMTP avec STARTTLS ou TLS) et webhook JSON signé en HMAC-SHA256. Chaque canal a une sévérité minimale et une renotification (toutes les 30 minutes par défaut) tant que l'alerte n'est pas acquittée ; il reçoit au plus un message par minute, qui regroupe les déclenchements et les résolutions arrivés entre-temps. Le bouton « Tester » envoie un message aussitôt ; le dernier envoi réussi et la dernière erreur s'affichent sur le canal. Les jetons et mots de passe sont chiffrés par le coffre (clé maître `homelab-manager-secrets-key`, comme pour la double authentification) et ne sont jamais réaffichés : sans clé, seuls les canaux sans secret (ntfy public, webhook non signé) fonctionnent. Ces envois sont la seule communication sortante du Manager ; un échec n'est pas réessayé et n'affecte pas la supervision.
+
+Un opérateur ou un administrateur pose un **silence** depuis une alerte (sur sa cible ou sur toute sa règle) ou un silence global depuis l'onglet « Silences », de 15 minutes à 7 jours, avec un motif ; il le lève quand il veut. Les alertes sous silence restent ouvertes et visibles (« Sous silence ») ; seules leurs notifications sont suspendues. Le format du webhook et la vérification de sa signature sont décrits dans [docs/API_CONTRACTS.md](docs/API_CONTRACTS.md) § 4.8.
 
 ### Double authentification
 
@@ -299,8 +301,8 @@ La première release est `v2.3.0`, alignée sur la [spécification produit](docs
 
 ## État et limites connues
 
-- **Livré** : supervision système et Docker, historique, événements, comptes et rôles, sessions, politique de sécurité, journal d'audit, double authentification (TOTP et codes de secours), journaux système, services système en lecture, alertes sans notification (phase 4A), redémarrage et extinction (optionnels).
-- **Spécifié, pas encore implémenté** : passkeys (WebAuthn) et jetons d'API, actions sur les services systemd, notifications et silences d'alertes (phase 4B), sauvegardes restic, tâches planifiées. Voir [docs/SPEC_ADMINISTRATION.md](docs/SPEC_ADMINISTRATION.md) et la [feuille de route](docs/superpowers/plans/2026-11-23-feuille-de-route-v3.md).
+- **Livré** : supervision système et Docker, historique, événements, comptes et rôles, sessions, politique de sécurité, journal d'audit, double authentification (TOTP et codes de secours), journaux système, services système en lecture, alertes avec silences et notifications (phase 4), redémarrage et extinction (optionnels).
+- **Spécifié, pas encore implémenté** : passkeys (WebAuthn) et jetons d'API, actions sur les services systemd, vulnérabilités des paquets (Grype), sauvegardes restic, tâches planifiées. Voir [docs/SPEC_ADMINISTRATION.md](docs/SPEC_ADMINISTRATION.md) et la [feuille de route](docs/superpowers/plans/2026-11-23-feuille-de-route-v3.md).
 - Historiques bruts ou agrégés, 2 000 points au plus par requête ; l'interface choisit le pas selon la période.
 - À l'intervalle par défaut (10 s), la base croît d'environ 300 Mo par jour jusqu'à la rétention : ≈ 2 Go pour 7 jours.
 - Listes bornées, sans pagination ; images, volumes et réseaux Docker déduits des conteneurs.

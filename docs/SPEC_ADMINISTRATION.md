@@ -1,6 +1,6 @@
 # Spécification des modules d'administration — Homelab Manager
 
-Version 3.0 (brouillon) — 22 novembre 2026 — **partiellement implémenté** : comptes multiples et rôles (§§ 3.1–3.2, phase 1A), sessions, politique de sécurité et journal d'audit (§§ 3.4–3.5, phase 1B), coffre de secrets, TOTP et codes de secours (§§ 2.5, 3.3 hors WebAuthn, phase 1C) journaux système (§ 4, phase 2), consultation des services système (§ 5.1, phase 3) et redémarrage et extinction de la machine (§ 8 bis, module M), le 23 novembre 2026 ; règles, cycle de vie et indicateurs des alertes (§§ 6.1, 6.2 hors silences, 6.4 sans action, phase 4A), le 24 novembre 2026.
+Version 3.0 (brouillon) — 22 novembre 2026 — **partiellement implémenté** : comptes multiples et rôles (§§ 3.1–3.2, phase 1A), sessions, politique de sécurité et journal d'audit (§§ 3.4–3.5, phase 1B), coffre de secrets, TOTP et codes de secours (§§ 2.5, 3.3 hors WebAuthn, phase 1C) journaux système (§ 4, phase 2), consultation des services système (§ 5.1, phase 3) et redémarrage et extinction de la machine (§ 8 bis, module M), le 23 novembre 2026 ; règles, cycle de vie, indicateurs, silences et canaux des alertes (§§ 6.1 à 6.3, 6.4 sans action, phase 4), le 24 novembre 2026.
 
 Ce document spécifie les modules annoncés « à venir » dans la navigation : utilisateurs et accès, journaux système, services système, alertes et notifications, sauvegardes, tâches planifiées, ainsi que le redémarrage et l'extinction de la machine (§ 8 bis, ajouté le 23 novembre 2026). Il s'appuie sur les maquettes de `maquette/` et en fixe le périmètre réel : une maquette montre une intention visuelle, ce document fait foi. Tant qu'un module n'est pas livré, il reste désactivé dans l'interface et ses routes n'existent pas.
 
@@ -152,7 +152,7 @@ Lecture seule du journal systemd.
 
 Moteur intégré au Manager (règle 5), évalué sur les données qu'il collecte déjà.
 
-**Mise en œuvre (phase 4A, 24 novembre 2026)** : règles des types métrique hôte, métrique conteneur, état de conteneur, unité en échec et collecteur (la règle « Sauvegarde » et sa règle par défaut viendront avec le module B) ; cycle `firing` → `acknowledged` → `resolved` et indicateurs ; liens vers l'unité, son journal et le conteneur. La règle par défaut de température utilise un seuil fixe de 85 °C, modifiable, les seuils des capteurs n'étant pas collectés. Les silences, les canaux et l'action « Redémarrer » (phase 5) ne sont pas encore livrés. Contrat : API_CONTRACTS.md § 4.8.
+**Mise en œuvre (phase 4A, 24 novembre 2026)** : règles des types métrique hôte, métrique conteneur, état de conteneur, unité en échec et collecteur (la règle « Sauvegarde » et sa règle par défaut viendront avec le module B) ; cycle `firing` → `acknowledged` → `resolved` et indicateurs ; liens vers l'unité, son journal et le conteneur. La règle par défaut de température utilise un seuil fixe de 85 °C, modifiable, les seuils des capteurs n'étant pas collectés. **Phase 4B (24 novembre 2026)** : silences par règle, par cible (une règle sur une cible) ou globaux, l'alerte restant listée « sous silence » (décision Q-7) ; six canaux, secrets scellés par le coffre et jamais renvoyés, routage par sévérité, regroupement à un message par minute et par canal, renotification d'une alerte `firing` non acquittée, bouton « Tester », dernier envoi et dernière erreur. L'action « Redémarrer » (phase 5) n'est pas encore livrée. Contrat : API_CONTRACTS.md § 4.8.
 
 ### 6.1 Règles
 
@@ -284,7 +284,7 @@ Ajouté le 24 novembre 2026 à la demande du propriétaire du projet : détecter
 | 1 bis | Module M : redémarrer et éteindre la machine. **Livré** | Rôles (phase 1, premier incrément), polkit |
 | 2 | Module J (lecture du journal). **Livré** | Groupe `systemd-journal` |
 | 3 | Module S en lecture, événements `service.failed`. **Livré** | D-Bus |
-| 4 | Module A : règles, cycle de vie, canaux. **4A livrée** (règles, cycle de vie, acquittement, indicateurs) ; 4B à venir (canaux, silences, regroupement, renotification) | Phases 1 et 3, secrets § 2.5 |
+| 4 | Module A : règles, cycle de vie, canaux. **Livrée** : 4A (règles, cycle de vie, acquittement, indicateurs) et 4B (canaux, silences, regroupement, renotification) | Phases 1 et 3, secrets § 2.5 |
 | 5 | Module S, actions par polkit | Phase 1 |
 | 6 | Module B : dépôts, sauvegarde, rétention, restauration en quarantaine | Phases 1 et 4 |
 | 7 | Module C en lecture | Phase 2 |

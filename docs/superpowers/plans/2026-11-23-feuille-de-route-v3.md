@@ -115,7 +115,7 @@ Ordre de réalisation : 1A → M → 1B → 1C → 2 → 3 → 4 → V → 5 →
 - Tests : faux systemd exporté par godbus sur un bus privé (`dbus-daemon`, installé en CI), transitions d'état, SQLite réel, routes `httptest`, page et fonctions pures de l'interface.
 - Parcours vérifié dans le navigateur contre le Manager et un faux systemd sur un bus privé (macOS, sans vrai systemd) : inventaire, détail, événements d'échec puis de rétablissement, aucun doublon après redémarrage du Manager.
 
-### 4 — Alertes et notifications (4A livrée)
+### 4 — Alertes et notifications (livrée)
 
 - Plan : [2026-11-24-phase-4-alertes-notifications.md](./2026-11-24-phase-4-alertes-notifications.md), livré en deux parties : 4A (moteur, règles, cycle de vie, interface, sans communication sortante) puis 4B (canaux, silences, regroupement, renotification).
 - Moteur évalué toutes les 15 s sur les derniers échantillons (aucune requête historique lourde) ; six types de règles (§ 6.1) ; règles par défaut désactivables.
@@ -177,8 +177,8 @@ Questions nouvelles relevées en préparant ce plan, à trancher avant l'incrém
 | Q-5 | Faut-il une procédure dans l'interface pour retirer le second facteur d'un compte qui a perdu son appareil et ses codes de secours ? | Non pour l'instant : un administrateur supprime et recrée le compte ; pour le dernier administrateur, procédure SQLite documentée dans le README (non auditée). À réexaminer avec WebAuthn. | 8 |
 | Q-4 | Lever les limites v2.1 (pagination par curseur, images/volumes/réseaux inutilisés) ? La seconde exige d'ajouter au proxy des routes GET `images/json`, `volumes`, `networks`. | À planifier après la phase 3, si le besoin est confirmé. | Option |
 | Q-6 | Règle par défaut « température > seuil du capteur » : les seuils des capteurs ne sont pas collectés | Seuil fixe de 85 °C, modifiable ; collecter les seuils serait une évolution à part | 4A |
-| Q-7 | Un silence masque-t-il l'alerte dans l'interface ? | Non : alerte listée « sous silence », seules les notifications sont suspendues | 4B |
-| Q-8 | Vérification réelle de Telegram, Discord, Gotify et SMTP | Tests contre des serveurs simulés ; ntfy et webhook vérifiés dans la machine de test ; les autres par le propriétaire avec ses jetons | 4B |
+| Q-7 | Un silence masque-t-il l'alerte dans l'interface ? | **Retenu (4B)** : non, alerte listée « sous silence », seules les notifications sont suspendues | — |
+| Q-8 | Vérification réelle de Telegram, Discord, Gotify, ntfy et SMTP | Tests contre des serveurs simulés ; webhook signé vérifié en conditions réelles ; les autres restent à vérifier par le propriétaire avec ses jetons (bilan 4B) | Propriétaire |
 
 ## 6. Vérifications manuelles à chaque version
 

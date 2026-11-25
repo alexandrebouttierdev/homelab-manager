@@ -73,6 +73,9 @@ export const errorMessages: Record<string, string> = {
   BACKUP_NOT_INITIALIZED: "Le dépôt n'est pas encore initialisé.",
   BACKUP_ALREADY_INITIALIZED: 'Le dépôt est déjà initialisé.',
   BACKUP_IN_PROGRESS: 'Une opération de sauvegarde est déjà en cours.',
+  BACKUP_COPY_NOT_CONFIGURED: "Aucun dépôt de copie n'est configuré.",
+  BACKUP_COPY_NOT_INITIALIZED: "Le dépôt de copie n'est ni créé ni rattaché.",
+  BACKUP_COPY_ALREADY_INITIALIZED: 'Le dépôt de copie est déjà prêt.',
   UNIT_NOT_MANAGEABLE:
     "Cette unité n'est pas dans la liste des unités gérables de la configuration du Manager.",
   UNIT_ACTION_RATE_LIMITED: "Trop d'actions sur les services en une minute. Réessayez plus tard.",

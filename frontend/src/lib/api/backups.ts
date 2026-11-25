@@ -1,13 +1,47 @@
 import { requestJSON } from './client'
 
-/** Backups with restic, increment 6A (API_CONTRACTS.md § 4.10). */
+/** Backups with restic, increments 6A to 6C (API_CONTRACTS.md § 4.10). */
 export type RepositoryType = 'local' | 'rest' | 's3'
 export type BackupFrequency = 'daily' | 'weekly'
 export type BackupOperation =
-  'init' | 'backup' | 'forget-prune' | 'check' | 'restore' | 'snapshots' | 'unlock'
+  | 'init'
+  | 'backup'
+  | 'forget-prune'
+  | 'check'
+  | 'restore'
+  | 'snapshots'
+  | 'unlock'
+  | 'diff'
+  | 'copy'
 
 /** Operations an administrator starts (POST /api/v1/backups/operations). */
-export type AdminBackupOperation = 'forget-prune' | 'check' | 'unlock' | 'restore'
+export type AdminBackupOperation = 'forget-prune' | 'check' | 'unlock' | 'restore' | 'diff' | 'copy'
+
+/** restic's modifiers: added, removed, content modified, metadata updated, type changed, bitrot. */
+export type BackupDiffModifier = '+' | '-' | 'M' | 'U' | 'T' | '?'
+export type BackupDiffCounts = { files: number; dirs: number; others: number; bytes: number }
+
+/** Changes from the snapshot from to the snapshot to; changes holds the first 1 000. */
+export type BackupDiff = {
+  from: string
+  to: string
+  changedFiles: number
+  added: BackupDiffCounts
+  removed: BackupDiffCounts
+  /** Empty for an account that cannot manage the backups. */
+  changes: Array<{ path: string; modifier: BackupDiffModifier }>
+  totalChanges: number
+  truncated: boolean
+}
+
+/** What a copy brought to the copy repository. */
+export type BackupCopyResult = {
+  repository: BackupRepository
+  initialized?: boolean
+  snapshotsCopied: number
+  snapshotsInTarget: number
+  snapshotsRemoved?: number
+}
 
 export type BackupRetention = {
   enabled: boolean
@@ -30,6 +64,8 @@ export type BackupRunDetails = {
   bytesRestored?: number
   snapshotsRemoved?: number
   subsetPercent?: number
+  diff?: BackupDiff
+  copy?: BackupCopyResult
 }
 
 export type BackupRestore = { snapshotId: string; include: string[]; dryRun: boolean }
@@ -72,6 +108,25 @@ export type BackupConfig = {
   check: BackupCheck
   updatedAt: string | null
   updatedBy: string | null
+  /** The copy repository (restic copy), null when none is set. */
+  copy: BackupCopyConfig | null
+}
+
+export type BackupCopyConfig = {
+  repository: BackupRepository
+  initialized: boolean
+  initializedAt: string | null
+  credentials: { password: boolean; username: boolean; secret: boolean }
+  /** Copies after each successful scheduled backup. */
+  afterBackup: boolean
+}
+
+/** username and secret: null keeps them, '' removes them. */
+export type BackupCopyInput = {
+  repository: BackupRepository
+  username: string | null
+  secret: string | null
+  afterBackup: boolean
 }
 
 /** username and secret: null keeps them, '' removes them. */
@@ -136,6 +191,7 @@ export type BackupSummary = {
   lastRun: BackupRun | null
   lastSuccess: BackupRun | null
   lastCheck: BackupRun | null
+  lastCopy: BackupRun | null
   nextRunAt: string | null
 }
 
@@ -178,11 +234,46 @@ export async function listBackupSnapshots() {
 
 export async function requestBackupOperation(
   operation: AdminBackupOperation,
-  restore?: BackupRestore,
+  options: { restore?: BackupRestore; diff?: { from: string; to: string } } = {},
 ) {
   const response = await requestJSON<{ run: BackupRun }>('/api/v1/backups/operations', {
     method: 'POST',
-    body: JSON.stringify(restore ? { operation, restore } : { operation }),
+    body: JSON.stringify({ operation, ...options }),
+  })
+  return response.run
+}
+
+export async function getBackupRun(id: string) {
+  const response = await requestJSON<{ run: BackupRun }>(
+    `/api/v1/backups/runs/${encodeURIComponent(id)}`,
+  )
+  return response.run
+}
+
+export function setBackupCopy(input: BackupCopyInput) {
+  return requestJSON<BackupConfig>('/api/v1/backups/copy', {
+    method: 'PUT',
+    body: JSON.stringify(input),
+  })
+}
+
+/** Forgets the copy repository; its data stays where it is. */
+export function removeBackupCopy() {
+  return requestJSON<BackupConfig>('/api/v1/backups/copy/remove', { method: 'POST' })
+}
+
+/** Creates the copy repository and copies; the password is returned this once. */
+export function initBackupCopy() {
+  return requestJSON<{ password: string; run: BackupRun }>('/api/v1/backups/copy/init', {
+    method: 'POST',
+  })
+}
+
+/** Attaches an existing copy repository with its password, by a first copy. */
+export async function connectBackupCopy(password: string) {
+  const response = await requestJSON<{ run: BackupRun }>('/api/v1/backups/copy/connect', {
+    method: 'POST',
+    body: JSON.stringify({ password }),
   })
   return response.run
 }

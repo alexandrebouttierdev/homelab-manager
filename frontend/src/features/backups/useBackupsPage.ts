@@ -26,6 +26,8 @@ import {
 import { useRefreshInterval } from '../../lib/refresh'
 import { canManageBackups, canRunBackups } from '../../lib/roles'
 import { useBackupConfigForm } from './useBackupConfigForm'
+import { useBackupCopy } from './useBackupCopy'
+import { useBackupDiff } from './useBackupDiff'
 import { useBackupRestore } from './useBackupRestore'
 
 export const backupsQueryKey = ['backups'] as const
@@ -80,6 +82,8 @@ export function useBackupsPage() {
   const canManage = canManageBackups(user?.role)
   const configForm = useBackupConfigForm(configQuery.data, canManage)
   const restore = useBackupRestore(canManage)
+  const diff = useBackupDiff(canManage)
+  const copy = useBackupCopy(configQuery.data, summaryQuery.data?.lastCopy ?? null, canManage)
 
   const summary = summaryQuery.data
   const config = configQuery.data
@@ -142,6 +146,8 @@ export function useBackupsPage() {
     },
     snapshots: { state: loadState(snapshotsQuery), rows: snapshotsQuery.data ?? [] },
     restore,
+    diff,
+    copy,
     configForm,
     refresh: () => void queryClient.invalidateQueries({ queryKey: backupsQueryKey }),
   }

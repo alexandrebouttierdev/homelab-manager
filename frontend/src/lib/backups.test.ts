@@ -3,7 +3,11 @@ import type { BackupConfig, BackupRun, BackupSummary } from './api/backups'
 import {
   backupHealth,
   configToValues,
+  copyToValues,
+  copyValuesToInput,
   describeDetails,
+  diffModifierInfo,
+  orderForDiff,
   credentialLabels,
   describeSchedule,
   describeStats,
@@ -48,6 +52,7 @@ const config: BackupConfig = {
   check: { enabled: true, subsetPercent: 5 },
   updatedAt: null,
   updatedBy: null,
+  copy: null,
 }
 
 describe('backups', () => {
@@ -102,6 +107,7 @@ describe('backups', () => {
       lastRun: run(),
       lastSuccess: run(),
       lastCheck: null,
+      lastCopy: null,
       nextRunAt: null,
     }
     expect(backupHealth({ ...base, configured: false }).label).toBe('Non configurées')
@@ -169,6 +175,75 @@ describe('backups', () => {
       keepWeekly: 4,
       keepMonthly: 6,
       keepYearly: 2,
+    })
+  })
+
+  it('labels and describes a diff and a copy', () => {
+    const diff = {
+      from: '3a253ad8aaaa',
+      to: '9f2c11b0bbbb',
+      changedFiles: 2,
+      added: { files: 3, dirs: 0, others: 0, bytes: 2048 },
+      removed: { files: 1, dirs: 0, others: 0, bytes: 10 },
+      changes: [],
+      totalChanges: 6,
+      truncated: false,
+    }
+    expect(runLabel(run({ operation: 'diff', origin: 'manual' }))).toBe("Comparaison d'instantanés")
+    expect(describeDetails(run({ operation: 'diff', details: { diff } }))).toBe(
+      '2 modifié(s), 3 ajouté(s) (2 Ko), 1 supprimé(s) (10 o)',
+    )
+    expect(runLabel(run({ operation: 'copy', origin: 'schedule' }))).toBe(
+      'Copie vers le dépôt de copie planifiée',
+    )
+    const copy = {
+      repository: { type: 'local' as const, location: '/mnt/copy' },
+      initialized: true,
+      snapshotsCopied: 2,
+      snapshotsInTarget: 5,
+      snapshotsRemoved: 1,
+    }
+    expect(describeDetails(run({ operation: 'copy', details: { copy } }))).toBe(
+      'Dépôt de copie créé · 2 instantané(s) copié(s) · 1 supprimé(s) par la rétention · 5 dans la copie',
+    )
+    expect(diffModifierInfo('+')).toEqual({ label: 'Ajouté', tone: 'success' })
+    expect(diffModifierInfo('?').label).toBe('Contenu altéré')
+  })
+
+  it('orders two snapshots for a diff, older first', () => {
+    const older = { id: 'a', time: '2026-11-23T03:00:00Z' }
+    const newer = { id: 'b', time: '2026-11-24T03:00:00Z' }
+    expect(orderForDiff(newer, older)).toEqual([older, newer])
+    expect(orderForDiff(older, newer)).toEqual([older, newer])
+  })
+
+  it('converts the copy repository to the form and back', () => {
+    expect(copyToValues(null)).toEqual({
+      type: 'local',
+      location: '',
+      username: '',
+      secret: '',
+      afterBackup: true,
+    })
+    const stored = {
+      repository: { type: 'rest' as const, location: 'https://nas.lan:8000/copy' },
+      initialized: true,
+      initializedAt: null,
+      credentials: { password: true, username: true, secret: true },
+      afterBackup: false,
+    }
+    const values = copyToValues(stored)
+    expect(values).toMatchObject({ type: 'rest', afterBackup: false, username: '' })
+    expect(copyValuesToInput(values)).toEqual({
+      repository: { type: 'rest', location: 'https://nas.lan:8000/copy' },
+      username: null,
+      secret: null,
+      afterBackup: false,
+    })
+    expect(copyValuesToInput({ ...values, type: 'local', location: ' /mnt/copy ' })).toMatchObject({
+      repository: { type: 'local', location: '/mnt/copy' },
+      username: '',
+      secret: '',
     })
   })
 })

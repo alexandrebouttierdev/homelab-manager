@@ -2,6 +2,10 @@ import type { BadgeTone } from '../components/ui/Badge'
 import type {
   BackupConfig,
   BackupConfigInput,
+  BackupCopyConfig,
+  BackupCopyInput,
+  BackupDiff,
+  BackupDiffModifier,
   BackupFailure,
   BackupOrigin,
   BackupRun,
@@ -12,6 +16,7 @@ import type {
 } from './api/backups'
 import { formatBytes, formatCount, formatRelativeTime } from './format'
 import { splitLines, type BackupConfigValues } from '../schemas/backupConfig'
+import type { BackupCopyValues } from '../schemas/backupCopy'
 
 export const repositoryTypeOptions: ReadonlyArray<{
   value: BackupConfigValues['type']
@@ -98,6 +103,8 @@ const operationLabels: Record<Exclude<BackupRun['operation'], 'backup'>, string>
   restore: 'Restauration',
   snapshots: 'Rattachement du dépôt',
   unlock: 'Déverrouillage',
+  diff: "Comparaison d'instantanés",
+  copy: 'Copie vers le dépôt de copie',
 }
 
 export function runLabel(run: BackupRun): string {
@@ -105,7 +112,8 @@ export function runLabel(run: BackupRun): string {
   if (run.operation === 'restore' && run.details?.dryRun) return 'Restauration simulée'
   const label = operationLabels[run.operation]
   const scheduled =
-    run.origin !== 'manual' && (run.operation === 'forget-prune' || run.operation === 'check')
+    run.origin !== 'manual' &&
+    (run.operation === 'forget-prune' || run.operation === 'check' || run.operation === 'copy')
   return scheduled ? `${label} planifiée` : label
 }
 
@@ -122,8 +130,67 @@ export function describeDetails(run: BackupRun): string | null {
       return `${formatCount(d.snapshotsRemoved ?? 0)} instantané(s) supprimé(s)`
     case 'check':
       return `${d.subsetPercent ?? 0} % des données relues sans erreur`
+    case 'diff':
+      return d.diff ? describeDiff(d.diff) : null
+    case 'copy':
+      if (!d.copy) return null
+      return [
+        d.copy.initialized ? 'Dépôt de copie créé' : null,
+        `${formatCount(d.copy.snapshotsCopied)} instantané(s) copié(s)`,
+        d.copy.snapshotsRemoved
+          ? `${formatCount(d.copy.snapshotsRemoved)} supprimé(s) par la rétention`
+          : null,
+        `${formatCount(d.copy.snapshotsInTarget)} dans la copie`,
+      ]
+        .filter(Boolean)
+        .join(' · ')
     default:
       return null
+  }
+}
+
+/** One line for a diff: changed, added and removed files. */
+export function describeDiff(diff: BackupDiff): string {
+  return `${formatCount(diff.changedFiles)} modifié(s), ${formatCount(diff.added.files)} ajouté(s) (${formatBytes(diff.added.bytes)}), ${formatCount(diff.removed.files)} supprimé(s) (${formatBytes(diff.removed.bytes)})`
+}
+
+const modifierInfo: Record<BackupDiffModifier, { label: string; tone: BadgeTone }> = {
+  '+': { label: 'Ajouté', tone: 'success' },
+  '-': { label: 'Supprimé', tone: 'danger' },
+  M: { label: 'Modifié', tone: 'warning' },
+  U: { label: 'Métadonnées', tone: 'neutral' },
+  T: { label: 'Type changé', tone: 'info' },
+  '?': { label: 'Contenu altéré', tone: 'danger' },
+}
+
+/** What a modifier of restic diff means. */
+export function diffModifierInfo(modifier: BackupDiffModifier): { label: string; tone: BadgeTone } {
+  return modifierInfo[modifier] ?? { label: modifier, tone: 'neutral' }
+}
+
+/** The two snapshots of a comparison, older first, whatever the order they were picked in. */
+export function orderForDiff<T extends { id: string; time: string }>(a: T, b: T): [T, T] {
+  return new Date(a.time).getTime() <= new Date(b.time).getTime() ? [a, b] : [b, a]
+}
+
+export function copyToValues(copy: BackupCopyConfig | null): BackupCopyValues {
+  return {
+    type: copy?.repository.type ?? 'local',
+    location: copy?.repository.location ?? '',
+    username: '',
+    secret: '',
+    afterBackup: copy?.afterBackup ?? true,
+  }
+}
+
+/** An empty key field keeps the stored key; a local repository removes the keys. */
+export function copyValuesToInput(values: BackupCopyValues): BackupCopyInput {
+  const remote = values.type === 'rest' || values.type === 's3'
+  return {
+    repository: { type: values.type, location: values.location.trim() },
+    username: remote ? values.username || null : '',
+    secret: remote ? values.secret || null : '',
+    afterBackup: values.afterBackup,
   }
 }
 

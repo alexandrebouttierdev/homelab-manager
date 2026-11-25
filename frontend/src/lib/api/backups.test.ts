@@ -1,10 +1,14 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import {
+  connectBackupCopy,
   connectBackupRepository,
+  initBackupCopy,
   initBackupRepository,
   listBackupRuns,
   requestBackup,
+  removeBackupCopy,
   requestBackupOperation,
+  setBackupCopy,
   updateBackupConfig,
 } from './backups'
 
@@ -55,7 +59,7 @@ describe('backups API', () => {
   it('starts an operation and connects a repository', async () => {
     let fetchMock = mockFetch({ run: { id: 'r3' } }, 202)
     const restore = { snapshotId: '3a253ad8', include: ['/etc'], dryRun: true }
-    await requestBackupOperation('restore', restore)
+    await requestBackupOperation('restore', { restore })
     expect(fetchMock.mock.calls[0][0]).toBe('/api/v1/backups/operations')
     expect(fetchMock.mock.calls[0][1]).toMatchObject({
       body: JSON.stringify({ operation: 'restore', restore }),
@@ -68,5 +72,34 @@ describe('backups API', () => {
     fetchMock = mockFetch({ run: { id: 'r5' } }, 202)
     await connectBackupRepository('old-password')
     expect(fetchMock.mock.calls[0][0]).toBe('/api/v1/backups/repository/connect')
+    fetchMock = mockFetch({ run: { id: 'r6' } }, 202)
+    await requestBackupOperation('diff', { diff: { from: '3a253ad8', to: '9f2c11b0' } })
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({
+      body: JSON.stringify({ operation: 'diff', diff: { from: '3a253ad8', to: '9f2c11b0' } }),
+    })
+  })
+
+  it('sets, creates, connects and removes the copy repository', async () => {
+    let fetchMock = mockFetch({ copy: null })
+    const input = {
+      repository: { type: 'rest' as const, location: 'https://nas.lan:8000/copy' },
+      username: 'u',
+      secret: null,
+      afterBackup: true,
+    }
+    await setBackupCopy(input)
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/v1/backups/copy')
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({ method: 'PUT', body: JSON.stringify(input) })
+    fetchMock = mockFetch({ password: 'p', run: { id: 'r7' } }, 202)
+    expect((await initBackupCopy()).password).toBe('p')
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/v1/backups/copy/init')
+    fetchMock = mockFetch({ run: { id: 'r8' } }, 202)
+    await connectBackupCopy('old')
+    expect(fetchMock.mock.calls[0][1]).toMatchObject({ body: JSON.stringify({ password: 'old' }) })
+    fetchMock = mockFetch({ copy: null })
+    await removeBackupCopy()
+    expect(fetchMock.mock.calls[0][0]).toBe('/api/v1/backups/copy/remove')
+    mockFetch({ error: { code: 'BACKUP_COPY_NOT_INITIALIZED', message: 'x' } }, 409)
+    await expect(requestBackupOperation('copy')).rejects.toThrow(/ni créé ni rattaché/)
   })
 })

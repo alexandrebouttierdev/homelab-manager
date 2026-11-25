@@ -18,9 +18,7 @@ export function useBackupRestore(canManage: boolean) {
   const mutation = useMutation({
     mutationFn: (dryRun: boolean) =>
       requestBackupOperation('restore', {
-        snapshotId: snapshot?.id ?? '',
-        include: splitLines(include),
-        dryRun,
+        restore: { snapshotId: snapshot?.id ?? '', include: splitLines(include), dryRun },
       }),
     onSettled: () => queryClient.invalidateQueries({ queryKey: backupsQueryKey }),
   })

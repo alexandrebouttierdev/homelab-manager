@@ -6,7 +6,7 @@
 
 **Prérequis :** phase 1C (coffre de secrets), phase 4 (alertes), phase 5 et module V (démarrage d'une unité par D-Bus et polkit). restic : paquet Debian 13 `restic` 0.18.0.
 
-**Statut :** D-12 tranchée le 24 novembre 2026 (option A : le Manager planifie). Incréments 6A (règle d'alerte comprise), 6B, 6C et 6D (SFTP, décision D-13 prise en autonomie le 25 novembre 2026, à confirmer par le propriétaire) livrés.
+**Statut :** D-12 tranchée le 24 novembre 2026 (option A : le Manager planifie). Incréments 6A (règle d'alerte comprise), 6B, 6C et 6D (SFTP, décision D-13 prise en autonomie puis confirmée par le propriétaire le 25 novembre 2026) livrés.
 
 ## Découpage
 
@@ -103,7 +103,7 @@ Le § 7.1 prévoit un timer `homelab-backup-schedule.timer` dont l'expression `O
 
 ## Décisions de conception (6D, SFTP)
 
-Le propriétaire a demandé le 25 novembre 2026 d'enchaîner les phases sans être consulté ; la gestion de la clé SSH a été tranchée dans ce cadre (D-13, SPEC_ADMINISTRATION.md § 10), à confirmer.
+Le propriétaire a demandé le 25 novembre 2026 d'enchaîner les phases sans être consulté ; la gestion de la clé SSH a été tranchée dans ce cadre (D-13, SPEC_ADMINISTRATION.md § 10), puis confirmée par le propriétaire le même jour.
 
 | Sujet | Choix | Motif |
 |---|---|---|

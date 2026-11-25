@@ -54,7 +54,7 @@ func TestFailedUnitsAndTheirEventsCommitTogether(t *testing.T) {
 		t.Fatalf("after recovery and disappearance, FailedUnits = (%v, %v), want none", failed, err)
 	}
 
-	events, err := monitoring.ListEvents(ctx, nil, at.Add(-time.Hour), at.Add(time.Hour), 10)
+	events, err := monitoring.ListEvents(ctx, nil, at.Add(-time.Hour), at.Add(time.Hour), nil, 10)
 	if err != nil {
 		t.Fatal(err)
 	}

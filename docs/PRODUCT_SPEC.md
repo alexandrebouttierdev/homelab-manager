@@ -81,10 +81,9 @@ Présent dans le dépôt : module Backend unique, authentification locale (compt
 
 Limites connues, à ne pas présenter comme fonctionnelles :
 
-- Listes de conteneurs et d'événements plafonnées sans pagination (API_CONTRACTS.md § 9.1).
 - Modules d'administration (SPEC_ADMINISTRATION.md) : sont livrés les comptes multiples et les rôles (phase 1A), les sessions, le verrouillage, la politique de sécurité et le journal d'audit consultable (phase 1B), la double authentification par application TOTP et codes de secours avec son coffre de secrets (phase 1C), la lecture du journal système (phase 2, module J), la consultation des services système (phase 3, module S en lecture) et leurs actions en liste blanche (phase 5 : démarrer, arrêter, redémarrer, recharger, exécuter un timer, « Redémarrer » depuis une alerte, règle polkit générée), les alertes et leurs notifications (phase 4 : règles, cycle de vie, acquittement, indicateurs, silences, canaux Telegram, Discord, Gotify, ntfy, SMTP et webhook signé, regroupement et renotification), les sauvegardes restic (phase 6 : dépôt local, rest-server, S3 ou SFTP avec la clé SSH propre au Manager et la clé d'hôte épinglée, sauvegardes manuelles et planifiées, historique, instantanés, rétention, vérification, restauration en quarantaine, rattachement d'un dépôt existant, diff entre instantanés, copie vers un dépôt de copie), les vulnérabilités des paquets système (module V : Grype dans l'unité dédiée `homelab-vulnscan.service`, scans planifiés et manuels, onglet de la page Machine, synthèse du tableau de bord, règle d'alerte ; Debian, Ubuntu, Alpine et distributions RPM à base SQLite) les jetons d'API en lecture seule (phase 8A), les passkeys et clés FIDO2 comme second facteur (phase 8B), les tâches planifiées en lecture seule (phase 7 : crontabs du système, scripts run-parts, timers, dernières exécutions, inspecteur d'expression) ainsi que le redémarrage et l'extinction de la machine (module M, désactivé par défaut). Aucune entrée de navigation ne reste « à venir ».
 - Images, volumes et réseaux Docker sont déduits de l'inventaire des conteneurs : une image, un volume ou un réseau inutilisé n'apparaît pas.
-- Aucune notification ni alerte, aucun journal de conteneur.
+- Aucun journal de conteneur.
 - Le passage de PostgreSQL à SQLite ne migre pas les données existantes.
 
 ## 7. Décisions produit

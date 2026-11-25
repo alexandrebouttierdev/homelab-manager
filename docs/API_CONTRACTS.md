@@ -2,7 +2,7 @@
 
 Version 2.1 — 22 novembre 2026
 
-Ce document est le contrat exact de l'API implémentée. Toute différence entre ce document et le code est un défaut : corriger l'un ou l'autre dans la même modification. Les éléments non encore implémentés sont regroupés en fin de document (§ 9) et ne doivent pas être présentés comme disponibles.
+Ce document est le contrat exact de l'API implémentée. Toute différence entre ce document et le code est un défaut : corriger l'un ou l'autre dans la même modification. La pagination par curseur des conteneurs et des événements est décrite au § 9.
 
 ## 1. Principes communs
 
@@ -817,7 +817,7 @@ Lecture seule (SPEC_ADMINISTRATION.md § 8, phase 7), ouverte à tous les rôles
 - `limit` : entier de 1 à 2 000, 500 par défaut.
 - `step` : `raw` (défaut), `1m`, `5m` ou `1h`. Autre valeur → `400 VALIDATION_ERROR`.
 - `label` : répétable (4 au plus), format `clé:valeur`, clé `^[a-z0-9_]{1,32}$`, valeur de 1 à 128 caractères, clé non répétée. Ne garde que les séries portant tous ces labels (ex. `label=core:all`). Sans `label`, toutes les séries du nom sont renvoyées.
-- `cursor` : toute valeur non vide → `400 VALIDATION_ERROR` (pagination non implémentée, § 9).
+- `cursor` : toute valeur non vide → `400 VALIDATION_ERROR` (l'historique n'est pas paginé ; `limit` et `step` le bornent).
 - Tout autre paramètre, ou paramètre répété autre que `label` → `400 VALIDATION_ERROR`.
 
 **Brut (`step=raw`)** — si l'intervalle contient plus de `limit` échantillons, seuls les `limit` plus récents sont renvoyés, dans l'ordre chronologique. Une série de l'hôte produit 360 points par heure à l'intervalle par défaut.
@@ -875,9 +875,9 @@ Une métrique absente signifie que la source n'est pas disponible ou que le calc
 
 ### 6.1 Conteneurs
 
-`GET /api/v1/containers[?includeRemoved=true|false]` → `{ "containers": [...], "nextCursor": null }`.
+`GET /api/v1/containers[?includeRemoved=true|false][&cursor=…]` → `{ "containers": [...], "nextCursor": "…" | null }`.
 
-- Tri par nom, 500 conteneurs au plus. `includeRemoved=true` inclut les conteneurs disparus (`state = "removed"`). Tout autre paramètre → `400 VALIDATION_ERROR`.
+- Tri par nom puis par `id`, 500 conteneurs par page ; `cursor` lit la page suivante (§ 9). `includeRemoved=true` inclut les conteneurs disparus (`state = "removed"`). Tout autre paramètre, ou paramètre répété → `400 VALIDATION_ERROR`.
 
 DTO conteneur (liste et détail) :
 
@@ -908,7 +908,7 @@ DTO conteneur (liste et détail) :
 
 ### 6.2 Événements
 
-`GET /api/v1/events` et `GET /api/v1/containers/{containerID}/events`, avec `from`, `to`, `limit` comme au § 5.3 (`step` et `cursor` sont rejetés de la même façon) → `{ "events": [...], "nextCursor": null }`, du plus récent au plus ancien.
+`GET /api/v1/events` et `GET /api/v1/containers/{containerID}/events`, avec `from`, `to`, `limit` comme au § 5.3 (`step` est rejeté de la même façon) et `cursor` (§ 9) → `{ "events": [...], "nextCursor": "…" | null }`, du plus récent au plus ancien, `limit` événements par page.
 
 ```json
 {
@@ -1038,10 +1038,13 @@ Les routes sont versionnées sous `/api/v1`. Un changement incompatible (champ s
 
 Aucune trace de pile, chemin local, secret ou réponse Docker brute dans les erreurs. `requestId` correspond au champ `request_id` des journaux du Manager.
 
-## 9. Évolutions spécifiées, non implémentées
+## 9. Pagination par curseur
 
-Ces contrats sont arrêtés pour guider l'implémentation ; tant qu'ils ne sont pas livrés, les paramètres correspondants restent rejetés.
+`GET /api/v1/containers`, `GET /api/v1/events` et `GET /api/v1/containers/{containerID}/events` sont paginés par curseur :
 
-### 9.1 Pagination par curseur
-
-Pour `GET /api/v1/containers` et les événements : `cursor` opaque (base64url de `(clé de tri, id)`), `nextCursor` non nul tant qu'il reste des résultats. L'ordre doit être stable à égalité d'horodatage (départage par `id`).
+- `cursor` : la valeur `nextCursor` de la page précédente, encodée dans l'adresse. Absent ou vide : première page. `nextCursor` est non nul tant qu'il reste des résultats et `null` sur la dernière page.
+- Le curseur est opaque : base64url sans remplissage du JSON `{"k": clé de tri, "id": identifiant}` du dernier élément de la page, 1 024 caractères au plus. Un curseur mal formé (base64url, JSON, champ inconnu, `id` qui n'est pas un UUID, clé vide, horodatage invalide pour les événements) ou répété → `400 VALIDATION_ERROR`.
+- Conteneurs : tri par `name` puis par `id`, 500 par page. `includeRemoved` est à reprendre à l'identique d'une page à l'autre.
+- Événements : tri par `occurredAt` puis par `id`, tous deux décroissants, `limit` par page (1 à 2 000, 500 par défaut). `from` et `to` sont à reprendre à l'identique d'une page à l'autre. Les événements d'un même horodatage ne sont ni répétés ni omis.
+- La page suivante est lue après le curseur au moment de la requête (pagination par clé) : un élément ajouté ou supprimé entre deux pages ne décale pas les autres.
+- L'interface lit tout l'inventaire des conteneurs page après page (20 pages au plus) ; la page « Événements » charge 500 événements et propose « Charger plus », dans la même fenêtre de temps.

@@ -36,12 +36,12 @@ Chaque incrément, quel qu'il soit :
 | **2** | Journaux système (lecture `journalctl`) | 1A, groupe `systemd-journal` | — | M |
 | **3** | Services système en lecture (D-Bus), événements `service.failed` / `service.recovered` | 1A, D-Bus | `006_failed_units.sql` | M |
 | **4** | Alertes et notifications : règles, cycle de vie, silences, canaux | 1C (secrets), 3 | `007_alerts.sql` (4A), `008_notifications.sql` (4B) | L |
-| **5** | Actions sur les services par polkit (`start`, `stop`, `restart`, `reload`) | 1B (audit), 3 | — | M |
+| **5** | Actions sur les services par polkit (`start`, `stop`, `restart`, `reload`) — **livré** | 1B (audit), 3 | — | M |
 | **6** | Sauvegardes restic : dépôts, sources, exclusions, rétention, restauration en quarantaine | 1C, 4, 5 | `010_backups.sql` | XL |
-| **7** | Tâches planifiées en lecture (Cron et timers) | 2, 3 | — | S |
+| **7** | Tâches planifiées en lecture (Cron et timers) — **livré** | 2, 3 | — | S |
 | **8** | WebAuthn (passkeys, FIDO2) et jetons d'API en lecture — **livré** (8A, 8B) | 1C, HTTPS | `013_api_tokens.sql`, `014_webauthn_credentials.sql` | L |
 | **V** | Vulnérabilités des paquets (Grype) : scans automatiques et manuels, onglet de la page Machine, synthèse du tableau de bord, historique | 4 | `009_vulnerabilities.sql` | L |
-| *Option* | Dettes v2.1 : pagination par curseur, inventaire complet images/volumes/réseaux | Décision Q-4 | selon choix | M |
+| *Option* | Dettes v2.1 : pagination par curseur (**livrée** le 25 novembre 2026), inventaire complet images/volumes/réseaux | Décision Q-4 | — | M |
 
 Le coffre de secrets (§ 2.5 de la spécification) est avancé en **1C** et non en phase 4 : les secrets TOTP doivent être chiffrés (§ 3.6), ce qui en fait le premier consommateur.
 
@@ -126,7 +126,7 @@ Ordre de réalisation : 1A → M → 1B → 1C → 2 → 3 → 4 → V → 5 →
 - Règle « Sauvegarde » et règle par défaut « sauvegarde en retard » : avec la phase 6, qui en fournit les données.
 - Retire « Alertes » de « à venir ».
 
-### 5 — Actions sur les services
+### 5 — Actions sur les services (livrée)
 
 - Règle polkit générée depuis `systemd_manageable_units` (`/etc/polkit-1/rules.d/50-homelab-manager.rules`), verbes `start`, `stop`, `restart`, `reload` seulement.
 - Validation par motif **et** liste blanche, une action par unité à la fois (`409 ACTION_IN_PROGRESS`), 30 actions/min/utilisateur, suivi jusqu'à l'état stable (90 s max), confirmation, audit réussi ou non.
@@ -142,7 +142,7 @@ Ordre de réalisation : 1A → M → 1B → 1C → 2 → 3 → 4 → V → 5 →
 - Alerte en cas d'échec ou de retard (phase 4).
 - Livrée en quatre incréments : 6A (dépôts, sauvegarde, historique), 6B (rétention, vérification, restauration), 6C (diff, dépôt de copie) et 6D (SFTP, avec une clé SSH propre au Manager et la clé d'hôte épinglée, décision D-13 du 25 novembre 2026, confirmée).
 
-### 7 — Tâches planifiées en lecture
+### 7 — Tâches planifiées en lecture (livrée)
 
 - Lecture de `/etc/crontab`, `/etc/cron.d/*`, `/etc/cron.{hourly,daily,weekly,monthly}` et timers (phase 3).
 - Traduction française des expressions, prochaines exécutions dans le fuseau de la machine (analyseur `robfig/cron/v3` ou interne testé), masquage `password=` / `token=`.
@@ -177,7 +177,7 @@ Questions nouvelles relevées en préparant ce plan, à trancher avant l'incrém
 | Q-2 | Le compte `admin` créé avec le mot de passe par défaut `admin` doit-il être forcé à changer de mot de passe ? | **Tranchée (oui)** le 23 novembre 2026 : changement imposé à la création, et au démarrage si le compte accepte encore `admin` ; livrée après 1B. | — |
 | Q-3 | Les refus d'autorisation (`403 FORBIDDEN`) et les refus métier (`LAST_ADMIN`) sont-ils audités ? | Oui, avec `outcome = denied`, à partir de 1B (port `AuditRecorder`). En 1A, ils sont journalisés par zap avec le `request_id`. | 1B |
 | Q-5 | Faut-il une procédure dans l'interface pour retirer le second facteur d'un compte qui a perdu son appareil et ses codes de secours ? | Non pour l'instant : un administrateur supprime et recrée le compte ; pour le dernier administrateur, procédure SQLite documentée dans le README (non auditée). À réexaminer avec WebAuthn. | 8 |
-| Q-4 | Lever les limites v2.1 (pagination par curseur, images/volumes/réseaux inutilisés) ? La seconde exige d'ajouter au proxy des routes GET `images/json`, `volumes`, `networks`. | À planifier après la phase 3, si le besoin est confirmé. | Option |
+| Q-4 | Lever les limites v2.1 (pagination par curseur, images/volumes/réseaux inutilisés) ? La seconde exige d'ajouter au proxy des routes GET `images/json`, `volumes`, `networks`. | **En partie tranchée** le 25 novembre 2026, le propriétaire ayant laissé le choix à l'agent : pagination par curseur des conteneurs et des événements livrée (API_CONTRACTS.md § 9), sans nouveau droit. L'inventaire complet des images, volumes et réseaux, qui élargit le proxy Docker, attend l'accord du propriétaire. | Option |
 | Q-6 | Règle par défaut « température > seuil du capteur » : les seuils des capteurs ne sont pas collectés | Seuil fixe de 85 °C, modifiable ; collecter les seuils serait une évolution à part | 4A |
 | Q-7 | Un silence masque-t-il l'alerte dans l'interface ? | **Retenu (4B)** : non, alerte listée « sous silence », seules les notifications sont suspendues | — |
 | Q-8 | Vérification réelle de Telegram, Discord, Gotify, ntfy et SMTP | Tests contre des serveurs simulés ; webhook signé vérifié en conditions réelles ; les autres restent à vérifier par le propriétaire avec ses jetons (bilan 4B) | Propriétaire |

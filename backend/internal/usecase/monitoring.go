@@ -330,8 +330,17 @@ func (u *MonitoringUsecase) Host(ctx context.Context) (domain.HostInfo, error) {
 	return u.repo.GetHost(ctx)
 }
 
-func (u *MonitoringUsecase) Containers(ctx context.Context, includeRemoved bool, limit int) ([]domain.Container, error) {
-	return u.repo.ListContainers(ctx, includeRemoved, limit)
+// Containers returns one page of at most size containers, sorted by name,
+// after the cursor when it is not nil, and the cursor of the next page
+// when more containers remain.
+func (u *MonitoringUsecase) Containers(ctx context.Context, includeRemoved bool, after *domain.ContainerCursor, size int) ([]domain.Container, *domain.ContainerCursor, error) {
+	containers, err := u.repo.ListContainersAfter(ctx, includeRemoved, after, size+1)
+	if err != nil || len(containers) <= size {
+		return containers, nil, err
+	}
+	containers = containers[:size]
+	last := containers[size-1]
+	return containers, &domain.ContainerCursor{Name: last.Name, ID: last.ID}, nil
 }
 
 func (u *MonitoringUsecase) Container(ctx context.Context, id string) (domain.Container, error) {
@@ -342,8 +351,17 @@ func (u *MonitoringUsecase) Metrics(ctx context.Context, query domain.MetricQuer
 	return u.repo.ListMetrics(ctx, query)
 }
 
-func (u *MonitoringUsecase) Events(ctx context.Context, containerID *string, from, to time.Time, limit int) ([]domain.MonitorEvent, error) {
-	return u.repo.ListEvents(ctx, containerID, from, to, limit)
+// Events returns one page of at most limit events of [from, to), most
+// recent first, after the cursor when it is not nil, and the cursor of the
+// next page when older events remain.
+func (u *MonitoringUsecase) Events(ctx context.Context, containerID *string, from, to time.Time, before *domain.EventCursor, limit int) ([]domain.MonitorEvent, *domain.EventCursor, error) {
+	events, err := u.repo.ListEvents(ctx, containerID, from, to, before, limit+1)
+	if err != nil || len(events) <= limit {
+		return events, nil, err
+	}
+	events = events[:limit]
+	last := events[limit-1]
+	return events, &domain.EventCursor{OccurredAt: last.OccurredAt, ID: last.ID}, nil
 }
 
 // CurrentMetrics returns the latest collection cycle of the host (containerID

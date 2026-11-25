@@ -23,6 +23,9 @@ type MonitoringRepository interface {
 	ReconcileContainers(context.Context, []domain.Container, time.Time) ([]domain.MonitorEvent, error)
 	SaveContainerMetrics(context.Context, []domain.MetricSample) error
 	ListContainers(context.Context, bool, int) ([]domain.Container, error)
+	// ListContainersAfter returns at most limit containers in (name, id)
+	// order, starting after the cursor when it is not nil.
+	ListContainersAfter(ctx context.Context, includeRemoved bool, after *domain.ContainerCursor, limit int) ([]domain.Container, error)
 	GetContainer(context.Context, string) (domain.Container, error)
 	// ListMetrics returns a raw history (the Limit most recent samples, in
 	// chronological order) or, when Step > 0, one aggregated sample per series
@@ -32,7 +35,10 @@ type MonitoringRepository interface {
 	// recorded at or after since (one timestamp per cycle), for the host when
 	// containerID is nil, otherwise for that container.
 	LatestMetrics(ctx context.Context, containerID *string, since time.Time) ([]domain.MetricSample, error)
-	ListEvents(context.Context, *string, time.Time, time.Time, int) ([]domain.MonitorEvent, error)
+	// ListEvents returns at most limit events of [from, to), most recent
+	// first (ties broken by id, descending), only those after the cursor
+	// in that order when it is not nil.
+	ListEvents(ctx context.Context, containerID *string, from, to time.Time, before *domain.EventCursor, limit int) ([]domain.MonitorEvent, error)
 	DeleteMetricsBefore(context.Context, time.Time, int) (int, error)
 	DeleteEventsBefore(context.Context, time.Time, int) (int, error)
 }

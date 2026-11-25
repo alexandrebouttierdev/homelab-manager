@@ -117,7 +117,7 @@ func TestSQLiteIntegration(t *testing.T) {
 	if err != nil || len(changedEvents) != 1 || changedEvents[0].Type != "container.restarted" {
 		t.Fatalf("update container = (%v, %v), want restart event", changedEvents, err)
 	}
-	events, err := repository.ListEvents(ctx, &dockerID, now.Add(-time.Hour), now.Add(time.Hour), 10)
+	events, err := repository.ListEvents(ctx, &dockerID, now.Add(-time.Hour), now.Add(time.Hour), nil, 10)
 	if err != nil || len(events) != 2 {
 		t.Fatalf("list container events = (%v, %v), want discovery and restart events", events, err)
 	}

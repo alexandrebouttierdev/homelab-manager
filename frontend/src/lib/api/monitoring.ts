@@ -172,10 +172,26 @@ export async function getHostTemperatures() {
   return body.samples
 }
 
+/** Upper bound on the pages of the inventory, 500 containers each. */
+export const maxContainerPages = 20
+
+/** The whole inventory, following nextCursor page after page. */
 export async function listContainers(includeRemoved = false) {
-  const query = includeRemoved ? '?includeRemoved=true' : ''
-  const body = await requestJSON<{ containers: ContainerInfo[] }>(`/api/v1/containers${query}`)
-  return body.containers
+  const containers: ContainerInfo[] = []
+  let cursor: string | null = null
+  for (let page = 0; page < maxContainerPages; page++) {
+    const query = new URLSearchParams()
+    if (includeRemoved) query.set('includeRemoved', 'true')
+    if (cursor) query.set('cursor', cursor)
+    const search = query.toString()
+    const body: { containers: ContainerInfo[]; nextCursor: string | null } = await requestJSON(
+      `/api/v1/containers${search ? `?${search}` : ''}`,
+    )
+    containers.push(...body.containers)
+    cursor = body.nextCursor
+    if (!cursor) break
+  }
+  return containers
 }
 
 export function getContainer(containerID: string) {
@@ -213,12 +229,22 @@ export async function getContainerEvents(
   return body.events
 }
 
+export interface EventPage {
+  events: MonitorEvent[]
+  nextCursor: string | null
+}
+
+/** One page of events of [from, to), most recent first. */
+export function listEventsPage(options: { from: Date; to: Date; limit: number; cursor?: string }) {
+  const query = new URLSearchParams(timeRangeQuery(options.from, options.to, options.limit))
+  if (options.cursor) query.set('cursor', options.cursor)
+  return requestJSON<EventPage>(`/api/v1/events?${query.toString()}`)
+}
+
 export async function listEvents(options: { from?: Date; to?: Date; limit?: number } = {}) {
   const to = options.to ?? new Date()
   const from = options.from ?? new Date(to.getTime() - 24 * 60 * 60 * 1000)
-  const body = await requestJSON<{ events: MonitorEvent[] }>(
-    `/api/v1/events?${timeRangeQuery(from, to, options.limit ?? 500)}`,
-  )
+  const body = await listEventsPage({ from, to, limit: options.limit ?? 500 })
   return body.events
 }
 

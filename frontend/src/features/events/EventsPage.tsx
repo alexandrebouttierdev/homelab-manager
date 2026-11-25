@@ -13,7 +13,13 @@ import { PageHeader } from '../../components/ui/PageHeader'
 import { SearchField } from '../../components/ui/SearchField'
 import { SegmentedTabs } from '../../components/ui/SegmentedTabs'
 import { Select } from '../../components/ui/Select'
-import { eventSeverityLabel, eventTarget, eventTone, eventTypeLabel } from '../../lib/events'
+import {
+  eventPageSize,
+  eventSeverityLabel,
+  eventTarget,
+  eventTone,
+  eventTypeLabel,
+} from '../../lib/events'
 import { formatDateTime, formatRelativeTime } from '../../lib/format'
 import type { MonitorEvent } from '../../lib/api/monitoring'
 import { type RangeKey, ranges, useEventsPage } from './useEventsPage'
@@ -27,6 +33,9 @@ export function EventsPage() {
     search,
     setSearch,
     events,
+    hasMore,
+    loadingMore,
+    loadMore,
     all,
     counts,
     filtered,
@@ -198,7 +207,12 @@ export function EventsPage() {
             <span>
               {filtered.length} sur {all.length} événement(s)
             </span>
-            <span>Ordre antéchronologique · maximum 500 résultats</span>
+            <span>Ordre antéchronologique · {eventPageSize} événements par page</span>
+            {hasMore && (
+              <Button variant="secondary" size="sm" disabled={loadingMore} onClick={loadMore}>
+                {loadingMore ? 'Chargement…' : 'Charger plus'}
+              </Button>
+            )}
           </CardFooter>
         </>
       )}

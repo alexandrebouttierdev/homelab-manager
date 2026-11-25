@@ -83,3 +83,25 @@ export function eventTarget(event: MonitorEvent): EventTarget {
   }
   return null
 }
+
+/** Page size of the events page. */
+export const eventPageSize = 500
+
+/** A loaded page of events and the window it was read in, in ms. */
+export interface WindowedEventPage {
+  events: MonitorEvent[]
+  nextCursor: string | null
+  from: number
+  to: number
+}
+
+/** Where the next page of events starts: same window, after the cursor. */
+export interface EventPageParam {
+  cursor: string
+  from: number
+  to: number
+}
+
+export function nextEventPage(page: WindowedEventPage): EventPageParam | undefined {
+  return page.nextCursor ? { cursor: page.nextCursor, from: page.from, to: page.to } : undefined
+}

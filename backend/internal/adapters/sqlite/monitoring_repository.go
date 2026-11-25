@@ -250,14 +250,24 @@ func (r *MonitoringRepository) SaveContainerMetrics(ctx context.Context, samples
 }
 
 func (r *MonitoringRepository) ListContainers(ctx context.Context, includeRemoved bool, limit int) ([]domain.Container, error) {
+	return r.ListContainersAfter(ctx, includeRemoved, nil, limit)
+}
+
+func (r *MonitoringRepository) ListContainersAfter(ctx context.Context, includeRemoved bool, after *domain.ContainerCursor, limit int) ([]domain.Container, error) {
 	query := r.client.Container.Query()
 	if !includeRemoved {
 		query = query.Where(entcontainer.RemovedAtIsNil())
 	}
+	if after != nil {
+		query = query.Where(entcontainer.Or(
+			entcontainer.NameGT(after.Name),
+			entcontainer.And(entcontainer.Name(after.Name), entcontainer.IDGT(after.ID)),
+		))
+	}
 	if limit < 1 || limit > 1000 {
 		limit = 500
 	}
-	records, err := query.Order(entcontainer.ByName()).Limit(limit).All(ctx)
+	records, err := query.Order(entcontainer.ByName(), entcontainer.ByID()).Limit(limit).All(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -446,11 +456,18 @@ func (r *MonitoringRepository) aggregateMetrics(ctx context.Context, containerID
 	return result, nil
 }
 
-func (r *MonitoringRepository) ListEvents(ctx context.Context, containerID *string, from, to time.Time, limit int) ([]domain.MonitorEvent, error) {
+func (r *MonitoringRepository) ListEvents(ctx context.Context, containerID *string, from, to time.Time, before *domain.EventCursor, limit int) ([]domain.MonitorEvent, error) {
 	query := r.client.Event.Query().WithContainer().
 		Where(entevent.OccurredAtGTE(from), entevent.OccurredAtLT(to)).
-		Order(entevent.ByOccurredAt(entsql.OrderDesc())).
+		Order(entevent.ByOccurredAt(entsql.OrderDesc()), entevent.ByID(entsql.OrderDesc())).
 		Limit(limit)
+	if before != nil {
+		at := before.OccurredAt.UTC()
+		query = query.Where(entevent.Or(
+			entevent.OccurredAtLT(at),
+			entevent.And(entevent.OccurredAt(at), entevent.IDLT(before.ID)),
+		))
+	}
 	if containerID != nil {
 		container, err := r.GetContainer(ctx, *containerID)
 		if err != nil {

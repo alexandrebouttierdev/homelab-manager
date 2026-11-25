@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { MonitorEvent } from './api/monitoring'
-import { eventTarget, eventTone, eventTypeLabel } from './events'
+import { eventTarget, eventTone, eventTypeLabel, nextEventPage } from './events'
 
 function event(overrides: Partial<MonitorEvent>): MonitorEvent {
   return {
@@ -38,5 +38,19 @@ describe('events', () => {
   it('has no target without a container or a unit', () => {
     expect(eventTarget(event({ metadata: { unit: 42 } }))).toBeNull()
     expect(eventTarget(event({ type: 'container.removed' }))).toBeNull()
+  })
+})
+
+describe('nextEventPage', () => {
+  it('reads the next page in the same window', () => {
+    expect(nextEventPage({ events: [], nextCursor: 'abc', from: 1, to: 2 })).toEqual({
+      cursor: 'abc',
+      from: 1,
+      to: 2,
+    })
+  })
+
+  it('stops after the last page', () => {
+    expect(nextEventPage({ events: [], nextCursor: null, from: 1, to: 2 })).toBeUndefined()
   })
 })

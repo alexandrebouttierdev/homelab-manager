@@ -236,8 +236,8 @@ func listContainersHandler(monitoring *usecase.MonitoringUsecase) http.HandlerFu
 	return func(w http.ResponseWriter, r *http.Request) {
 		query := r.URL.Query()
 		for key, values := range query {
-			if key != "includeRemoved" || len(values) != 1 {
-				writeError(w, r, http.StatusBadRequest, "VALIDATION_ERROR", "Only one includeRemoved value is allowed.")
+			if (key != "includeRemoved" && key != "cursor") || len(values) != 1 {
+				writeError(w, r, http.StatusBadRequest, "VALIDATION_ERROR", "Only one includeRemoved and one cursor value are allowed.")
 				return
 			}
 		}
@@ -246,7 +246,12 @@ func listContainersHandler(monitoring *usecase.MonitoringUsecase) http.HandlerFu
 			writeError(w, r, http.StatusBadRequest, "VALIDATION_ERROR", "includeRemoved must be true or false.")
 			return
 		}
-		containers, err := monitoring.Containers(r.Context(), includeRemovedValue == "true", 500)
+		after, err := decodeContainerCursor(query.Get("cursor"))
+		if err != nil {
+			writeError(w, r, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
+			return
+		}
+		containers, next, err := monitoring.Containers(r.Context(), includeRemovedValue == "true", after, containerPageSize)
 		if err != nil {
 			writeError(w, r, http.StatusInternalServerError, "INTERNAL_ERROR", "Could not list containers.")
 			return
@@ -255,7 +260,7 @@ func listContainersHandler(monitoring *usecase.MonitoringUsecase) http.HandlerFu
 		for _, container := range containers {
 			response = append(response, containerResponse(container))
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"containers": response, "nextCursor": nil})
+		writeJSON(w, http.StatusOK, map[string]any{"containers": response, "nextCursor": encodeContainerCursor(next)})
 	}
 }
 
@@ -362,6 +367,11 @@ func listEventsHandler(monitoring *usecase.MonitoringUsecase, container bool) ht
 			writeError(w, r, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
 			return
 		}
+		before, err := decodeEventCursor(r.URL.Query().Get("cursor"))
+		if err != nil {
+			writeError(w, r, http.StatusBadRequest, "VALIDATION_ERROR", err.Error())
+			return
+		}
 		var id *string
 		if container {
 			value, ok := containerIDParam(w, r)
@@ -370,7 +380,7 @@ func listEventsHandler(monitoring *usecase.MonitoringUsecase, container bool) ht
 			}
 			id = &value
 		}
-		events, err := monitoring.Events(r.Context(), id, from, to, limit)
+		events, next, err := monitoring.Events(r.Context(), id, from, to, before, limit)
 		if errors.Is(err, domain.ErrContainerNotFound) {
 			writeError(w, r, http.StatusNotFound, "NOT_FOUND", "Container not found.")
 			return
@@ -392,7 +402,7 @@ func listEventsHandler(monitoring *usecase.MonitoringUsecase, container bool) ht
 				Metadata: event.Metadata, OccurredAt: event.OccurredAt,
 			})
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"events": response, "nextCursor": nil})
+		writeJSON(w, http.StatusOK, map[string]any{"events": response, "nextCursor": encodeEventCursor(next)})
 	}
 }
 
@@ -412,6 +422,10 @@ func hostTemperaturesHandler(monitoring *usecase.MonitoringUsecase) http.Handler
 		writeJSON(w, http.StatusOK, map[string]any{"samples": metricResponses(temperatures)})
 	}
 }
+
+// containerPageSize is the number of containers of one page of the
+// inventory.
+const containerPageSize = 500
 
 var (
 	metricQueryParameters = map[string]bool{"from": false, "to": false, "step": false, "limit": false, "cursor": false, "label": true}
@@ -490,8 +504,8 @@ func timeRange(r *http.Request, accepted map[string]bool) (time.Time, time.Time,
 	if step := r.URL.Query().Get("step"); !accepted["label"] && step != "" && step != "raw" {
 		return time.Time{}, time.Time{}, 0, errors.New("events do not support step")
 	}
-	if r.URL.Query().Get("cursor") != "" {
-		return time.Time{}, time.Time{}, 0, errors.New("cursor pagination is not currently supported")
+	if accepted["label"] && r.URL.Query().Get("cursor") != "" {
+		return time.Time{}, time.Time{}, 0, errors.New("cursor pagination is not supported for metrics")
 	}
 	return from.UTC(), to.UTC(), limit, nil
 }

@@ -128,7 +128,7 @@ Le stockage est un fichier SQLite unique ; aucune base de séries temporelles ni
 - Durée de conservation brute par défaut : 7 jours, configurable de 1 à 365 jours (configuration puis interface).
 - Purger toutes les heures, par lots de 1 000 lignes sur `recorded_at`, jusqu'à épuisement ; chaque lot est une écriture courte, pour ne pas bloquer les collectes.
 - Les événements, métriques, alertes résolues et silences terminés sont purgés par lots selon la même rétention.
-- Limiter l'intervalle et le nombre de points retournés par l'API. L'agrégation se fait en SQL à la lecture (`GROUP BY` série et intervalle, horodatage converti par `strftime('%s', substr(recorded_at, 1, 19))`) ; la pagination par curseur n'est pas implémentée.
+- Limiter l'intervalle et le nombre de points retournés par l'API. L'agrégation se fait en SQL à la lecture (`GROUP BY` série et intervalle, horodatage converti par `strftime('%s', substr(recorded_at, 1, 19))`) ; l'historique n'est pas paginé. Les conteneurs (`name`, `id`) et les événements (`occurred_at`, `id`, décroissants, index `events_occurred_idx`) sont paginés par clé (API_CONTRACTS.md § 9).
 - Mesures non disponibles : valeur absente/null ou absence d'échantillon avec fraîcheur explicite, jamais un zéro fictif.
 
 ## Intégrité et migrations

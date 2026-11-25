@@ -47,6 +47,9 @@ func (testMonitoringRepository) SaveContainerMetrics(context.Context, []domain.M
 func (testMonitoringRepository) ListContainers(context.Context, bool, int) ([]domain.Container, error) {
 	return nil, nil
 }
+func (testMonitoringRepository) ListContainersAfter(context.Context, bool, *domain.ContainerCursor, int) ([]domain.Container, error) {
+	return nil, nil
+}
 func (testMonitoringRepository) GetContainer(context.Context, string) (domain.Container, error) {
 	return domain.Container{}, domain.ErrContainerNotFound
 }
@@ -56,7 +59,7 @@ func (testMonitoringRepository) ListMetrics(context.Context, domain.MetricQuery)
 func (testMonitoringRepository) LatestMetrics(context.Context, *string, time.Time) ([]domain.MetricSample, error) {
 	return nil, nil
 }
-func (testMonitoringRepository) ListEvents(context.Context, *string, time.Time, time.Time, int) ([]domain.MonitorEvent, error) {
+func (testMonitoringRepository) ListEvents(context.Context, *string, time.Time, time.Time, *domain.EventCursor, int) ([]domain.MonitorEvent, error) {
 	return nil, nil
 }
 func (testMonitoringRepository) DeleteMetricsBefore(context.Context, time.Time, int) (int, error) {

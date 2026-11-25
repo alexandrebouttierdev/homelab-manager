@@ -385,184 +385,10 @@
         border-radius: 7px;
         padding: 6px 14px;
       }
-      .app {
-        display: flex;
-        min-height: 560px;
-      }
-      .app-side {
-        width: 224px;
-        flex: none;
-        display: flex;
-        flex-direction: column;
-        gap: 18px;
-        padding: 18px 14px;
-        border-right: 1px solid var(--line);
-        background: var(--surface);
-        font-size: 13px;
-        color: var(--text-3);
-      }
-      .app-side div {
-        display: flex;
-        flex-direction: column;
-        gap: 2px;
-      }
-      .app-side span {
-        padding: 6px 10px;
-      }
-      .app-side .group {
-        font: 400 12px/1 var(--sans);
-        color: var(--text-3);
-        padding: 0 10px 6px;
-      }
-      .app-side .active {
-        display: flex;
-        align-items: center;
-        gap: 9px;
-        border-radius: 7px;
-        background: var(--raised);
-        color: var(--text);
-        font-weight: 500;
-      }
-      .app-main {
-        flex: 1;
-        min-width: 0;
-        padding: 22px;
-        display: flex;
-        flex-direction: column;
-        gap: 16px;
-        background: var(--surface);
-      }
-      .app-title {
-        display: flex;
-        align-items: baseline;
-        justify-content: space-between;
-        gap: 12px;
-        flex-wrap: wrap;
-      }
-      .app-title strong {
-        font-size: 19px;
-        font-weight: 600;
-        letter-spacing: -0.01em;
-      }
-      .app-title span {
-        display: inline-flex;
-        align-items: center;
-        gap: 7px;
-        font-size: 12px;
-        color: var(--text-3);
-      }
-      .app-title span::before {
-        content: "";
-        width: 7px;
-        height: 7px;
-        border-radius: 50%;
-        background: var(--ok);
-      }
-      .stats {
-        display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-        gap: 1px;
-        background: var(--line);
-        border: 1px solid var(--line);
-        border-radius: 10px;
-        overflow: hidden;
-      }
-      .stat {
-        background: var(--card);
-      }
-      .panel {
-        background: var(--card);
-        border: 1px solid var(--line);
-        border-radius: 10px;
-      }
-      .stat {
-        padding: 14px 16px;
-        display: flex;
-        flex-direction: column;
-        gap: 8px;
-      }
-      .stat small {
-        font-size: 12px;
-        color: var(--text-3);
-      }
-      .stat strong {
-        font-size: 26px;
-        font-weight: 600;
-        letter-spacing: -0.03em;
-        line-height: 1.15;
-      }
-      .stat strong em {
-        font-style: normal;
-        font-size: 13px;
-        color: var(--text-3);
-        font-weight: 500;
-      }
-      .bar {
-        display: block;
-        height: 4px;
-        border-radius: 3px;
-        background: var(--line);
-      }
-      .bar i {
-        display: block;
-        height: 100%;
-        border-radius: 3px;
-      }
-      .stat .net {
-        font: 400 12px/1.4 var(--sans);
-        color: var(--text-3);
-      }
-      .panels {
-        display: flex;
-        flex-wrap: wrap;
-        gap: 12px;
-      }
-      .panel {
-        padding: 14px;
-        min-width: 0;
-      }
-      .panel-chart {
-        flex: 999 1 420px;
-        padding-bottom: 6px;
-      }
-      .panel-list {
-        flex: 1 1 260px;
-      }
-      .panel-head {
-        display: flex;
-        justify-content: space-between;
-        align-items: baseline;
-        gap: 10px;
-        flex-wrap: wrap;
-        font-size: 13px;
-        font-weight: 600;
-        margin-bottom: 8px;
-      }
-      .panel-head span {
-        font-size: 12px;
-        font-weight: 400;
-        color: var(--text-3);
-      }
-      .panel svg {
+      .window .shot {
         display: block;
         width: 100%;
-        height: 200px;
-      }
-      .ctr {
-        display: flex;
-        justify-content: space-between;
-        padding: 7px 0;
-        border-top: 1px solid var(--line);
-        font-size: 12px;
-      }
-      .ctr code {
-        font-family: var(--mono);
-      }
-      .ctr span {
-        color: var(--ok);
-      }
-      .ctr span.off {
-        color: var(--text-3);
+        height: auto;
       }
       .window figcaption {
         padding: 10px 16px;
@@ -572,9 +398,104 @@
         color: var(--text-3);
         text-align: center;
       }
+
+      /* Tour */
+      .shot-tabs {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: center;
+        gap: 4px;
+        width: fit-content;
+        max-width: 100%;
+        margin: 0 auto 32px;
+        padding: 4px;
+        border: 1px solid var(--line);
+        border-radius: 12px;
+        background: var(--surface);
+      }
+      .shot-tab {
+        cursor: pointer;
+        border: 0;
+        border-radius: 8px;
+        padding: 10px 14px;
+        background: transparent;
+        color: var(--text-3);
+        font: 500 14px/1 var(--sans);
+      }
+      .shot-tab:hover {
+        color: var(--text);
+      }
+      .shot-tab[aria-selected="true"] {
+        background: var(--raised);
+        color: var(--text);
+      }
+      .shot-panel {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 2.7fr);
+        gap: 40px;
+        align-items: center;
+      }
+      .shot-panel + .shot-panel {
+        margin-top: 56px;
+      }
+      .shot-panel[hidden] {
+        display: none;
+      }
+      .shot-text {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+      .shot-text h3 {
+        font-size: 24px;
+        line-height: 1.2;
+        letter-spacing: -0.02em;
+      }
+      .shot-text p {
+        color: var(--text-2);
+      }
+      .shot-text ul {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        font-size: 15px;
+        color: var(--text-2);
+      }
+      .shot-text li {
+        display: flex;
+        gap: 10px;
+      }
+      .shot-text li svg {
+        width: 16px;
+        height: 16px;
+        margin-top: 4px;
+        flex: none;
+        fill: none;
+        stroke: var(--ok);
+        stroke-width: 2.2;
+        stroke-linecap: round;
+        stroke-linejoin: round;
+      }
+      .shot-frame {
+        margin: 0;
+        border: 1px solid var(--line-2);
+        border-radius: 14px;
+        overflow: hidden;
+        background: var(--surface);
+        box-shadow: 0 24px 64px -32px rgba(0, 0, 0, 0.6);
+      }
+      .shot-frame img {
+        display: block;
+        width: 100%;
+        height: auto;
+      }
       @media (max-width: 900px) {
-        .app-side {
-          display: none;
+        .shot-panel {
+          grid-template-columns: 1fr;
+          gap: 24px;
         }
       }
 
@@ -1200,146 +1121,16 @@
               <div class="url"><span>https://homelab.lan:8080</span></div>
               <div style="width: 47px"></div>
             </div>
-            <div class="app" aria-hidden="true">
-              <div class="app-side">
-                <div><span class="active">Vue d'ensemble</span></div>
-                <div>
-                  <span class="group">Docker</span
-                  ><span>Tous les conteneurs</span><span>Images</span
-                  ><span>Volumes</span><span>Réseaux Docker</span>
-                </div>
-                <div>
-                  <span class="group">Système</span><span>Machine</span
-                  ><span>Stockage</span><span>Métriques</span
-                  ><span>Journaux système</span><span>Services système</span
-                  ><span>Sauvegardes</span><span>Tâches planifiées</span>
-                </div>
-                <div>
-                  <span class="group">Activité</span><span>Alertes</span
-                  ><span>Événements</span>
-                </div>
-              </div>
-              <div class="app-main">
-                <div class="app-title">
-                  <strong>Vue d'ensemble</strong
-                  ><span>Collecte active · toutes les 5 s</span>
-                </div>
-                <div class="stats">
-                  <div class="stat">
-                    <small>Processeur (CPU) · 8 cœurs</small
-                    ><strong>12 %</strong
-                    ><span class="bar"
-                      ><i style="width: 12%; background: var(--cpu)"></i
-                    ></span>
-                  </div>
-                  <div class="stat">
-                    <small>Mémoire vive · 16 Go</small><strong>41 %</strong
-                    ><span class="bar"
-                      ><i style="width: 41%; background: var(--ram)"></i
-                    ></span>
-                  </div>
-                  <div class="stat">
-                    <small>Stockage · 1,8 To</small><strong>58 %</strong
-                    ><span class="bar"
-                      ><i style="width: 58%; background: var(--warn)"></i
-                    ></span>
-                  </div>
-                  <div class="stat">
-                    <small>Trafic réseau · eth0</small
-                    ><strong>2,4 <em>Mo/s</em></strong
-                    ><span class="net">↓ 2,4 Mo/s · ↑ 310 Ko/s</span>
-                  </div>
-                </div>
-                <div class="panels">
-                  <div class="panel panel-chart">
-                    <div class="panel-head">
-                      Charge CPU et mémoire<span>60 dernières minutes</span>
-                    </div>
-                    <svg viewBox="0 0 600 200" preserveAspectRatio="none">
-                      <defs>
-                        <linearGradient id="gRam" x1="0" y1="0" x2="0" y2="1">
-                          <stop
-                            offset="0"
-                            stop-color="#f2a65a"
-                            stop-opacity=".14"
-                          />
-                          <stop
-                            offset="1"
-                            stop-color="#a78bfa"
-                            stop-opacity="0"
-                          />
-                        </linearGradient>
-                        <linearGradient id="gCpu" x1="0" y1="0" x2="0" y2="1">
-                          <stop
-                            offset="0"
-                            stop-color="#78a9ff"
-                            stop-opacity=".16"
-                          />
-                          <stop
-                            offset="1"
-                            stop-color="#6d9fe8"
-                            stop-opacity="0"
-                          />
-                        </linearGradient>
-                      </defs>
-                      <g stroke="#262624" stroke-width="1">
-                        <line x1="0" y1="40" x2="600" y2="40" />
-                        <line x1="0" y1="90" x2="600" y2="90" />
-                        <line x1="0" y1="140" x2="600" y2="140" />
-                        <line x1="0" y1="190" x2="600" y2="190" />
-                      </g>
-                      <path
-                        d="M0 104 L40 102 L80 100 L120 103 L160 99 L200 97 L240 101 L280 96 L320 94 L360 98 L400 95 L440 92 L480 96 L520 93 L560 95 L600 94 L600 200 L0 200 Z"
-                        fill="url(#gRam)"
-                      />
-                      <path
-                        d="M0 104 L40 102 L80 100 L120 103 L160 99 L200 97 L240 101 L280 96 L320 94 L360 98 L400 95 L440 92 L480 96 L520 93 L560 95 L600 94"
-                        fill="none"
-                        stroke="#f2a65a"
-                        stroke-width="2"
-                        vector-effect="non-scaling-stroke"
-                      />
-                      <path
-                        d="M0 172 L30 168 L60 170 L90 160 L120 166 L150 150 L180 162 L210 120 L240 146 L270 158 L300 164 L330 140 L360 160 L390 166 L420 152 L450 168 L480 130 L510 156 L540 164 L570 160 L600 166 L600 200 L0 200 Z"
-                        fill="url(#gCpu)"
-                      />
-                      <path
-                        d="M0 172 L30 168 L60 170 L90 160 L120 166 L150 150 L180 162 L210 120 L240 146 L270 158 L300 164 L330 140 L360 160 L390 166 L420 152 L450 168 L480 130 L510 156 L540 164 L570 160 L600 166"
-                        fill="none"
-                        stroke="#78a9ff"
-                        stroke-width="2"
-                        vector-effect="non-scaling-stroke"
-                      />
-                    </svg>
-                  </div>
-                  <div class="panel panel-list">
-                    <div class="panel-head">
-                      Services Docker<span>6 conteneurs</span>
-                    </div>
-                    <div class="ctr">
-                      <code>traefik</code><span>● En cours</span>
-                    </div>
-                    <div class="ctr">
-                      <code>vaultwarden</code><span>● En cours</span>
-                    </div>
-                    <div class="ctr">
-                      <code>immich-server</code><span>● En cours</span>
-                    </div>
-                    <div class="ctr">
-                      <code>jellyfin</code><span>● En cours</span>
-                    </div>
-                    <div class="ctr">
-                      <code>postgres</code><span>● En cours</span>
-                    </div>
-                    <div class="ctr">
-                      <code>nightly-job</code><span class="off">○ Arrêté</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+            <img
+              class="shot"
+              src="screens/overview.webp"
+              width="2400"
+              height="1500"
+              fetchpriority="high"
+              alt="Vue d'ensemble de Homelab Manager : processeur, mémoire, stockage et trafic réseau, puis la charge CPU et mémoire de la dernière heure."
+            />
             <figcaption>
-              Aperçu de la vue d'ensemble, avec des données d'exemple
+              Capture de l'interface, avec des données d'exemple
             </figcaption>
           </figure>
         </div>
@@ -1371,6 +1162,314 @@
             <li class="plain">restic</li>
             <li class="plain">Grype</li>
           </ul>
+        </div>
+      </section>
+
+      <section class="tour" aria-labelledby="tour-titre">
+        <div class="wrap">
+          <div class="section-head">
+            <span class="kicker">En images</span>
+            <h2 id="tour-titre">Chaque page répond à une question précise.</h2>
+            <p>Captures de l’interface réelle, avec des données d’exemple.</p>
+          </div>
+          <div
+            class="shot-tabs"
+            role="tablist"
+            aria-label="Pages de l’interface"
+            hidden
+          >
+            <button
+              class="shot-tab"
+              type="button"
+              role="tab"
+              id="tour-tab-conteneurs"
+              aria-controls="tour-conteneurs"
+              aria-selected="true"
+            >
+              Conteneurs
+            </button>
+            <button
+              class="shot-tab"
+              type="button"
+              role="tab"
+              id="tour-tab-alertes"
+              aria-controls="tour-alertes"
+              aria-selected="false"
+            >
+              Alertes
+            </button>
+            <button
+              class="shot-tab"
+              type="button"
+              role="tab"
+              id="tour-tab-journal"
+              aria-controls="tour-journal"
+              aria-selected="false"
+            >
+              Journal
+            </button>
+            <button
+              class="shot-tab"
+              type="button"
+              role="tab"
+              id="tour-tab-sauvegardes"
+              aria-controls="tour-sauvegardes"
+              aria-selected="false"
+            >
+              Sauvegardes
+            </button>
+            <button
+              class="shot-tab"
+              type="button"
+              role="tab"
+              id="tour-tab-vulnerabilites"
+              aria-controls="tour-vulnerabilites"
+              aria-selected="false"
+            >
+              Vulnérabilités
+            </button>
+            <button
+              class="shot-tab"
+              type="button"
+              role="tab"
+              id="tour-tab-metriques"
+              aria-controls="tour-metriques"
+              aria-selected="false"
+            >
+              Métriques
+            </button>
+          </div>
+          <div
+            class="shot-panel"
+            id="tour-conteneurs"
+            role="tabpanel"
+            aria-labelledby="tour-tab-conteneurs"
+          >
+            <div class="shot-text">
+              <h3>Tous les conteneurs Docker, en un coup d’œil.</h3>
+              <p>
+                Un inventaire en lecture seule, découvert en continu à travers
+                un proxy Docker restreint.
+              </p>
+              <ul>
+                <li>
+                  <svg aria-hidden="true"><use href="#check" /></svg
+                  ><span>État et santé, uptime et redémarrages</span>
+                </li>
+                <li>
+                  <svg aria-hidden="true"><use href="#check" /></svg
+                  ><span>Ports publiés, réseaux et images</span>
+                </li>
+                <li>
+                  <svg aria-hidden="true"><use href="#check" /></svg
+                  ><span>Filtres actifs, arrêtés et incidents</span>
+                </li>
+              </ul>
+            </div>
+            <figure class="shot-frame">
+              <img
+                src="screens/containers.webp"
+                width="2400"
+                height="1500"
+                loading="lazy"
+                alt="Liste des conteneurs Docker : état et santé, uptime, nombre de redémarrages, ports et réseaux."
+              />
+            </figure>
+          </div>
+          <div
+            class="shot-panel"
+            id="tour-alertes"
+            role="tabpanel"
+            aria-labelledby="tour-tab-alertes"
+          >
+            <div class="shot-text">
+              <h3>Des alertes qui disent quoi faire.</h3>
+              <p>
+                Les règles sont évaluées toutes les 15 secondes sur les
+                métriques, les conteneurs, les services, les sauvegardes et les
+                vulnérabilités.
+              </p>
+              <ul>
+                <li>
+                  <svg aria-hidden="true"><use href="#check" /></svg
+                  ><span>Acquittement et silences par règle ou par cible</span>
+                </li>
+                <li>
+                  <svg aria-hidden="true"><use href="#check" /></svg
+                  ><span>Historique et temps moyen de résolution</span>
+                </li>
+                <li>
+                  <svg aria-hidden="true"><use href="#check" /></svg
+                  ><span
+                    >Telegram, Discord, ntfy, Gotify, e-mail ou webhook</span
+                  >
+                </li>
+              </ul>
+            </div>
+            <figure class="shot-frame">
+              <img
+                src="screens/alerts.webp"
+                width="2400"
+                height="1500"
+                loading="lazy"
+                alt="Alertes ouvertes : disque presque plein, conteneur en redémarrage acquitté, vulnérabilités corrigeables."
+              />
+            </figure>
+          </div>
+          <div
+            class="shot-panel"
+            id="tour-journal"
+            role="tabpanel"
+            aria-labelledby="tour-tab-journal"
+          >
+            <div class="shot-text">
+              <h3>Le journal systemd, lisible.</h3>
+              <p>
+                Les entrées des dernières 24 heures par priorité, avec les
+                champs sensibles masqués.
+              </p>
+              <ul>
+                <li>
+                  <svg aria-hidden="true"><use href="#check" /></svg
+                  ><span
+                    >Filtres par unité, priorité, démarrage et période</span
+                  >
+                </li>
+                <li>
+                  <svg aria-hidden="true"><use href="#check" /></svg
+                  ><span>Suivi en direct et recherche plein texte</span>
+                </li>
+                <li>
+                  <svg aria-hidden="true"><use href="#check" /></svg
+                  ><span>Export .log ou .json</span>
+                </li>
+              </ul>
+            </div>
+            <figure class="shot-frame">
+              <img
+                src="screens/logs.webp"
+                width="2400"
+                height="1500"
+                loading="lazy"
+                alt="Journal systemd : histogramme des entrées par priorité sur 24 heures, filtres et dernières entrées."
+              />
+            </figure>
+          </div>
+          <div
+            class="shot-panel"
+            id="tour-sauvegardes"
+            role="tabpanel"
+            aria-labelledby="tour-tab-sauvegardes"
+          >
+            <div class="shot-text">
+              <h3>Des sauvegardes restic que l’on vérifie.</h3>
+              <p>
+                Dépôts chiffrés locaux, REST, S3 ou SFTP, planifiés et vérifiés
+                par une unité systemd dédiée.
+              </p>
+              <ul>
+                <li>
+                  <svg aria-hidden="true"><use href="#check" /></svg
+                  ><span
+                    >Planification, rétention et vérification du dépôt</span
+                  >
+                </li>
+                <li>
+                  <svg aria-hidden="true"><use href="#check" /></svg
+                  ><span>Copie vers un second dépôt pour la règle 3-2-1</span>
+                </li>
+                <li>
+                  <svg aria-hidden="true"><use href="#check" /></svg
+                  ><span>Restauration en quarantaine ou en place</span>
+                </li>
+              </ul>
+            </div>
+            <figure class="shot-frame">
+              <img
+                src="screens/backups.webp"
+                width="2400"
+                height="1500"
+                loading="lazy"
+                alt="Sauvegardes restic : état, dernier succès, prochaine exécution et historique des exécutions."
+              />
+            </figure>
+          </div>
+          <div
+            class="shot-panel"
+            id="tour-vulnerabilites"
+            role="tabpanel"
+            aria-labelledby="tour-tab-vulnerabilites"
+          >
+            <div class="shot-text">
+              <h3>Les paquets vulnérables, et comment les corriger.</h3>
+              <p>
+                Grype analyse chaque jour les paquets du système et compare
+                chaque analyse à la précédente.
+              </p>
+              <ul>
+                <li>
+                  <svg aria-hidden="true"><use href="#check" /></svg
+                  ><span>Sévérités et vulnérabilités corrigeables</span>
+                </li>
+                <li>
+                  <svg aria-hidden="true"><use href="#check" /></svg
+                  ><span
+                    >Nouvelles et disparues depuis la dernière analyse</span
+                  >
+                </li>
+                <li>
+                  <svg aria-hidden="true"><use href="#check" /></svg
+                  ><span>Commande de correction proposée, jamais exécutée</span>
+                </li>
+              </ul>
+            </div>
+            <figure class="shot-frame">
+              <img
+                src="screens/vulns.webp"
+                width="2400"
+                height="1500"
+                loading="lazy"
+                alt="Vulnérabilités des paquets : totaux par sévérité et commande de mise à jour à lancer soi-même."
+              />
+            </figure>
+          </div>
+          <div
+            class="shot-panel"
+            id="tour-metriques"
+            role="tabpanel"
+            aria-labelledby="tour-tab-metriques"
+          >
+            <div class="shot-text">
+              <h3>Tout l’historique, sans base externe.</h3>
+              <p>
+                Les échantillons bruts sont conservés dans SQLite, puis agrégés
+                pour les longues périodes.
+              </p>
+              <ul>
+                <li>
+                  <svg aria-hidden="true"><use href="#check" /></svg
+                  ><span>CPU, mémoire, disques, réseau et températures</span>
+                </li>
+                <li>
+                  <svg aria-hidden="true"><use href="#check" /></svg
+                  ><span>Périodes de 1 heure à 7 jours</span>
+                </li>
+                <li>
+                  <svg aria-hidden="true"><use href="#check" /></svg
+                  ><span>Dernière valeur, moyenne, minimum et maximum</span>
+                </li>
+              </ul>
+            </div>
+            <figure class="shot-frame">
+              <img
+                src="screens/metrics.webp"
+                width="2400"
+                height="1500"
+                loading="lazy"
+                alt="Métriques : utilisation du processeur sur la période, avec dernière valeur, moyenne, minimum et maximum."
+              />
+            </figure>
+          </div>
         </div>
       </section>
 
@@ -1856,6 +1955,34 @@ scripts/release/build.sh <span class="v" data-version>2.5.0</span> dist   <span 
             next.focus();
           });
         });
+
+        // Screenshot tour: without script every panel stays visible, one after the other.
+        const shotTabs = [...document.querySelectorAll(".shot-tab")];
+        const showShot = (tab) => {
+          shotTabs.forEach((other) => {
+            const on = other === tab;
+            other.setAttribute("aria-selected", String(on));
+            other.tabIndex = on ? 0 : -1;
+            document.getElementById(
+              other.getAttribute("aria-controls"),
+            ).hidden = !on;
+          });
+        };
+        if (shotTabs.length) {
+          document.querySelector(".shot-tabs").hidden = false;
+          showShot(shotTabs[0]);
+          shotTabs.forEach((tab, index) => {
+            tab.addEventListener("click", () => showShot(tab));
+            tab.addEventListener("keydown", (event) => {
+              if (event.key !== "ArrowRight" && event.key !== "ArrowLeft")
+                return;
+              const step = event.key === "ArrowRight" ? 1 : shotTabs.length - 1;
+              const next = shotTabs[(index + step) % shotTabs.length];
+              showShot(next);
+              next.focus();
+            });
+          });
+        }
 
         // Copy the visible command block.
         const copy = document.querySelector(".copy");

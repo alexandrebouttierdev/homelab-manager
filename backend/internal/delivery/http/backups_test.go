@@ -20,8 +20,20 @@ import (
 // instantExecutor succeeds at once with one snapshot.
 type instantExecutor struct{}
 
-func (instantExecutor) Execute(_ context.Context, job ports.BackupJob, _ domain.BackupCredentials) (domain.BackupResult, error) {
+func (instantExecutor) Execute(_ context.Context, job ports.BackupJob, _ domain.BackupCredentials, copyCredentials *domain.BackupCredentials) (domain.BackupResult, error) {
 	switch job.Operation {
+	case domain.BackupOpDiff:
+		return domain.BackupResult{Details: &domain.BackupRunDetails{Diff: &domain.BackupDiff{
+			From: job.Diff.From, To: job.Diff.To, ChangedFiles: 1, TotalChanges: 1,
+			Changes: []domain.BackupDiffChange{{Path: "/etc/secret-name.conf", Modifier: "M"}},
+		}}}, nil
+	case domain.BackupOpCopy:
+		if copyCredentials == nil || copyCredentials.Password == "" {
+			return domain.BackupResult{}, &domain.BackupRunError{Failure: domain.BackupFailureJob, Err: errors.New("no copy password")}
+		}
+		return domain.BackupResult{Details: &domain.BackupRunDetails{Copy: &domain.BackupCopyResult{
+			Repository: *job.Copy, Initialized: job.CopyInit, SnapshotsCopied: 1, SnapshotsInTarget: 1,
+		}}}, nil
 	case domain.BackupOpInit, domain.BackupOpUnlock:
 		return domain.BackupResult{}, nil
 	case domain.BackupOpRestore:
@@ -228,5 +240,79 @@ func TestBackupOperationRoutes(t *testing.T) {
 	audit := call(router, http.MethodGet, "/api/v1/audit?action=restore", "", admin).Body.String()
 	if !strings.Contains(audit, `"targetType":"backup_run"`) {
 		t.Fatalf("audit = %s", audit)
+	}
+}
+
+func TestBackupDiffAndCopyRoutes(t *testing.T) {
+	resetLoginRateLimit(t)
+	router := newBackupsRouter(t)
+	admin := signIn(t, router, "admin", "admin-password-1")
+	viewer := signInWithRole(t, router, admin, "vera", "viewer")
+	if response := call(router, http.MethodPut, "/api/v1/backups/config", backupConfigBody, admin); response.Code != http.StatusOK {
+		t.Fatalf("config = %d %s", response.Code, response.Body)
+	}
+	call(router, http.MethodPost, "/api/v1/backups/repository/init", "", admin)
+	waitForBody(t, router, "/api/v1/backups/summary", admin, `"initialized":true`)
+
+	// Diff: the paths are for the administrators only.
+	response := call(router, http.MethodPost, "/api/v1/backups/operations", `{"operation":"diff","diff":{"from":"0123456789ab","to":"abcdef012345"}}`, admin)
+	if response.Code != http.StatusAccepted || !strings.Contains(response.Body.String(), `"diff":{"from":"0123456789ab","to":"abcdef012345"`) {
+		t.Fatalf("diff = %d %s", response.Code, response.Body)
+	}
+	waitForBody(t, router, "/api/v1/backups/runs?limit=1", admin, `"path":"/etc/secret-name.conf"`)
+	if body := call(router, http.MethodGet, "/api/v1/backups/runs?limit=1", "", viewer).Body.String(); strings.Contains(body, "secret-name") ||
+		!strings.Contains(body, `"changedFiles":1`) || !strings.Contains(body, `"changes":[]`) {
+		t.Fatalf("viewer diff = %s", body)
+	}
+	if response := call(router, http.MethodPost, "/api/v1/backups/operations", `{"operation":"diff","diff":{"from":"0123456789ab","to":"0123456789ab"}}`, admin); response.Code != http.StatusBadRequest {
+		t.Fatalf("same snapshots = %d", response.Code)
+	}
+
+	// Copy repository.
+	if response := call(router, http.MethodPost, "/api/v1/backups/copy/init", "", admin); response.Code != http.StatusConflict ||
+		!strings.Contains(response.Body.String(), "BACKUP_COPY_NOT_CONFIGURED") {
+		t.Fatalf("init without copy = %d %s", response.Code, response.Body)
+	}
+	copyBody := `{"repository":{"type":"rest","location":"https://nas.lan:8000/copy"},"username":"u","secret":"copy-secret","afterBackup":true}`
+	if response := call(router, http.MethodPut, "/api/v1/backups/copy", copyBody, viewer); response.Code != http.StatusForbidden {
+		t.Fatalf("viewer copy = %d", response.Code)
+	}
+	if response := call(router, http.MethodPut, "/api/v1/backups/copy", `{"repository":{"type":"local","location":"/mnt/backup"}}`, admin); response.Code != http.StatusBadRequest ||
+		!strings.Contains(response.Body.String(), "copy.location") {
+		t.Fatalf("copy onto the main repository = %d %s", response.Code, response.Body)
+	}
+	response = call(router, http.MethodPut, "/api/v1/backups/copy", copyBody, admin)
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"copy":{"repository":{"type":"rest","location":"https://nas.lan:8000/copy"},"initialized":false`) ||
+		!strings.Contains(response.Body.String(), `"credentials":{"password":false,"username":true,"secret":true},"afterBackup":true`) ||
+		strings.Contains(response.Body.String(), "copy-secret") {
+		t.Fatalf("set copy = %d %s", response.Code, response.Body)
+	}
+	if response := call(router, http.MethodPost, "/api/v1/backups/operations", `{"operation":"copy"}`, admin); response.Code != http.StatusConflict ||
+		!strings.Contains(response.Body.String(), "BACKUP_COPY_NOT_INITIALIZED") {
+		t.Fatalf("copy before init = %d %s", response.Code, response.Body)
+	}
+	response = call(router, http.MethodPost, "/api/v1/backups/copy/init", "", admin)
+	if response.Code != http.StatusAccepted || response.Header().Get("Cache-Control") != "no-store" || !strings.Contains(response.Body.String(), `"password":"`) {
+		t.Fatalf("init copy = %d %s", response.Code, response.Body)
+	}
+	waitForBody(t, router, "/api/v1/backups/summary", viewer, `"snapshotsCopied":1`)
+	waitForBody(t, router, "/api/v1/backups/config", admin, `"initialized":true,"initializedAt":"`)
+	if response := call(router, http.MethodPost, "/api/v1/backups/copy/connect", `{"password":"x"}`, admin); response.Code != http.StatusConflict ||
+		!strings.Contains(response.Body.String(), "BACKUP_COPY_ALREADY_INITIALIZED") {
+		t.Fatalf("connect an initialized copy = %d %s", response.Code, response.Body)
+	}
+	if response := call(router, http.MethodPost, "/api/v1/backups/operations", `{"operation":"copy"}`, admin); response.Code != http.StatusAccepted {
+		t.Fatalf("copy = %d %s", response.Code, response.Body)
+	}
+	waitForBody(t, router, "/api/v1/backups/runs?limit=1", admin, `"origin":"manual","requestedBy":"admin","state":"succeeded"`)
+	response = call(router, http.MethodPost, "/api/v1/backups/copy/remove", "", admin)
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"copy":null`) {
+		t.Fatalf("remove copy = %d %s", response.Code, response.Body)
+	}
+	audit := call(router, http.MethodGet, "/api/v1/audit?targetType=backup_config", "", admin).Body.String()
+	for _, action := range []string{"update_copy", "init_copy", "remove_copy"} {
+		if !strings.Contains(audit, `"action":"`+action+`"`) {
+			t.Fatalf("audit misses %s: %s", action, audit)
+		}
 	}
 }

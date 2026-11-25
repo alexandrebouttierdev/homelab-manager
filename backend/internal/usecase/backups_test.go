@@ -59,15 +59,20 @@ func (s *memoryBackupStore) StartBackupRun(_ context.Context, run domain.BackupR
 	return nil
 }
 
-func (s *memoryBackupStore) FinishBackupRun(_ context.Context, run domain.BackupRun, snapshots []domain.BackupSnapshot, initializedAt *time.Time) error {
+func (s *memoryBackupStore) FinishBackupRun(_ context.Context, run domain.BackupRun, finish ports.BackupFinish) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	s.runs[run.ID] = run
-	if snapshots != nil {
-		s.snapshots = snapshots
+	if finish.Snapshots != nil {
+		s.snapshots = finish.Snapshots
 	}
-	if initializedAt != nil {
-		s.config.InitializedAt = initializedAt
+	if finish.InitializedAt != nil {
+		s.config.InitializedAt = finish.InitializedAt
+	}
+	if finish.CopyInitializedAt != nil && s.config.Copy != nil {
+		copy := *s.config.Copy
+		copy.InitializedAt = finish.CopyInitializedAt
+		s.config.Copy = &copy
 	}
 	return nil
 }
@@ -120,6 +125,9 @@ func (s *memoryBackupStore) LatestBackupRuns(context.Context) (ports.BackupLates
 		if run.Operation == domain.BackupOpCheck && run.State == domain.BackupSucceeded && latest.LastCheck == nil {
 			latest.LastCheck = &run
 		}
+		if run.Operation == domain.BackupOpCopy && latest.LastCopy == nil {
+			latest.LastCopy = &run
+		}
 	}
 	return latest, nil
 }
@@ -161,15 +169,17 @@ type fakeBackupExecutor struct {
 	mu          sync.Mutex
 	jobs        []ports.BackupJob
 	credentials []domain.BackupCredentials
+	copies      []*domain.BackupCredentials
 	release     chan struct{}
 	result      domain.BackupResult
 	err         error
 }
 
-func (f *fakeBackupExecutor) Execute(ctx context.Context, job ports.BackupJob, credentials domain.BackupCredentials) (domain.BackupResult, error) {
+func (f *fakeBackupExecutor) Execute(ctx context.Context, job ports.BackupJob, credentials domain.BackupCredentials, copyCredentials *domain.BackupCredentials) (domain.BackupResult, error) {
 	f.mu.Lock()
 	f.jobs = append(f.jobs, job)
 	f.credentials = append(f.credentials, credentials)
+	f.copies = append(f.copies, copyCredentials)
 	f.mu.Unlock()
 	if f.release != nil {
 		select {
@@ -525,20 +535,20 @@ func TestBackupAdministratorOperations(t *testing.T) {
 	ctx := context.Background()
 
 	var validation *domain.BackupValidationError
-	if _, err := backups.RequestOperation(ctx, backupAdmin, domain.BackupOpBackup, nil, "r"); !errors.As(err, &validation) {
+	if _, err := backups.RequestOperation(ctx, backupAdmin, domain.BackupOpBackup, BackupOperationRequest{}, "r"); !errors.As(err, &validation) {
 		t.Fatalf("backup through RequestOperation = %v", err)
 	}
-	if _, err := backups.RequestOperation(ctx, backupAdmin, domain.BackupOpRestore, &domain.BackupRestore{SnapshotID: "latest"}, "r"); !errors.As(err, &validation) {
+	if _, err := backups.RequestOperation(ctx, backupAdmin, domain.BackupOpRestore, BackupOperationRequest{Restore: &domain.BackupRestore{SnapshotID: "latest"}}, "r"); !errors.As(err, &validation) {
 		t.Fatalf("invalid snapshot = %v", err)
 	}
 	// The default policy is disabled but keeps snapshots: a manual forget
 	// applies it.
-	run, err := backups.RequestOperation(ctx, backupAdmin, domain.BackupOpForgetPrune, nil, "req")
+	run, err := backups.RequestOperation(ctx, backupAdmin, domain.BackupOpForgetPrune, BackupOperationRequest{}, "req")
 	if err != nil {
 		t.Fatal(err)
 	}
 	finishedRun(t, store, run.ID)
-	run, err = backups.RequestOperation(ctx, backupAdmin, domain.BackupOpRestore, &domain.BackupRestore{SnapshotID: "3a253ad8", DryRun: true}, "req")
+	run, err = backups.RequestOperation(ctx, backupAdmin, domain.BackupOpRestore, BackupOperationRequest{Restore: &domain.BackupRestore{SnapshotID: "3a253ad8", DryRun: true}}, "req")
 	if err != nil || run.Details == nil || run.Details.Target != domain.RestoreTarget(run.ID) {
 		t.Fatalf("restore = %+v, %v", run, err)
 	}

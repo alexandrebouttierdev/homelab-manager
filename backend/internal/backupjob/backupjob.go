@@ -43,6 +43,37 @@ type Job struct {
 	CheckSubsetPercent int `json:"checkSubsetPercent,omitempty"`
 	// Restore: restore only.
 	Restore *Restore `json:"restore,omitempty"`
+	// Diff: diff only.
+	Diff *Diff `json:"diff,omitempty"`
+	// Copy: copy only. The repository of the job is the source.
+	Copy *Copy `json:"copy,omitempty"`
+}
+
+// Diff names the two snapshots to compare.
+type Diff struct {
+	From string `json:"from"`
+	To   string `json:"to"`
+}
+
+// Copy is the destination of a copy. Init creates it first, with the
+// chunker parameters of the source; Retention, when set, applies the
+// retention policy to it after the copy.
+type Copy struct {
+	RepositoryType domain.BackupRepositoryType `json:"repositoryType"`
+	Repository     string                      `json:"repository"`
+	Init           bool                        `json:"init"`
+	Retention      *Retention                  `json:"retention,omitempty"`
+}
+
+func (c Copy) BackupRepository() domain.BackupRepository {
+	return domain.BackupRepository{Type: c.RepositoryType, Location: c.Repository}
+}
+
+// Secrets are the credentials of the repository, and of the copy
+// repository for a copy. They travel in a one-use file.
+type Secrets struct {
+	domain.BackupCredentials
+	Copy *domain.BackupCredentials `json:"copy,omitempty"`
 }
 
 // Retention is the policy of restic forget.
@@ -116,7 +147,49 @@ func (j Job) Validate() error {
 			return errors.New("the restore target must be a run directory of the quarantine")
 		}
 	}
+	if (j.Diff != nil) != (j.Operation == domain.BackupOpDiff) {
+		return errors.New("a diff belongs to diff only")
+	}
+	if j.Diff != nil {
+		if err := domain.ValidateBackupDiff(domain.BackupDiffRequest{From: j.Diff.From, To: j.Diff.To}); err != nil {
+			return err
+		}
+	}
+	if (j.Copy != nil) != (j.Operation == domain.BackupOpCopy) {
+		return errors.New("a copy destination belongs to copy only")
+	}
+	if j.Copy != nil {
+		if err := domain.ValidateBackupCopy(j.BackupRepository(), j.Copy.BackupRepository(), nil, nil); err != nil {
+			return err
+		}
+		if r := j.Copy.Retention; r != nil {
+			policy := domain.BackupRetention{
+				Enabled: true, KeepDaily: r.KeepDaily, KeepWeekly: r.KeepWeekly, KeepMonthly: r.KeepMonthly, KeepYearly: r.KeepYearly,
+			}
+			if err := domain.ValidateBackupRetention(policy); err != nil {
+				return err
+			}
+		}
+	}
 	return nil
+}
+
+// ValidateSecrets checks the credentials of an operation: those of the
+// copy repository come with a copy only.
+func (j Job) ValidateSecrets(secrets Secrets) error {
+	if err := domain.ValidateBackupCredentials(j.RepositoryType, secrets.BackupCredentials); err != nil {
+		return err
+	}
+	if (secrets.Copy != nil) != (j.Copy != nil) {
+		return errors.New("the copy credentials belong to copy only")
+	}
+	if j.Copy == nil {
+		return nil
+	}
+	if err := domain.ValidateBackupCredentials(j.Copy.RepositoryType, *secrets.Copy); err != nil {
+		return err
+	}
+	return domain.ValidateBackupCopy(j.BackupRepository(), j.Copy.BackupRepository(), &secrets.BackupCredentials, secrets.Copy)
 }
 
 func (j Job) BackupRepository() domain.BackupRepository {
@@ -238,4 +311,13 @@ func WriteAtomic(path string, value any, mode os.FileMode) error {
 		return fmt.Errorf("rename %s: %w", filepath.Base(path), err)
 	}
 	return nil
+}
+
+// Values lists the secret values, to hide them from the messages.
+func (s Secrets) Values() []string {
+	values := []string{s.Password, s.Secret}
+	if s.Copy != nil {
+		values = append(values, s.Copy.Password, s.Copy.Secret)
+	}
+	return values
 }

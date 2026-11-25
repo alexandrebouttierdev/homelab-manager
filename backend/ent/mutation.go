@@ -5013,46 +5013,51 @@ func (m *AuditLogMutation) ResetEdge(name string) error {
 // BackupConfigMutation represents an operation that mutates the BackupConfig nodes in the graph.
 type BackupConfigMutation struct {
 	config
-	op                      Op
-	typ                     string
-	id                      *uuid.UUID
-	singleton_key           *string
-	repository_type         *string
-	repository_location     *string
-	sealed_credentials      *string
-	initialized_at          *time.Time
-	sources                 *[]string
-	appendsources           []string
-	excludes                *[]string
-	appendexcludes          []string
-	exclude_caches          *bool
-	exclude_if_present      *string
-	schedule_enabled        *bool
-	schedule_frequency      *string
-	schedule_weekday        *int
-	addschedule_weekday     *int
-	schedule_hour           *int
-	addschedule_hour        *int
-	schedule_minute         *int
-	addschedule_minute      *int
-	retention_enabled       *bool
-	keep_daily              *int
-	addkeep_daily           *int
-	keep_weekly             *int
-	addkeep_weekly          *int
-	keep_monthly            *int
-	addkeep_monthly         *int
-	keep_yearly             *int
-	addkeep_yearly          *int
-	check_enabled           *bool
-	check_subset_percent    *int
-	addcheck_subset_percent *int
-	updated_at              *time.Time
-	updated_by              *string
-	clearedFields           map[string]struct{}
-	done                    bool
-	oldValue                func(context.Context) (*BackupConfig, error)
-	predicates              []predicate.BackupConfig
+	op                       Op
+	typ                      string
+	id                       *uuid.UUID
+	singleton_key            *string
+	repository_type          *string
+	repository_location      *string
+	sealed_credentials       *string
+	initialized_at           *time.Time
+	sources                  *[]string
+	appendsources            []string
+	excludes                 *[]string
+	appendexcludes           []string
+	exclude_caches           *bool
+	exclude_if_present       *string
+	schedule_enabled         *bool
+	schedule_frequency       *string
+	schedule_weekday         *int
+	addschedule_weekday      *int
+	schedule_hour            *int
+	addschedule_hour         *int
+	schedule_minute          *int
+	addschedule_minute       *int
+	retention_enabled        *bool
+	keep_daily               *int
+	addkeep_daily            *int
+	keep_weekly              *int
+	addkeep_weekly           *int
+	keep_monthly             *int
+	addkeep_monthly          *int
+	keep_yearly              *int
+	addkeep_yearly           *int
+	check_enabled            *bool
+	check_subset_percent     *int
+	addcheck_subset_percent  *int
+	copy_repository_type     *string
+	copy_repository_location *string
+	copy_sealed_credentials  *string
+	copy_initialized_at      *time.Time
+	copy_after_backup        *bool
+	updated_at               *time.Time
+	updated_by               *string
+	clearedFields            map[string]struct{}
+	done                     bool
+	oldValue                 func(context.Context) (*BackupConfig, error)
+	predicates               []predicate.BackupConfig
 }
 
 var _ ent.Mutation = (*BackupConfigMutation)(nil)
@@ -6144,6 +6149,225 @@ func (m *BackupConfigMutation) ResetCheckSubsetPercent() {
 	m.addcheck_subset_percent = nil
 }
 
+// SetCopyRepositoryType sets the "copy_repository_type" field.
+func (m *BackupConfigMutation) SetCopyRepositoryType(s string) {
+	m.copy_repository_type = &s
+}
+
+// CopyRepositoryType returns the value of the "copy_repository_type" field in the mutation.
+func (m *BackupConfigMutation) CopyRepositoryType() (r string, exists bool) {
+	v := m.copy_repository_type
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCopyRepositoryType returns the old "copy_repository_type" field's value of the BackupConfig entity.
+// If the BackupConfig object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BackupConfigMutation) OldCopyRepositoryType(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCopyRepositoryType is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCopyRepositoryType requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCopyRepositoryType: %w", err)
+	}
+	return oldValue.CopyRepositoryType, nil
+}
+
+// ClearCopyRepositoryType clears the value of the "copy_repository_type" field.
+func (m *BackupConfigMutation) ClearCopyRepositoryType() {
+	m.copy_repository_type = nil
+	m.clearedFields[backupconfig.FieldCopyRepositoryType] = struct{}{}
+}
+
+// CopyRepositoryTypeCleared returns if the "copy_repository_type" field was cleared in this mutation.
+func (m *BackupConfigMutation) CopyRepositoryTypeCleared() bool {
+	_, ok := m.clearedFields[backupconfig.FieldCopyRepositoryType]
+	return ok
+}
+
+// ResetCopyRepositoryType resets all changes to the "copy_repository_type" field.
+func (m *BackupConfigMutation) ResetCopyRepositoryType() {
+	m.copy_repository_type = nil
+	delete(m.clearedFields, backupconfig.FieldCopyRepositoryType)
+}
+
+// SetCopyRepositoryLocation sets the "copy_repository_location" field.
+func (m *BackupConfigMutation) SetCopyRepositoryLocation(s string) {
+	m.copy_repository_location = &s
+}
+
+// CopyRepositoryLocation returns the value of the "copy_repository_location" field in the mutation.
+func (m *BackupConfigMutation) CopyRepositoryLocation() (r string, exists bool) {
+	v := m.copy_repository_location
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCopyRepositoryLocation returns the old "copy_repository_location" field's value of the BackupConfig entity.
+// If the BackupConfig object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BackupConfigMutation) OldCopyRepositoryLocation(ctx context.Context) (v *string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCopyRepositoryLocation is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCopyRepositoryLocation requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCopyRepositoryLocation: %w", err)
+	}
+	return oldValue.CopyRepositoryLocation, nil
+}
+
+// ClearCopyRepositoryLocation clears the value of the "copy_repository_location" field.
+func (m *BackupConfigMutation) ClearCopyRepositoryLocation() {
+	m.copy_repository_location = nil
+	m.clearedFields[backupconfig.FieldCopyRepositoryLocation] = struct{}{}
+}
+
+// CopyRepositoryLocationCleared returns if the "copy_repository_location" field was cleared in this mutation.
+func (m *BackupConfigMutation) CopyRepositoryLocationCleared() bool {
+	_, ok := m.clearedFields[backupconfig.FieldCopyRepositoryLocation]
+	return ok
+}
+
+// ResetCopyRepositoryLocation resets all changes to the "copy_repository_location" field.
+func (m *BackupConfigMutation) ResetCopyRepositoryLocation() {
+	m.copy_repository_location = nil
+	delete(m.clearedFields, backupconfig.FieldCopyRepositoryLocation)
+}
+
+// SetCopySealedCredentials sets the "copy_sealed_credentials" field.
+func (m *BackupConfigMutation) SetCopySealedCredentials(s string) {
+	m.copy_sealed_credentials = &s
+}
+
+// CopySealedCredentials returns the value of the "copy_sealed_credentials" field in the mutation.
+func (m *BackupConfigMutation) CopySealedCredentials() (r string, exists bool) {
+	v := m.copy_sealed_credentials
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCopySealedCredentials returns the old "copy_sealed_credentials" field's value of the BackupConfig entity.
+// If the BackupConfig object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BackupConfigMutation) OldCopySealedCredentials(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCopySealedCredentials is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCopySealedCredentials requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCopySealedCredentials: %w", err)
+	}
+	return oldValue.CopySealedCredentials, nil
+}
+
+// ResetCopySealedCredentials resets all changes to the "copy_sealed_credentials" field.
+func (m *BackupConfigMutation) ResetCopySealedCredentials() {
+	m.copy_sealed_credentials = nil
+}
+
+// SetCopyInitializedAt sets the "copy_initialized_at" field.
+func (m *BackupConfigMutation) SetCopyInitializedAt(t time.Time) {
+	m.copy_initialized_at = &t
+}
+
+// CopyInitializedAt returns the value of the "copy_initialized_at" field in the mutation.
+func (m *BackupConfigMutation) CopyInitializedAt() (r time.Time, exists bool) {
+	v := m.copy_initialized_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCopyInitializedAt returns the old "copy_initialized_at" field's value of the BackupConfig entity.
+// If the BackupConfig object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BackupConfigMutation) OldCopyInitializedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCopyInitializedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCopyInitializedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCopyInitializedAt: %w", err)
+	}
+	return oldValue.CopyInitializedAt, nil
+}
+
+// ClearCopyInitializedAt clears the value of the "copy_initialized_at" field.
+func (m *BackupConfigMutation) ClearCopyInitializedAt() {
+	m.copy_initialized_at = nil
+	m.clearedFields[backupconfig.FieldCopyInitializedAt] = struct{}{}
+}
+
+// CopyInitializedAtCleared returns if the "copy_initialized_at" field was cleared in this mutation.
+func (m *BackupConfigMutation) CopyInitializedAtCleared() bool {
+	_, ok := m.clearedFields[backupconfig.FieldCopyInitializedAt]
+	return ok
+}
+
+// ResetCopyInitializedAt resets all changes to the "copy_initialized_at" field.
+func (m *BackupConfigMutation) ResetCopyInitializedAt() {
+	m.copy_initialized_at = nil
+	delete(m.clearedFields, backupconfig.FieldCopyInitializedAt)
+}
+
+// SetCopyAfterBackup sets the "copy_after_backup" field.
+func (m *BackupConfigMutation) SetCopyAfterBackup(b bool) {
+	m.copy_after_backup = &b
+}
+
+// CopyAfterBackup returns the value of the "copy_after_backup" field in the mutation.
+func (m *BackupConfigMutation) CopyAfterBackup() (r bool, exists bool) {
+	v := m.copy_after_backup
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCopyAfterBackup returns the old "copy_after_backup" field's value of the BackupConfig entity.
+// If the BackupConfig object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BackupConfigMutation) OldCopyAfterBackup(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCopyAfterBackup is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCopyAfterBackup requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCopyAfterBackup: %w", err)
+	}
+	return oldValue.CopyAfterBackup, nil
+}
+
+// ResetCopyAfterBackup resets all changes to the "copy_after_backup" field.
+func (m *BackupConfigMutation) ResetCopyAfterBackup() {
+	m.copy_after_backup = nil
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (m *BackupConfigMutation) SetUpdatedAt(t time.Time) {
 	m.updated_at = &t
@@ -6250,7 +6474,7 @@ func (m *BackupConfigMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *BackupConfigMutation) Fields() []string {
-	fields := make([]string, 0, 23)
+	fields := make([]string, 0, 28)
 	if m.singleton_key != nil {
 		fields = append(fields, backupconfig.FieldSingletonKey)
 	}
@@ -6314,6 +6538,21 @@ func (m *BackupConfigMutation) Fields() []string {
 	if m.check_subset_percent != nil {
 		fields = append(fields, backupconfig.FieldCheckSubsetPercent)
 	}
+	if m.copy_repository_type != nil {
+		fields = append(fields, backupconfig.FieldCopyRepositoryType)
+	}
+	if m.copy_repository_location != nil {
+		fields = append(fields, backupconfig.FieldCopyRepositoryLocation)
+	}
+	if m.copy_sealed_credentials != nil {
+		fields = append(fields, backupconfig.FieldCopySealedCredentials)
+	}
+	if m.copy_initialized_at != nil {
+		fields = append(fields, backupconfig.FieldCopyInitializedAt)
+	}
+	if m.copy_after_backup != nil {
+		fields = append(fields, backupconfig.FieldCopyAfterBackup)
+	}
 	if m.updated_at != nil {
 		fields = append(fields, backupconfig.FieldUpdatedAt)
 	}
@@ -6370,6 +6609,16 @@ func (m *BackupConfigMutation) Field(name string) (ent.Value, bool) {
 		return m.CheckEnabled()
 	case backupconfig.FieldCheckSubsetPercent:
 		return m.CheckSubsetPercent()
+	case backupconfig.FieldCopyRepositoryType:
+		return m.CopyRepositoryType()
+	case backupconfig.FieldCopyRepositoryLocation:
+		return m.CopyRepositoryLocation()
+	case backupconfig.FieldCopySealedCredentials:
+		return m.CopySealedCredentials()
+	case backupconfig.FieldCopyInitializedAt:
+		return m.CopyInitializedAt()
+	case backupconfig.FieldCopyAfterBackup:
+		return m.CopyAfterBackup()
 	case backupconfig.FieldUpdatedAt:
 		return m.UpdatedAt()
 	case backupconfig.FieldUpdatedBy:
@@ -6425,6 +6674,16 @@ func (m *BackupConfigMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldCheckEnabled(ctx)
 	case backupconfig.FieldCheckSubsetPercent:
 		return m.OldCheckSubsetPercent(ctx)
+	case backupconfig.FieldCopyRepositoryType:
+		return m.OldCopyRepositoryType(ctx)
+	case backupconfig.FieldCopyRepositoryLocation:
+		return m.OldCopyRepositoryLocation(ctx)
+	case backupconfig.FieldCopySealedCredentials:
+		return m.OldCopySealedCredentials(ctx)
+	case backupconfig.FieldCopyInitializedAt:
+		return m.OldCopyInitializedAt(ctx)
+	case backupconfig.FieldCopyAfterBackup:
+		return m.OldCopyAfterBackup(ctx)
 	case backupconfig.FieldUpdatedAt:
 		return m.OldUpdatedAt(ctx)
 	case backupconfig.FieldUpdatedBy:
@@ -6585,6 +6844,41 @@ func (m *BackupConfigMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetCheckSubsetPercent(v)
 		return nil
+	case backupconfig.FieldCopyRepositoryType:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCopyRepositoryType(v)
+		return nil
+	case backupconfig.FieldCopyRepositoryLocation:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCopyRepositoryLocation(v)
+		return nil
+	case backupconfig.FieldCopySealedCredentials:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCopySealedCredentials(v)
+		return nil
+	case backupconfig.FieldCopyInitializedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCopyInitializedAt(v)
+		return nil
+	case backupconfig.FieldCopyAfterBackup:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCopyAfterBackup(v)
+		return nil
 	case backupconfig.FieldUpdatedAt:
 		v, ok := value.(time.Time)
 		if !ok {
@@ -6737,6 +7031,15 @@ func (m *BackupConfigMutation) ClearedFields() []string {
 	if m.FieldCleared(backupconfig.FieldInitializedAt) {
 		fields = append(fields, backupconfig.FieldInitializedAt)
 	}
+	if m.FieldCleared(backupconfig.FieldCopyRepositoryType) {
+		fields = append(fields, backupconfig.FieldCopyRepositoryType)
+	}
+	if m.FieldCleared(backupconfig.FieldCopyRepositoryLocation) {
+		fields = append(fields, backupconfig.FieldCopyRepositoryLocation)
+	}
+	if m.FieldCleared(backupconfig.FieldCopyInitializedAt) {
+		fields = append(fields, backupconfig.FieldCopyInitializedAt)
+	}
 	return fields
 }
 
@@ -6759,6 +7062,15 @@ func (m *BackupConfigMutation) ClearField(name string) error {
 		return nil
 	case backupconfig.FieldInitializedAt:
 		m.ClearInitializedAt()
+		return nil
+	case backupconfig.FieldCopyRepositoryType:
+		m.ClearCopyRepositoryType()
+		return nil
+	case backupconfig.FieldCopyRepositoryLocation:
+		m.ClearCopyRepositoryLocation()
+		return nil
+	case backupconfig.FieldCopyInitializedAt:
+		m.ClearCopyInitializedAt()
 		return nil
 	}
 	return fmt.Errorf("unknown BackupConfig nullable field %s", name)
@@ -6830,6 +7142,21 @@ func (m *BackupConfigMutation) ResetField(name string) error {
 		return nil
 	case backupconfig.FieldCheckSubsetPercent:
 		m.ResetCheckSubsetPercent()
+		return nil
+	case backupconfig.FieldCopyRepositoryType:
+		m.ResetCopyRepositoryType()
+		return nil
+	case backupconfig.FieldCopyRepositoryLocation:
+		m.ResetCopyRepositoryLocation()
+		return nil
+	case backupconfig.FieldCopySealedCredentials:
+		m.ResetCopySealedCredentials()
+		return nil
+	case backupconfig.FieldCopyInitializedAt:
+		m.ResetCopyInitializedAt()
+		return nil
+	case backupconfig.FieldCopyAfterBackup:
+		m.ResetCopyAfterBackup()
 		return nil
 	case backupconfig.FieldUpdatedAt:
 		m.ResetUpdatedAt()

@@ -207,8 +207,71 @@ func TestBackupOperationUnit(t *testing.T) {
 			t.Errorf("%q should be a valid operation and unit", op)
 		}
 	}
-	if BackupOperation("diff").Valid() || BackupOperation("copy").Valid() {
-		t.Fatal("diff and copy are not operations of this version")
+	if BackupOperation("mount").Valid() || BackupOperation("").Valid() {
+		t.Fatal("mount is not an operation")
+	}
+}
+
+func TestValidateBackupDiff(t *testing.T) {
+	if err := ValidateBackupDiff(BackupDiffRequest{From: "3a253ad8", To: "9f2c11b0"}); err != nil {
+		t.Fatal(err)
+	}
+	for _, request := range []BackupDiffRequest{
+		{From: "3a253ad8", To: "3a253ad8"},
+		{From: "latest", To: "9f2c11b0"},
+		{From: "3a253ad8", To: "--help"},
+		{From: "3a253ad8:/etc", To: "9f2c11b0"},
+	} {
+		if err := ValidateBackupDiff(request); err == nil {
+			t.Errorf("%+v accepted", request)
+		}
+	}
+}
+
+func TestValidateBackupCopy(t *testing.T) {
+	main := BackupRepository{Type: RepositoryLocal, Location: "/srv/backup"}
+	if err := ValidateBackupCopy(main, BackupRepository{Type: RepositoryRest, Location: "https://nas.lan:8000/copy"}, nil, nil); err != nil {
+		t.Fatal(err)
+	}
+	var validation *BackupValidationError
+	err := ValidateBackupCopy(main, BackupRepository{Type: RepositoryLocal, Location: "/srv/backup"}, nil, nil)
+	if !errors.As(err, &validation) || validation.Field != "copy.location" {
+		t.Fatalf("same repository = %v", err)
+	}
+	err = ValidateBackupCopy(main, BackupRepository{Type: RepositoryLocal, Location: "relative"}, nil, nil)
+	if !errors.As(err, &validation) || validation.Field != "copy.location" {
+		t.Fatalf("invalid copy = %v", err)
+	}
+	s3 := func(bucket string) BackupRepository {
+		return BackupRepository{Type: RepositoryS3, Location: "https://s3.example.com/" + bucket}
+	}
+	one := &BackupCredentials{Password: "a", Username: "key", Secret: "secret"}
+	other := &BackupCredentials{Password: "b", Username: "key2", Secret: "secret2"}
+	if err := ValidateBackupCopy(s3("a"), s3("b"), one, one); err != nil {
+		t.Fatalf("same S3 key: %v", err)
+	}
+	if err := ValidateBackupCopy(s3("a"), s3("b"), one, other); !errors.As(err, &validation) || validation.Field != "copy.username" {
+		t.Fatalf("two S3 keys = %v", err)
+	}
+}
+
+func TestCopyReady(t *testing.T) {
+	now := time.Now()
+	config := BackupConfig{Repository: &BackupRepository{Type: RepositoryLocal, Location: "/srv/b"}, InitializedAt: &now, SealedCredentials: "s"}
+	if !errors.Is(config.CopyReady(), ErrBackupCopyNotConfigured) {
+		t.Fatal("no copy")
+	}
+	config.Copy = &BackupCopyTarget{Repository: BackupRepository{Type: RepositoryLocal, Location: "/mnt/copy"}}
+	if !errors.Is(config.CopyReady(), ErrBackupCopyNotInitialized) {
+		t.Fatal("copy not initialized")
+	}
+	config.Copy.InitializedAt, config.Copy.SealedCredentials = &now, "s"
+	if err := config.CopyReady(); err != nil {
+		t.Fatal(err)
+	}
+	config.InitializedAt = nil
+	if !errors.Is(config.CopyReady(), ErrBackupNotInitialized) {
+		t.Fatal("main repository not initialized")
 	}
 }
 

@@ -55,7 +55,12 @@ var (
 	ErrBackupRepositoryInUse    = errors.New("the repository cannot change while an operation is running")
 	// ErrBackupsNotReady: the Manager is starting or stopping.
 	ErrBackupsNotReady         = errors.New("backups are starting or stopping")
-	backupExcludeMarkerPattern = regexp.MustCompile(`^[A-Za-z0-9._-]{1,255}$`)
+	ErrBackupCopyNotConfigured = errors.New("no copy repository is configured")
+	// ErrBackupCopyNotInitialized: the copy repository was neither
+	// initialized nor connected.
+	ErrBackupCopyNotInitialized     = errors.New("the copy repository is not initialized")
+	ErrBackupCopyAlreadyInitialized = errors.New("the copy repository is already initialized")
+	backupExcludeMarkerPattern      = regexp.MustCompile(`^[A-Za-z0-9._-]{1,255}$`)
 )
 
 // BackupValidationError names the invalid field of a backup setting.
@@ -91,8 +96,8 @@ func (t BackupRepositoryType) Valid() bool {
 // BackupRepository locates the repository. Location is an absolute path
 // for a local repository, an https URL otherwise.
 type BackupRepository struct {
-	Type     BackupRepositoryType
-	Location string
+	Type     BackupRepositoryType `json:"type"`
+	Location string               `json:"location"`
 }
 
 // ValidateBackupRepository checks a repository received from a client or
@@ -331,8 +336,11 @@ type BackupConfig struct {
 	Schedule      BackupSchedule
 	Retention     BackupRetention
 	Check         BackupCheck
-	UpdatedAt     *time.Time
-	UpdatedBy     string
+	// Copy is the repository the snapshots are copied to (restic copy);
+	// nil when none is set.
+	Copy      *BackupCopyTarget
+	UpdatedAt *time.Time
+	UpdatedBy string
 }
 
 // Operations reports whether the repository can run an operation other
@@ -448,6 +456,10 @@ type BackupRunDetails struct {
 	SnapshotsRemoved int `json:"snapshotsRemoved,omitempty"`
 	// Check: the share of the data read.
 	SubsetPercent int `json:"subsetPercent,omitempty"`
+	// Diff: the changes between two snapshots.
+	Diff *BackupDiff `json:"diff,omitempty"`
+	// Copy: what the copy brought to the copy repository.
+	Copy *BackupCopyResult `json:"copy,omitempty"`
 }
 
 // Ready reports whether a backup can run.
@@ -478,12 +490,18 @@ const (
 	BackupOpSnapshots BackupOperation = "snapshots"
 	// BackupOpUnlock removes every lock of the repository.
 	BackupOpUnlock BackupOperation = "unlock"
+	// BackupOpDiff compares two snapshots.
+	BackupOpDiff BackupOperation = "diff"
+	// BackupOpCopy copies the snapshots to the copy repository, which it
+	// may initialize first.
+	BackupOpCopy BackupOperation = "copy"
 )
 
 // BackupOperations lists the instances of homelab-backup@.service the
 // polkit rule allows.
 var BackupOperations = []BackupOperation{
 	BackupOpInit, BackupOpBackup, BackupOpForgetPrune, BackupOpCheck, BackupOpRestore, BackupOpSnapshots, BackupOpUnlock,
+	BackupOpDiff, BackupOpCopy,
 }
 
 func (o BackupOperation) Valid() bool {
@@ -642,5 +660,125 @@ type BackupSummary struct {
 	LastSuccess *BackupRun
 	// LastCheck is the newest successful check of the repository.
 	LastCheck *BackupRun
+	// LastCopy is the newest copy to the copy repository.
+	LastCopy  *BackupRun
 	NextRunAt *time.Time
+}
+
+// Bounds of a diff (SPEC_ADMINISTRATION.md § 7.4): the figures are always
+// complete, the list of changes is cut.
+const (
+	MaxBackupDiffChanges = 1000
+	// MaxBackupDiffBytes bounds the paths kept from one diff.
+	MaxBackupDiffBytes = 256 << 10
+)
+
+// BackupDiffRequest compares the snapshot From with the snapshot To.
+type BackupDiffRequest struct {
+	From string
+	To   string
+}
+
+func ValidateBackupDiff(request BackupDiffRequest) error {
+	if !snapshotIDPattern.MatchString(request.From) || !snapshotIDPattern.MatchString(request.To) {
+		return invalidBackup("diff", "from and to must be 8 to 64 lowercase hexadecimal characters")
+	}
+	if request.From == request.To {
+		return invalidBackup("diff", "from and to must be two different snapshots")
+	}
+	return nil
+}
+
+// BackupDiffCounts are the items added or removed between two snapshots.
+type BackupDiffCounts struct {
+	Files  int64 `json:"files"`
+	Dirs   int64 `json:"dirs"`
+	Others int64 `json:"others"`
+	Bytes  int64 `json:"bytes"`
+}
+
+// BackupDiffChange is one changed path. Modifier is restic's: "+" added,
+// "-" removed, "M" content modified, "U" metadata updated, "T" type
+// changed, "?" content changed with the same metadata.
+type BackupDiffChange struct {
+	Path     string `json:"path"`
+	Modifier string `json:"modifier"`
+}
+
+// BackupDiff is the result of restic diff.
+type BackupDiff struct {
+	From         string             `json:"from"`
+	To           string             `json:"to"`
+	ChangedFiles int64              `json:"changedFiles"`
+	Added        BackupDiffCounts   `json:"added"`
+	Removed      BackupDiffCounts   `json:"removed"`
+	Changes      []BackupDiffChange `json:"changes"`
+	// TotalChanges counts every change, Changes holds the first ones.
+	TotalChanges int  `json:"totalChanges"`
+	Truncated    bool `json:"truncated"`
+}
+
+// BackupCopyTarget is the repository the snapshots of the Manager are
+// copied to (restic copy, § 7.2), for the 3-2-1 rule. Its password is
+// generated at its initialisation, or given to connect an existing one.
+type BackupCopyTarget struct {
+	Repository BackupRepository
+	// SealedCredentials: the BackupCredentials of the copy repository,
+	// sealed by the vault; "" when none were given.
+	SealedCredentials string
+	InitializedAt     *time.Time
+	// AfterBackup copies after each successful scheduled backup.
+	AfterBackup bool
+}
+
+// BackupCopySecretsAssociatedData binds the sealed credentials of the copy
+// repository to their use.
+const BackupCopySecretsAssociatedData = "backup-copy-repository"
+
+// CopyReady reports whether a copy can run.
+func (c BackupConfig) CopyReady() error {
+	if err := c.Operations(); err != nil {
+		return err
+	}
+	switch {
+	case c.Copy == nil:
+		return ErrBackupCopyNotConfigured
+	case c.Copy.InitializedAt == nil || c.Copy.SealedCredentials == "":
+		return ErrBackupCopyNotInitialized
+	}
+	return nil
+}
+
+// ValidateBackupCopy checks the copy repository against the main one: it
+// must be another repository, and restic takes a single S3 key for both
+// repositories of a copy.
+func ValidateBackupCopy(main, copy BackupRepository, mainCredentials, copyCredentials *BackupCredentials) error {
+	if err := ValidateBackupRepository(copy); err != nil {
+		var validation *BackupValidationError
+		if errors.As(err, &validation) {
+			return invalidBackup("copy."+validation.Field, "%s", validation.Message)
+		}
+		return err
+	}
+	if strings.TrimRight(main.ResticRepository(), "/") == strings.TrimRight(copy.ResticRepository(), "/") {
+		return invalidBackup("copy.location", "must be another repository than the main one")
+	}
+	if main.Type == RepositoryS3 && copy.Type == RepositoryS3 && mainCredentials != nil && copyCredentials != nil &&
+		mainCredentials.Username != "" && copyCredentials.Username != "" &&
+		(mainCredentials.Username != copyCredentials.Username || mainCredentials.Secret != copyCredentials.Secret) {
+		return invalidBackup("copy.username", "restic copies between two S3 repositories with the same access key only")
+	}
+	return nil
+}
+
+// BackupCopyResult is what a copy reports.
+type BackupCopyResult struct {
+	// Repository locates the copy repository at the time of the copy.
+	Repository BackupRepository `json:"repository"`
+	// Initialized: the copy repository was created by this run.
+	Initialized       bool `json:"initialized,omitempty"`
+	SnapshotsCopied   int  `json:"snapshotsCopied"`
+	SnapshotsInTarget int  `json:"snapshotsInTarget"`
+	// SnapshotsRemoved: by the retention policy applied to the copy.
+	SnapshotsRemoved int `json:"snapshotsRemoved,omitempty"`
 }

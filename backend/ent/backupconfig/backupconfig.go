@@ -54,6 +54,16 @@ const (
 	FieldCheckEnabled = "check_enabled"
 	// FieldCheckSubsetPercent holds the string denoting the check_subset_percent field in the database.
 	FieldCheckSubsetPercent = "check_subset_percent"
+	// FieldCopyRepositoryType holds the string denoting the copy_repository_type field in the database.
+	FieldCopyRepositoryType = "copy_repository_type"
+	// FieldCopyRepositoryLocation holds the string denoting the copy_repository_location field in the database.
+	FieldCopyRepositoryLocation = "copy_repository_location"
+	// FieldCopySealedCredentials holds the string denoting the copy_sealed_credentials field in the database.
+	FieldCopySealedCredentials = "copy_sealed_credentials"
+	// FieldCopyInitializedAt holds the string denoting the copy_initialized_at field in the database.
+	FieldCopyInitializedAt = "copy_initialized_at"
+	// FieldCopyAfterBackup holds the string denoting the copy_after_backup field in the database.
+	FieldCopyAfterBackup = "copy_after_backup"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
 	FieldUpdatedAt = "updated_at"
 	// FieldUpdatedBy holds the string denoting the updated_by field in the database.
@@ -86,6 +96,11 @@ var Columns = []string{
 	FieldKeepYearly,
 	FieldCheckEnabled,
 	FieldCheckSubsetPercent,
+	FieldCopyRepositoryType,
+	FieldCopyRepositoryLocation,
+	FieldCopySealedCredentials,
+	FieldCopyInitializedAt,
+	FieldCopyAfterBackup,
 	FieldUpdatedAt,
 	FieldUpdatedBy,
 }
@@ -133,6 +148,10 @@ var (
 	DefaultCheckEnabled bool
 	// DefaultCheckSubsetPercent holds the default value on creation for the "check_subset_percent" field.
 	DefaultCheckSubsetPercent int
+	// DefaultCopySealedCredentials holds the default value on creation for the "copy_sealed_credentials" field.
+	DefaultCopySealedCredentials string
+	// DefaultCopyAfterBackup holds the default value on creation for the "copy_after_backup" field.
+	DefaultCopyAfterBackup bool
 	// DefaultUpdatedBy holds the default value on creation for the "updated_by" field.
 	DefaultUpdatedBy string
 	// DefaultID holds the default value on creation for the "id" field.
@@ -240,6 +259,31 @@ func ByCheckEnabled(opts ...sql.OrderTermOption) OrderOption {
 // ByCheckSubsetPercent orders the results by the check_subset_percent field.
 func ByCheckSubsetPercent(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCheckSubsetPercent, opts...).ToFunc()
+}
+
+// ByCopyRepositoryType orders the results by the copy_repository_type field.
+func ByCopyRepositoryType(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCopyRepositoryType, opts...).ToFunc()
+}
+
+// ByCopyRepositoryLocation orders the results by the copy_repository_location field.
+func ByCopyRepositoryLocation(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCopyRepositoryLocation, opts...).ToFunc()
+}
+
+// ByCopySealedCredentials orders the results by the copy_sealed_credentials field.
+func ByCopySealedCredentials(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCopySealedCredentials, opts...).ToFunc()
+}
+
+// ByCopyInitializedAt orders the results by the copy_initialized_at field.
+func ByCopyInitializedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCopyInitializedAt, opts...).ToFunc()
+}
+
+// ByCopyAfterBackup orders the results by the copy_after_backup field.
+func ByCopyAfterBackup(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCopyAfterBackup, opts...).ToFunc()
 }
 
 // ByUpdatedAt orders the results by the updated_at field.

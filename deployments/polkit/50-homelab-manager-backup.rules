@@ -9,7 +9,8 @@ polkit.addRule(function (action, subject) {
         "homelab-backup@init.service", "homelab-backup@backup.service",
         "homelab-backup@forget-prune.service", "homelab-backup@check.service",
         "homelab-backup@restore.service", "homelab-backup@snapshots.service",
-        "homelab-backup@unlock.service"
+        "homelab-backup@unlock.service", "homelab-backup@diff.service",
+        "homelab-backup@copy.service"
     ];
     if (action.id === "org.freedesktop.systemd1.manage-units" &&
         subject.user === "homelab-manager" &&

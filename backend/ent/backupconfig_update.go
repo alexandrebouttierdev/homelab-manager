@@ -393,6 +393,94 @@ func (_u *BackupConfigUpdate) AddCheckSubsetPercent(v int) *BackupConfigUpdate {
 	return _u
 }
 
+// SetCopyRepositoryType sets the "copy_repository_type" field.
+func (_u *BackupConfigUpdate) SetCopyRepositoryType(v string) *BackupConfigUpdate {
+	_u.mutation.SetCopyRepositoryType(v)
+	return _u
+}
+
+// SetNillableCopyRepositoryType sets the "copy_repository_type" field if the given value is not nil.
+func (_u *BackupConfigUpdate) SetNillableCopyRepositoryType(v *string) *BackupConfigUpdate {
+	if v != nil {
+		_u.SetCopyRepositoryType(*v)
+	}
+	return _u
+}
+
+// ClearCopyRepositoryType clears the value of the "copy_repository_type" field.
+func (_u *BackupConfigUpdate) ClearCopyRepositoryType() *BackupConfigUpdate {
+	_u.mutation.ClearCopyRepositoryType()
+	return _u
+}
+
+// SetCopyRepositoryLocation sets the "copy_repository_location" field.
+func (_u *BackupConfigUpdate) SetCopyRepositoryLocation(v string) *BackupConfigUpdate {
+	_u.mutation.SetCopyRepositoryLocation(v)
+	return _u
+}
+
+// SetNillableCopyRepositoryLocation sets the "copy_repository_location" field if the given value is not nil.
+func (_u *BackupConfigUpdate) SetNillableCopyRepositoryLocation(v *string) *BackupConfigUpdate {
+	if v != nil {
+		_u.SetCopyRepositoryLocation(*v)
+	}
+	return _u
+}
+
+// ClearCopyRepositoryLocation clears the value of the "copy_repository_location" field.
+func (_u *BackupConfigUpdate) ClearCopyRepositoryLocation() *BackupConfigUpdate {
+	_u.mutation.ClearCopyRepositoryLocation()
+	return _u
+}
+
+// SetCopySealedCredentials sets the "copy_sealed_credentials" field.
+func (_u *BackupConfigUpdate) SetCopySealedCredentials(v string) *BackupConfigUpdate {
+	_u.mutation.SetCopySealedCredentials(v)
+	return _u
+}
+
+// SetNillableCopySealedCredentials sets the "copy_sealed_credentials" field if the given value is not nil.
+func (_u *BackupConfigUpdate) SetNillableCopySealedCredentials(v *string) *BackupConfigUpdate {
+	if v != nil {
+		_u.SetCopySealedCredentials(*v)
+	}
+	return _u
+}
+
+// SetCopyInitializedAt sets the "copy_initialized_at" field.
+func (_u *BackupConfigUpdate) SetCopyInitializedAt(v time.Time) *BackupConfigUpdate {
+	_u.mutation.SetCopyInitializedAt(v)
+	return _u
+}
+
+// SetNillableCopyInitializedAt sets the "copy_initialized_at" field if the given value is not nil.
+func (_u *BackupConfigUpdate) SetNillableCopyInitializedAt(v *time.Time) *BackupConfigUpdate {
+	if v != nil {
+		_u.SetCopyInitializedAt(*v)
+	}
+	return _u
+}
+
+// ClearCopyInitializedAt clears the value of the "copy_initialized_at" field.
+func (_u *BackupConfigUpdate) ClearCopyInitializedAt() *BackupConfigUpdate {
+	_u.mutation.ClearCopyInitializedAt()
+	return _u
+}
+
+// SetCopyAfterBackup sets the "copy_after_backup" field.
+func (_u *BackupConfigUpdate) SetCopyAfterBackup(v bool) *BackupConfigUpdate {
+	_u.mutation.SetCopyAfterBackup(v)
+	return _u
+}
+
+// SetNillableCopyAfterBackup sets the "copy_after_backup" field if the given value is not nil.
+func (_u *BackupConfigUpdate) SetNillableCopyAfterBackup(v *bool) *BackupConfigUpdate {
+	if v != nil {
+		_u.SetCopyAfterBackup(*v)
+	}
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *BackupConfigUpdate) SetUpdatedAt(v time.Time) *BackupConfigUpdate {
 	_u.mutation.SetUpdatedAt(v)
@@ -580,6 +668,30 @@ func (_u *BackupConfigUpdate) sqlSave(ctx context.Context) (_node int, err error
 	}
 	if value, ok := _u.mutation.AddedCheckSubsetPercent(); ok {
 		_spec.AddField(backupconfig.FieldCheckSubsetPercent, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.CopyRepositoryType(); ok {
+		_spec.SetField(backupconfig.FieldCopyRepositoryType, field.TypeString, value)
+	}
+	if _u.mutation.CopyRepositoryTypeCleared() {
+		_spec.ClearField(backupconfig.FieldCopyRepositoryType, field.TypeString)
+	}
+	if value, ok := _u.mutation.CopyRepositoryLocation(); ok {
+		_spec.SetField(backupconfig.FieldCopyRepositoryLocation, field.TypeString, value)
+	}
+	if _u.mutation.CopyRepositoryLocationCleared() {
+		_spec.ClearField(backupconfig.FieldCopyRepositoryLocation, field.TypeString)
+	}
+	if value, ok := _u.mutation.CopySealedCredentials(); ok {
+		_spec.SetField(backupconfig.FieldCopySealedCredentials, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.CopyInitializedAt(); ok {
+		_spec.SetField(backupconfig.FieldCopyInitializedAt, field.TypeTime, value)
+	}
+	if _u.mutation.CopyInitializedAtCleared() {
+		_spec.ClearField(backupconfig.FieldCopyInitializedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.CopyAfterBackup(); ok {
+		_spec.SetField(backupconfig.FieldCopyAfterBackup, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(backupconfig.FieldUpdatedAt, field.TypeTime, value)
@@ -971,6 +1083,94 @@ func (_u *BackupConfigUpdateOne) AddCheckSubsetPercent(v int) *BackupConfigUpdat
 	return _u
 }
 
+// SetCopyRepositoryType sets the "copy_repository_type" field.
+func (_u *BackupConfigUpdateOne) SetCopyRepositoryType(v string) *BackupConfigUpdateOne {
+	_u.mutation.SetCopyRepositoryType(v)
+	return _u
+}
+
+// SetNillableCopyRepositoryType sets the "copy_repository_type" field if the given value is not nil.
+func (_u *BackupConfigUpdateOne) SetNillableCopyRepositoryType(v *string) *BackupConfigUpdateOne {
+	if v != nil {
+		_u.SetCopyRepositoryType(*v)
+	}
+	return _u
+}
+
+// ClearCopyRepositoryType clears the value of the "copy_repository_type" field.
+func (_u *BackupConfigUpdateOne) ClearCopyRepositoryType() *BackupConfigUpdateOne {
+	_u.mutation.ClearCopyRepositoryType()
+	return _u
+}
+
+// SetCopyRepositoryLocation sets the "copy_repository_location" field.
+func (_u *BackupConfigUpdateOne) SetCopyRepositoryLocation(v string) *BackupConfigUpdateOne {
+	_u.mutation.SetCopyRepositoryLocation(v)
+	return _u
+}
+
+// SetNillableCopyRepositoryLocation sets the "copy_repository_location" field if the given value is not nil.
+func (_u *BackupConfigUpdateOne) SetNillableCopyRepositoryLocation(v *string) *BackupConfigUpdateOne {
+	if v != nil {
+		_u.SetCopyRepositoryLocation(*v)
+	}
+	return _u
+}
+
+// ClearCopyRepositoryLocation clears the value of the "copy_repository_location" field.
+func (_u *BackupConfigUpdateOne) ClearCopyRepositoryLocation() *BackupConfigUpdateOne {
+	_u.mutation.ClearCopyRepositoryLocation()
+	return _u
+}
+
+// SetCopySealedCredentials sets the "copy_sealed_credentials" field.
+func (_u *BackupConfigUpdateOne) SetCopySealedCredentials(v string) *BackupConfigUpdateOne {
+	_u.mutation.SetCopySealedCredentials(v)
+	return _u
+}
+
+// SetNillableCopySealedCredentials sets the "copy_sealed_credentials" field if the given value is not nil.
+func (_u *BackupConfigUpdateOne) SetNillableCopySealedCredentials(v *string) *BackupConfigUpdateOne {
+	if v != nil {
+		_u.SetCopySealedCredentials(*v)
+	}
+	return _u
+}
+
+// SetCopyInitializedAt sets the "copy_initialized_at" field.
+func (_u *BackupConfigUpdateOne) SetCopyInitializedAt(v time.Time) *BackupConfigUpdateOne {
+	_u.mutation.SetCopyInitializedAt(v)
+	return _u
+}
+
+// SetNillableCopyInitializedAt sets the "copy_initialized_at" field if the given value is not nil.
+func (_u *BackupConfigUpdateOne) SetNillableCopyInitializedAt(v *time.Time) *BackupConfigUpdateOne {
+	if v != nil {
+		_u.SetCopyInitializedAt(*v)
+	}
+	return _u
+}
+
+// ClearCopyInitializedAt clears the value of the "copy_initialized_at" field.
+func (_u *BackupConfigUpdateOne) ClearCopyInitializedAt() *BackupConfigUpdateOne {
+	_u.mutation.ClearCopyInitializedAt()
+	return _u
+}
+
+// SetCopyAfterBackup sets the "copy_after_backup" field.
+func (_u *BackupConfigUpdateOne) SetCopyAfterBackup(v bool) *BackupConfigUpdateOne {
+	_u.mutation.SetCopyAfterBackup(v)
+	return _u
+}
+
+// SetNillableCopyAfterBackup sets the "copy_after_backup" field if the given value is not nil.
+func (_u *BackupConfigUpdateOne) SetNillableCopyAfterBackup(v *bool) *BackupConfigUpdateOne {
+	if v != nil {
+		_u.SetCopyAfterBackup(*v)
+	}
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *BackupConfigUpdateOne) SetUpdatedAt(v time.Time) *BackupConfigUpdateOne {
 	_u.mutation.SetUpdatedAt(v)
@@ -1188,6 +1388,30 @@ func (_u *BackupConfigUpdateOne) sqlSave(ctx context.Context) (_node *BackupConf
 	}
 	if value, ok := _u.mutation.AddedCheckSubsetPercent(); ok {
 		_spec.AddField(backupconfig.FieldCheckSubsetPercent, field.TypeInt, value)
+	}
+	if value, ok := _u.mutation.CopyRepositoryType(); ok {
+		_spec.SetField(backupconfig.FieldCopyRepositoryType, field.TypeString, value)
+	}
+	if _u.mutation.CopyRepositoryTypeCleared() {
+		_spec.ClearField(backupconfig.FieldCopyRepositoryType, field.TypeString)
+	}
+	if value, ok := _u.mutation.CopyRepositoryLocation(); ok {
+		_spec.SetField(backupconfig.FieldCopyRepositoryLocation, field.TypeString, value)
+	}
+	if _u.mutation.CopyRepositoryLocationCleared() {
+		_spec.ClearField(backupconfig.FieldCopyRepositoryLocation, field.TypeString)
+	}
+	if value, ok := _u.mutation.CopySealedCredentials(); ok {
+		_spec.SetField(backupconfig.FieldCopySealedCredentials, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.CopyInitializedAt(); ok {
+		_spec.SetField(backupconfig.FieldCopyInitializedAt, field.TypeTime, value)
+	}
+	if _u.mutation.CopyInitializedAtCleared() {
+		_spec.ClearField(backupconfig.FieldCopyInitializedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.CopyAfterBackup(); ok {
+		_spec.SetField(backupconfig.FieldCopyAfterBackup, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(backupconfig.FieldUpdatedAt, field.TypeTime, value)

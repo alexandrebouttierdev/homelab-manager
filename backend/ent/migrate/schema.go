@@ -144,6 +144,11 @@ var (
 		{Name: "keep_yearly", Type: field.TypeInt, Default: 0},
 		{Name: "check_enabled", Type: field.TypeBool, Default: true},
 		{Name: "check_subset_percent", Type: field.TypeInt, Default: 5},
+		{Name: "copy_repository_type", Type: field.TypeString, Nullable: true},
+		{Name: "copy_repository_location", Type: field.TypeString, Nullable: true},
+		{Name: "copy_sealed_credentials", Type: field.TypeString, Size: 2147483647, Default: ""},
+		{Name: "copy_initialized_at", Type: field.TypeTime, Nullable: true},
+		{Name: "copy_after_backup", Type: field.TypeBool, Default: false},
 		{Name: "updated_at", Type: field.TypeTime},
 		{Name: "updated_by", Type: field.TypeString, Default: ""},
 	}

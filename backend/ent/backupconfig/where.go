@@ -150,6 +150,31 @@ func CheckSubsetPercent(v int) predicate.BackupConfig {
 	return predicate.BackupConfig(sql.FieldEQ(FieldCheckSubsetPercent, v))
 }
 
+// CopyRepositoryType applies equality check predicate on the "copy_repository_type" field. It's identical to CopyRepositoryTypeEQ.
+func CopyRepositoryType(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldEQ(FieldCopyRepositoryType, v))
+}
+
+// CopyRepositoryLocation applies equality check predicate on the "copy_repository_location" field. It's identical to CopyRepositoryLocationEQ.
+func CopyRepositoryLocation(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldEQ(FieldCopyRepositoryLocation, v))
+}
+
+// CopySealedCredentials applies equality check predicate on the "copy_sealed_credentials" field. It's identical to CopySealedCredentialsEQ.
+func CopySealedCredentials(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldEQ(FieldCopySealedCredentials, v))
+}
+
+// CopyInitializedAt applies equality check predicate on the "copy_initialized_at" field. It's identical to CopyInitializedAtEQ.
+func CopyInitializedAt(v time.Time) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldEQ(FieldCopyInitializedAt, v))
+}
+
+// CopyAfterBackup applies equality check predicate on the "copy_after_backup" field. It's identical to CopyAfterBackupEQ.
+func CopyAfterBackup(v bool) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldEQ(FieldCopyAfterBackup, v))
+}
+
 // UpdatedAt applies equality check predicate on the "updated_at" field. It's identical to UpdatedAtEQ.
 func UpdatedAt(v time.Time) predicate.BackupConfig {
 	return predicate.BackupConfig(sql.FieldEQ(FieldUpdatedAt, v))
@@ -978,6 +1003,281 @@ func CheckSubsetPercentLT(v int) predicate.BackupConfig {
 // CheckSubsetPercentLTE applies the LTE predicate on the "check_subset_percent" field.
 func CheckSubsetPercentLTE(v int) predicate.BackupConfig {
 	return predicate.BackupConfig(sql.FieldLTE(FieldCheckSubsetPercent, v))
+}
+
+// CopyRepositoryTypeEQ applies the EQ predicate on the "copy_repository_type" field.
+func CopyRepositoryTypeEQ(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldEQ(FieldCopyRepositoryType, v))
+}
+
+// CopyRepositoryTypeNEQ applies the NEQ predicate on the "copy_repository_type" field.
+func CopyRepositoryTypeNEQ(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldNEQ(FieldCopyRepositoryType, v))
+}
+
+// CopyRepositoryTypeIn applies the In predicate on the "copy_repository_type" field.
+func CopyRepositoryTypeIn(vs ...string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldIn(FieldCopyRepositoryType, vs...))
+}
+
+// CopyRepositoryTypeNotIn applies the NotIn predicate on the "copy_repository_type" field.
+func CopyRepositoryTypeNotIn(vs ...string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldNotIn(FieldCopyRepositoryType, vs...))
+}
+
+// CopyRepositoryTypeGT applies the GT predicate on the "copy_repository_type" field.
+func CopyRepositoryTypeGT(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldGT(FieldCopyRepositoryType, v))
+}
+
+// CopyRepositoryTypeGTE applies the GTE predicate on the "copy_repository_type" field.
+func CopyRepositoryTypeGTE(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldGTE(FieldCopyRepositoryType, v))
+}
+
+// CopyRepositoryTypeLT applies the LT predicate on the "copy_repository_type" field.
+func CopyRepositoryTypeLT(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldLT(FieldCopyRepositoryType, v))
+}
+
+// CopyRepositoryTypeLTE applies the LTE predicate on the "copy_repository_type" field.
+func CopyRepositoryTypeLTE(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldLTE(FieldCopyRepositoryType, v))
+}
+
+// CopyRepositoryTypeContains applies the Contains predicate on the "copy_repository_type" field.
+func CopyRepositoryTypeContains(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldContains(FieldCopyRepositoryType, v))
+}
+
+// CopyRepositoryTypeHasPrefix applies the HasPrefix predicate on the "copy_repository_type" field.
+func CopyRepositoryTypeHasPrefix(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldHasPrefix(FieldCopyRepositoryType, v))
+}
+
+// CopyRepositoryTypeHasSuffix applies the HasSuffix predicate on the "copy_repository_type" field.
+func CopyRepositoryTypeHasSuffix(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldHasSuffix(FieldCopyRepositoryType, v))
+}
+
+// CopyRepositoryTypeIsNil applies the IsNil predicate on the "copy_repository_type" field.
+func CopyRepositoryTypeIsNil() predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldIsNull(FieldCopyRepositoryType))
+}
+
+// CopyRepositoryTypeNotNil applies the NotNil predicate on the "copy_repository_type" field.
+func CopyRepositoryTypeNotNil() predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldNotNull(FieldCopyRepositoryType))
+}
+
+// CopyRepositoryTypeEqualFold applies the EqualFold predicate on the "copy_repository_type" field.
+func CopyRepositoryTypeEqualFold(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldEqualFold(FieldCopyRepositoryType, v))
+}
+
+// CopyRepositoryTypeContainsFold applies the ContainsFold predicate on the "copy_repository_type" field.
+func CopyRepositoryTypeContainsFold(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldContainsFold(FieldCopyRepositoryType, v))
+}
+
+// CopyRepositoryLocationEQ applies the EQ predicate on the "copy_repository_location" field.
+func CopyRepositoryLocationEQ(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldEQ(FieldCopyRepositoryLocation, v))
+}
+
+// CopyRepositoryLocationNEQ applies the NEQ predicate on the "copy_repository_location" field.
+func CopyRepositoryLocationNEQ(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldNEQ(FieldCopyRepositoryLocation, v))
+}
+
+// CopyRepositoryLocationIn applies the In predicate on the "copy_repository_location" field.
+func CopyRepositoryLocationIn(vs ...string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldIn(FieldCopyRepositoryLocation, vs...))
+}
+
+// CopyRepositoryLocationNotIn applies the NotIn predicate on the "copy_repository_location" field.
+func CopyRepositoryLocationNotIn(vs ...string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldNotIn(FieldCopyRepositoryLocation, vs...))
+}
+
+// CopyRepositoryLocationGT applies the GT predicate on the "copy_repository_location" field.
+func CopyRepositoryLocationGT(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldGT(FieldCopyRepositoryLocation, v))
+}
+
+// CopyRepositoryLocationGTE applies the GTE predicate on the "copy_repository_location" field.
+func CopyRepositoryLocationGTE(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldGTE(FieldCopyRepositoryLocation, v))
+}
+
+// CopyRepositoryLocationLT applies the LT predicate on the "copy_repository_location" field.
+func CopyRepositoryLocationLT(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldLT(FieldCopyRepositoryLocation, v))
+}
+
+// CopyRepositoryLocationLTE applies the LTE predicate on the "copy_repository_location" field.
+func CopyRepositoryLocationLTE(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldLTE(FieldCopyRepositoryLocation, v))
+}
+
+// CopyRepositoryLocationContains applies the Contains predicate on the "copy_repository_location" field.
+func CopyRepositoryLocationContains(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldContains(FieldCopyRepositoryLocation, v))
+}
+
+// CopyRepositoryLocationHasPrefix applies the HasPrefix predicate on the "copy_repository_location" field.
+func CopyRepositoryLocationHasPrefix(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldHasPrefix(FieldCopyRepositoryLocation, v))
+}
+
+// CopyRepositoryLocationHasSuffix applies the HasSuffix predicate on the "copy_repository_location" field.
+func CopyRepositoryLocationHasSuffix(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldHasSuffix(FieldCopyRepositoryLocation, v))
+}
+
+// CopyRepositoryLocationIsNil applies the IsNil predicate on the "copy_repository_location" field.
+func CopyRepositoryLocationIsNil() predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldIsNull(FieldCopyRepositoryLocation))
+}
+
+// CopyRepositoryLocationNotNil applies the NotNil predicate on the "copy_repository_location" field.
+func CopyRepositoryLocationNotNil() predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldNotNull(FieldCopyRepositoryLocation))
+}
+
+// CopyRepositoryLocationEqualFold applies the EqualFold predicate on the "copy_repository_location" field.
+func CopyRepositoryLocationEqualFold(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldEqualFold(FieldCopyRepositoryLocation, v))
+}
+
+// CopyRepositoryLocationContainsFold applies the ContainsFold predicate on the "copy_repository_location" field.
+func CopyRepositoryLocationContainsFold(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldContainsFold(FieldCopyRepositoryLocation, v))
+}
+
+// CopySealedCredentialsEQ applies the EQ predicate on the "copy_sealed_credentials" field.
+func CopySealedCredentialsEQ(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldEQ(FieldCopySealedCredentials, v))
+}
+
+// CopySealedCredentialsNEQ applies the NEQ predicate on the "copy_sealed_credentials" field.
+func CopySealedCredentialsNEQ(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldNEQ(FieldCopySealedCredentials, v))
+}
+
+// CopySealedCredentialsIn applies the In predicate on the "copy_sealed_credentials" field.
+func CopySealedCredentialsIn(vs ...string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldIn(FieldCopySealedCredentials, vs...))
+}
+
+// CopySealedCredentialsNotIn applies the NotIn predicate on the "copy_sealed_credentials" field.
+func CopySealedCredentialsNotIn(vs ...string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldNotIn(FieldCopySealedCredentials, vs...))
+}
+
+// CopySealedCredentialsGT applies the GT predicate on the "copy_sealed_credentials" field.
+func CopySealedCredentialsGT(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldGT(FieldCopySealedCredentials, v))
+}
+
+// CopySealedCredentialsGTE applies the GTE predicate on the "copy_sealed_credentials" field.
+func CopySealedCredentialsGTE(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldGTE(FieldCopySealedCredentials, v))
+}
+
+// CopySealedCredentialsLT applies the LT predicate on the "copy_sealed_credentials" field.
+func CopySealedCredentialsLT(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldLT(FieldCopySealedCredentials, v))
+}
+
+// CopySealedCredentialsLTE applies the LTE predicate on the "copy_sealed_credentials" field.
+func CopySealedCredentialsLTE(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldLTE(FieldCopySealedCredentials, v))
+}
+
+// CopySealedCredentialsContains applies the Contains predicate on the "copy_sealed_credentials" field.
+func CopySealedCredentialsContains(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldContains(FieldCopySealedCredentials, v))
+}
+
+// CopySealedCredentialsHasPrefix applies the HasPrefix predicate on the "copy_sealed_credentials" field.
+func CopySealedCredentialsHasPrefix(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldHasPrefix(FieldCopySealedCredentials, v))
+}
+
+// CopySealedCredentialsHasSuffix applies the HasSuffix predicate on the "copy_sealed_credentials" field.
+func CopySealedCredentialsHasSuffix(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldHasSuffix(FieldCopySealedCredentials, v))
+}
+
+// CopySealedCredentialsEqualFold applies the EqualFold predicate on the "copy_sealed_credentials" field.
+func CopySealedCredentialsEqualFold(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldEqualFold(FieldCopySealedCredentials, v))
+}
+
+// CopySealedCredentialsContainsFold applies the ContainsFold predicate on the "copy_sealed_credentials" field.
+func CopySealedCredentialsContainsFold(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldContainsFold(FieldCopySealedCredentials, v))
+}
+
+// CopyInitializedAtEQ applies the EQ predicate on the "copy_initialized_at" field.
+func CopyInitializedAtEQ(v time.Time) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldEQ(FieldCopyInitializedAt, v))
+}
+
+// CopyInitializedAtNEQ applies the NEQ predicate on the "copy_initialized_at" field.
+func CopyInitializedAtNEQ(v time.Time) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldNEQ(FieldCopyInitializedAt, v))
+}
+
+// CopyInitializedAtIn applies the In predicate on the "copy_initialized_at" field.
+func CopyInitializedAtIn(vs ...time.Time) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldIn(FieldCopyInitializedAt, vs...))
+}
+
+// CopyInitializedAtNotIn applies the NotIn predicate on the "copy_initialized_at" field.
+func CopyInitializedAtNotIn(vs ...time.Time) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldNotIn(FieldCopyInitializedAt, vs...))
+}
+
+// CopyInitializedAtGT applies the GT predicate on the "copy_initialized_at" field.
+func CopyInitializedAtGT(v time.Time) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldGT(FieldCopyInitializedAt, v))
+}
+
+// CopyInitializedAtGTE applies the GTE predicate on the "copy_initialized_at" field.
+func CopyInitializedAtGTE(v time.Time) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldGTE(FieldCopyInitializedAt, v))
+}
+
+// CopyInitializedAtLT applies the LT predicate on the "copy_initialized_at" field.
+func CopyInitializedAtLT(v time.Time) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldLT(FieldCopyInitializedAt, v))
+}
+
+// CopyInitializedAtLTE applies the LTE predicate on the "copy_initialized_at" field.
+func CopyInitializedAtLTE(v time.Time) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldLTE(FieldCopyInitializedAt, v))
+}
+
+// CopyInitializedAtIsNil applies the IsNil predicate on the "copy_initialized_at" field.
+func CopyInitializedAtIsNil() predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldIsNull(FieldCopyInitializedAt))
+}
+
+// CopyInitializedAtNotNil applies the NotNil predicate on the "copy_initialized_at" field.
+func CopyInitializedAtNotNil() predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldNotNull(FieldCopyInitializedAt))
+}
+
+// CopyAfterBackupEQ applies the EQ predicate on the "copy_after_backup" field.
+func CopyAfterBackupEQ(v bool) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldEQ(FieldCopyAfterBackup, v))
+}
+
+// CopyAfterBackupNEQ applies the NEQ predicate on the "copy_after_backup" field.
+func CopyAfterBackupNEQ(v bool) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldNEQ(FieldCopyAfterBackup, v))
 }
 
 // UpdatedAtEQ applies the EQ predicate on the "updated_at" field.

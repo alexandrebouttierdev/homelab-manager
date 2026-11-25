@@ -250,8 +250,16 @@ func init() {
 	backupconfigDescCheckSubsetPercent := backupconfigFields[21].Descriptor()
 	// backupconfig.DefaultCheckSubsetPercent holds the default value on creation for the check_subset_percent field.
 	backupconfig.DefaultCheckSubsetPercent = backupconfigDescCheckSubsetPercent.Default.(int)
+	// backupconfigDescCopySealedCredentials is the schema descriptor for copy_sealed_credentials field.
+	backupconfigDescCopySealedCredentials := backupconfigFields[24].Descriptor()
+	// backupconfig.DefaultCopySealedCredentials holds the default value on creation for the copy_sealed_credentials field.
+	backupconfig.DefaultCopySealedCredentials = backupconfigDescCopySealedCredentials.Default.(string)
+	// backupconfigDescCopyAfterBackup is the schema descriptor for copy_after_backup field.
+	backupconfigDescCopyAfterBackup := backupconfigFields[26].Descriptor()
+	// backupconfig.DefaultCopyAfterBackup holds the default value on creation for the copy_after_backup field.
+	backupconfig.DefaultCopyAfterBackup = backupconfigDescCopyAfterBackup.Default.(bool)
 	// backupconfigDescUpdatedBy is the schema descriptor for updated_by field.
-	backupconfigDescUpdatedBy := backupconfigFields[23].Descriptor()
+	backupconfigDescUpdatedBy := backupconfigFields[28].Descriptor()
 	// backupconfig.DefaultUpdatedBy holds the default value on creation for the updated_by field.
 	backupconfig.DefaultUpdatedBy = backupconfigDescUpdatedBy.Default.(string)
 	// backupconfigDescID is the schema descriptor for id field.

@@ -1,6 +1,7 @@
 # Homelab Manager: runs one restic operation for the Manager
 # (SPEC_ADMINISTRATION.md § 7.1): init, backup, forget-prune, check,
-# restore (into /var/lib/homelab-backup/restore/<run>), snapshots, unlock. Started
+# restore (into /var/lib/homelab-backup/restore/<run>), snapshots, unlock,
+# diff, copy (to the copy repository). Started
 # only by the Manager over D-Bus, allowed by
 # deployments/polkit/50-homelab-manager-backup.rules; never enabled.
 # homelab-backup-runner reads the job the Manager wrote in

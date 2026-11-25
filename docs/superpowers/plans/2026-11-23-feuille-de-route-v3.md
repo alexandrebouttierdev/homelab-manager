@@ -140,7 +140,7 @@ Ordre de réalisation : 1A → M → 1B → 1C → 2 → 3 → 4 → V → 5 →
 - Sources, exclusions glob vérifiées, rétention `forget`/`prune`, `check --read-data-subset` hebdomadaire.
 - Instantanés, diff, historique des exécutions ; restauration simulée puis en quarantaine.
 - Alerte en cas d'échec ou de retard (phase 4).
-- Probablement découpée en 6A (dépôts, sauvegarde, historique) et 6B (rétention, vérification, restauration).
+- Livrée en trois incréments : 6A (dépôts, sauvegarde, historique), 6B (rétention, vérification, restauration) et 6C (diff, dépôt de copie) ; SFTP reste à décider.
 
 ### 7 — Tâches planifiées en lecture
 

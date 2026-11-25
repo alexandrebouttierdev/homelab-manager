@@ -61,6 +61,16 @@ type BackupConfig struct {
 	CheckEnabled bool `json:"check_enabled,omitempty"`
 	// CheckSubsetPercent holds the value of the "check_subset_percent" field.
 	CheckSubsetPercent int `json:"check_subset_percent,omitempty"`
+	// CopyRepositoryType holds the value of the "copy_repository_type" field.
+	CopyRepositoryType *string `json:"copy_repository_type,omitempty"`
+	// CopyRepositoryLocation holds the value of the "copy_repository_location" field.
+	CopyRepositoryLocation *string `json:"copy_repository_location,omitempty"`
+	// CopySealedCredentials holds the value of the "copy_sealed_credentials" field.
+	CopySealedCredentials string `json:"-"`
+	// CopyInitializedAt holds the value of the "copy_initialized_at" field.
+	CopyInitializedAt *time.Time `json:"copy_initialized_at,omitempty"`
+	// CopyAfterBackup holds the value of the "copy_after_backup" field.
+	CopyAfterBackup bool `json:"copy_after_backup,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
 	// UpdatedBy holds the value of the "updated_by" field.
@@ -75,13 +85,13 @@ func (*BackupConfig) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case backupconfig.FieldSources, backupconfig.FieldExcludes:
 			values[i] = new([]byte)
-		case backupconfig.FieldExcludeCaches, backupconfig.FieldScheduleEnabled, backupconfig.FieldRetentionEnabled, backupconfig.FieldCheckEnabled:
+		case backupconfig.FieldExcludeCaches, backupconfig.FieldScheduleEnabled, backupconfig.FieldRetentionEnabled, backupconfig.FieldCheckEnabled, backupconfig.FieldCopyAfterBackup:
 			values[i] = new(sql.NullBool)
 		case backupconfig.FieldScheduleWeekday, backupconfig.FieldScheduleHour, backupconfig.FieldScheduleMinute, backupconfig.FieldKeepDaily, backupconfig.FieldKeepWeekly, backupconfig.FieldKeepMonthly, backupconfig.FieldKeepYearly, backupconfig.FieldCheckSubsetPercent:
 			values[i] = new(sql.NullInt64)
-		case backupconfig.FieldSingletonKey, backupconfig.FieldRepositoryType, backupconfig.FieldRepositoryLocation, backupconfig.FieldSealedCredentials, backupconfig.FieldExcludeIfPresent, backupconfig.FieldScheduleFrequency, backupconfig.FieldUpdatedBy:
+		case backupconfig.FieldSingletonKey, backupconfig.FieldRepositoryType, backupconfig.FieldRepositoryLocation, backupconfig.FieldSealedCredentials, backupconfig.FieldExcludeIfPresent, backupconfig.FieldScheduleFrequency, backupconfig.FieldCopyRepositoryType, backupconfig.FieldCopyRepositoryLocation, backupconfig.FieldCopySealedCredentials, backupconfig.FieldUpdatedBy:
 			values[i] = new(sql.NullString)
-		case backupconfig.FieldInitializedAt, backupconfig.FieldUpdatedAt:
+		case backupconfig.FieldInitializedAt, backupconfig.FieldCopyInitializedAt, backupconfig.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		case backupconfig.FieldID:
 			values[i] = new(uuid.UUID)
@@ -239,6 +249,39 @@ func (_m *BackupConfig) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.CheckSubsetPercent = int(value.Int64)
 			}
+		case backupconfig.FieldCopyRepositoryType:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field copy_repository_type", values[i])
+			} else if value.Valid {
+				_m.CopyRepositoryType = new(string)
+				*_m.CopyRepositoryType = value.String
+			}
+		case backupconfig.FieldCopyRepositoryLocation:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field copy_repository_location", values[i])
+			} else if value.Valid {
+				_m.CopyRepositoryLocation = new(string)
+				*_m.CopyRepositoryLocation = value.String
+			}
+		case backupconfig.FieldCopySealedCredentials:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field copy_sealed_credentials", values[i])
+			} else if value.Valid {
+				_m.CopySealedCredentials = value.String
+			}
+		case backupconfig.FieldCopyInitializedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field copy_initialized_at", values[i])
+			} else if value.Valid {
+				_m.CopyInitializedAt = new(time.Time)
+				*_m.CopyInitializedAt = value.Time
+			}
+		case backupconfig.FieldCopyAfterBackup:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field copy_after_backup", values[i])
+			} else if value.Valid {
+				_m.CopyAfterBackup = value.Bool
+			}
 		case backupconfig.FieldUpdatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field updated_at", values[i])
@@ -354,6 +397,26 @@ func (_m *BackupConfig) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("check_subset_percent=")
 	builder.WriteString(fmt.Sprintf("%v", _m.CheckSubsetPercent))
+	builder.WriteString(", ")
+	if v := _m.CopyRepositoryType; v != nil {
+		builder.WriteString("copy_repository_type=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	if v := _m.CopyRepositoryLocation; v != nil {
+		builder.WriteString("copy_repository_location=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	builder.WriteString("copy_sealed_credentials=<sensitive>")
+	builder.WriteString(", ")
+	if v := _m.CopyInitializedAt; v != nil {
+		builder.WriteString("copy_initialized_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	builder.WriteString("copy_after_backup=")
+	builder.WriteString(fmt.Sprintf("%v", _m.CopyAfterBackup))
 	builder.WriteString(", ")
 	builder.WriteString("updated_at=")
 	builder.WriteString(_m.UpdatedAt.Format(time.ANSIC))

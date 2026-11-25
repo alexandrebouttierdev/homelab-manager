@@ -11,9 +11,9 @@ import (
 
 func TestValidateBackupRepository(t *testing.T) {
 	valid := []BackupRepository{
-		{RepositoryLocal, "/mnt/backup/restic"},
-		{RepositoryRest, "https://backup.lan:8000/homelab"},
-		{RepositoryS3, "https://s3.eu-central-003.backblazeb2.com/my-bucket/homelab"},
+		{Type: RepositoryLocal, Location: "/mnt/backup/restic"},
+		{Type: RepositoryRest, Location: "https://backup.lan:8000/homelab"},
+		{Type: RepositoryS3, Location: "https://s3.eu-central-003.backblazeb2.com/my-bucket/homelab"},
 	}
 	for _, repository := range valid {
 		if err := ValidateBackupRepository(repository); err != nil {
@@ -21,19 +21,21 @@ func TestValidateBackupRepository(t *testing.T) {
 		}
 	}
 	invalid := []BackupRepository{
-		{RepositoryLocal, ""},
-		{RepositoryLocal, "/"},
-		{RepositoryLocal, "relative/path"},
-		{RepositoryLocal, "/mnt/../etc"},
-		{RepositoryLocal, "/mnt/backup/"},
-		{RepositoryLocal, "/mnt/back\nup"},
-		{RepositoryRest, "http://backup.lan:8000/"},
-		{RepositoryRest, "https://user:pass@backup.lan/"},
-		{RepositoryRest, "https://backup.lan/?x=1"},
-		{RepositoryRest, "/mnt/backup"},
-		{RepositoryS3, "https://s3.example.com"},
-		{RepositoryS3, "https://s3.example.com/"},
-		{"sftp", "sftp:user@host:/srv"},
+		{Type: RepositoryLocal, Location: ""},
+		{Type: RepositoryLocal, Location: "/"},
+		{Type: RepositoryLocal, Location: "relative/path"},
+		{Type: RepositoryLocal, Location: "/mnt/../etc"},
+		{Type: RepositoryLocal, Location: "/mnt/backup/"},
+		{Type: RepositoryLocal, Location: "/mnt/back\nup"},
+		{Type: RepositoryRest, Location: "http://backup.lan:8000/"},
+		{Type: RepositoryRest, Location: "https://user:pass@backup.lan/"},
+		{Type: RepositoryRest, Location: "https://backup.lan/?x=1"},
+		{Type: RepositoryRest, Location: "/mnt/backup"},
+		{Type: RepositoryS3, Location: "https://s3.example.com"},
+		{Type: RepositoryS3, Location: "https://s3.example.com/"},
+		{Type: RepositorySFTP, Location: "sftp:user@host:/srv", HostKey: testHostKey},
+		{Type: RepositoryLocal, Location: "/mnt/backup", HostKey: testHostKey},
+		{Type: "ftp", Location: "/mnt/backup"},
 	}
 	for _, repository := range invalid {
 		var validation *BackupValidationError
@@ -43,11 +45,90 @@ func TestValidateBackupRepository(t *testing.T) {
 	}
 }
 
+const testHostKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl"
+
+func TestValidateSFTPRepository(t *testing.T) {
+	for _, location := range []string{
+		"sftp://backup@nas.lan/srv/restic",
+		"sftp://backup@nas.lan:2222/srv/restic/homelab",
+		"sftp://u_1@192.168.1.10/volume1/backup",
+		"sftp://backup@[fd00::10]:22/srv/restic",
+	} {
+		if err := ValidateBackupRepository(BackupRepository{Type: RepositorySFTP, Location: location, HostKey: testHostKey}); err != nil {
+			t.Errorf("%s rejected: %v", location, err)
+		}
+	}
+	for _, location := range []string{
+		"sftp://nas.lan/srv/restic",               // no user
+		"sftp://backup:pass@nas.lan/srv/restic",   // password
+		"sftp://-oProxyCommand=x@nas.lan/srv",     // option as user
+		"sftp://backup@-oProxyCommand=x/srv",      // option as host
+		"sftp://backup@nas.lan:0/srv/restic",      // port
+		"sftp://backup@nas.lan:99999/srv/restic",  // port
+		"sftp://backup@nas.lan:022/srv/restic",    // port
+		"sftp://backup@nas.lan/",                  // root
+		"sftp://backup@nas.lan",                   // no path
+		"sftp://backup@nas.lan/srv/../etc",        // not clean
+		"sftp://backup@nas.lan/srv/a%20b",         // escape
+		"sftp://backup@nas.lan/srv/a b",           // blank
+		"sftp://backup@nas.lan/srv/restic?x=1",    // query
+		"sftp://backup@nas.lan/srv/restic#x",      // fragment
+		"https://backup@nas.lan/srv/restic",       // scheme
+		"sftp://backup@nas_lan/srv/restic",        // host
+		"sftp://backup@fe80::1%25eth0/srv/restic", // zone
+	} {
+		var validation *BackupValidationError
+		if err := ValidateBackupRepository(BackupRepository{Type: RepositorySFTP, Location: location, HostKey: testHostKey}); !errors.As(err, &validation) || validation.Field != "location" {
+			t.Errorf("%s accepted (%v)", location, err)
+		}
+	}
+	for _, hostKey := range []string{"", "ssh-ed25519 AAAA\nssh-rsa BBBB", strings.Repeat("a", MaxBackupHostKeyBytes+1)} {
+		var validation *BackupValidationError
+		err := ValidateBackupRepository(BackupRepository{Type: RepositorySFTP, Location: "sftp://b@nas.lan/srv/r", HostKey: hostKey})
+		if !errors.As(err, &validation) || validation.Field != "hostKey" {
+			t.Errorf("host key %.20q accepted (%v)", hostKey, err)
+		}
+	}
+	if err := ValidateBackupCredentials(RepositorySFTP, BackupCredentials{Password: "p", Username: "u"}); err == nil {
+		t.Fatal("SFTP takes no access keys")
+	}
+}
+
+func TestSFTPEndpointAndSameLocation(t *testing.T) {
+	repository := BackupRepository{Type: RepositorySFTP, Location: "sftp://backup@[fd00::10]:2222/srv/r", HostKey: testHostKey}
+	user, host, port, ok := repository.SFTPEndpoint()
+	if !ok || user != "backup" || host != "fd00::10" || port != "2222" {
+		t.Fatalf("endpoint = %q %q %q %v", user, host, port, ok)
+	}
+	if _, _, _, ok := (BackupRepository{Type: RepositoryLocal, Location: "/srv"}).SFTPEndpoint(); ok {
+		t.Fatal("endpoint of a local repository")
+	}
+	other := repository
+	other.HostKey = "ssh-ed25519 other"
+	if !repository.SameLocation(other) {
+		t.Fatal("a new host key changes the repository")
+	}
+	other.Location = "sftp://backup@[fd00::10]:2222/srv/s"
+	if repository.SameLocation(other) {
+		t.Fatal("another path is the same repository")
+	}
+	config := BackupConfig{Repository: &BackupRepository{Type: RepositoryLocal, Location: "/srv"}}
+	if config.UsesSFTP(BackupOpBackup) {
+		t.Fatal("local repository uses SFTP")
+	}
+	config.Copy = &BackupCopyTarget{Repository: repository}
+	if config.UsesSFTP(BackupOpBackup) || !config.UsesSFTP(BackupOpCopy) {
+		t.Fatal("an SFTP copy repository is used by the copy only")
+	}
+}
+
 func TestResticRepository(t *testing.T) {
 	cases := map[BackupRepository]string{
-		{RepositoryLocal, "/mnt/backup"}:         "/mnt/backup",
-		{RepositoryRest, "https://backup.lan/r"}: "rest:https://backup.lan/r",
-		{RepositoryS3, "https://s3.host/bucket"}: "s3:https://s3.host/bucket",
+		{Type: RepositorySFTP, Location: "sftp://backup@nas.lan:2222/srv/restic", HostKey: testHostKey}: "sftp://backup@nas.lan:2222//srv/restic",
+		{Type: RepositorySFTP, Location: "sftp://backup@[fd00::1]/srv/restic", HostKey: testHostKey}:    "sftp://backup@[fd00::1]//srv/restic",
+		{Type: RepositoryLocal, Location: "/mnt/backup"}:                                                "/mnt/backup",
+		{Type: RepositoryRest, Location: "https://backup.lan/r"}:                                        "rest:https://backup.lan/r",
+		{Type: RepositoryS3, Location: "https://s3.host/bucket"}:                                        "s3:https://s3.host/bucket",
 	}
 	for repository, want := range cases {
 		if got := repository.ResticRepository(); got != want {
@@ -165,7 +246,7 @@ func TestValidateBackupSchedule(t *testing.T) {
 func TestBackupConfigReady(t *testing.T) {
 	now := time.Now()
 	ready := BackupConfig{
-		Repository:        &BackupRepository{RepositoryLocal, "/mnt/backup"},
+		Repository:        &BackupRepository{Type: RepositoryLocal, Location: "/mnt/backup"},
 		SealedCredentials: "sealed", InitializedAt: &now,
 		Selection: BackupSelection{Sources: []string{"/etc"}},
 	}

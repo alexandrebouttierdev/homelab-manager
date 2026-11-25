@@ -83,6 +83,20 @@ func (_u *BackupConfigUpdate) ClearRepositoryLocation() *BackupConfigUpdate {
 	return _u
 }
 
+// SetRepositoryHostKey sets the "repository_host_key" field.
+func (_u *BackupConfigUpdate) SetRepositoryHostKey(v string) *BackupConfigUpdate {
+	_u.mutation.SetRepositoryHostKey(v)
+	return _u
+}
+
+// SetNillableRepositoryHostKey sets the "repository_host_key" field if the given value is not nil.
+func (_u *BackupConfigUpdate) SetNillableRepositoryHostKey(v *string) *BackupConfigUpdate {
+	if v != nil {
+		_u.SetRepositoryHostKey(*v)
+	}
+	return _u
+}
+
 // SetSealedCredentials sets the "sealed_credentials" field.
 func (_u *BackupConfigUpdate) SetSealedCredentials(v string) *BackupConfigUpdate {
 	_u.mutation.SetSealedCredentials(v)
@@ -433,6 +447,20 @@ func (_u *BackupConfigUpdate) ClearCopyRepositoryLocation() *BackupConfigUpdate 
 	return _u
 }
 
+// SetCopyRepositoryHostKey sets the "copy_repository_host_key" field.
+func (_u *BackupConfigUpdate) SetCopyRepositoryHostKey(v string) *BackupConfigUpdate {
+	_u.mutation.SetCopyRepositoryHostKey(v)
+	return _u
+}
+
+// SetNillableCopyRepositoryHostKey sets the "copy_repository_host_key" field if the given value is not nil.
+func (_u *BackupConfigUpdate) SetNillableCopyRepositoryHostKey(v *string) *BackupConfigUpdate {
+	if v != nil {
+		_u.SetCopyRepositoryHostKey(*v)
+	}
+	return _u
+}
+
 // SetCopySealedCredentials sets the "copy_sealed_credentials" field.
 func (_u *BackupConfigUpdate) SetCopySealedCredentials(v string) *BackupConfigUpdate {
 	_u.mutation.SetCopySealedCredentials(v)
@@ -478,6 +506,54 @@ func (_u *BackupConfigUpdate) SetNillableCopyAfterBackup(v *bool) *BackupConfigU
 	if v != nil {
 		_u.SetCopyAfterBackup(*v)
 	}
+	return _u
+}
+
+// SetSSHPublicKey sets the "ssh_public_key" field.
+func (_u *BackupConfigUpdate) SetSSHPublicKey(v string) *BackupConfigUpdate {
+	_u.mutation.SetSSHPublicKey(v)
+	return _u
+}
+
+// SetNillableSSHPublicKey sets the "ssh_public_key" field if the given value is not nil.
+func (_u *BackupConfigUpdate) SetNillableSSHPublicKey(v *string) *BackupConfigUpdate {
+	if v != nil {
+		_u.SetSSHPublicKey(*v)
+	}
+	return _u
+}
+
+// SetSSHSealedPrivateKey sets the "ssh_sealed_private_key" field.
+func (_u *BackupConfigUpdate) SetSSHSealedPrivateKey(v string) *BackupConfigUpdate {
+	_u.mutation.SetSSHSealedPrivateKey(v)
+	return _u
+}
+
+// SetNillableSSHSealedPrivateKey sets the "ssh_sealed_private_key" field if the given value is not nil.
+func (_u *BackupConfigUpdate) SetNillableSSHSealedPrivateKey(v *string) *BackupConfigUpdate {
+	if v != nil {
+		_u.SetSSHSealedPrivateKey(*v)
+	}
+	return _u
+}
+
+// SetSSHKeyCreatedAt sets the "ssh_key_created_at" field.
+func (_u *BackupConfigUpdate) SetSSHKeyCreatedAt(v time.Time) *BackupConfigUpdate {
+	_u.mutation.SetSSHKeyCreatedAt(v)
+	return _u
+}
+
+// SetNillableSSHKeyCreatedAt sets the "ssh_key_created_at" field if the given value is not nil.
+func (_u *BackupConfigUpdate) SetNillableSSHKeyCreatedAt(v *time.Time) *BackupConfigUpdate {
+	if v != nil {
+		_u.SetSSHKeyCreatedAt(*v)
+	}
+	return _u
+}
+
+// ClearSSHKeyCreatedAt clears the value of the "ssh_key_created_at" field.
+func (_u *BackupConfigUpdate) ClearSSHKeyCreatedAt() *BackupConfigUpdate {
+	_u.mutation.ClearSSHKeyCreatedAt()
 	return _u
 }
 
@@ -577,6 +653,9 @@ func (_u *BackupConfigUpdate) sqlSave(ctx context.Context) (_node int, err error
 	}
 	if _u.mutation.RepositoryLocationCleared() {
 		_spec.ClearField(backupconfig.FieldRepositoryLocation, field.TypeString)
+	}
+	if value, ok := _u.mutation.RepositoryHostKey(); ok {
+		_spec.SetField(backupconfig.FieldRepositoryHostKey, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.SealedCredentials(); ok {
 		_spec.SetField(backupconfig.FieldSealedCredentials, field.TypeString, value)
@@ -681,6 +760,9 @@ func (_u *BackupConfigUpdate) sqlSave(ctx context.Context) (_node int, err error
 	if _u.mutation.CopyRepositoryLocationCleared() {
 		_spec.ClearField(backupconfig.FieldCopyRepositoryLocation, field.TypeString)
 	}
+	if value, ok := _u.mutation.CopyRepositoryHostKey(); ok {
+		_spec.SetField(backupconfig.FieldCopyRepositoryHostKey, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.CopySealedCredentials(); ok {
 		_spec.SetField(backupconfig.FieldCopySealedCredentials, field.TypeString, value)
 	}
@@ -692,6 +774,18 @@ func (_u *BackupConfigUpdate) sqlSave(ctx context.Context) (_node int, err error
 	}
 	if value, ok := _u.mutation.CopyAfterBackup(); ok {
 		_spec.SetField(backupconfig.FieldCopyAfterBackup, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.SSHPublicKey(); ok {
+		_spec.SetField(backupconfig.FieldSSHPublicKey, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.SSHSealedPrivateKey(); ok {
+		_spec.SetField(backupconfig.FieldSSHSealedPrivateKey, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.SSHKeyCreatedAt(); ok {
+		_spec.SetField(backupconfig.FieldSSHKeyCreatedAt, field.TypeTime, value)
+	}
+	if _u.mutation.SSHKeyCreatedAtCleared() {
+		_spec.ClearField(backupconfig.FieldSSHKeyCreatedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(backupconfig.FieldUpdatedAt, field.TypeTime, value)
@@ -770,6 +864,20 @@ func (_u *BackupConfigUpdateOne) SetNillableRepositoryLocation(v *string) *Backu
 // ClearRepositoryLocation clears the value of the "repository_location" field.
 func (_u *BackupConfigUpdateOne) ClearRepositoryLocation() *BackupConfigUpdateOne {
 	_u.mutation.ClearRepositoryLocation()
+	return _u
+}
+
+// SetRepositoryHostKey sets the "repository_host_key" field.
+func (_u *BackupConfigUpdateOne) SetRepositoryHostKey(v string) *BackupConfigUpdateOne {
+	_u.mutation.SetRepositoryHostKey(v)
+	return _u
+}
+
+// SetNillableRepositoryHostKey sets the "repository_host_key" field if the given value is not nil.
+func (_u *BackupConfigUpdateOne) SetNillableRepositoryHostKey(v *string) *BackupConfigUpdateOne {
+	if v != nil {
+		_u.SetRepositoryHostKey(*v)
+	}
 	return _u
 }
 
@@ -1123,6 +1231,20 @@ func (_u *BackupConfigUpdateOne) ClearCopyRepositoryLocation() *BackupConfigUpda
 	return _u
 }
 
+// SetCopyRepositoryHostKey sets the "copy_repository_host_key" field.
+func (_u *BackupConfigUpdateOne) SetCopyRepositoryHostKey(v string) *BackupConfigUpdateOne {
+	_u.mutation.SetCopyRepositoryHostKey(v)
+	return _u
+}
+
+// SetNillableCopyRepositoryHostKey sets the "copy_repository_host_key" field if the given value is not nil.
+func (_u *BackupConfigUpdateOne) SetNillableCopyRepositoryHostKey(v *string) *BackupConfigUpdateOne {
+	if v != nil {
+		_u.SetCopyRepositoryHostKey(*v)
+	}
+	return _u
+}
+
 // SetCopySealedCredentials sets the "copy_sealed_credentials" field.
 func (_u *BackupConfigUpdateOne) SetCopySealedCredentials(v string) *BackupConfigUpdateOne {
 	_u.mutation.SetCopySealedCredentials(v)
@@ -1168,6 +1290,54 @@ func (_u *BackupConfigUpdateOne) SetNillableCopyAfterBackup(v *bool) *BackupConf
 	if v != nil {
 		_u.SetCopyAfterBackup(*v)
 	}
+	return _u
+}
+
+// SetSSHPublicKey sets the "ssh_public_key" field.
+func (_u *BackupConfigUpdateOne) SetSSHPublicKey(v string) *BackupConfigUpdateOne {
+	_u.mutation.SetSSHPublicKey(v)
+	return _u
+}
+
+// SetNillableSSHPublicKey sets the "ssh_public_key" field if the given value is not nil.
+func (_u *BackupConfigUpdateOne) SetNillableSSHPublicKey(v *string) *BackupConfigUpdateOne {
+	if v != nil {
+		_u.SetSSHPublicKey(*v)
+	}
+	return _u
+}
+
+// SetSSHSealedPrivateKey sets the "ssh_sealed_private_key" field.
+func (_u *BackupConfigUpdateOne) SetSSHSealedPrivateKey(v string) *BackupConfigUpdateOne {
+	_u.mutation.SetSSHSealedPrivateKey(v)
+	return _u
+}
+
+// SetNillableSSHSealedPrivateKey sets the "ssh_sealed_private_key" field if the given value is not nil.
+func (_u *BackupConfigUpdateOne) SetNillableSSHSealedPrivateKey(v *string) *BackupConfigUpdateOne {
+	if v != nil {
+		_u.SetSSHSealedPrivateKey(*v)
+	}
+	return _u
+}
+
+// SetSSHKeyCreatedAt sets the "ssh_key_created_at" field.
+func (_u *BackupConfigUpdateOne) SetSSHKeyCreatedAt(v time.Time) *BackupConfigUpdateOne {
+	_u.mutation.SetSSHKeyCreatedAt(v)
+	return _u
+}
+
+// SetNillableSSHKeyCreatedAt sets the "ssh_key_created_at" field if the given value is not nil.
+func (_u *BackupConfigUpdateOne) SetNillableSSHKeyCreatedAt(v *time.Time) *BackupConfigUpdateOne {
+	if v != nil {
+		_u.SetSSHKeyCreatedAt(*v)
+	}
+	return _u
+}
+
+// ClearSSHKeyCreatedAt clears the value of the "ssh_key_created_at" field.
+func (_u *BackupConfigUpdateOne) ClearSSHKeyCreatedAt() *BackupConfigUpdateOne {
+	_u.mutation.ClearSSHKeyCreatedAt()
 	return _u
 }
 
@@ -1298,6 +1468,9 @@ func (_u *BackupConfigUpdateOne) sqlSave(ctx context.Context) (_node *BackupConf
 	if _u.mutation.RepositoryLocationCleared() {
 		_spec.ClearField(backupconfig.FieldRepositoryLocation, field.TypeString)
 	}
+	if value, ok := _u.mutation.RepositoryHostKey(); ok {
+		_spec.SetField(backupconfig.FieldRepositoryHostKey, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.SealedCredentials(); ok {
 		_spec.SetField(backupconfig.FieldSealedCredentials, field.TypeString, value)
 	}
@@ -1401,6 +1574,9 @@ func (_u *BackupConfigUpdateOne) sqlSave(ctx context.Context) (_node *BackupConf
 	if _u.mutation.CopyRepositoryLocationCleared() {
 		_spec.ClearField(backupconfig.FieldCopyRepositoryLocation, field.TypeString)
 	}
+	if value, ok := _u.mutation.CopyRepositoryHostKey(); ok {
+		_spec.SetField(backupconfig.FieldCopyRepositoryHostKey, field.TypeString, value)
+	}
 	if value, ok := _u.mutation.CopySealedCredentials(); ok {
 		_spec.SetField(backupconfig.FieldCopySealedCredentials, field.TypeString, value)
 	}
@@ -1412,6 +1588,18 @@ func (_u *BackupConfigUpdateOne) sqlSave(ctx context.Context) (_node *BackupConf
 	}
 	if value, ok := _u.mutation.CopyAfterBackup(); ok {
 		_spec.SetField(backupconfig.FieldCopyAfterBackup, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.SSHPublicKey(); ok {
+		_spec.SetField(backupconfig.FieldSSHPublicKey, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.SSHSealedPrivateKey(); ok {
+		_spec.SetField(backupconfig.FieldSSHSealedPrivateKey, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.SSHKeyCreatedAt(); ok {
+		_spec.SetField(backupconfig.FieldSSHKeyCreatedAt, field.TypeTime, value)
+	}
+	if _u.mutation.SSHKeyCreatedAtCleared() {
+		_spec.ClearField(backupconfig.FieldSSHKeyCreatedAt, field.TypeTime)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(backupconfig.FieldUpdatedAt, field.TypeTime, value)

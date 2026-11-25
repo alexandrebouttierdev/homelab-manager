@@ -47,8 +47,20 @@ type BackupConfigView struct {
 	UpdatedAt      *time.Time
 	UpdatedBy      string
 	SecretsEnabled bool
+	// HostKeyFingerprint: of the pinned host key of an SFTP repository.
+	HostKeyFingerprint string
 	// Copy is the copy repository, nil when none is set.
 	Copy *BackupCopyView
+	// SSHKey is the public part of the SSH key of the Manager, nil until
+	// generated.
+	SSHKey *BackupSSHKeyView
+}
+
+// BackupSSHKeyView is the public part of the SSH key of the Manager.
+type BackupSSHKeyView struct {
+	PublicKey   string
+	Fingerprint string
+	CreatedAt   time.Time
 }
 
 // BackupCopyView is the copy repository without its secrets.
@@ -60,6 +72,8 @@ type BackupCopyView struct {
 	HasUsername   bool
 	HasSecret     bool
 	AfterBackup   bool
+	// HostKeyFingerprint: of the pinned host key of an SFTP repository.
+	HostKeyFingerprint string
 }
 
 // BackupCopyUpdate sets the copy repository. Username and Secret: nil
@@ -93,7 +107,9 @@ type BackupUsecase struct {
 	store    ports.BackupStore
 	executor ports.BackupExecutor
 	// box is nil without the secrets key: backups are then unavailable.
-	box       ports.SecretBox
+	box ports.SecretBox
+	// keys is nil when SFTP repositories are not available.
+	keys      ports.SSHKeys
 	logger    *zap.Logger
 	now       func() time.Time
 	location  *time.Location
@@ -122,10 +138,10 @@ type operationInput struct {
 	copyInit bool
 }
 
-func NewBackupUsecase(store ports.BackupStore, executor ports.BackupExecutor, box ports.SecretBox, logger *zap.Logger) *BackupUsecase {
+func NewBackupUsecase(store ports.BackupStore, executor ports.BackupExecutor, box ports.SecretBox, keys ports.SSHKeys, logger *zap.Logger) *BackupUsecase {
 	now := time.Now()
 	return &BackupUsecase{
-		store: store, executor: executor, box: box, logger: logger,
+		store: store, executor: executor, box: box, keys: keys, logger: logger,
 		now: time.Now, location: time.Local, tick: backupTick, startedAt: now,
 		requests: make(chan pendingBackup, 1),
 	}
@@ -214,17 +230,105 @@ func (u *BackupUsecase) Config(ctx context.Context) (BackupConfigView, error) {
 					credentials.Password != "", credentials.Username != "", credentials.Secret != ""
 			}
 		}
+		view.Copy.HostKeyFingerprint = u.fingerprint(copy.Repository.HostKey)
+	}
+	if config.Repository != nil {
+		view.HostKeyFingerprint = u.fingerprint(config.Repository.HostKey)
+	}
+	if key := config.SSHKey; key != nil {
+		view.SSHKey = &BackupSSHKeyView{PublicKey: key.PublicKey, Fingerprint: u.fingerprint(key.PublicKey), CreatedAt: key.CreatedAt}
 	}
 	return view, nil
+}
+
+// fingerprint is the SHA256 fingerprint of a public key, "" without one.
+func (u *BackupUsecase) fingerprint(publicKey string) string {
+	if publicKey == "" || u.keys == nil {
+		return ""
+	}
+	fingerprint, err := u.keys.Fingerprint(publicKey)
+	if err != nil {
+		return ""
+	}
+	return fingerprint
+}
+
+// prepareSFTP reads the host key of an SFTP repository into its stored
+// form before the validation, and checks that the Manager has its SSH key.
+// fieldPrefix names the fields of the copy repository.
+func (u *BackupUsecase) prepareSFTP(config domain.BackupConfig, repository *domain.BackupRepository, fieldPrefix string) error {
+	if repository == nil || repository.Type != domain.RepositorySFTP {
+		return nil
+	}
+	if u.keys == nil || config.SSHKey == nil {
+		return domain.ErrBackupSSHKeyMissing
+	}
+	normalized, err := u.keys.NormalizeHostKey(repository.HostKey)
+	if err != nil {
+		return &domain.BackupValidationError{Field: fieldPrefix + "hostKey", Message: err.Error()}
+	}
+	repository.HostKey = normalized
+	return nil
+}
+
+// GenerateSSHKey creates the SSH key of the Manager for its SFTP
+// repositories, or replaces it (decision D-13), audited. Its public part
+// must then be installed on the servers. Callers must hold
+// domain.PermManageBackups.
+func (u *BackupUsecase) GenerateSSHKey(ctx context.Context, actor domain.User, requestID string) (BackupConfigView, error) {
+	if u.box == nil {
+		return BackupConfigView{}, domain.ErrBackupSecretsMissing
+	}
+	if u.keys == nil {
+		return BackupConfigView{}, domain.ErrBackupSSHKeyMissing
+	}
+	config, err := u.store.BackupConfig(ctx)
+	if err != nil {
+		return BackupConfigView{}, err
+	}
+	privateKey, publicKey, err := u.keys.Generate(domain.BackupSSHKeyComment)
+	if err != nil {
+		return BackupConfigView{}, err
+	}
+	sealed, err := u.box.Seal([]byte(privateKey), domain.BackupSSHKeyAssociatedData)
+	if err != nil {
+		return BackupConfigView{}, fmt.Errorf("seal the SSH key: %w", err)
+	}
+	config.SSHKey = &domain.BackupSSHKey{PublicKey: publicKey, SealedPrivateKey: sealed, CreatedAt: u.now().UTC()}
+	return u.saveConfig(ctx, actor, config, "generate_ssh_key", requestID)
+}
+
+// openSSHKey returns the private key of the Manager.
+func (u *BackupUsecase) openSSHKey(config domain.BackupConfig) (string, error) {
+	if config.SSHKey == nil || config.SSHKey.SealedPrivateKey == "" {
+		return "", domain.ErrBackupSSHKeyMissing
+	}
+	if u.box == nil {
+		return "", domain.ErrBackupSecretsMissing
+	}
+	plaintext, err := u.box.Open(config.SSHKey.SealedPrivateKey, domain.BackupSSHKeyAssociatedData)
+	if err != nil {
+		return "", fmt.Errorf("%w: %v", domain.ErrBackupSecretsMissing, err)
+	}
+	return string(plaintext), nil
 }
 
 // UpdateConfig validates and stores the configuration, audited. Callers
 // must hold domain.PermManageBackups.
 func (u *BackupUsecase) UpdateConfig(ctx context.Context, actor domain.User, update BackupConfigUpdate, requestID string) (BackupConfigView, error) {
+	config, err := u.store.BackupConfig(ctx)
+	if err != nil {
+		return BackupConfigView{}, err
+	}
 	if update.Repository != nil {
-		if err := domain.ValidateBackupRepository(*update.Repository); err != nil {
+		repository := *update.Repository
+		if err := u.prepareSFTP(config, &repository, ""); err != nil {
 			return BackupConfigView{}, err
 		}
+		if err := domain.ValidateBackupRepository(repository); err != nil {
+			return BackupConfigView{}, err
+		}
+		update.Repository = &repository
 	}
 	if err := domain.ValidateBackupSelection(update.Selection); err != nil {
 		return BackupConfigView{}, err
@@ -241,10 +345,6 @@ func (u *BackupUsecase) UpdateConfig(ctx context.Context, actor domain.User, upd
 		if err := domain.ValidateBackupCheck(*update.Check); err != nil {
 			return BackupConfigView{}, err
 		}
-	}
-	config, err := u.store.BackupConfig(ctx)
-	if err != nil {
-		return BackupConfigView{}, err
 	}
 	changed := !sameRepository(config.Repository, update.Repository)
 	if changed && u.isRunning() {
@@ -300,11 +400,13 @@ func (u *BackupUsecase) UpdateConfig(ctx context.Context, actor domain.User, upd
 	return u.Config(ctx)
 }
 
+// sameRepository ignores the host key: a server with a new host key keeps
+// its repository.
 func sameRepository(a, b *domain.BackupRepository) bool {
 	if a == nil || b == nil {
 		return a == b
 	}
-	return *a == *b
+	return a.SameLocation(*b)
 }
 
 func (u *BackupUsecase) isRunning() bool {
@@ -752,8 +854,14 @@ func (u *BackupUsecase) runOperation(ctx context.Context, run domain.BackupRun, 
 		Retention: config.Retention, CheckSubsetPercent: config.Check.SubsetPercent, Restore: input.restore,
 		Diff: input.diff,
 	}
+	secrets := ports.BackupSecrets{Credentials: credentials}
+	if config.UsesSFTP(run.Operation) {
+		if secrets.SSHKey, err = u.openSSHKey(config); err != nil {
+			return domain.BackupResult{}, false, err
+		}
+	}
 	if run.Operation != domain.BackupOpCopy {
-		result, err := u.executor.Execute(ctx, job, credentials, nil)
+		result, err := u.executor.Execute(ctx, job, secrets)
 		return result, false, err
 	}
 	target := config.Copy
@@ -771,7 +879,8 @@ func (u *BackupUsecase) runOperation(ctx context.Context, run domain.BackupRun, 
 		retention := config.Retention
 		job.CopyRetention = &retention
 	}
-	result, err := u.executor.Execute(ctx, job, credentials, &copyCredentials)
+	secrets.Copy = &copyCredentials
+	result, err := u.executor.Execute(ctx, job, secrets)
 	return result, err == nil && target.InitializedAt == nil, err
 }
 
@@ -845,15 +954,18 @@ func (u *BackupUsecase) checkCopy(config domain.BackupConfig) error {
 // password of the previous one and must be initialized or connected.
 // Callers must hold domain.PermManageBackups.
 func (u *BackupUsecase) SetCopy(ctx context.Context, actor domain.User, update BackupCopyUpdate, requestID string) (BackupConfigView, error) {
+	config, err := u.store.BackupConfig(ctx)
+	if err != nil {
+		return BackupConfigView{}, err
+	}
+	if err := u.prepareSFTP(config, &update.Repository, "copy."); err != nil {
+		return BackupConfigView{}, err
+	}
 	if err := domain.ValidateBackupRepository(update.Repository); err != nil {
 		var validation *domain.BackupValidationError
 		if errors.As(err, &validation) {
 			return BackupConfigView{}, &domain.BackupValidationError{Field: "copy." + validation.Field, Message: validation.Message}
 		}
-		return BackupConfigView{}, err
-	}
-	config, err := u.store.BackupConfig(ctx)
-	if err != nil {
 		return BackupConfigView{}, err
 	}
 	if config.Repository == nil {
@@ -863,7 +975,7 @@ func (u *BackupUsecase) SetCopy(ctx context.Context, actor domain.User, update B
 		return BackupConfigView{}, domain.ErrBackupRepositoryInUse
 	}
 	target := domain.BackupCopyTarget{Repository: update.Repository, AfterBackup: update.AfterBackup}
-	changed := config.Copy == nil || config.Copy.Repository != update.Repository
+	changed := config.Copy == nil || !config.Copy.Repository.SameLocation(update.Repository)
 	if !changed {
 		target.SealedCredentials, target.InitializedAt = config.Copy.SealedCredentials, config.Copy.InitializedAt
 	}
@@ -897,7 +1009,7 @@ func (u *BackupUsecase) SetCopy(ctx context.Context, actor domain.User, update B
 	if err := u.checkCopy(config); err != nil {
 		return BackupConfigView{}, err
 	}
-	return u.saveCopy(ctx, actor, config, "update_copy", requestID)
+	return u.saveConfig(ctx, actor, config, "update_copy", requestID)
 }
 
 // validateCopyKeys checks the access keys of the copy repository; its
@@ -935,10 +1047,12 @@ func (u *BackupUsecase) RemoveCopy(ctx context.Context, actor domain.User, reque
 		return BackupConfigView{}, domain.ErrBackupRepositoryInUse
 	}
 	config.Copy = nil
-	return u.saveCopy(ctx, actor, config, "remove_copy", requestID)
+	return u.saveConfig(ctx, actor, config, "remove_copy", requestID)
 }
 
-func (u *BackupUsecase) saveCopy(ctx context.Context, actor domain.User, config domain.BackupConfig, action, requestID string) (BackupConfigView, error) {
+// saveConfig stores the configuration with its audit entry, then returns
+// it without its secrets.
+func (u *BackupUsecase) saveConfig(ctx context.Context, actor domain.User, config domain.BackupConfig, action, requestID string) (BackupConfigView, error) {
 	now := u.now().UTC()
 	config.UpdatedAt, config.UpdatedBy = &now, actor.Username
 	audit := domain.AuditEntry{

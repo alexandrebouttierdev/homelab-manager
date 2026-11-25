@@ -25,6 +25,8 @@ type BackupConfig struct {
 	RepositoryType *string `json:"repository_type,omitempty"`
 	// RepositoryLocation holds the value of the "repository_location" field.
 	RepositoryLocation *string `json:"repository_location,omitempty"`
+	// RepositoryHostKey holds the value of the "repository_host_key" field.
+	RepositoryHostKey string `json:"repository_host_key,omitempty"`
 	// SealedCredentials holds the value of the "sealed_credentials" field.
 	SealedCredentials string `json:"-"`
 	// InitializedAt holds the value of the "initialized_at" field.
@@ -65,12 +67,20 @@ type BackupConfig struct {
 	CopyRepositoryType *string `json:"copy_repository_type,omitempty"`
 	// CopyRepositoryLocation holds the value of the "copy_repository_location" field.
 	CopyRepositoryLocation *string `json:"copy_repository_location,omitempty"`
+	// CopyRepositoryHostKey holds the value of the "copy_repository_host_key" field.
+	CopyRepositoryHostKey string `json:"copy_repository_host_key,omitempty"`
 	// CopySealedCredentials holds the value of the "copy_sealed_credentials" field.
 	CopySealedCredentials string `json:"-"`
 	// CopyInitializedAt holds the value of the "copy_initialized_at" field.
 	CopyInitializedAt *time.Time `json:"copy_initialized_at,omitempty"`
 	// CopyAfterBackup holds the value of the "copy_after_backup" field.
 	CopyAfterBackup bool `json:"copy_after_backup,omitempty"`
+	// SSHPublicKey holds the value of the "ssh_public_key" field.
+	SSHPublicKey string `json:"ssh_public_key,omitempty"`
+	// SSHSealedPrivateKey holds the value of the "ssh_sealed_private_key" field.
+	SSHSealedPrivateKey string `json:"-"`
+	// SSHKeyCreatedAt holds the value of the "ssh_key_created_at" field.
+	SSHKeyCreatedAt *time.Time `json:"ssh_key_created_at,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
 	// UpdatedBy holds the value of the "updated_by" field.
@@ -89,9 +99,9 @@ func (*BackupConfig) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case backupconfig.FieldScheduleWeekday, backupconfig.FieldScheduleHour, backupconfig.FieldScheduleMinute, backupconfig.FieldKeepDaily, backupconfig.FieldKeepWeekly, backupconfig.FieldKeepMonthly, backupconfig.FieldKeepYearly, backupconfig.FieldCheckSubsetPercent:
 			values[i] = new(sql.NullInt64)
-		case backupconfig.FieldSingletonKey, backupconfig.FieldRepositoryType, backupconfig.FieldRepositoryLocation, backupconfig.FieldSealedCredentials, backupconfig.FieldExcludeIfPresent, backupconfig.FieldScheduleFrequency, backupconfig.FieldCopyRepositoryType, backupconfig.FieldCopyRepositoryLocation, backupconfig.FieldCopySealedCredentials, backupconfig.FieldUpdatedBy:
+		case backupconfig.FieldSingletonKey, backupconfig.FieldRepositoryType, backupconfig.FieldRepositoryLocation, backupconfig.FieldRepositoryHostKey, backupconfig.FieldSealedCredentials, backupconfig.FieldExcludeIfPresent, backupconfig.FieldScheduleFrequency, backupconfig.FieldCopyRepositoryType, backupconfig.FieldCopyRepositoryLocation, backupconfig.FieldCopyRepositoryHostKey, backupconfig.FieldCopySealedCredentials, backupconfig.FieldSSHPublicKey, backupconfig.FieldSSHSealedPrivateKey, backupconfig.FieldUpdatedBy:
 			values[i] = new(sql.NullString)
-		case backupconfig.FieldInitializedAt, backupconfig.FieldCopyInitializedAt, backupconfig.FieldUpdatedAt:
+		case backupconfig.FieldInitializedAt, backupconfig.FieldCopyInitializedAt, backupconfig.FieldSSHKeyCreatedAt, backupconfig.FieldUpdatedAt:
 			values[i] = new(sql.NullTime)
 		case backupconfig.FieldID:
 			values[i] = new(uuid.UUID)
@@ -135,6 +145,12 @@ func (_m *BackupConfig) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.RepositoryLocation = new(string)
 				*_m.RepositoryLocation = value.String
+			}
+		case backupconfig.FieldRepositoryHostKey:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field repository_host_key", values[i])
+			} else if value.Valid {
+				_m.RepositoryHostKey = value.String
 			}
 		case backupconfig.FieldSealedCredentials:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -263,6 +279,12 @@ func (_m *BackupConfig) assignValues(columns []string, values []any) error {
 				_m.CopyRepositoryLocation = new(string)
 				*_m.CopyRepositoryLocation = value.String
 			}
+		case backupconfig.FieldCopyRepositoryHostKey:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field copy_repository_host_key", values[i])
+			} else if value.Valid {
+				_m.CopyRepositoryHostKey = value.String
+			}
 		case backupconfig.FieldCopySealedCredentials:
 			if value, ok := values[i].(*sql.NullString); !ok {
 				return fmt.Errorf("unexpected type %T for field copy_sealed_credentials", values[i])
@@ -281,6 +303,25 @@ func (_m *BackupConfig) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field copy_after_backup", values[i])
 			} else if value.Valid {
 				_m.CopyAfterBackup = value.Bool
+			}
+		case backupconfig.FieldSSHPublicKey:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field ssh_public_key", values[i])
+			} else if value.Valid {
+				_m.SSHPublicKey = value.String
+			}
+		case backupconfig.FieldSSHSealedPrivateKey:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field ssh_sealed_private_key", values[i])
+			} else if value.Valid {
+				_m.SSHSealedPrivateKey = value.String
+			}
+		case backupconfig.FieldSSHKeyCreatedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field ssh_key_created_at", values[i])
+			} else if value.Valid {
+				_m.SSHKeyCreatedAt = new(time.Time)
+				*_m.SSHKeyCreatedAt = value.Time
 			}
 		case backupconfig.FieldUpdatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
@@ -342,6 +383,9 @@ func (_m *BackupConfig) String() string {
 		builder.WriteString("repository_location=")
 		builder.WriteString(*v)
 	}
+	builder.WriteString(", ")
+	builder.WriteString("repository_host_key=")
+	builder.WriteString(_m.RepositoryHostKey)
 	builder.WriteString(", ")
 	builder.WriteString("sealed_credentials=<sensitive>")
 	builder.WriteString(", ")
@@ -408,6 +452,9 @@ func (_m *BackupConfig) String() string {
 		builder.WriteString(*v)
 	}
 	builder.WriteString(", ")
+	builder.WriteString("copy_repository_host_key=")
+	builder.WriteString(_m.CopyRepositoryHostKey)
+	builder.WriteString(", ")
 	builder.WriteString("copy_sealed_credentials=<sensitive>")
 	builder.WriteString(", ")
 	if v := _m.CopyInitializedAt; v != nil {
@@ -417,6 +464,16 @@ func (_m *BackupConfig) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("copy_after_backup=")
 	builder.WriteString(fmt.Sprintf("%v", _m.CopyAfterBackup))
+	builder.WriteString(", ")
+	builder.WriteString("ssh_public_key=")
+	builder.WriteString(_m.SSHPublicKey)
+	builder.WriteString(", ")
+	builder.WriteString("ssh_sealed_private_key=<sensitive>")
+	builder.WriteString(", ")
+	if v := _m.SSHKeyCreatedAt; v != nil {
+		builder.WriteString("ssh_key_created_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("updated_at=")
 	builder.WriteString(_m.UpdatedAt.Format(time.ANSIC))

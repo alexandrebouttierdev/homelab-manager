@@ -15,9 +15,30 @@ import (
 	"homelab-manager/backend/internal/usecase"
 )
 
+// backupRepositoryDTO locates a repository. hostKey is the pinned host key
+// of an SFTP server; hostKeyFingerprint is answered, never read.
 type backupRepositoryDTO struct {
-	Type     string `json:"type"`
-	Location string `json:"location"`
+	Type               string `json:"type"`
+	Location           string `json:"location"`
+	HostKey            string `json:"hostKey,omitempty"`
+	HostKeyFingerprint string `json:"hostKeyFingerprint,omitempty"`
+}
+
+func (d backupRepositoryDTO) domain() domain.BackupRepository {
+	return domain.BackupRepository{Type: domain.BackupRepositoryType(d.Type), Location: d.Location, HostKey: d.HostKey}
+}
+
+func toBackupRepositoryDTO(repository domain.BackupRepository, fingerprint string) backupRepositoryDTO {
+	return backupRepositoryDTO{
+		Type: string(repository.Type), Location: repository.Location, HostKey: repository.HostKey, HostKeyFingerprint: fingerprint,
+	}
+}
+
+// backupSSHKeyDTO is the public part of the SSH key of the Manager.
+type backupSSHKeyDTO struct {
+	PublicKey   string    `json:"publicKey"`
+	Fingerprint string    `json:"fingerprint"`
+	CreatedAt   time.Time `json:"createdAt"`
 }
 
 type backupScheduleDTO struct {
@@ -63,6 +84,7 @@ type backupConfigDTO struct {
 	UpdatedAt        *time.Time           `json:"updatedAt"`
 	UpdatedBy        *string              `json:"updatedBy"`
 	Copy             *backupCopyDTO       `json:"copy"`
+	SSHKey           *backupSSHKeyDTO     `json:"sshKey"`
 }
 
 // backupCopyDTO is the copy repository, never a secret.
@@ -208,11 +230,15 @@ func toBackupConfigDTO(view usecase.BackupConfigView) backupConfigDTO {
 		UpdatedAt: view.UpdatedAt, UpdatedBy: optionalString(view.UpdatedBy),
 	}
 	if view.Repository != nil {
-		dto.Repository = &backupRepositoryDTO{Type: string(view.Repository.Type), Location: view.Repository.Location}
+		repository := toBackupRepositoryDTO(*view.Repository, view.HostKeyFingerprint)
+		dto.Repository = &repository
+	}
+	if key := view.SSHKey; key != nil {
+		dto.SSHKey = &backupSSHKeyDTO{PublicKey: key.PublicKey, Fingerprint: key.Fingerprint, CreatedAt: key.CreatedAt}
 	}
 	if copy := view.Copy; copy != nil {
 		dto.Copy = &backupCopyDTO{
-			Repository:  backupRepositoryDTO{Type: string(copy.Repository.Type), Location: copy.Repository.Location},
+			Repository:  toBackupRepositoryDTO(copy.Repository, copy.HostKeyFingerprint),
 			Initialized: copy.Initialized, InitializedAt: copy.InitializedAt, AfterBackup: copy.AfterBackup,
 			Credentials: backupCredentialsDTO{Password: copy.HasPassword, Username: copy.HasUsername, Secret: copy.HasSecret},
 		}
@@ -265,6 +291,8 @@ func writeBackupError(w http.ResponseWriter, r *http.Request, err error) {
 		writeError(w, r, http.StatusConflict, "BACKUP_COPY_NOT_INITIALIZED", "The copy repository is not initialized.")
 	case errors.Is(err, domain.ErrBackupCopyAlreadyInitialized):
 		writeError(w, r, http.StatusConflict, "BACKUP_COPY_ALREADY_INITIALIZED", "The copy repository is already initialized.")
+	case errors.Is(err, domain.ErrBackupSSHKeyMissing):
+		writeError(w, r, http.StatusConflict, "BACKUP_SSH_KEY_MISSING", "An SFTP repository needs the SSH key of the Manager: generate it first.")
 	case errors.Is(err, domain.ErrBackupsNotReady):
 		writeError(w, r, http.StatusServiceUnavailable, "BACKUPS_UNAVAILABLE", "Backups are starting or stopping.")
 	case errors.Is(err, domain.ErrBackupSecretsMissing):
@@ -338,9 +366,8 @@ func updateBackupConfigHandler(backups *usecase.BackupUsecase) http.HandlerFunc 
 			update.Check = &domain.BackupCheck{Enabled: c.Enabled, SubsetPercent: c.SubsetPercent}
 		}
 		if request.Repository != nil {
-			update.Repository = &domain.BackupRepository{
-				Type: domain.BackupRepositoryType(request.Repository.Type), Location: request.Repository.Location,
-			}
+			repository := request.Repository.domain()
+			update.Repository = &repository
 		}
 		view, err := backups.UpdateConfig(r.Context(), actor, update, middleware.GetReqID(r.Context()))
 		if err != nil {
@@ -531,12 +558,28 @@ func setBackupCopyHandler(backups *usecase.BackupUsecase) http.HandlerFunc {
 			return
 		}
 		update := usecase.BackupCopyUpdate{
-			Repository: domain.BackupRepository{
-				Type: domain.BackupRepositoryType(request.Repository.Type), Location: request.Repository.Location,
-			},
-			Username: request.Username, Secret: request.Secret, AfterBackup: request.AfterBackup,
+			Repository: request.Repository.domain(),
+			Username:   request.Username, Secret: request.Secret, AfterBackup: request.AfterBackup,
 		}
 		view, err := backups.SetCopy(r.Context(), actor, update, middleware.GetReqID(r.Context()))
+		if err != nil {
+			writeBackupError(w, r, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, toBackupConfigDTO(view))
+	}
+}
+
+// generateBackupSSHKeyHandler creates or replaces the SSH key of the
+// Manager for its SFTP repositories.
+func generateBackupSSHKeyHandler(backups *usecase.BackupUsecase) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		actor, ok := sessionUser(r)
+		if !ok {
+			writeError(w, r, http.StatusUnauthorized, "SESSION_NOT_FOUND", "Authentication is required.")
+			return
+		}
+		view, err := backups.GenerateSSHKey(r.Context(), actor, middleware.GetReqID(r.Context()))
 		if err != nil {
 			writeBackupError(w, r, err)
 			return

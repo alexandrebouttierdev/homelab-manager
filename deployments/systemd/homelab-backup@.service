@@ -8,6 +8,11 @@
 # /var/lib/homelab-backup/jobs, validates it again and runs restic without a
 # shell; the result goes to /var/lib/homelab-backup/runs.
 #
+# An SFTP repository needs the ssh client (openssh-client): restic starts
+# it with the key of the Manager and the pinned host keys, written by the
+# runner in its private /tmp and removed at the end (decision D-13); the
+# configuration and the keys of root are never used.
+#
 # It runs as root to read every source an administrator chose. It can write
 # only its cache, its results and the usual mount points of a backup disk
 # or share (/mnt, /media, /srv, /var/backups). For a local repository
@@ -48,7 +53,7 @@ RestrictNamespaces=true
 RestrictRealtime=true
 RestrictSUIDSGID=true
 LockPersonality=true
-# Network for the remote repositories (rest-server, S3), no listening socket.
+# Network for the remote repositories (rest-server, S3, SFTP), no listening socket.
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
 # Read every file, write the repository, remove the one-use secrets file,
 # and restore owners, modes and times in the quarantine: nothing else.

@@ -18,6 +18,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"slices"
 	"sort"
 	"strconv"
 	"strings"
@@ -46,13 +47,16 @@ type Config struct {
 	CacheDir string
 	TempDir  string
 	Restic   string
-	// Path is the PATH given to restic (rest-server and S3 need none; it
-	// is kept fixed).
+	// Path is the PATH given to restic, kept fixed: restic finds ssh in it
+	// for an SFTP repository.
 	Path string
 	// RestoreRoot holds the quarantine directories; the job names
 	// domain.BackupRestoreRoot, mapped here (tests use a temporary one).
 	RestoreRoot string
 	Now         func() time.Time
+	// globalArgs precede the command of every restic run: the SSH options
+	// of an SFTP repository.
+	globalArgs []string
 }
 
 func Defaults() Config {
@@ -112,6 +116,12 @@ func execute(ctx context.Context, config Config, op domain.BackupOperation, resu
 		return err
 	}
 	*secrets = credentials.Values()
+	options, cleanup, err := prepareSSH(config, job, credentials.SSHKey)
+	if err != nil {
+		return err
+	}
+	defer cleanup()
+	config.globalArgs = options
 	if op == domain.BackupOpCopy {
 		return copySnapshots(ctx, config, job, credentials, result)
 	}
@@ -405,7 +415,7 @@ func backup(ctx context.Context, config Config, env []string, job backupjob.Job,
 // runStreaming runs a long restic command whose JSON lines carry a
 // summary; it fails when restic fails or gives no summary.
 func runStreaming(ctx context.Context, config Config, env, args []string) (*backupMessage, resticOutput, error) {
-	cmd := exec.CommandContext(ctx, config.Restic, args...)
+	cmd := resticCommand(ctx, config, args...)
 	cmd.Env = env
 	stderr := &boundedBuffer{limit: maxStderrBytes}
 	cmd.Stderr = stderr
@@ -488,9 +498,14 @@ func readBackupStream(stdout io.Reader, output *resticOutput) (*backupMessage, e
 	return summary, nil
 }
 
+// resticCommand is restic with the global options of the run, then args.
+func resticCommand(ctx context.Context, config Config, args ...string) *exec.Cmd {
+	return exec.CommandContext(ctx, config.Restic, append(slices.Clip(config.globalArgs), args...)...)
+}
+
 // runCaptured runs a short restic command and keeps its output, bounded.
 func runCaptured(ctx context.Context, config Config, env, args []string) (resticOutput, error) {
-	cmd := exec.CommandContext(ctx, config.Restic, args...)
+	cmd := resticCommand(ctx, config, args...)
 	cmd.Env = env
 	stdout := &boundedBuffer{limit: backupjob.MaxResultBytes}
 	stderr := &boundedBuffer{limit: maxStderrBytes}
@@ -587,7 +602,7 @@ func diff(ctx context.Context, config Config, env []string, job backupjob.Job, r
 	request := job.Diff
 	report := &domain.BackupDiff{From: request.From, To: request.To, Changes: []domain.BackupDiffChange{}}
 	result.Details = &domain.BackupRunDetails{Diff: report}
-	cmd := exec.CommandContext(ctx, config.Restic, "diff", "--json", "--", request.From, request.To)
+	cmd := resticCommand(ctx, config, "diff", "--json", "--", request.From, request.To)
 	cmd.Env = env
 	stderr := &boundedBuffer{limit: maxStderrBytes}
 	cmd.Stderr = stderr

@@ -200,7 +200,7 @@ func TestBackupCopyAfterTheScheduledBackup(t *testing.T) {
 	}
 	var mu sync.Mutex
 	now := time.Date(2026, 11, 21, 3, 0, 5, 0, time.UTC)
-	backups := NewBackupUsecase(store, executor, fakeBox{}, zap.NewNop())
+	backups := NewBackupUsecase(store, executor, fakeBox{}, nil, zap.NewNop())
 	backups.now = func() time.Time {
 		mu.Lock()
 		defer mu.Unlock()

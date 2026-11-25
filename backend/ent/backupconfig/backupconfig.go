@@ -18,6 +18,8 @@ const (
 	FieldRepositoryType = "repository_type"
 	// FieldRepositoryLocation holds the string denoting the repository_location field in the database.
 	FieldRepositoryLocation = "repository_location"
+	// FieldRepositoryHostKey holds the string denoting the repository_host_key field in the database.
+	FieldRepositoryHostKey = "repository_host_key"
 	// FieldSealedCredentials holds the string denoting the sealed_credentials field in the database.
 	FieldSealedCredentials = "sealed_credentials"
 	// FieldInitializedAt holds the string denoting the initialized_at field in the database.
@@ -58,12 +60,20 @@ const (
 	FieldCopyRepositoryType = "copy_repository_type"
 	// FieldCopyRepositoryLocation holds the string denoting the copy_repository_location field in the database.
 	FieldCopyRepositoryLocation = "copy_repository_location"
+	// FieldCopyRepositoryHostKey holds the string denoting the copy_repository_host_key field in the database.
+	FieldCopyRepositoryHostKey = "copy_repository_host_key"
 	// FieldCopySealedCredentials holds the string denoting the copy_sealed_credentials field in the database.
 	FieldCopySealedCredentials = "copy_sealed_credentials"
 	// FieldCopyInitializedAt holds the string denoting the copy_initialized_at field in the database.
 	FieldCopyInitializedAt = "copy_initialized_at"
 	// FieldCopyAfterBackup holds the string denoting the copy_after_backup field in the database.
 	FieldCopyAfterBackup = "copy_after_backup"
+	// FieldSSHPublicKey holds the string denoting the ssh_public_key field in the database.
+	FieldSSHPublicKey = "ssh_public_key"
+	// FieldSSHSealedPrivateKey holds the string denoting the ssh_sealed_private_key field in the database.
+	FieldSSHSealedPrivateKey = "ssh_sealed_private_key"
+	// FieldSSHKeyCreatedAt holds the string denoting the ssh_key_created_at field in the database.
+	FieldSSHKeyCreatedAt = "ssh_key_created_at"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
 	FieldUpdatedAt = "updated_at"
 	// FieldUpdatedBy holds the string denoting the updated_by field in the database.
@@ -78,6 +88,7 @@ var Columns = []string{
 	FieldSingletonKey,
 	FieldRepositoryType,
 	FieldRepositoryLocation,
+	FieldRepositoryHostKey,
 	FieldSealedCredentials,
 	FieldInitializedAt,
 	FieldSources,
@@ -98,9 +109,13 @@ var Columns = []string{
 	FieldCheckSubsetPercent,
 	FieldCopyRepositoryType,
 	FieldCopyRepositoryLocation,
+	FieldCopyRepositoryHostKey,
 	FieldCopySealedCredentials,
 	FieldCopyInitializedAt,
 	FieldCopyAfterBackup,
+	FieldSSHPublicKey,
+	FieldSSHSealedPrivateKey,
+	FieldSSHKeyCreatedAt,
 	FieldUpdatedAt,
 	FieldUpdatedBy,
 }
@@ -118,6 +133,8 @@ func ValidColumn(column string) bool {
 var (
 	// SingletonKeyValidator is a validator for the "singleton_key" field. It is called by the builders before save.
 	SingletonKeyValidator func(string) error
+	// DefaultRepositoryHostKey holds the default value on creation for the "repository_host_key" field.
+	DefaultRepositoryHostKey string
 	// DefaultSealedCredentials holds the default value on creation for the "sealed_credentials" field.
 	DefaultSealedCredentials string
 	// DefaultExcludeCaches holds the default value on creation for the "exclude_caches" field.
@@ -148,10 +165,16 @@ var (
 	DefaultCheckEnabled bool
 	// DefaultCheckSubsetPercent holds the default value on creation for the "check_subset_percent" field.
 	DefaultCheckSubsetPercent int
+	// DefaultCopyRepositoryHostKey holds the default value on creation for the "copy_repository_host_key" field.
+	DefaultCopyRepositoryHostKey string
 	// DefaultCopySealedCredentials holds the default value on creation for the "copy_sealed_credentials" field.
 	DefaultCopySealedCredentials string
 	// DefaultCopyAfterBackup holds the default value on creation for the "copy_after_backup" field.
 	DefaultCopyAfterBackup bool
+	// DefaultSSHPublicKey holds the default value on creation for the "ssh_public_key" field.
+	DefaultSSHPublicKey string
+	// DefaultSSHSealedPrivateKey holds the default value on creation for the "ssh_sealed_private_key" field.
+	DefaultSSHSealedPrivateKey string
 	// DefaultUpdatedBy holds the default value on creation for the "updated_by" field.
 	DefaultUpdatedBy string
 	// DefaultID holds the default value on creation for the "id" field.
@@ -179,6 +202,11 @@ func ByRepositoryType(opts ...sql.OrderTermOption) OrderOption {
 // ByRepositoryLocation orders the results by the repository_location field.
 func ByRepositoryLocation(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldRepositoryLocation, opts...).ToFunc()
+}
+
+// ByRepositoryHostKey orders the results by the repository_host_key field.
+func ByRepositoryHostKey(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRepositoryHostKey, opts...).ToFunc()
 }
 
 // BySealedCredentials orders the results by the sealed_credentials field.
@@ -271,6 +299,11 @@ func ByCopyRepositoryLocation(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCopyRepositoryLocation, opts...).ToFunc()
 }
 
+// ByCopyRepositoryHostKey orders the results by the copy_repository_host_key field.
+func ByCopyRepositoryHostKey(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCopyRepositoryHostKey, opts...).ToFunc()
+}
+
 // ByCopySealedCredentials orders the results by the copy_sealed_credentials field.
 func ByCopySealedCredentials(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCopySealedCredentials, opts...).ToFunc()
@@ -284,6 +317,21 @@ func ByCopyInitializedAt(opts ...sql.OrderTermOption) OrderOption {
 // ByCopyAfterBackup orders the results by the copy_after_backup field.
 func ByCopyAfterBackup(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldCopyAfterBackup, opts...).ToFunc()
+}
+
+// BySSHPublicKey orders the results by the ssh_public_key field.
+func BySSHPublicKey(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSSHPublicKey, opts...).ToFunc()
+}
+
+// BySSHSealedPrivateKey orders the results by the ssh_sealed_private_key field.
+func BySSHSealedPrivateKey(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSSHSealedPrivateKey, opts...).ToFunc()
+}
+
+// BySSHKeyCreatedAt orders the results by the ssh_key_created_at field.
+func BySSHKeyCreatedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSSHKeyCreatedAt, opts...).ToFunc()
 }
 
 // ByUpdatedAt orders the results by the updated_at field.

@@ -238,6 +238,7 @@ func NewRouter(logger *zap.Logger, services Services, sessionSecure bool, webRoo
 						backup.With(requirePermission(deny, domain.PermManageBackups)).Post("/copy/remove", removeBackupCopyHandler(backups))
 						backup.With(requirePermission(deny, domain.PermManageBackups)).Post("/copy/init", initBackupCopyHandler(backups))
 						backup.With(requirePermission(deny, domain.PermManageBackups)).Post("/copy/connect", connectBackupCopyHandler(backups))
+						backup.With(requirePermission(deny, domain.PermManageBackups)).Post("/ssh-key", generateBackupSSHKeyHandler(backups))
 						backup.Get("/runs", listBackupRunsHandler(backups))
 						backup.With(requirePermission(deny, domain.PermRunBackups)).Post("/runs", requestBackupHandler(backups))
 						backup.Get("/runs/{runID}", backupRunHandler(backups))

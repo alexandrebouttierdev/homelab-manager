@@ -70,6 +70,11 @@ func RepositoryLocation(v string) predicate.BackupConfig {
 	return predicate.BackupConfig(sql.FieldEQ(FieldRepositoryLocation, v))
 }
 
+// RepositoryHostKey applies equality check predicate on the "repository_host_key" field. It's identical to RepositoryHostKeyEQ.
+func RepositoryHostKey(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldEQ(FieldRepositoryHostKey, v))
+}
+
 // SealedCredentials applies equality check predicate on the "sealed_credentials" field. It's identical to SealedCredentialsEQ.
 func SealedCredentials(v string) predicate.BackupConfig {
 	return predicate.BackupConfig(sql.FieldEQ(FieldSealedCredentials, v))
@@ -160,6 +165,11 @@ func CopyRepositoryLocation(v string) predicate.BackupConfig {
 	return predicate.BackupConfig(sql.FieldEQ(FieldCopyRepositoryLocation, v))
 }
 
+// CopyRepositoryHostKey applies equality check predicate on the "copy_repository_host_key" field. It's identical to CopyRepositoryHostKeyEQ.
+func CopyRepositoryHostKey(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldEQ(FieldCopyRepositoryHostKey, v))
+}
+
 // CopySealedCredentials applies equality check predicate on the "copy_sealed_credentials" field. It's identical to CopySealedCredentialsEQ.
 func CopySealedCredentials(v string) predicate.BackupConfig {
 	return predicate.BackupConfig(sql.FieldEQ(FieldCopySealedCredentials, v))
@@ -173,6 +183,21 @@ func CopyInitializedAt(v time.Time) predicate.BackupConfig {
 // CopyAfterBackup applies equality check predicate on the "copy_after_backup" field. It's identical to CopyAfterBackupEQ.
 func CopyAfterBackup(v bool) predicate.BackupConfig {
 	return predicate.BackupConfig(sql.FieldEQ(FieldCopyAfterBackup, v))
+}
+
+// SSHPublicKey applies equality check predicate on the "ssh_public_key" field. It's identical to SSHPublicKeyEQ.
+func SSHPublicKey(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldEQ(FieldSSHPublicKey, v))
+}
+
+// SSHSealedPrivateKey applies equality check predicate on the "ssh_sealed_private_key" field. It's identical to SSHSealedPrivateKeyEQ.
+func SSHSealedPrivateKey(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldEQ(FieldSSHSealedPrivateKey, v))
+}
+
+// SSHKeyCreatedAt applies equality check predicate on the "ssh_key_created_at" field. It's identical to SSHKeyCreatedAtEQ.
+func SSHKeyCreatedAt(v time.Time) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldEQ(FieldSSHKeyCreatedAt, v))
 }
 
 // UpdatedAt applies equality check predicate on the "updated_at" field. It's identical to UpdatedAtEQ.
@@ -398,6 +423,71 @@ func RepositoryLocationEqualFold(v string) predicate.BackupConfig {
 // RepositoryLocationContainsFold applies the ContainsFold predicate on the "repository_location" field.
 func RepositoryLocationContainsFold(v string) predicate.BackupConfig {
 	return predicate.BackupConfig(sql.FieldContainsFold(FieldRepositoryLocation, v))
+}
+
+// RepositoryHostKeyEQ applies the EQ predicate on the "repository_host_key" field.
+func RepositoryHostKeyEQ(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldEQ(FieldRepositoryHostKey, v))
+}
+
+// RepositoryHostKeyNEQ applies the NEQ predicate on the "repository_host_key" field.
+func RepositoryHostKeyNEQ(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldNEQ(FieldRepositoryHostKey, v))
+}
+
+// RepositoryHostKeyIn applies the In predicate on the "repository_host_key" field.
+func RepositoryHostKeyIn(vs ...string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldIn(FieldRepositoryHostKey, vs...))
+}
+
+// RepositoryHostKeyNotIn applies the NotIn predicate on the "repository_host_key" field.
+func RepositoryHostKeyNotIn(vs ...string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldNotIn(FieldRepositoryHostKey, vs...))
+}
+
+// RepositoryHostKeyGT applies the GT predicate on the "repository_host_key" field.
+func RepositoryHostKeyGT(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldGT(FieldRepositoryHostKey, v))
+}
+
+// RepositoryHostKeyGTE applies the GTE predicate on the "repository_host_key" field.
+func RepositoryHostKeyGTE(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldGTE(FieldRepositoryHostKey, v))
+}
+
+// RepositoryHostKeyLT applies the LT predicate on the "repository_host_key" field.
+func RepositoryHostKeyLT(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldLT(FieldRepositoryHostKey, v))
+}
+
+// RepositoryHostKeyLTE applies the LTE predicate on the "repository_host_key" field.
+func RepositoryHostKeyLTE(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldLTE(FieldRepositoryHostKey, v))
+}
+
+// RepositoryHostKeyContains applies the Contains predicate on the "repository_host_key" field.
+func RepositoryHostKeyContains(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldContains(FieldRepositoryHostKey, v))
+}
+
+// RepositoryHostKeyHasPrefix applies the HasPrefix predicate on the "repository_host_key" field.
+func RepositoryHostKeyHasPrefix(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldHasPrefix(FieldRepositoryHostKey, v))
+}
+
+// RepositoryHostKeyHasSuffix applies the HasSuffix predicate on the "repository_host_key" field.
+func RepositoryHostKeyHasSuffix(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldHasSuffix(FieldRepositoryHostKey, v))
+}
+
+// RepositoryHostKeyEqualFold applies the EqualFold predicate on the "repository_host_key" field.
+func RepositoryHostKeyEqualFold(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldEqualFold(FieldRepositoryHostKey, v))
+}
+
+// RepositoryHostKeyContainsFold applies the ContainsFold predicate on the "repository_host_key" field.
+func RepositoryHostKeyContainsFold(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldContainsFold(FieldRepositoryHostKey, v))
 }
 
 // SealedCredentialsEQ applies the EQ predicate on the "sealed_credentials" field.
@@ -1155,6 +1245,71 @@ func CopyRepositoryLocationContainsFold(v string) predicate.BackupConfig {
 	return predicate.BackupConfig(sql.FieldContainsFold(FieldCopyRepositoryLocation, v))
 }
 
+// CopyRepositoryHostKeyEQ applies the EQ predicate on the "copy_repository_host_key" field.
+func CopyRepositoryHostKeyEQ(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldEQ(FieldCopyRepositoryHostKey, v))
+}
+
+// CopyRepositoryHostKeyNEQ applies the NEQ predicate on the "copy_repository_host_key" field.
+func CopyRepositoryHostKeyNEQ(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldNEQ(FieldCopyRepositoryHostKey, v))
+}
+
+// CopyRepositoryHostKeyIn applies the In predicate on the "copy_repository_host_key" field.
+func CopyRepositoryHostKeyIn(vs ...string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldIn(FieldCopyRepositoryHostKey, vs...))
+}
+
+// CopyRepositoryHostKeyNotIn applies the NotIn predicate on the "copy_repository_host_key" field.
+func CopyRepositoryHostKeyNotIn(vs ...string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldNotIn(FieldCopyRepositoryHostKey, vs...))
+}
+
+// CopyRepositoryHostKeyGT applies the GT predicate on the "copy_repository_host_key" field.
+func CopyRepositoryHostKeyGT(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldGT(FieldCopyRepositoryHostKey, v))
+}
+
+// CopyRepositoryHostKeyGTE applies the GTE predicate on the "copy_repository_host_key" field.
+func CopyRepositoryHostKeyGTE(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldGTE(FieldCopyRepositoryHostKey, v))
+}
+
+// CopyRepositoryHostKeyLT applies the LT predicate on the "copy_repository_host_key" field.
+func CopyRepositoryHostKeyLT(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldLT(FieldCopyRepositoryHostKey, v))
+}
+
+// CopyRepositoryHostKeyLTE applies the LTE predicate on the "copy_repository_host_key" field.
+func CopyRepositoryHostKeyLTE(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldLTE(FieldCopyRepositoryHostKey, v))
+}
+
+// CopyRepositoryHostKeyContains applies the Contains predicate on the "copy_repository_host_key" field.
+func CopyRepositoryHostKeyContains(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldContains(FieldCopyRepositoryHostKey, v))
+}
+
+// CopyRepositoryHostKeyHasPrefix applies the HasPrefix predicate on the "copy_repository_host_key" field.
+func CopyRepositoryHostKeyHasPrefix(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldHasPrefix(FieldCopyRepositoryHostKey, v))
+}
+
+// CopyRepositoryHostKeyHasSuffix applies the HasSuffix predicate on the "copy_repository_host_key" field.
+func CopyRepositoryHostKeyHasSuffix(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldHasSuffix(FieldCopyRepositoryHostKey, v))
+}
+
+// CopyRepositoryHostKeyEqualFold applies the EqualFold predicate on the "copy_repository_host_key" field.
+func CopyRepositoryHostKeyEqualFold(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldEqualFold(FieldCopyRepositoryHostKey, v))
+}
+
+// CopyRepositoryHostKeyContainsFold applies the ContainsFold predicate on the "copy_repository_host_key" field.
+func CopyRepositoryHostKeyContainsFold(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldContainsFold(FieldCopyRepositoryHostKey, v))
+}
+
 // CopySealedCredentialsEQ applies the EQ predicate on the "copy_sealed_credentials" field.
 func CopySealedCredentialsEQ(v string) predicate.BackupConfig {
 	return predicate.BackupConfig(sql.FieldEQ(FieldCopySealedCredentials, v))
@@ -1278,6 +1433,186 @@ func CopyAfterBackupEQ(v bool) predicate.BackupConfig {
 // CopyAfterBackupNEQ applies the NEQ predicate on the "copy_after_backup" field.
 func CopyAfterBackupNEQ(v bool) predicate.BackupConfig {
 	return predicate.BackupConfig(sql.FieldNEQ(FieldCopyAfterBackup, v))
+}
+
+// SSHPublicKeyEQ applies the EQ predicate on the "ssh_public_key" field.
+func SSHPublicKeyEQ(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldEQ(FieldSSHPublicKey, v))
+}
+
+// SSHPublicKeyNEQ applies the NEQ predicate on the "ssh_public_key" field.
+func SSHPublicKeyNEQ(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldNEQ(FieldSSHPublicKey, v))
+}
+
+// SSHPublicKeyIn applies the In predicate on the "ssh_public_key" field.
+func SSHPublicKeyIn(vs ...string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldIn(FieldSSHPublicKey, vs...))
+}
+
+// SSHPublicKeyNotIn applies the NotIn predicate on the "ssh_public_key" field.
+func SSHPublicKeyNotIn(vs ...string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldNotIn(FieldSSHPublicKey, vs...))
+}
+
+// SSHPublicKeyGT applies the GT predicate on the "ssh_public_key" field.
+func SSHPublicKeyGT(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldGT(FieldSSHPublicKey, v))
+}
+
+// SSHPublicKeyGTE applies the GTE predicate on the "ssh_public_key" field.
+func SSHPublicKeyGTE(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldGTE(FieldSSHPublicKey, v))
+}
+
+// SSHPublicKeyLT applies the LT predicate on the "ssh_public_key" field.
+func SSHPublicKeyLT(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldLT(FieldSSHPublicKey, v))
+}
+
+// SSHPublicKeyLTE applies the LTE predicate on the "ssh_public_key" field.
+func SSHPublicKeyLTE(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldLTE(FieldSSHPublicKey, v))
+}
+
+// SSHPublicKeyContains applies the Contains predicate on the "ssh_public_key" field.
+func SSHPublicKeyContains(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldContains(FieldSSHPublicKey, v))
+}
+
+// SSHPublicKeyHasPrefix applies the HasPrefix predicate on the "ssh_public_key" field.
+func SSHPublicKeyHasPrefix(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldHasPrefix(FieldSSHPublicKey, v))
+}
+
+// SSHPublicKeyHasSuffix applies the HasSuffix predicate on the "ssh_public_key" field.
+func SSHPublicKeyHasSuffix(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldHasSuffix(FieldSSHPublicKey, v))
+}
+
+// SSHPublicKeyEqualFold applies the EqualFold predicate on the "ssh_public_key" field.
+func SSHPublicKeyEqualFold(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldEqualFold(FieldSSHPublicKey, v))
+}
+
+// SSHPublicKeyContainsFold applies the ContainsFold predicate on the "ssh_public_key" field.
+func SSHPublicKeyContainsFold(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldContainsFold(FieldSSHPublicKey, v))
+}
+
+// SSHSealedPrivateKeyEQ applies the EQ predicate on the "ssh_sealed_private_key" field.
+func SSHSealedPrivateKeyEQ(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldEQ(FieldSSHSealedPrivateKey, v))
+}
+
+// SSHSealedPrivateKeyNEQ applies the NEQ predicate on the "ssh_sealed_private_key" field.
+func SSHSealedPrivateKeyNEQ(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldNEQ(FieldSSHSealedPrivateKey, v))
+}
+
+// SSHSealedPrivateKeyIn applies the In predicate on the "ssh_sealed_private_key" field.
+func SSHSealedPrivateKeyIn(vs ...string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldIn(FieldSSHSealedPrivateKey, vs...))
+}
+
+// SSHSealedPrivateKeyNotIn applies the NotIn predicate on the "ssh_sealed_private_key" field.
+func SSHSealedPrivateKeyNotIn(vs ...string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldNotIn(FieldSSHSealedPrivateKey, vs...))
+}
+
+// SSHSealedPrivateKeyGT applies the GT predicate on the "ssh_sealed_private_key" field.
+func SSHSealedPrivateKeyGT(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldGT(FieldSSHSealedPrivateKey, v))
+}
+
+// SSHSealedPrivateKeyGTE applies the GTE predicate on the "ssh_sealed_private_key" field.
+func SSHSealedPrivateKeyGTE(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldGTE(FieldSSHSealedPrivateKey, v))
+}
+
+// SSHSealedPrivateKeyLT applies the LT predicate on the "ssh_sealed_private_key" field.
+func SSHSealedPrivateKeyLT(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldLT(FieldSSHSealedPrivateKey, v))
+}
+
+// SSHSealedPrivateKeyLTE applies the LTE predicate on the "ssh_sealed_private_key" field.
+func SSHSealedPrivateKeyLTE(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldLTE(FieldSSHSealedPrivateKey, v))
+}
+
+// SSHSealedPrivateKeyContains applies the Contains predicate on the "ssh_sealed_private_key" field.
+func SSHSealedPrivateKeyContains(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldContains(FieldSSHSealedPrivateKey, v))
+}
+
+// SSHSealedPrivateKeyHasPrefix applies the HasPrefix predicate on the "ssh_sealed_private_key" field.
+func SSHSealedPrivateKeyHasPrefix(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldHasPrefix(FieldSSHSealedPrivateKey, v))
+}
+
+// SSHSealedPrivateKeyHasSuffix applies the HasSuffix predicate on the "ssh_sealed_private_key" field.
+func SSHSealedPrivateKeyHasSuffix(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldHasSuffix(FieldSSHSealedPrivateKey, v))
+}
+
+// SSHSealedPrivateKeyEqualFold applies the EqualFold predicate on the "ssh_sealed_private_key" field.
+func SSHSealedPrivateKeyEqualFold(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldEqualFold(FieldSSHSealedPrivateKey, v))
+}
+
+// SSHSealedPrivateKeyContainsFold applies the ContainsFold predicate on the "ssh_sealed_private_key" field.
+func SSHSealedPrivateKeyContainsFold(v string) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldContainsFold(FieldSSHSealedPrivateKey, v))
+}
+
+// SSHKeyCreatedAtEQ applies the EQ predicate on the "ssh_key_created_at" field.
+func SSHKeyCreatedAtEQ(v time.Time) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldEQ(FieldSSHKeyCreatedAt, v))
+}
+
+// SSHKeyCreatedAtNEQ applies the NEQ predicate on the "ssh_key_created_at" field.
+func SSHKeyCreatedAtNEQ(v time.Time) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldNEQ(FieldSSHKeyCreatedAt, v))
+}
+
+// SSHKeyCreatedAtIn applies the In predicate on the "ssh_key_created_at" field.
+func SSHKeyCreatedAtIn(vs ...time.Time) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldIn(FieldSSHKeyCreatedAt, vs...))
+}
+
+// SSHKeyCreatedAtNotIn applies the NotIn predicate on the "ssh_key_created_at" field.
+func SSHKeyCreatedAtNotIn(vs ...time.Time) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldNotIn(FieldSSHKeyCreatedAt, vs...))
+}
+
+// SSHKeyCreatedAtGT applies the GT predicate on the "ssh_key_created_at" field.
+func SSHKeyCreatedAtGT(v time.Time) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldGT(FieldSSHKeyCreatedAt, v))
+}
+
+// SSHKeyCreatedAtGTE applies the GTE predicate on the "ssh_key_created_at" field.
+func SSHKeyCreatedAtGTE(v time.Time) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldGTE(FieldSSHKeyCreatedAt, v))
+}
+
+// SSHKeyCreatedAtLT applies the LT predicate on the "ssh_key_created_at" field.
+func SSHKeyCreatedAtLT(v time.Time) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldLT(FieldSSHKeyCreatedAt, v))
+}
+
+// SSHKeyCreatedAtLTE applies the LTE predicate on the "ssh_key_created_at" field.
+func SSHKeyCreatedAtLTE(v time.Time) predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldLTE(FieldSSHKeyCreatedAt, v))
+}
+
+// SSHKeyCreatedAtIsNil applies the IsNil predicate on the "ssh_key_created_at" field.
+func SSHKeyCreatedAtIsNil() predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldIsNull(FieldSSHKeyCreatedAt))
+}
+
+// SSHKeyCreatedAtNotNil applies the NotNil predicate on the "ssh_key_created_at" field.
+func SSHKeyCreatedAtNotNil() predicate.BackupConfig {
+	return predicate.BackupConfig(sql.FieldNotNull(FieldSSHKeyCreatedAt))
 }
 
 // UpdatedAtEQ applies the EQ predicate on the "updated_at" field.

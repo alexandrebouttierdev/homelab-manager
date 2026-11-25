@@ -190,76 +190,92 @@ func init() {
 	backupconfigDescSingletonKey := backupconfigFields[1].Descriptor()
 	// backupconfig.SingletonKeyValidator is a validator for the "singleton_key" field. It is called by the builders before save.
 	backupconfig.SingletonKeyValidator = backupconfigDescSingletonKey.Validators[0].(func(string) error)
+	// backupconfigDescRepositoryHostKey is the schema descriptor for repository_host_key field.
+	backupconfigDescRepositoryHostKey := backupconfigFields[4].Descriptor()
+	// backupconfig.DefaultRepositoryHostKey holds the default value on creation for the repository_host_key field.
+	backupconfig.DefaultRepositoryHostKey = backupconfigDescRepositoryHostKey.Default.(string)
 	// backupconfigDescSealedCredentials is the schema descriptor for sealed_credentials field.
-	backupconfigDescSealedCredentials := backupconfigFields[4].Descriptor()
+	backupconfigDescSealedCredentials := backupconfigFields[5].Descriptor()
 	// backupconfig.DefaultSealedCredentials holds the default value on creation for the sealed_credentials field.
 	backupconfig.DefaultSealedCredentials = backupconfigDescSealedCredentials.Default.(string)
 	// backupconfigDescExcludeCaches is the schema descriptor for exclude_caches field.
-	backupconfigDescExcludeCaches := backupconfigFields[8].Descriptor()
+	backupconfigDescExcludeCaches := backupconfigFields[9].Descriptor()
 	// backupconfig.DefaultExcludeCaches holds the default value on creation for the exclude_caches field.
 	backupconfig.DefaultExcludeCaches = backupconfigDescExcludeCaches.Default.(bool)
 	// backupconfigDescExcludeIfPresent is the schema descriptor for exclude_if_present field.
-	backupconfigDescExcludeIfPresent := backupconfigFields[9].Descriptor()
+	backupconfigDescExcludeIfPresent := backupconfigFields[10].Descriptor()
 	// backupconfig.DefaultExcludeIfPresent holds the default value on creation for the exclude_if_present field.
 	backupconfig.DefaultExcludeIfPresent = backupconfigDescExcludeIfPresent.Default.(string)
 	// backupconfigDescScheduleEnabled is the schema descriptor for schedule_enabled field.
-	backupconfigDescScheduleEnabled := backupconfigFields[10].Descriptor()
+	backupconfigDescScheduleEnabled := backupconfigFields[11].Descriptor()
 	// backupconfig.DefaultScheduleEnabled holds the default value on creation for the schedule_enabled field.
 	backupconfig.DefaultScheduleEnabled = backupconfigDescScheduleEnabled.Default.(bool)
 	// backupconfigDescScheduleFrequency is the schema descriptor for schedule_frequency field.
-	backupconfigDescScheduleFrequency := backupconfigFields[11].Descriptor()
+	backupconfigDescScheduleFrequency := backupconfigFields[12].Descriptor()
 	// backupconfig.DefaultScheduleFrequency holds the default value on creation for the schedule_frequency field.
 	backupconfig.DefaultScheduleFrequency = backupconfigDescScheduleFrequency.Default.(string)
 	// backupconfigDescScheduleWeekday is the schema descriptor for schedule_weekday field.
-	backupconfigDescScheduleWeekday := backupconfigFields[12].Descriptor()
+	backupconfigDescScheduleWeekday := backupconfigFields[13].Descriptor()
 	// backupconfig.DefaultScheduleWeekday holds the default value on creation for the schedule_weekday field.
 	backupconfig.DefaultScheduleWeekday = backupconfigDescScheduleWeekday.Default.(int)
 	// backupconfigDescScheduleHour is the schema descriptor for schedule_hour field.
-	backupconfigDescScheduleHour := backupconfigFields[13].Descriptor()
+	backupconfigDescScheduleHour := backupconfigFields[14].Descriptor()
 	// backupconfig.DefaultScheduleHour holds the default value on creation for the schedule_hour field.
 	backupconfig.DefaultScheduleHour = backupconfigDescScheduleHour.Default.(int)
 	// backupconfigDescScheduleMinute is the schema descriptor for schedule_minute field.
-	backupconfigDescScheduleMinute := backupconfigFields[14].Descriptor()
+	backupconfigDescScheduleMinute := backupconfigFields[15].Descriptor()
 	// backupconfig.DefaultScheduleMinute holds the default value on creation for the schedule_minute field.
 	backupconfig.DefaultScheduleMinute = backupconfigDescScheduleMinute.Default.(int)
 	// backupconfigDescRetentionEnabled is the schema descriptor for retention_enabled field.
-	backupconfigDescRetentionEnabled := backupconfigFields[15].Descriptor()
+	backupconfigDescRetentionEnabled := backupconfigFields[16].Descriptor()
 	// backupconfig.DefaultRetentionEnabled holds the default value on creation for the retention_enabled field.
 	backupconfig.DefaultRetentionEnabled = backupconfigDescRetentionEnabled.Default.(bool)
 	// backupconfigDescKeepDaily is the schema descriptor for keep_daily field.
-	backupconfigDescKeepDaily := backupconfigFields[16].Descriptor()
+	backupconfigDescKeepDaily := backupconfigFields[17].Descriptor()
 	// backupconfig.DefaultKeepDaily holds the default value on creation for the keep_daily field.
 	backupconfig.DefaultKeepDaily = backupconfigDescKeepDaily.Default.(int)
 	// backupconfigDescKeepWeekly is the schema descriptor for keep_weekly field.
-	backupconfigDescKeepWeekly := backupconfigFields[17].Descriptor()
+	backupconfigDescKeepWeekly := backupconfigFields[18].Descriptor()
 	// backupconfig.DefaultKeepWeekly holds the default value on creation for the keep_weekly field.
 	backupconfig.DefaultKeepWeekly = backupconfigDescKeepWeekly.Default.(int)
 	// backupconfigDescKeepMonthly is the schema descriptor for keep_monthly field.
-	backupconfigDescKeepMonthly := backupconfigFields[18].Descriptor()
+	backupconfigDescKeepMonthly := backupconfigFields[19].Descriptor()
 	// backupconfig.DefaultKeepMonthly holds the default value on creation for the keep_monthly field.
 	backupconfig.DefaultKeepMonthly = backupconfigDescKeepMonthly.Default.(int)
 	// backupconfigDescKeepYearly is the schema descriptor for keep_yearly field.
-	backupconfigDescKeepYearly := backupconfigFields[19].Descriptor()
+	backupconfigDescKeepYearly := backupconfigFields[20].Descriptor()
 	// backupconfig.DefaultKeepYearly holds the default value on creation for the keep_yearly field.
 	backupconfig.DefaultKeepYearly = backupconfigDescKeepYearly.Default.(int)
 	// backupconfigDescCheckEnabled is the schema descriptor for check_enabled field.
-	backupconfigDescCheckEnabled := backupconfigFields[20].Descriptor()
+	backupconfigDescCheckEnabled := backupconfigFields[21].Descriptor()
 	// backupconfig.DefaultCheckEnabled holds the default value on creation for the check_enabled field.
 	backupconfig.DefaultCheckEnabled = backupconfigDescCheckEnabled.Default.(bool)
 	// backupconfigDescCheckSubsetPercent is the schema descriptor for check_subset_percent field.
-	backupconfigDescCheckSubsetPercent := backupconfigFields[21].Descriptor()
+	backupconfigDescCheckSubsetPercent := backupconfigFields[22].Descriptor()
 	// backupconfig.DefaultCheckSubsetPercent holds the default value on creation for the check_subset_percent field.
 	backupconfig.DefaultCheckSubsetPercent = backupconfigDescCheckSubsetPercent.Default.(int)
+	// backupconfigDescCopyRepositoryHostKey is the schema descriptor for copy_repository_host_key field.
+	backupconfigDescCopyRepositoryHostKey := backupconfigFields[25].Descriptor()
+	// backupconfig.DefaultCopyRepositoryHostKey holds the default value on creation for the copy_repository_host_key field.
+	backupconfig.DefaultCopyRepositoryHostKey = backupconfigDescCopyRepositoryHostKey.Default.(string)
 	// backupconfigDescCopySealedCredentials is the schema descriptor for copy_sealed_credentials field.
-	backupconfigDescCopySealedCredentials := backupconfigFields[24].Descriptor()
+	backupconfigDescCopySealedCredentials := backupconfigFields[26].Descriptor()
 	// backupconfig.DefaultCopySealedCredentials holds the default value on creation for the copy_sealed_credentials field.
 	backupconfig.DefaultCopySealedCredentials = backupconfigDescCopySealedCredentials.Default.(string)
 	// backupconfigDescCopyAfterBackup is the schema descriptor for copy_after_backup field.
-	backupconfigDescCopyAfterBackup := backupconfigFields[26].Descriptor()
+	backupconfigDescCopyAfterBackup := backupconfigFields[28].Descriptor()
 	// backupconfig.DefaultCopyAfterBackup holds the default value on creation for the copy_after_backup field.
 	backupconfig.DefaultCopyAfterBackup = backupconfigDescCopyAfterBackup.Default.(bool)
+	// backupconfigDescSSHPublicKey is the schema descriptor for ssh_public_key field.
+	backupconfigDescSSHPublicKey := backupconfigFields[29].Descriptor()
+	// backupconfig.DefaultSSHPublicKey holds the default value on creation for the ssh_public_key field.
+	backupconfig.DefaultSSHPublicKey = backupconfigDescSSHPublicKey.Default.(string)
+	// backupconfigDescSSHSealedPrivateKey is the schema descriptor for ssh_sealed_private_key field.
+	backupconfigDescSSHSealedPrivateKey := backupconfigFields[30].Descriptor()
+	// backupconfig.DefaultSSHSealedPrivateKey holds the default value on creation for the ssh_sealed_private_key field.
+	backupconfig.DefaultSSHSealedPrivateKey = backupconfigDescSSHSealedPrivateKey.Default.(string)
 	// backupconfigDescUpdatedBy is the schema descriptor for updated_by field.
-	backupconfigDescUpdatedBy := backupconfigFields[28].Descriptor()
+	backupconfigDescUpdatedBy := backupconfigFields[33].Descriptor()
 	// backupconfig.DefaultUpdatedBy holds the default value on creation for the updated_by field.
 	backupconfig.DefaultUpdatedBy = backupconfigDescUpdatedBy.Default.(string)
 	// backupconfigDescID is the schema descriptor for id field.

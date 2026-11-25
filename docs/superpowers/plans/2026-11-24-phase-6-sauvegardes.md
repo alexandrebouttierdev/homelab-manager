@@ -6,7 +6,7 @@
 
 **Prérequis :** phase 1C (coffre de secrets), phase 4 (alertes), phase 5 et module V (démarrage d'une unité par D-Bus et polkit). restic : paquet Debian 13 `restic` 0.18.0.
 
-**Statut :** D-12 tranchée le 24 novembre 2026 (option A : le Manager planifie). Incréments 6A (règle d'alerte comprise), 6B et 6C livrés ; reste SFTP.
+**Statut :** D-12 tranchée le 24 novembre 2026 (option A : le Manager planifie). Incréments 6A (règle d'alerte comprise), 6B, 6C et 6D (SFTP, décision D-13 prise en autonomie le 25 novembre 2026, à confirmer par le propriétaire) livrés.
 
 ## Découpage
 
@@ -99,4 +99,23 @@ Le § 7.1 prévoit un timer `homelab-backup-schedule.timer` dont l'expression `O
 - Livré : opérations `diff` et `copy` dans le programme d'entrée, l'exécuteur, l'unité et la règle polkit (un test vérifie que la règle livrée liste exactement les opérations du code) ; migration `015` (dépôt de copie, reconstruction de `backup_runs`) ; routes `PUT /api/v1/backups/copy`, `POST /api/v1/backups/copy/remove`, `/copy/init`, `/copy/connect`, opérations `diff` et `copy` de `POST /api/v1/backups/operations`, `lastCopy` dans la synthèse ; bouton « Comparer » et panneau de comparaison dans « Instantanés », carte « Dépôt de copie » dans « Configuration ».
 - Vérifié avec restic 0.18.0 dans la VM Debian 13 : diff entre deux sauvegardes réelles (fichier modifié et ajouté), création du dépôt de copie puis copie de deux instantanés, seconde copie sans doublon et rétention appliquée à la copie, mauvais mot de passe refusé sans le révéler ; copie entre deux rest-server HTTPS aux identifiants différents avec l'environnement exact du programme d'entrée, mauvais identifiant refusé (401) et masqué par restic.
 - Non vérifié : le parcours complet par l'interface dans la VM (unité root et règle polkit installées) ; une copie S3 réelle.
-- Reste : SFTP (gestion de la clé SSH de root à décider).
+- Reste : SFTP, livré par l'incrément 6D.
+
+## Décisions de conception (6D, SFTP)
+
+Le propriétaire a demandé le 25 novembre 2026 d'enchaîner les phases sans être consulté ; la gestion de la clé SSH a été tranchée dans ce cadre (D-13, SPEC_ADMINISTRATION.md § 10), à confirmer.
+
+| Sujet | Choix | Motif |
+|---|---|---|
+| Clé cliente | Une clé Ed25519 propre au Manager (commentaire `homelab-manager-backup`), générée et remplaçable par un administrateur, commune au dépôt principal et au dépôt de copie ; partie privée scellée dans le coffre (`backup-ssh-key`), partie publique et empreinte affichées | Ni la clé de root ni un secret de plus à saisir ; restic n'accepte qu'un jeu d'arguments ssh pour les deux dépôts d'une copie |
+| Transmission | Dans le fichier de secrets à usage unique, pour les seules opérations qui touchent un dépôt SFTP ; le programme d'entrée l'écrit avec les clés d'hôte dans un répertoire 0700 de son `/tmp` privé, supprimé à la fin | Même chemin que les autres secrets ; aucune clé sur disque hors d'une exécution |
+| Clé d'hôte | Épinglée par l'administrateur (ligne `ssh_host_*_key.pub` ou `ssh-keyscan`), normalisée `type base64`, ed25519, ECDSA ou RSA ≥ 2 048 bits ; changer la clé d'hôte ne réinitialise pas le dépôt | Pas de confiance à la première connexion : un faux serveur recevrait les instantanés chiffrés et l'authentification |
+| ssh | Lancé par restic (`-o sftp.args=…`) avec `-F /dev/null`, `IdentitiesOnly`, `IdentityAgent=none`, `BatchMode`, `StrictHostKeyChecking=yes`, `UserKnownHostsFile` privé, `GlobalKnownHostsFile=/dev/null`, `UpdateHostKeys=no`, sans redirection, proxy, commande locale ni connexion partagée | Aucune configuration de la machine ne s'en mêle ; rien d'interactif dans l'unité |
+| Adresse | `sftp://utilisateur@hôte[:port]/chemin/absolu`, sans mot de passe ; utilisateur et hôte sans `-` initial ; chemin limité à `[A-Za-z0-9._/+@=,-]` ; transmise à restic comme `sftp://u@h:p//chemin` (chemin absolu) | Pas d'injection d'option ssh ; pas d'échappement ambigu |
+| Unité | Inchangée : réseau déjà permis, `/tmp` privé inscriptible ; dépend du paquet `openssh-client` | Pas de nouvelle capacité |
+
+## Bilan de l'incrément 6D (25 novembre 2026)
+
+- Livré : type de dépôt `sftp` (principal et copie), migration `016` (reconstruction de `backup_configs`, clés d'hôte, clé SSH du Manager), adaptateur `sshkey` (`golang.org/x/crypto/ssh`, déjà présent), route `POST /api/v1/backups/ssh-key`, erreur `BACKUP_SSH_KEY_MISSING`, carte « Clé SSH du Manager » et champ « Clé d'hôte du serveur ».
+- Vérifié : le vrai client OpenSSH (macOS et Debian 13) avec les options du programme d'entrée contre un serveur SSH de test en Go : connexion avec la clé du Manager, refus d'une autre clé d'hôte et d'une autre clé cliente. restic 0.18.0 de la VM, avec un faux `ssh` qui note ses arguments, lance bien `ssh hôte -p port -l utilisateur <sftp.args> -s sftp`, l'ordre que reproduit le test.
+- Non vérifié : une sauvegarde restic réelle vers un serveur SFTP (aucun `sftp-server` ni `sshd` dans la VM de recette sans téléchargement) ; le parcours par l'interface avec l'unité root installée.

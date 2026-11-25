@@ -55,6 +55,20 @@ func (_c *BackupConfigCreate) SetNillableRepositoryLocation(v *string) *BackupCo
 	return _c
 }
 
+// SetRepositoryHostKey sets the "repository_host_key" field.
+func (_c *BackupConfigCreate) SetRepositoryHostKey(v string) *BackupConfigCreate {
+	_c.mutation.SetRepositoryHostKey(v)
+	return _c
+}
+
+// SetNillableRepositoryHostKey sets the "repository_host_key" field if the given value is not nil.
+func (_c *BackupConfigCreate) SetNillableRepositoryHostKey(v *string) *BackupConfigCreate {
+	if v != nil {
+		_c.SetRepositoryHostKey(*v)
+	}
+	return _c
+}
+
 // SetSealedCredentials sets the "sealed_credentials" field.
 func (_c *BackupConfigCreate) SetSealedCredentials(v string) *BackupConfigCreate {
 	_c.mutation.SetSealedCredentials(v)
@@ -319,6 +333,20 @@ func (_c *BackupConfigCreate) SetNillableCopyRepositoryLocation(v *string) *Back
 	return _c
 }
 
+// SetCopyRepositoryHostKey sets the "copy_repository_host_key" field.
+func (_c *BackupConfigCreate) SetCopyRepositoryHostKey(v string) *BackupConfigCreate {
+	_c.mutation.SetCopyRepositoryHostKey(v)
+	return _c
+}
+
+// SetNillableCopyRepositoryHostKey sets the "copy_repository_host_key" field if the given value is not nil.
+func (_c *BackupConfigCreate) SetNillableCopyRepositoryHostKey(v *string) *BackupConfigCreate {
+	if v != nil {
+		_c.SetCopyRepositoryHostKey(*v)
+	}
+	return _c
+}
+
 // SetCopySealedCredentials sets the "copy_sealed_credentials" field.
 func (_c *BackupConfigCreate) SetCopySealedCredentials(v string) *BackupConfigCreate {
 	_c.mutation.SetCopySealedCredentials(v)
@@ -357,6 +385,48 @@ func (_c *BackupConfigCreate) SetCopyAfterBackup(v bool) *BackupConfigCreate {
 func (_c *BackupConfigCreate) SetNillableCopyAfterBackup(v *bool) *BackupConfigCreate {
 	if v != nil {
 		_c.SetCopyAfterBackup(*v)
+	}
+	return _c
+}
+
+// SetSSHPublicKey sets the "ssh_public_key" field.
+func (_c *BackupConfigCreate) SetSSHPublicKey(v string) *BackupConfigCreate {
+	_c.mutation.SetSSHPublicKey(v)
+	return _c
+}
+
+// SetNillableSSHPublicKey sets the "ssh_public_key" field if the given value is not nil.
+func (_c *BackupConfigCreate) SetNillableSSHPublicKey(v *string) *BackupConfigCreate {
+	if v != nil {
+		_c.SetSSHPublicKey(*v)
+	}
+	return _c
+}
+
+// SetSSHSealedPrivateKey sets the "ssh_sealed_private_key" field.
+func (_c *BackupConfigCreate) SetSSHSealedPrivateKey(v string) *BackupConfigCreate {
+	_c.mutation.SetSSHSealedPrivateKey(v)
+	return _c
+}
+
+// SetNillableSSHSealedPrivateKey sets the "ssh_sealed_private_key" field if the given value is not nil.
+func (_c *BackupConfigCreate) SetNillableSSHSealedPrivateKey(v *string) *BackupConfigCreate {
+	if v != nil {
+		_c.SetSSHSealedPrivateKey(*v)
+	}
+	return _c
+}
+
+// SetSSHKeyCreatedAt sets the "ssh_key_created_at" field.
+func (_c *BackupConfigCreate) SetSSHKeyCreatedAt(v time.Time) *BackupConfigCreate {
+	_c.mutation.SetSSHKeyCreatedAt(v)
+	return _c
+}
+
+// SetNillableSSHKeyCreatedAt sets the "ssh_key_created_at" field if the given value is not nil.
+func (_c *BackupConfigCreate) SetNillableSSHKeyCreatedAt(v *time.Time) *BackupConfigCreate {
+	if v != nil {
+		_c.SetSSHKeyCreatedAt(*v)
 	}
 	return _c
 }
@@ -430,6 +500,10 @@ func (_c *BackupConfigCreate) ExecX(ctx context.Context) {
 
 // defaults sets the default values of the builder before save.
 func (_c *BackupConfigCreate) defaults() {
+	if _, ok := _c.mutation.RepositoryHostKey(); !ok {
+		v := backupconfig.DefaultRepositoryHostKey
+		_c.mutation.SetRepositoryHostKey(v)
+	}
 	if _, ok := _c.mutation.SealedCredentials(); !ok {
 		v := backupconfig.DefaultSealedCredentials
 		_c.mutation.SetSealedCredentials(v)
@@ -490,6 +564,10 @@ func (_c *BackupConfigCreate) defaults() {
 		v := backupconfig.DefaultCheckSubsetPercent
 		_c.mutation.SetCheckSubsetPercent(v)
 	}
+	if _, ok := _c.mutation.CopyRepositoryHostKey(); !ok {
+		v := backupconfig.DefaultCopyRepositoryHostKey
+		_c.mutation.SetCopyRepositoryHostKey(v)
+	}
 	if _, ok := _c.mutation.CopySealedCredentials(); !ok {
 		v := backupconfig.DefaultCopySealedCredentials
 		_c.mutation.SetCopySealedCredentials(v)
@@ -497,6 +575,14 @@ func (_c *BackupConfigCreate) defaults() {
 	if _, ok := _c.mutation.CopyAfterBackup(); !ok {
 		v := backupconfig.DefaultCopyAfterBackup
 		_c.mutation.SetCopyAfterBackup(v)
+	}
+	if _, ok := _c.mutation.SSHPublicKey(); !ok {
+		v := backupconfig.DefaultSSHPublicKey
+		_c.mutation.SetSSHPublicKey(v)
+	}
+	if _, ok := _c.mutation.SSHSealedPrivateKey(); !ok {
+		v := backupconfig.DefaultSSHSealedPrivateKey
+		_c.mutation.SetSSHSealedPrivateKey(v)
 	}
 	if _, ok := _c.mutation.UpdatedBy(); !ok {
 		v := backupconfig.DefaultUpdatedBy
@@ -517,6 +603,9 @@ func (_c *BackupConfigCreate) check() error {
 		if err := backupconfig.SingletonKeyValidator(v); err != nil {
 			return &ValidationError{Name: "singleton_key", err: fmt.Errorf(`ent: validator failed for field "BackupConfig.singleton_key": %w`, err)}
 		}
+	}
+	if _, ok := _c.mutation.RepositoryHostKey(); !ok {
+		return &ValidationError{Name: "repository_host_key", err: errors.New(`ent: missing required field "BackupConfig.repository_host_key"`)}
 	}
 	if _, ok := _c.mutation.SealedCredentials(); !ok {
 		return &ValidationError{Name: "sealed_credentials", err: errors.New(`ent: missing required field "BackupConfig.sealed_credentials"`)}
@@ -569,11 +658,20 @@ func (_c *BackupConfigCreate) check() error {
 	if _, ok := _c.mutation.CheckSubsetPercent(); !ok {
 		return &ValidationError{Name: "check_subset_percent", err: errors.New(`ent: missing required field "BackupConfig.check_subset_percent"`)}
 	}
+	if _, ok := _c.mutation.CopyRepositoryHostKey(); !ok {
+		return &ValidationError{Name: "copy_repository_host_key", err: errors.New(`ent: missing required field "BackupConfig.copy_repository_host_key"`)}
+	}
 	if _, ok := _c.mutation.CopySealedCredentials(); !ok {
 		return &ValidationError{Name: "copy_sealed_credentials", err: errors.New(`ent: missing required field "BackupConfig.copy_sealed_credentials"`)}
 	}
 	if _, ok := _c.mutation.CopyAfterBackup(); !ok {
 		return &ValidationError{Name: "copy_after_backup", err: errors.New(`ent: missing required field "BackupConfig.copy_after_backup"`)}
+	}
+	if _, ok := _c.mutation.SSHPublicKey(); !ok {
+		return &ValidationError{Name: "ssh_public_key", err: errors.New(`ent: missing required field "BackupConfig.ssh_public_key"`)}
+	}
+	if _, ok := _c.mutation.SSHSealedPrivateKey(); !ok {
+		return &ValidationError{Name: "ssh_sealed_private_key", err: errors.New(`ent: missing required field "BackupConfig.ssh_sealed_private_key"`)}
 	}
 	if _, ok := _c.mutation.UpdatedAt(); !ok {
 		return &ValidationError{Name: "updated_at", err: errors.New(`ent: missing required field "BackupConfig.updated_at"`)}
@@ -627,6 +725,10 @@ func (_c *BackupConfigCreate) createSpec() (*BackupConfig, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.RepositoryLocation(); ok {
 		_spec.SetField(backupconfig.FieldRepositoryLocation, field.TypeString, value)
 		_node.RepositoryLocation = &value
+	}
+	if value, ok := _c.mutation.RepositoryHostKey(); ok {
+		_spec.SetField(backupconfig.FieldRepositoryHostKey, field.TypeString, value)
+		_node.RepositoryHostKey = value
 	}
 	if value, ok := _c.mutation.SealedCredentials(); ok {
 		_spec.SetField(backupconfig.FieldSealedCredentials, field.TypeString, value)
@@ -708,6 +810,10 @@ func (_c *BackupConfigCreate) createSpec() (*BackupConfig, *sqlgraph.CreateSpec)
 		_spec.SetField(backupconfig.FieldCopyRepositoryLocation, field.TypeString, value)
 		_node.CopyRepositoryLocation = &value
 	}
+	if value, ok := _c.mutation.CopyRepositoryHostKey(); ok {
+		_spec.SetField(backupconfig.FieldCopyRepositoryHostKey, field.TypeString, value)
+		_node.CopyRepositoryHostKey = value
+	}
 	if value, ok := _c.mutation.CopySealedCredentials(); ok {
 		_spec.SetField(backupconfig.FieldCopySealedCredentials, field.TypeString, value)
 		_node.CopySealedCredentials = value
@@ -719,6 +825,18 @@ func (_c *BackupConfigCreate) createSpec() (*BackupConfig, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.CopyAfterBackup(); ok {
 		_spec.SetField(backupconfig.FieldCopyAfterBackup, field.TypeBool, value)
 		_node.CopyAfterBackup = value
+	}
+	if value, ok := _c.mutation.SSHPublicKey(); ok {
+		_spec.SetField(backupconfig.FieldSSHPublicKey, field.TypeString, value)
+		_node.SSHPublicKey = value
+	}
+	if value, ok := _c.mutation.SSHSealedPrivateKey(); ok {
+		_spec.SetField(backupconfig.FieldSSHSealedPrivateKey, field.TypeString, value)
+		_node.SSHSealedPrivateKey = value
+	}
+	if value, ok := _c.mutation.SSHKeyCreatedAt(); ok {
+		_spec.SetField(backupconfig.FieldSSHKeyCreatedAt, field.TypeTime, value)
+		_node.SSHKeyCreatedAt = &value
 	}
 	if value, ok := _c.mutation.UpdatedAt(); ok {
 		_spec.SetField(backupconfig.FieldUpdatedAt, field.TypeTime, value)

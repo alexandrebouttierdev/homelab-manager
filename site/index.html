@@ -3,7 +3,9 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Homelab Manager · supervision légère et auto-hébergée d'un serveur Linux</title>
+    <title>
+      Homelab Manager · supervision légère et auto-hébergée d'un serveur Linux
+    </title>
     <meta
       name="description"
       content="Homelab Manager supervise et administre la machine Linux qui l'héberge et ses conteneurs Docker : métriques, journaux systemd, alertes, sauvegardes restic, vulnérabilités. Un binaire Go, un fichier SQLite, aucun cloud."
@@ -15,34 +17,41 @@
       content="La supervision de votre serveur Linux, sans le superflu. Auto-hébergé, sans cloud ni terminal web."
     />
     <meta property="og:type" content="website" />
-    <meta property="og:url" content="https://alexandrebouttierdev.github.io/homelab-manager/" />
-    <meta name="theme-color" content="#0b0d10" />
+    <meta
+      property="og:url"
+      content="https://alexandrebouttierdev.github.io/homelab-manager/"
+    />
+    <meta name="theme-color" content="#0e0e0d" />
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />
     <link rel="preconnect" href="https://fonts.bunny.net" />
     <link
       rel="stylesheet"
-      href="https://fonts.bunny.net/css?family=geist:400,500,600,700|geist-mono:400,500&display=swap"
+      href="https://fonts.bunny.net/css?family=instrument-sans:400,500,600,700|ibm-plex-mono:400,500&display=swap"
     />
     <style>
       :root {
-        --bg: #0b0d10;
-        --surface: #0f1113;
-        --card: #111316;
-        --raised: #17191c;
-        --line: #1f2328;
-        --line-2: #2a2f37;
-        --text: #e8eaed;
-        --text-2: #a3aab4;
-        --text-3: #8a919b;
-        --accent: #8b9cfb;
-        --accent-soft: #aab6fd;
-        --on-accent: #0b0d10;
-        --cpu: #6d9fe8;
-        --ram: #a78bfa;
-        --ok: #45b881;
-        --warn: #e5a93c;
-        --sans: 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
-        --mono: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        --bg: #0e0e0d;
+        --surface: #121211;
+        --card: #141413;
+        --raised: #1d1d1b;
+        --line: #262624;
+        --line-2: #34342f;
+        --text: #edede6;
+        --text-2: #b4b4ab;
+        --text-3: #8c8c84;
+        --accent: #edede6;
+        --accent-soft: #edede6;
+        --on-accent: #0e0e0d;
+        --cpu: #78a9ff;
+        --ram: #f2a65a;
+        --ok: #52c48d;
+        --warn: #e8b85a;
+        --sans:
+          "Instrument Sans", ui-sans-serif, system-ui, -apple-system,
+          "Segoe UI", sans-serif;
+        --mono:
+          "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, Consolas,
+          monospace;
       }
 
       *,
@@ -61,16 +70,28 @@
         background: var(--bg);
         color: var(--text);
         font: 400 16px/1.6 var(--sans);
+        font-variant-numeric: tabular-nums;
         -webkit-font-smoothing: antialiased;
         overflow-x: hidden;
       }
 
       a {
-        color: var(--accent-soft);
-        text-decoration: none;
+        color: var(--text);
+        text-decoration: underline;
+        text-decoration-color: var(--line-2);
+        text-underline-offset: 3px;
       }
       a:hover {
-        color: #d3d9fe;
+        color: #fff;
+        text-decoration-color: var(--text-3);
+      }
+      .top a,
+      .btn,
+      .announce,
+      .version-pill,
+      .foot nav a,
+      .credits a {
+        text-decoration: none;
       }
       :focus-visible {
         outline: 2px solid var(--accent);
@@ -83,7 +104,7 @@
       h3 {
         margin: 0;
         letter-spacing: -0.03em;
-        font-weight: 650;
+        font-weight: 600;
       }
       p {
         margin: 0;
@@ -111,10 +132,8 @@
       }
 
       .kicker {
-        font: 500 13px/1 var(--mono);
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
-        color: var(--accent);
+        font: 500 14px/1 var(--sans);
+        color: var(--text-3);
       }
       .section-head {
         display: flex;
@@ -160,27 +179,27 @@
         font-weight: 600;
       }
       .btn-primary:hover {
-        background: #a3b1fc;
+        background: #fff;
         color: var(--on-accent);
       }
       .btn-ghost {
-        border-color: #2c3138;
-        background: #121418;
+        border-color: var(--line-2);
+        background: var(--surface);
         color: var(--text);
       }
       .btn-ghost:hover {
-        border-color: #3d434c;
+        border-color: #4a4a44;
         color: #fff;
       }
 
       .card {
         background: var(--card);
-        border: 1px solid #23272d;
+        border: 1px solid var(--line);
         border-radius: 14px;
         transition: border-color 0.15s;
       }
       .card:hover {
-        border-color: #30353d;
+        border-color: var(--line-2);
       }
 
       /* Header */
@@ -188,8 +207,8 @@
         position: sticky;
         top: 0;
         z-index: 5;
-        border-bottom: 1px solid #1b1e23;
-        background: rgba(11, 13, 16, 0.82);
+        border-bottom: 1px solid var(--line);
+        background: rgba(14, 14, 13, 0.85);
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
       }
@@ -232,7 +251,7 @@
       .version-pill {
         font: 400 12px/1 var(--mono);
         color: var(--text-2);
-        border: 1px solid #23272d;
+        border: 1px solid var(--line);
         border-radius: 999px;
         padding: 7px 10px;
       }
@@ -259,27 +278,6 @@
         padding-bottom: 40px;
         overflow: hidden;
       }
-      .hero-glow {
-        position: absolute;
-        left: 50%;
-        top: -120px;
-        width: 1100px;
-        height: 700px;
-        transform: translateX(-50%);
-        background: radial-gradient(closest-side, rgba(139, 156, 251, 0.2), rgba(139, 156, 251, 0));
-        pointer-events: none;
-      }
-      .hero-grid {
-        position: absolute;
-        inset: 0;
-        background-image:
-          linear-gradient(rgba(255, 255, 255, 0.035) 1px, transparent 1px),
-          linear-gradient(90deg, rgba(255, 255, 255, 0.035) 1px, transparent 1px);
-        background-size: 56px 56px;
-        mask-image: radial-gradient(ellipse 70% 55% at 50% 20%, #000 30%, transparent 75%);
-        -webkit-mask-image: radial-gradient(ellipse 70% 55% at 50% 20%, #000 30%, transparent 75%);
-        pointer-events: none;
-      }
       .hero-copy {
         position: relative;
         display: flex;
@@ -292,14 +290,14 @@
         align-items: center;
         gap: 10px;
         border: 1px solid var(--line-2);
-        background: rgba(17, 19, 22, 0.8);
+        background: var(--card);
         border-radius: 999px;
         padding: 6px 14px 6px 6px;
         font-size: 13px;
-        color: #c4c9d0;
+        color: var(--text-2);
       }
       .announce:hover {
-        border-color: #3d434c;
+        border-color: #4a4a44;
         color: var(--text);
       }
       .announce b {
@@ -318,7 +316,7 @@
         max-width: 920px;
       }
       .hero h1 span {
-        color: var(--accent);
+        color: var(--text-3);
       }
       .lede {
         margin-top: 24px;
@@ -335,7 +333,7 @@
       }
       .hero-meta {
         margin-top: 20px;
-        font: 400 13px/1.5 var(--mono);
+        font: 400 14px/1.5 var(--sans);
         color: var(--text-3);
       }
 
@@ -345,27 +343,13 @@
         margin-top: 64px;
         max-width: 1240px;
       }
-      .preview-glow {
-        position: absolute;
-        left: 8%;
-        right: 8%;
-        top: 40px;
-        bottom: -40px;
-        background: radial-gradient(
-          closest-side,
-          rgba(139, 156, 251, 0.22),
-          rgba(139, 156, 251, 0)
-        );
-        filter: blur(30px);
-        pointer-events: none;
-      }
       .window {
         position: relative;
         margin: 0;
         border: 1px solid var(--line-2);
         border-radius: 16px;
         background: var(--surface);
-        box-shadow: 0 40px 120px -40px rgba(0, 0, 0, 0.9);
+        box-shadow: 0 24px 64px -32px rgba(0, 0, 0, 0.6);
         overflow: hidden;
       }
       .window-bar {
@@ -375,7 +359,7 @@
         height: 44px;
         padding: 0 16px;
         border-bottom: 1px solid var(--line);
-        background: #121418;
+        background: var(--surface);
       }
       .dots {
         display: flex;
@@ -386,7 +370,7 @@
         width: 11px;
         height: 11px;
         border-radius: 50%;
-        background: #3a3f46;
+        background: #3a3a36;
       }
       .url {
         flex: 1;
@@ -413,9 +397,9 @@
         gap: 18px;
         padding: 18px 14px;
         border-right: 1px solid var(--line);
-        background: #111315;
+        background: var(--surface);
         font-size: 13px;
-        color: #9299a3;
+        color: var(--text-3);
       }
       .app-side div {
         display: flex;
@@ -426,9 +410,7 @@
         padding: 6px 10px;
       }
       .app-side .group {
-        font: 400 11px/1 var(--mono);
-        letter-spacing: 0.08em;
-        text-transform: uppercase;
+        font: 400 12px/1 var(--sans);
         color: var(--text-3);
         padding: 0 10px 6px;
       }
@@ -437,16 +419,9 @@
         align-items: center;
         gap: 9px;
         border-radius: 7px;
-        background: #22262b;
+        background: var(--raised);
         color: var(--text);
         font-weight: 500;
-      }
-      .app-side .active::before {
-        content: '';
-        width: 6px;
-        height: 6px;
-        border-radius: 50%;
-        background: var(--accent);
       }
       .app-main {
         flex: 1;
@@ -474,10 +449,10 @@
         align-items: center;
         gap: 7px;
         font-size: 12px;
-        color: #9299a3;
+        color: var(--text-3);
       }
       .app-title span::before {
-        content: '';
+        content: "";
         width: 7px;
         height: 7px;
         border-radius: 50%;
@@ -486,41 +461,47 @@
       .stats {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
-        gap: 12px;
+        gap: 1px;
+        background: var(--line);
+        border: 1px solid var(--line);
+        border-radius: 10px;
+        overflow: hidden;
       }
-      .stat,
+      .stat {
+        background: var(--card);
+      }
       .panel {
-        background: var(--raised);
-        border: 1px solid #262a30;
+        background: var(--card);
+        border: 1px solid var(--line);
         border-radius: 10px;
       }
       .stat {
-        padding: 14px;
+        padding: 14px 16px;
         display: flex;
         flex-direction: column;
         gap: 8px;
       }
       .stat small {
-        font-size: 11px;
-        color: #9299a3;
+        font-size: 12px;
+        color: var(--text-3);
       }
       .stat strong {
-        font-size: 24px;
+        font-size: 26px;
         font-weight: 600;
-        letter-spacing: -0.02em;
-        line-height: 1.2;
+        letter-spacing: -0.03em;
+        line-height: 1.15;
       }
       .stat strong em {
         font-style: normal;
         font-size: 13px;
-        color: #9299a3;
+        color: var(--text-3);
         font-weight: 500;
       }
       .bar {
         display: block;
-        height: 5px;
+        height: 4px;
         border-radius: 3px;
-        background: #262a30;
+        background: var(--line);
       }
       .bar i {
         display: block;
@@ -528,8 +509,8 @@
         border-radius: 3px;
       }
       .stat .net {
-        font: 400 11px/1.4 var(--mono);
-        color: var(--ok);
+        font: 400 12px/1.4 var(--sans);
+        color: var(--text-3);
       }
       .panels {
         display: flex;
@@ -558,9 +539,9 @@
         margin-bottom: 8px;
       }
       .panel-head span {
-        font-size: 11px;
+        font-size: 12px;
         font-weight: 400;
-        color: #9299a3;
+        color: var(--text-3);
       }
       .panel svg {
         display: block;
@@ -571,7 +552,7 @@
         display: flex;
         justify-content: space-between;
         padding: 7px 0;
-        border-top: 1px solid #23272d;
+        border-top: 1px solid var(--line);
         font-size: 12px;
       }
       .ctr code {
@@ -581,12 +562,12 @@
         color: var(--ok);
       }
       .ctr span.off {
-        color: #9299a3;
+        color: var(--text-3);
       }
       .window figcaption {
         padding: 10px 16px;
         border-top: 1px solid var(--line);
-        background: #121418;
+        background: var(--surface);
         font-size: 12px;
         color: var(--text-3);
         text-align: center;
@@ -627,7 +608,7 @@
         gap: 10px;
         font-size: 16px;
         font-weight: 500;
-        color: #b5bbc3;
+        color: var(--text-2);
         transition: color 0.2s;
       }
       .logos svg {
@@ -666,9 +647,9 @@
         display: flex;
         align-items: center;
         justify-content: center;
-        background: rgba(139, 156, 251, 0.1);
-        border: 1px solid rgba(139, 156, 251, 0.22);
-        color: var(--accent-soft);
+        background: var(--raised);
+        border: 1px solid var(--line);
+        color: var(--text);
       }
       .icon svg {
         width: 20px;
@@ -690,10 +671,9 @@
       }
       .tag {
         align-self: flex-start;
-        font: 400 11px/1 var(--mono);
-        letter-spacing: 0.04em;
+        font: 400 12px/1 var(--sans);
         color: var(--text-3);
-        border: 1px solid #2a2f37;
+        border: 1px solid var(--line-2);
         border-radius: 999px;
         padding: 5px 9px;
       }
@@ -706,7 +686,7 @@
         align-items: center;
         justify-content: space-between;
         gap: 32px;
-        background: linear-gradient(180deg, #13161a, #0f1114);
+        background: var(--card);
       }
       .notify > div {
         flex: 1 1 340px;
@@ -738,7 +718,7 @@
         gap: 10px;
         min-height: 56px;
         padding: 12px;
-        border: 1px solid #262a30;
+        border: 1px solid var(--line);
         border-radius: 10px;
         background: var(--surface);
         font-size: 14px;
@@ -774,8 +754,8 @@
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
         gap: 1px;
-        background: #23272d;
-        border: 1px solid #23272d;
+        background: var(--line);
+        border: 1px solid var(--line);
         border-radius: 14px;
         overflow: hidden;
       }
@@ -788,7 +768,7 @@
       }
       .figures strong {
         font-size: 44px;
-        font-weight: 650;
+        font-weight: 600;
         letter-spacing: -0.04em;
         line-height: 1.1;
       }
@@ -872,14 +852,14 @@
         align-items: center;
         gap: 4px;
         padding: 8px;
-        border-bottom: 1px solid #23272d;
-        background: #121418;
+        border-bottom: 1px solid var(--line);
+        background: var(--surface);
       }
       .tab {
         cursor: pointer;
         border: 0;
         background: transparent;
-        color: #9299a3;
+        color: var(--text-3);
         padding: 10px 14px;
         border-radius: 8px;
         font: 500 14px/1 var(--sans);
@@ -887,31 +867,31 @@
       .tab:hover {
         color: var(--text);
       }
-      .tab[aria-selected='true'] {
-        background: #22262b;
+      .tab[aria-selected="true"] {
+        background: var(--raised);
         color: var(--text);
       }
       .copy {
         margin-left: auto;
         cursor: pointer;
-        border: 1px solid #2a2f37;
+        border: 1px solid var(--line-2);
         background: transparent;
-        color: #9299a3;
+        color: var(--text-3);
         border-radius: 8px;
         padding: 8px 12px;
         font: 500 13px/1 var(--sans);
       }
       .copy:hover {
         color: var(--text);
-        border-color: #3d434c;
+        border-color: #4a4a44;
       }
       .terminal pre {
         margin: 0;
         padding: 24px;
         overflow-x: auto;
         font: 400 14px/1.75 var(--mono);
-        color: #d6dae0;
-        background: #0c0e11;
+        color: #d6d6ce;
+        background: #0b0b0a;
       }
       .terminal pre[hidden] {
         display: none;
@@ -920,7 +900,7 @@
         color: var(--text-3);
       }
       .v {
-        color: var(--accent-soft);
+        color: var(--ram);
       }
       .steps {
         list-style: none;
@@ -939,8 +919,8 @@
         gap: 6px;
       }
       .steps small {
-        font: 400 12px/1 var(--mono);
-        color: var(--accent);
+        font: 500 12px/1 var(--sans);
+        color: var(--text-3);
       }
       .steps strong {
         font-size: 15px;
@@ -967,21 +947,7 @@
         border-radius: 20px;
         padding: 72px 32px;
         text-align: center;
-        background: #0f1114;
-      }
-      .final-glow {
-        position: absolute;
-        left: 50%;
-        top: 100%;
-        width: 900px;
-        height: 520px;
-        transform: translate(-50%, -50%);
-        background: radial-gradient(
-          closest-side,
-          rgba(139, 156, 251, 0.25),
-          rgba(139, 156, 251, 0)
-        );
-        pointer-events: none;
+        background: var(--card);
       }
       .final-box > div {
         position: relative;
@@ -1003,7 +969,7 @@
       /* Footer */
       footer {
         margin-top: 120px;
-        border-top: 1px solid #1b1e23;
+        border-top: 1px solid var(--line);
         padding: 56px 0 40px;
       }
       .foot {
@@ -1046,7 +1012,7 @@
       .credits {
         margin-top: 48px;
         padding-top: 24px;
-        border-top: 1px solid #1b1e23;
+        border-top: 1px solid var(--line);
         display: flex;
         flex-wrap: wrap;
         justify-content: space-between;
@@ -1059,7 +1025,7 @@
         font-weight: 500;
       }
       .credits a:hover {
-        color: var(--accent-soft);
+        color: #fff;
       }
 
       @media (prefers-reduced-motion: reduce) {
@@ -1122,24 +1088,27 @@
           y="1"
           width="30"
           height="30"
-          rx="7"
-          fill="#111315"
-          stroke="#2a2e33"
-          stroke-width="2"
+          rx="8"
+          fill="#1d1d1b"
+          stroke="#34342f"
+          stroke-width="1.5"
         />
         <g
           fill="none"
-          stroke="#8b9cfb"
-          stroke-width="2"
+          stroke="#edede6"
+          stroke-width="1.8"
           stroke-linecap="round"
           stroke-linejoin="round"
         >
-          <rect x="8" y="8" width="16" height="7" rx="1.5" />
-          <rect x="8" y="17" width="16" height="7" rx="1.5" />
-          <path d="M11.5 11.5h.01M11.5 20.5h.01" />
+          <rect x="8" y="8.5" width="16" height="6.5" rx="1.5" />
+          <rect x="8" y="17" width="16" height="6.5" rx="1.5" />
         </g>
+        <circle cx="11.5" cy="11.75" r="1.3" fill="#52c48d" />
+        <circle cx="11.5" cy="20.25" r="1.3" fill="#52c48d" />
       </symbol>
-      <symbol id="check" viewBox="0 0 24 24"><path d="m5 12 5 5L20 7" /></symbol>
+      <symbol id="check" viewBox="0 0 24 24">
+        <path d="m5 12 5 5L20 7" />
+      </symbol>
     </svg>
 
     <a class="skip" href="#contenu">Aller au contenu</a>
@@ -1147,14 +1116,17 @@
     <header class="top">
       <div class="wrap">
         <a class="brand" href="#top">
-          <svg width="28" height="28" aria-hidden="true"><use href="#mark" /></svg>
+          <svg width="28" height="28" aria-hidden="true">
+            <use href="#mark" />
+          </svg>
           Homelab Manager
         </a>
         <nav class="nav-links" aria-label="Navigation principale">
           <a href="#fonctionnalites">Fonctionnalités</a>
           <a href="#securite">Sécurité</a>
           <a href="#installation">Installation</a>
-          <a href="https://github.com/alexandrebouttierdev/homelab-manager#documentation"
+          <a
+            href="https://github.com/alexandrebouttierdev/homelab-manager#documentation"
             >Documentation</a
           >
         </nav>
@@ -1162,10 +1134,19 @@
           <a
             class="version-pill"
             href="https://github.com/alexandrebouttierdev/homelab-manager/releases/latest"
-            >v<span data-version>2.3.1</span></a
+            >v<span data-version>2.5.0</span></a
           >
-          <a class="btn btn-ghost" href="https://github.com/alexandrebouttierdev/homelab-manager">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <a
+            class="btn btn-ghost"
+            href="https://github.com/alexandrebouttierdev/homelab-manager"
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="currentColor"
+              aria-hidden="true"
+            >
               <path
                 d="M12 .5C5.65.5.5 5.65.5 12a11.5 11.5 0 0 0 7.86 10.92c.58.1.79-.25.79-.56v-2c-3.2.7-3.87-1.37-3.87-1.37-.52-1.33-1.28-1.69-1.28-1.69-1.05-.72.08-.7.08-.7 1.16.08 1.77 1.19 1.77 1.19 1.03 1.77 2.7 1.26 3.36.96.1-.75.4-1.26.73-1.55-2.55-.29-5.24-1.28-5.24-5.69 0-1.26.45-2.29 1.19-3.1-.12-.29-.52-1.46.11-3.05 0 0 .97-.31 3.17 1.18a11 11 0 0 1 5.77 0c2.2-1.49 3.17-1.18 3.17-1.18.63 1.59.23 2.76.11 3.05.74.81 1.19 1.84 1.19 3.1 0 4.42-2.7 5.39-5.26 5.68.41.36.78 1.06.78 2.14v3.17c0 .31.21.67.8.56A11.5 11.5 0 0 0 23.5 12C23.5 5.65 18.35.5 12 .5Z"
               />
@@ -1178,35 +1159,41 @@
 
     <main id="contenu">
       <section class="hero" id="top">
-        <div class="hero-glow" aria-hidden="true"></div>
-        <div class="hero-grid" aria-hidden="true"></div>
         <div class="wrap hero-copy">
           <a
             class="announce"
             href="https://github.com/alexandrebouttierdev/homelab-manager/releases/latest"
           >
-            <b>v<span data-version>2.3.1</span></b>
+            <b>v<span data-version>2.5.0</span></b>
             Dernière version · notes de version
             <span aria-hidden="true">→</span>
           </a>
-          <h1>La supervision de votre serveur Linux, <span>sans le superflu.</span></h1>
+          <h1>
+            La supervision de votre serveur Linux,
+            <span>sans le superflu.</span>
+          </h1>
           <p class="lede">
-            Métriques, conteneurs Docker, journaux systemd, alertes, sauvegardes et vulnérabilités
-            dans une seule interface auto-hébergée. Un binaire Go, un fichier SQLite, aucun cloud.
+            Métriques, conteneurs Docker, journaux systemd, alertes, sauvegardes
+            et vulnérabilités dans une seule interface auto-hébergée. Un binaire
+            Go, un fichier SQLite, aucun cloud.
           </p>
           <div class="actions">
-            <a class="btn btn-primary" href="#installation">Installer Homelab Manager</a>
-            <a class="btn btn-ghost" href="https://github.com/alexandrebouttierdev/homelab-manager"
+            <a class="btn btn-primary" href="#installation"
+              >Installer Homelab Manager</a
+            >
+            <a
+              class="btn btn-ghost"
+              href="https://github.com/alexandrebouttierdev/homelab-manager"
               >Voir le code sur GitHub</a
             >
           </div>
           <p class="hero-meta">
-            Debian 13 · amd64 et arm64 · aucune donnée envoyée hors de la machine
+            Debian 13 · amd64 et arm64 · aucune donnée envoyée hors de la
+            machine
           </p>
         </div>
 
         <div class="wrap preview">
-          <div class="preview-glow" aria-hidden="true"></div>
           <figure class="window">
             <div class="window-bar" aria-hidden="true">
               <div class="dots"><i></i><i></i><i></i></div>
@@ -1217,37 +1204,49 @@
               <div class="app-side">
                 <div><span class="active">Vue d'ensemble</span></div>
                 <div>
-                  <span class="group">Docker</span><span>Tous les conteneurs</span
-                  ><span>Images</span><span>Volumes</span><span>Réseaux Docker</span>
+                  <span class="group">Docker</span
+                  ><span>Tous les conteneurs</span><span>Images</span
+                  ><span>Volumes</span><span>Réseaux Docker</span>
                 </div>
                 <div>
-                  <span class="group">Système</span><span>Machine</span><span>Stockage</span
-                  ><span>Métriques</span><span>Journaux système</span><span>Services système</span
+                  <span class="group">Système</span><span>Machine</span
+                  ><span>Stockage</span><span>Métriques</span
+                  ><span>Journaux système</span><span>Services système</span
                   ><span>Sauvegardes</span><span>Tâches planifiées</span>
                 </div>
                 <div>
-                  <span class="group">Activité</span><span>Alertes</span><span>Événements</span>
+                  <span class="group">Activité</span><span>Alertes</span
+                  ><span>Événements</span>
                 </div>
               </div>
               <div class="app-main">
                 <div class="app-title">
-                  <strong>Vue d'ensemble</strong><span>Collecte active · toutes les 5 s</span>
+                  <strong>Vue d'ensemble</strong
+                  ><span>Collecte active · toutes les 5 s</span>
                 </div>
                 <div class="stats">
                   <div class="stat">
-                    <small>Processeur (CPU) · 8 cœurs</small><strong>12 %</strong
-                    ><span class="bar"><i style="width: 12%; background: var(--cpu)"></i></span>
+                    <small>Processeur (CPU) · 8 cœurs</small
+                    ><strong>12 %</strong
+                    ><span class="bar"
+                      ><i style="width: 12%; background: var(--cpu)"></i
+                    ></span>
                   </div>
                   <div class="stat">
                     <small>Mémoire vive · 16 Go</small><strong>41 %</strong
-                    ><span class="bar"><i style="width: 41%; background: var(--ram)"></i></span>
+                    ><span class="bar"
+                      ><i style="width: 41%; background: var(--ram)"></i
+                    ></span>
                   </div>
                   <div class="stat">
                     <small>Stockage · 1,8 To</small><strong>58 %</strong
-                    ><span class="bar"><i style="width: 58%; background: var(--warn)"></i></span>
+                    ><span class="bar"
+                      ><i style="width: 58%; background: var(--warn)"></i
+                    ></span>
                   </div>
                   <div class="stat">
-                    <small>Trafic réseau · eth0</small><strong>2,4 <em>Mo/s</em></strong
+                    <small>Trafic réseau · eth0</small
+                    ><strong>2,4 <em>Mo/s</em></strong
                     ><span class="net">↓ 2,4 Mo/s · ↑ 310 Ko/s</span>
                   </div>
                 </div>
@@ -1259,15 +1258,31 @@
                     <svg viewBox="0 0 600 200" preserveAspectRatio="none">
                       <defs>
                         <linearGradient id="gRam" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0" stop-color="#a78bfa" stop-opacity=".28" />
-                          <stop offset="1" stop-color="#a78bfa" stop-opacity="0" />
+                          <stop
+                            offset="0"
+                            stop-color="#f2a65a"
+                            stop-opacity=".14"
+                          />
+                          <stop
+                            offset="1"
+                            stop-color="#a78bfa"
+                            stop-opacity="0"
+                          />
                         </linearGradient>
                         <linearGradient id="gCpu" x1="0" y1="0" x2="0" y2="1">
-                          <stop offset="0" stop-color="#6d9fe8" stop-opacity=".3" />
-                          <stop offset="1" stop-color="#6d9fe8" stop-opacity="0" />
+                          <stop
+                            offset="0"
+                            stop-color="#78a9ff"
+                            stop-opacity=".16"
+                          />
+                          <stop
+                            offset="1"
+                            stop-color="#6d9fe8"
+                            stop-opacity="0"
+                          />
                         </linearGradient>
                       </defs>
-                      <g stroke="#23272d" stroke-width="1">
+                      <g stroke="#262624" stroke-width="1">
                         <line x1="0" y1="40" x2="600" y2="40" />
                         <line x1="0" y1="90" x2="600" y2="90" />
                         <line x1="0" y1="140" x2="600" y2="140" />
@@ -1280,7 +1295,7 @@
                       <path
                         d="M0 104 L40 102 L80 100 L120 103 L160 99 L200 97 L240 101 L280 96 L320 94 L360 98 L400 95 L440 92 L480 96 L520 93 L560 95 L600 94"
                         fill="none"
-                        stroke="#a78bfa"
+                        stroke="#f2a65a"
                         stroke-width="2"
                         vector-effect="non-scaling-stroke"
                       />
@@ -1291,32 +1306,50 @@
                       <path
                         d="M0 172 L30 168 L60 170 L90 160 L120 166 L150 150 L180 162 L210 120 L240 146 L270 158 L300 164 L330 140 L360 160 L390 166 L420 152 L450 168 L480 130 L510 156 L540 164 L570 160 L600 166"
                         fill="none"
-                        stroke="#6d9fe8"
+                        stroke="#78a9ff"
                         stroke-width="2"
                         vector-effect="non-scaling-stroke"
                       />
                     </svg>
                   </div>
                   <div class="panel panel-list">
-                    <div class="panel-head">Services Docker<span>6 conteneurs</span></div>
-                    <div class="ctr"><code>traefik</code><span>● En cours</span></div>
-                    <div class="ctr"><code>vaultwarden</code><span>● En cours</span></div>
-                    <div class="ctr"><code>immich-server</code><span>● En cours</span></div>
-                    <div class="ctr"><code>jellyfin</code><span>● En cours</span></div>
-                    <div class="ctr"><code>postgres</code><span>● En cours</span></div>
-                    <div class="ctr"><code>nightly-job</code><span class="off">○ Arrêté</span></div>
+                    <div class="panel-head">
+                      Services Docker<span>6 conteneurs</span>
+                    </div>
+                    <div class="ctr">
+                      <code>traefik</code><span>● En cours</span>
+                    </div>
+                    <div class="ctr">
+                      <code>vaultwarden</code><span>● En cours</span>
+                    </div>
+                    <div class="ctr">
+                      <code>immich-server</code><span>● En cours</span>
+                    </div>
+                    <div class="ctr">
+                      <code>jellyfin</code><span>● En cours</span>
+                    </div>
+                    <div class="ctr">
+                      <code>postgres</code><span>● En cours</span>
+                    </div>
+                    <div class="ctr">
+                      <code>nightly-job</code><span class="off">○ Arrêté</span>
+                    </div>
                   </div>
                 </div>
               </div>
             </div>
-            <figcaption>Aperçu de la vue d'ensemble, avec des données d'exemple</figcaption>
+            <figcaption>
+              Aperçu de la vue d'ensemble, avec des données d'exemple
+            </figcaption>
           </figure>
         </div>
       </section>
 
       <section class="stack" aria-labelledby="stack-titre">
         <div class="wrap">
-          <p id="stack-titre">Construit sur des briques éprouvées, sans rien d'exotique</p>
+          <p id="stack-titre">
+            Construit sur des briques éprouvées, sans rien d'exotique
+          </p>
           <ul class="logos">
             <li style="--brand: #00add8">
               <svg aria-hidden="true"><use href="#logo-go" /></svg>Go
@@ -1349,8 +1382,9 @@
               Tout ce qui se passe sur la machine, sur un seul écran.
             </h2>
             <p>
-              La supervision est disponible dès l'installation. Les fonctions qui demandent un
-              privilège sont désactivées par défaut et s'activent une à une.
+              La supervision est disponible dès l'installation. Les fonctions
+              qui demandent un privilège sont désactivées par défaut et
+              s'activent une à une.
             </p>
           </div>
           <div class="features">
@@ -1361,8 +1395,9 @@
               ></span>
               <h3>Métriques en temps réel</h3>
               <p>
-                CPU, mémoire, swap, stockage, réseau et températures réellement disponibles, avec
-                des historiques bruts ou agrégés de 1 à 365 jours.
+                CPU, mémoire, swap, stockage, réseau et températures réellement
+                disponibles, avec des historiques bruts ou agrégés de 1 à 365
+                jours.
               </p>
             </article>
             <article class="card feature">
@@ -1373,20 +1408,23 @@
               ></span>
               <h3>Conteneurs Docker</h3>
               <p>
-                Découverte continue, métriques par conteneur, images, volumes et réseaux, journaux
-                stdout et stderr de chaque conteneur.
+                Découverte continue, métriques par conteneur, images, volumes et
+                réseaux, journaux stdout et stderr de chaque conteneur.
               </p>
               <span class="tag">Démarrer, arrêter : en option</span>
             </article>
             <article class="card feature">
               <span class="icon"
                 ><svg viewBox="0 0 24 24" aria-hidden="true">
-                  <path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" /></svg
+                  <path
+                    d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"
+                  /></svg
               ></span>
               <h3>Journal systemd</h3>
               <p>
-                Filtres, recherche, suivi en direct, synthèse sur 24 heures et export. Les champs
-                sensibles sont masqués, tout reste en lecture seule.
+                Filtres, recherche, suivi en direct, synthèse sur 24 heures et
+                export. Les champs sensibles sont masqués, tout reste en lecture
+                seule.
               </p>
             </article>
             <article class="card feature">
@@ -1397,8 +1435,9 @@
               ></span>
               <h3>Services et tâches planifiées</h3>
               <p>
-                Services, timers et sockets lus sur D-Bus. Crontabs et timers traduits en français,
-                avec leurs prochaines et dernières exécutions.
+                Services, timers et sockets lus sur D-Bus. Crontabs et timers
+                traduits en français, avec leurs prochaines et dernières
+                exécutions.
               </p>
               <span class="tag">Actions sur une liste blanche : en option</span>
             </article>
@@ -1410,8 +1449,9 @@
               ></span>
               <h3>Alertes</h3>
               <p>
-                Règles évaluées toutes les 15 secondes sur les métriques, les conteneurs, les unités
-                et les sauvegardes. Acquittement, silences, historique.
+                Règles évaluées toutes les 15 secondes sur les métriques, les
+                conteneurs, les unités et les sauvegardes. Acquittement,
+                silences, historique.
               </p>
             </article>
             <article class="card feature">
@@ -1424,8 +1464,9 @@
               ></span>
               <h3>Sauvegardes restic</h3>
               <p>
-                Dépôts chiffrés locaux, S3, SFTP ou rest-server, dépôt de copie pour la règle 3-2-1,
-                restauration en quarantaine ou à l'emplacement d'origine.
+                Dépôts chiffrés locaux, S3, SFTP ou rest-server, dépôt de copie
+                pour la règle 3-2-1, restauration en quarantaine ou à
+                l'emplacement d'origine.
               </p>
               <span class="tag">Module à installer</span>
             </article>
@@ -1437,8 +1478,9 @@
               ></span>
               <h3>Vulnérabilités</h3>
               <p>
-                Paquets du système analysés par Grype chaque jour ou à la demande, vulnérabilités
-                nouvelles et disparues entre deux scans, règle d'alerte.
+                Paquets du système analysés par Grype chaque jour ou à la
+                demande, vulnérabilités nouvelles et disparues entre deux scans,
+                règle d'alerte.
               </p>
               <span class="tag">Module à installer</span>
             </article>
@@ -1451,8 +1493,8 @@
               ></span>
               <h3>Comptes et double authentification</h3>
               <p>
-                Rôles viewer, operator et admin, TOTP, passkeys et clés FIDO2, sessions révocables
-                et journal d'audit exportable.
+                Rôles viewer, operator et admin, TOTP, passkeys et clés FIDO2,
+                sessions révocables et journal d'audit exportable.
               </p>
             </article>
             <article class="card feature">
@@ -1463,8 +1505,9 @@
               ></span>
               <h3>Jetons d'API</h3>
               <p>
-                Des jetons en lecture ou en action pour Home Assistant, Grafana ou vos scripts,
-                limités au rôle de leur compte et inscrits à l'audit.
+                Des jetons en lecture ou en action pour Home Assistant, Grafana
+                ou vos scripts, limités au rôle de leur compte et inscrits à
+                l'audit.
               </p>
             </article>
           </div>
@@ -1477,15 +1520,21 @@
             <div>
               <span class="kicker">Notifications</span>
               <h2 id="notif-titre">Prévenu là où vous êtes déjà.</h2>
-              <p>Chaque canal a sa sévérité minimale, son regroupement et sa renotification.</p>
+              <p>
+                Chaque canal a sa sévérité minimale, son regroupement et sa
+                renotification.
+              </p>
             </div>
             <ul class="channels">
               <li style="--brand: #26a5e4">
-                <svg class="brand-logo" aria-hidden="true"><use href="#logo-telegram" /></svg
+                <svg class="brand-logo" aria-hidden="true">
+                  <use href="#logo-telegram" /></svg
                 >Telegram
               </li>
               <li style="--brand: #5865f2">
-                <svg class="brand-logo" aria-hidden="true"><use href="#logo-discord" /></svg>Discord
+                <svg class="brand-logo" aria-hidden="true">
+                  <use href="#logo-discord" /></svg
+                >Discord
               </li>
               <li>
                 <svg class="stroke" viewBox="0 0 24 24" aria-hidden="true">
@@ -1494,7 +1543,9 @@
                 >Gotify
               </li>
               <li style="--brand: #3f9e8b">
-                <svg class="brand-logo" aria-hidden="true"><use href="#logo-ntfy" /></svg>ntfy
+                <svg class="brand-logo" aria-hidden="true">
+                  <use href="#logo-ntfy" /></svg
+                >ntfy
               </li>
               <li>
                 <svg class="stroke" viewBox="0 0 24 24" aria-hidden="true">
@@ -1505,7 +1556,9 @@
               <li>
                 <svg class="stroke" viewBox="0 0 24 24" aria-hidden="true">
                   <path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-1.7 1.7" />
-                  <path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7" /></svg
+                  <path
+                    d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l1.7-1.7"
+                  /></svg
                 >Webhook
               </li>
             </ul>
@@ -1521,7 +1574,8 @@
           </div>
           <div class="figures">
             <div>
-              <strong>1 binaire</strong><span>Go statique, sans CGO, pour amd64 et arm64.</span>
+              <strong>1 binaire</strong
+              ><span>Go statique, sans CGO, pour amd64 et arm64.</span>
             </div>
             <div>
               <strong>1 fichier</strong
@@ -1533,7 +1587,9 @@
             </div>
             <div>
               <strong>Natif</strong
-              ><span>Des unités systemd, sans Docker Compose ni conteneur.</span>
+              ><span
+                >Des unités systemd, sans Docker Compose ni conteneur.</span
+              >
             </div>
           </div>
         </div>
@@ -1545,9 +1601,10 @@
             <span class="kicker">Sécurité</span>
             <h2 id="securite-titre">Sûr par conception, pas par option.</h2>
             <p>
-              Un outil d'administration exposé sur le réseau est une cible. Homelab Manager ne
-              propose rien qui donnerait, depuis le navigateur, un accès direct à la machine, et
-              chaque privilège passe par une porte étroite.
+              Un outil d'administration exposé sur le réseau est une cible.
+              Homelab Manager ne propose rien qui donnerait, depuis le
+              navigateur, un accès direct à la machine, et chaque privilège
+              passe par une porte étroite.
             </p>
             <a
               href="https://github.com/alexandrebouttierdev/homelab-manager/blob/dev/docs/SECURITY.md"
@@ -1557,32 +1614,43 @@
           <ul class="guarantees">
             <li class="card">
               <strong
-                ><svg aria-hidden="true"><use href="#check" /></svg>Aucun terminal web</strong
+                ><svg aria-hidden="true"><use href="#check" /></svg>Aucun
+                terminal web</strong
               ><span>Ni shell, ni SSH, ni exec dans un conteneur.</span>
             </li>
             <li class="card">
               <strong
-                ><svg aria-hidden="true"><use href="#check" /></svg>Jamais root</strong
+                ><svg aria-hidden="true"><use href="#check" /></svg>Jamais
+                root</strong
               ><span>Le Manager tourne sous son propre compte système.</span>
             </li>
             <li class="card">
               <strong
-                ><svg aria-hidden="true"><use href="#check" /></svg>polkit en liste blanche</strong
-              ><span>Chaque module privilégié a sa règle, désactivée par défaut.</span>
+                ><svg aria-hidden="true"><use href="#check" /></svg>polkit en
+                liste blanche</strong
+              ><span
+                >Chaque module privilégié a sa règle, désactivée par
+                défaut.</span
+              >
             </li>
             <li class="card">
               <strong
-                ><svg aria-hidden="true"><use href="#check" /></svg>Proxy Docker restreint</strong
+                ><svg aria-hidden="true"><use href="#check" /></svg>Proxy Docker
+                restreint</strong
               ><span>Le socket Docker n'est jamais exposé au Manager.</span>
             </li>
             <li class="card">
               <strong
-                ><svg aria-hidden="true"><use href="#check" /></svg>Authentification forte</strong
-              ><span>Argon2id, TOTP, passkeys, verrouillage après 5 échecs.</span>
+                ><svg aria-hidden="true"><use href="#check" /></svg
+                >Authentification forte</strong
+              ><span
+                >Argon2id, TOTP, passkeys, verrouillage après 5 échecs.</span
+              >
             </li>
             <li class="card">
               <strong
-                ><svg aria-hidden="true"><use href="#check" /></svg>Journal d'audit</strong
+                ><svg aria-hidden="true"><use href="#check" /></svg>Journal
+                d'audit</strong
               ><span>Chaque action est tracée, exportable en CSV et JSON.</span>
             </li>
           </ul>
@@ -1593,14 +1661,20 @@
         <div class="wrap install">
           <div class="section-head">
             <span class="kicker">Installation</span>
-            <h2 id="installation-titre">Une installation native, sans conteneur.</h2>
+            <h2 id="installation-titre">
+              Une installation native, sans conteneur.
+            </h2>
             <p>
-              Chaque release contient les binaires, l'interface, les unités systemd et les règles
-              polkit, pour amd64 et arm64.
+              Chaque release contient les binaires, l'interface, les unités
+              systemd et les règles polkit, pour amd64 et arm64.
             </p>
           </div>
           <div class="card terminal">
-            <div class="tabs" role="tablist" aria-label="Source de l'installation">
+            <div
+              class="tabs"
+              role="tablist"
+              aria-label="Source de l'installation"
+            >
               <button
                 class="tab"
                 type="button"
@@ -1629,7 +1703,7 @@
               role="tabpanel"
               aria-labelledby="tab-release"
             ><code><span class="c"># Télécharger et vérifier l'archive</span>
-VERSION=<span class="v" data-version>2.3.1</span>
+VERSION=<span class="v" data-version>2.5.0</span>
 ARCH=<span class="v">amd64</span>   <span class="c"># ou arm64</span>
 BASE=https://github.com/alexandrebouttierdev/homelab-manager/releases/download/v$VERSION
 curl -fsSLO "$BASE/homelab-manager_${VERSION}_linux_${ARCH}.tar.gz"
@@ -1645,7 +1719,7 @@ tar -xzf "homelab-manager_${VERSION}_linux_${ARCH}.tar.gz"</code></pre>
 git clone https://github.com/alexandrebouttierdev/homelab-manager.git
 cd homelab-manager
 npm --prefix frontend ci
-scripts/release/build.sh <span class="v" data-version>2.3.1</span> dist   <span class="c"># archives amd64, arm64 et SHA256SUMS</span></code></pre>
+scripts/release/build.sh <span class="v" data-version>2.5.0</span> dist   <span class="c"># archives amd64, arm64 et SHA256SUMS</span></code></pre>
           </div>
           <ol class="steps">
             <li class="card">
@@ -1658,10 +1732,14 @@ scripts/release/build.sh <span class="v" data-version>2.3.1</span> dist   <span 
             </li>
             <li class="card">
               <small>Étape 3</small><strong>Ouvrir l'interface</strong
-              ><span>Sur http://machine:8080, puis changer le mot de passe initial.</span>
+              ><span
+                >Sur http://machine:8080, puis changer le mot de passe
+                initial.</span
+              >
             </li>
           </ol>
-          <a href="https://github.com/alexandrebouttierdev/homelab-manager#installation"
+          <a
+            href="https://github.com/alexandrebouttierdev/homelab-manager#installation"
             >Guide d'installation complet →</a
           >
         </div>
@@ -1670,12 +1748,15 @@ scripts/release/build.sh <span class="v" data-version>2.3.1</span> dist   <span 
       <section class="final" aria-labelledby="cta-titre">
         <div class="wrap">
           <div class="final-box">
-            <div class="final-glow" aria-hidden="true"></div>
             <div>
-              <h2 id="cta-titre">Votre serveur mérite mieux qu'un terminal ouvert dans un coin.</h2>
+              <h2 id="cta-titre">
+                Votre serveur mérite mieux qu'un terminal ouvert dans un coin.
+              </h2>
               <p>Auto-hébergé, sans compte à créer, et le code est public.</p>
               <div class="actions">
-                <a class="btn btn-primary" href="#installation">Installer Homelab Manager</a>
+                <a class="btn btn-primary" href="#installation"
+                  >Installer Homelab Manager</a
+                >
                 <a
                   class="btn btn-ghost"
                   href="https://github.com/alexandrebouttierdev/homelab-manager/releases"
@@ -1693,18 +1774,21 @@ scripts/release/build.sh <span class="v" data-version>2.3.1</span> dist   <span 
         <div class="foot">
           <div class="foot-about">
             <a class="brand" href="#top">
-              <svg width="24" height="24" aria-hidden="true"><use href="#mark" /></svg>
+              <svg width="24" height="24" aria-hidden="true">
+                <use href="#mark" />
+              </svg>
               Homelab Manager
             </a>
             <p>
-              Supervision et administration légères, auto-hébergées, d'une machine Linux et de ses
-              conteneurs Docker.
+              Supervision et administration légères, auto-hébergées, d'une
+              machine Linux et de ses conteneurs Docker.
             </p>
           </div>
           <nav aria-label="Pied de page">
             <div>
               <b>Produit</b><a href="#fonctionnalites">Fonctionnalités</a
-              ><a href="#securite">Sécurité</a><a href="#installation">Installation</a>
+              ><a href="#securite">Sécurité</a
+              ><a href="#installation">Installation</a>
             </div>
             <div>
               <b>Documentation</b
@@ -1721,10 +1805,13 @@ scripts/release/build.sh <span class="v" data-version>2.3.1</span> dist   <span 
             </div>
             <div>
               <b>Projet</b
-              ><a href="https://github.com/alexandrebouttierdev/homelab-manager">GitHub</a
-              ><a href="https://github.com/alexandrebouttierdev/homelab-manager/releases"
+              ><a href="https://github.com/alexandrebouttierdev/homelab-manager"
+                >GitHub</a
+              ><a
+                href="https://github.com/alexandrebouttierdev/homelab-manager/releases"
                 >Releases</a
-              ><a href="https://github.com/alexandrebouttierdev/homelab-manager/issues"
+              ><a
+                href="https://github.com/alexandrebouttierdev/homelab-manager/issues"
                 >Signaler un problème</a
               >
             </div>
@@ -1733,63 +1820,76 @@ scripts/release/build.sh <span class="v" data-version>2.3.1</span> dist   <span 
         <div class="credits">
           <span
             >Conçu et développé par
-            <a href="https://www.alexandrebouttier.fr" rel="author">Alexandre Bouttier</a></span
+            <a href="https://www.alexandrebouttier.fr" rel="author"
+              >Alexandre Bouttier</a
+            ></span
           >
-          <span>Logos des technologies : Simple Icons (CC0) ; marques de leurs propriétaires.</span>
+          <span
+            >Logos des technologies : Simple Icons (CC0) ; marques de leurs
+            propriétaires.</span
+          >
         </div>
       </div>
     </footer>
 
     <script>
-      ;(() => {
+      (() => {
         // Install tabs.
-        const tabs = [...document.querySelectorAll('.tab')]
+        const tabs = [...document.querySelectorAll(".tab")];
         const select = (tab) => {
           tabs.forEach((other) => {
-            const on = other === tab
-            other.setAttribute('aria-selected', String(on))
-            other.tabIndex = on ? 0 : -1
-            document.getElementById(other.getAttribute('aria-controls')).hidden = !on
-          })
-        }
+            const on = other === tab;
+            other.setAttribute("aria-selected", String(on));
+            other.tabIndex = on ? 0 : -1;
+            document.getElementById(
+              other.getAttribute("aria-controls"),
+            ).hidden = !on;
+          });
+        };
         tabs.forEach((tab, index) => {
-          tab.addEventListener('click', () => select(tab))
-          tab.addEventListener('keydown', (event) => {
-            if (event.key !== 'ArrowRight' && event.key !== 'ArrowLeft') return
-            const step = event.key === 'ArrowRight' ? 1 : tabs.length - 1
-            const next = tabs[(index + step) % tabs.length]
-            select(next)
-            next.focus()
-          })
-        })
+          tab.addEventListener("click", () => select(tab));
+          tab.addEventListener("keydown", (event) => {
+            if (event.key !== "ArrowRight" && event.key !== "ArrowLeft") return;
+            const step = event.key === "ArrowRight" ? 1 : tabs.length - 1;
+            const next = tabs[(index + step) % tabs.length];
+            select(next);
+            next.focus();
+          });
+        });
 
         // Copy the visible command block.
-        const copy = document.querySelector('.copy')
-        copy.addEventListener('click', async () => {
-          const block = document.querySelector('.terminal pre:not([hidden]) code')
+        const copy = document.querySelector(".copy");
+        copy.addEventListener("click", async () => {
+          const block = document.querySelector(
+            ".terminal pre:not([hidden]) code",
+          );
           try {
-            await navigator.clipboard.writeText(block.innerText)
-            copy.textContent = 'Copié'
+            await navigator.clipboard.writeText(block.innerText);
+            copy.textContent = "Copié";
           } catch {
-            copy.textContent = 'Copie impossible'
+            copy.textContent = "Copie impossible";
           }
-          setTimeout(() => (copy.textContent = 'Copier'), 1800)
-        })
+          setTimeout(() => (copy.textContent = "Copier"), 1800);
+        });
 
         // Latest release number; the version written in the page stays if GitHub does not answer.
-        fetch('https://api.github.com/repos/alexandrebouttierdev/homelab-manager/releases/latest', {
-          headers: { Accept: 'application/vnd.github+json' },
-        })
+        fetch(
+          "https://api.github.com/repos/alexandrebouttierdev/homelab-manager/releases/latest",
+          {
+            headers: { Accept: "application/vnd.github+json" },
+          },
+        )
           .then((response) => (response.ok ? response.json() : null))
           .then((release) => {
-            const version = release && /^v(\d+\.\d+\.\d+)$/.exec(release.tag_name)
-            if (!version) return
-            document.querySelectorAll('[data-version]').forEach((node) => {
-              node.textContent = version[1]
-            })
+            const version =
+              release && /^v(\d+\.\d+\.\d+)$/.exec(release.tag_name);
+            if (!version) return;
+            document.querySelectorAll("[data-version]").forEach((node) => {
+              node.textContent = version[1];
+            });
           })
-          .catch(() => {})
-      })()
+          .catch(() => {});
+      })();
     </script>
   </body>
 </html>

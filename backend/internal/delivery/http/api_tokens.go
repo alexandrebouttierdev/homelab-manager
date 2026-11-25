@@ -34,9 +34,14 @@ var tokenScopes = []struct {
 	{"/api/v1/backups/snapshots", domain.ScopeBackupsRead},
 }
 
-// tokenScopeFor returns the scope that opens a path to a token.
+// tokenScopeFor returns the scope that opens a path to a token. The log of
+// a container is not opened to tokens, like the system journal: it may
+// hold what an application writes about its users.
 func tokenScopeFor(path string) (domain.APITokenScope, bool) {
 	path = strings.TrimSuffix(path, "/")
+	if strings.HasPrefix(path, "/api/v1/containers/") && strings.HasSuffix(path, "/logs") {
+		return "", false
+	}
 	for _, route := range tokenScopes {
 		if path == route.path || strings.HasPrefix(path, route.path+"/") {
 			return route.scope, true

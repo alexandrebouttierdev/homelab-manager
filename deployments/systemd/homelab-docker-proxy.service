@@ -10,6 +10,10 @@ Group=homelab-docker-proxy
 SupplementaryGroups=docker
 ExecStart=/usr/local/bin/homelab-docker-proxy
 Environment=HOMELAB_DOCKER_ENGINE_SOCKET=/var/run/docker.sock
+# true laisse passer le démarrage, l'arrêt et le redémarrage d'un conteneur
+# (D-5) ; le Manager doit aussi avoir docker_actions_enabled. Lecture seule par
+# défaut.
+Environment=HOMELAB_DOCKER_PROXY_CONTAINER_ACTIONS=false
 Restart=on-failure
 RestartSec=3
 NoNewPrivileges=true

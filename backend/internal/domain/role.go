@@ -31,6 +31,9 @@ const (
 	// PermManageServices covers starting, stopping, restarting and
 	// reloading the units of the allow list.
 	PermManageServices Permission = "services:manage"
+	// PermManageContainers covers starting, stopping and restarting
+	// containers (D-5).
+	PermManageContainers Permission = "containers:manage"
 	// PermRunBackups covers starting a backup.
 	PermRunBackups Permission = "backups:run"
 	// PermManageBackups covers the repository, the sources, the
@@ -43,11 +46,12 @@ var rolePermissions = map[Role]map[Permission]bool{
 	RoleViewer: {},
 	RoleOperator: {
 		PermOperateAlerts: true, PermScanVulnerabilities: true, PermManageServices: true, PermRunBackups: true,
+		PermManageContainers: true,
 	},
 	RoleAdmin: {
 		PermManageSettings: true, PermManageUsers: true, PermManagePower: true, PermViewAudit: true,
 		PermOperateAlerts: true, PermManageAlerts: true, PermScanVulnerabilities: true, PermManageServices: true,
-		PermRunBackups: true, PermManageBackups: true,
+		PermRunBackups: true, PermManageBackups: true, PermManageContainers: true,
 	},
 }
 

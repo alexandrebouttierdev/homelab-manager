@@ -41,6 +41,7 @@ import {
   formatUptime,
 } from '../../lib/format'
 import { eventSeverityLabel, eventTone, eventTypeLabel } from '../../lib/events'
+import { ContainerActionPanel, ContainerLogsCard } from './ContainerControls'
 import { ranges, useContainerDetailPage } from './useContainerDetailPage'
 
 export function ContainerDetailPage() {
@@ -69,6 +70,8 @@ export function ContainerDetailPage() {
     data,
     tag,
     ports,
+    logs,
+    actions,
   } = useContainerDetailPage()
 
   return (
@@ -138,6 +141,7 @@ export function ContainerDetailPage() {
 
       {data && (
         <>
+          <ContainerActionPanel model={actions} />
           <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
             <MetricCard
               label="Processeur"
@@ -403,9 +407,12 @@ export function ContainerDetailPage() {
             </CardBody>
           </Card>
 
+          <ContainerLogsCard model={logs} />
+
           <p className="flex items-center gap-2 font-mono text-[10px] text-text-muted">
             <StatusDot tone={containerStateTone(data.state)} />
-            Conteneur observé par le Manager · aucune administration Docker n'est disponible.
+            Conteneur observé par le Manager · ni exec, ni suppression, ni nettoyage depuis
+            l'interface.
           </p>
         </>
       )}

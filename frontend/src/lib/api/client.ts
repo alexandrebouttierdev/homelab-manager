@@ -84,6 +84,15 @@ export const errorMessages: Record<string, string> = {
   UNIT_ACTIONS_UNAVAILABLE:
     "Actions sur les services indisponibles : la base de données du Manager n'est pas accessible.",
   UNIT_ACTION_FAILED: "L'action n'a pas pu être demandée.",
+  CONTAINER_ACTIONS_DISABLED:
+    'Actions sur les conteneurs désactivées dans la configuration du Manager (docker_actions_enabled).',
+  CONTAINER_REMOVED: "Ce conteneur n'existe plus sur l'hôte Docker.",
+  CONTAINER_ACTION_RATE_LIMITED:
+    "Trop d'actions sur les conteneurs en une minute. Réessayez plus tard.",
+  CONTAINERS_UNAVAILABLE:
+    "Journaux et actions des conteneurs indisponibles : la base de données du Manager n'est pas accessible.",
+  CONTAINER_ACTION_FAILED: "L'action n'a pas pu être demandée.",
+  DOCKER_UNAVAILABLE: "Le journal n'a pas pu être lu : le proxy Docker ou Docker est injoignable.",
   ALERTS_UNAVAILABLE: "Alertes indisponibles : la base de données du Manager n'est pas accessible.",
   ALERTS_FAILED: "Les alertes n'ont pas pu être lues ou enregistrées.",
   ALERT_ALREADY_RESOLVED: "L'alerte est déjà résolue.",

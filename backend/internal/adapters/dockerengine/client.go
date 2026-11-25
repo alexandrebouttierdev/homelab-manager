@@ -36,7 +36,9 @@ func isNotFound(err error) bool {
 }
 
 type Client struct {
-	http            *http.Client
+	http *http.Client
+	// actions waits for a start, stop or restart, longer than a read.
+	actions         *http.Client
 	mu              sync.Mutex
 	previousNetwork map[string]networkSnapshot
 }
@@ -52,6 +54,7 @@ func NewClient(socketPath string) *Client {
 func newClient(transport http.RoundTripper) *Client {
 	return &Client{
 		http:            &http.Client{Transport: transport, Timeout: 10 * time.Second},
+		actions:         &http.Client{Transport: transport, Timeout: domain.ContainerActionTimeout},
 		previousNetwork: make(map[string]networkSnapshot),
 	}
 }

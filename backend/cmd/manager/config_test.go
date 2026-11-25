@@ -77,6 +77,18 @@ func TestPowerActionsAreDisabledByDefault(t *testing.T) {
 	}
 }
 
+func TestDockerActionsAreDisabledByDefault(t *testing.T) {
+	t.Chdir(t.TempDir())
+	config, err := LoadConfig()
+	if err != nil || config.DockerActionsEnabled {
+		t.Fatalf("LoadConfig = (%v, %v), want container actions disabled", config.DockerActionsEnabled, err)
+	}
+	t.Setenv("HOMELAB_DOCKER_ACTIONS_ENABLED", "true")
+	if config, err = LoadConfig(); err != nil || !config.DockerActionsEnabled {
+		t.Fatalf("LoadConfig = (%v, %v), want container actions enabled", config.DockerActionsEnabled, err)
+	}
+}
+
 func TestSecretsKeyPath(t *testing.T) {
 	if got := (Config{SecretsKeyFile: "/etc/key"}).SecretsKeyPath("/run/credentials/x"); got != "/etc/key" {
 		t.Fatalf("configured file = %q", got)

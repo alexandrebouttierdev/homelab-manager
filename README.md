@@ -35,6 +35,7 @@ Homelab Manager supervise **une seule machine Linux : celle qui l'héberge**. Le
 - Historiques bruts ou agrégés (1 min, 5 min, 1 h), rétention réglable
 - Découverte continue des conteneurs Docker, arrêtés compris, et métriques par conteneur
 - Événements de création, suppression, redémarrage et changement d'état
+- Journal de chaque conteneur (stdout et stderr, filtres, relecture), démarrage, arrêt et redémarrage d'un conteneur (optionnels)
 - Journal systemd en lecture seule : filtres, recherche, suivi en direct, export, champs sensibles masqués
 - Services, timers et sockets systemd en lecture seule (D-Bus) : états, ressources, détail, événements d'échec et de rétablissement
 - Alertes : règles sur les métriques, l'état des conteneurs, les unités en échec et les collecteurs, évaluées toutes les 15 s, acquittement, historique, silences et notifications (Telegram, Discord, Gotify, ntfy, e-mail, webhook signé)
@@ -58,7 +59,7 @@ Homelab Manager supervise **une seule machine Linux : celle qui l'héberge**. Le
 </tr>
 </table>
 
-**Principes de sécurité** : aucun terminal, shell ni SSH dans l'application ; comptes propres au Manager (aucun compte Linux) ; le Manager ne tourne jamais en root ; Docker n'est lu qu'au travers d'un proxy Unix en liste blanche de routes GET ; mots de passe Argon2id, cookies `HttpOnly`, contrôle d'origine. Détails dans [docs/SECURITY.md](docs/SECURITY.md).
+**Principes de sécurité** : aucun terminal, shell ni SSH dans l'application ; comptes propres au Manager (aucun compte Linux) ; le Manager ne tourne jamais en root ; Docker n'est joint qu'au travers d'un proxy Unix en liste blanche de routes (lecture, plus démarrer, arrêter et redémarrer un conteneur une fois activés) ; mots de passe Argon2id, cookies `HttpOnly`, contrôle d'origine. Détails dans [docs/SECURITY.md](docs/SECURITY.md).
 
 ## Architecture
 
@@ -214,6 +215,7 @@ La configuration est lue dans `manager.yaml` ([deployments/config/manager.yaml](
 | `HOMELAB_WEBAUTHN_ORIGINS` | Adresses exactes de l'interface, séparées par des espaces (par exemple `https://homelab.example:8080`) : HTTPS, dans le domaine de `HOMELAB_WEBAUTHN_RP_ID` (ou `http://localhost:…`). Obligatoire avec lui |
 | `HOMELAB_WEBAUTHN_RP_NAME` | Nom montré par le navigateur à l'enregistrement d'une clé (défaut `Homelab Manager`) |
 | `HOMELAB_POWER_ACTIONS_ENABLED` | Autorise Redémarrer / Éteindre depuis la page Machine (défaut `false`) ; exige aussi la règle polkit |
+| `HOMELAB_DOCKER_ACTIONS_ENABLED` | Autorise Démarrer / Arrêter / Redémarrer un conteneur (défaut `false`) ; exige aussi `HOMELAB_DOCKER_PROXY_CONTAINER_ACTIONS=true` dans l'unité du proxy |
 | `HOMELAB_SYSTEMD_MANAGEABLE_UNITS` | Unités que les opérateurs peuvent démarrer, arrêter, redémarrer ou recharger, séparées par des espaces (défaut : aucune ; 200 au plus). Préférer la clé `systemd_manageable_units` de `manager.yaml`, que lit aussi `homelab-manager polkit-rule` ; exige la règle polkit générée (voir « Services système ») |
 
 Ne pas enregistrer les secrets de production dans Git. Protéger le fichier d'environnement du service.
@@ -222,7 +224,7 @@ Ne pas enregistrer les secrets de production dans Git. Protéger le fichier d'en
 
 ### Proxy Docker et permissions
 
-Le socket du proxy (`/run/homelab-docker-proxy/docker.sock`) appartient au groupe `homelab-manager` (mode `0660`, dans un répertoire `root` en `0755` que le Manager doit pouvoir traverser) : le Manager y accède par son groupe principal, le proxy n'a aucun droit sur les fichiers du Manager. Le proxy écoute seulement sur Unix, autorise les routes GET nécessaires, filtre `Env` et `Labels`, borne les réponses à 8 MiB et la concurrence à 16 requêtes. L'unité du Manager crée `/var/lib/homelab-manager` (`StateDirectory`, mode `0700`). Vérifier les permissions effectives et les journaux systemd après installation.
+Le socket du proxy (`/run/homelab-docker-proxy/docker.sock`) appartient au groupe `homelab-manager` (mode `0660`, dans un répertoire `root` en `0755` que le Manager doit pouvoir traverser) : le Manager y accède par son groupe principal, le proxy n'a aucun droit sur les fichiers du Manager. Le proxy écoute seulement sur Unix, autorise les routes GET nécessaires (et, une fois activés, le démarrage, l'arrêt et le redémarrage d'un conteneur), filtre `Env` et `Labels`, borne les réponses à 8 MiB et la concurrence à 16 requêtes. L'unité du Manager crée `/var/lib/homelab-manager` (`StateDirectory`, mode `0700`). Vérifier les permissions effectives et les journaux systemd après installation.
 
 ### Réseaux autorisés et récupération
 
@@ -301,6 +303,23 @@ sudo systemctl start homelab-manager
 ```
 
 Cette intervention n'est pas tracée dans le journal d'audit. **Clé du coffre perdue ou remplacée** : les secrets TOTP existants deviennent illisibles ; chaque utilisateur se connecte avec un code de secours, puis désactive et réactive la double authentification. Sauvegarder la clé chiffrée avec la base ne suffit pas toujours : liée au TPM, elle ne se déchiffre que sur cette machine.
+
+### Journaux et actions des conteneurs
+
+La page d'un conteneur montre la fin de son journal (200 à 2 000 lignes, stdout et stderr, filtre, relecture toutes les 5 s) à tout compte connecté ; les jetons d'API n'y ont pas accès. Démarrer, arrêter et redémarrer un conteneur sont désactivés par défaut et réservés aux opérateurs et administrateurs. Pour les activer, autoriser le proxy puis le Manager :
+
+```bash
+sudo systemctl edit homelab-docker-proxy.service
+```
+
+avec
+
+```ini
+[Service]
+Environment=HOMELAB_DOCKER_PROXY_CONTAINER_ACTIONS=true
+```
+
+puis mettre `docker_actions_enabled: true` dans `/etc/homelab-manager/manager.yaml` et redémarrer `homelab-docker-proxy.service` et `homelab-manager.service`. Chaque action est confirmée, auditée et limitée à 30 par minute et par utilisateur. Supprimer un conteneur, `exec`, `kill` et le nettoyage restent impossibles (décision D-5 de [docs/SPEC_ADMINISTRATION.md](docs/SPEC_ADMINISTRATION.md)).
 
 ### Redémarrer et éteindre depuis l'interface (optionnel)
 
@@ -410,7 +429,7 @@ La première release est `v2.3.0`, alignée sur la [spécification produit](docs
 
 ## État et limites connues
 
-- **Livré** : supervision système et Docker, historique, événements, comptes et rôles, sessions, politique de sécurité, journal d'audit, double authentification (TOTP, passkeys et clés FIDO2, codes de secours), jetons d'API en lecture seule, journaux système, services système avec actions en liste blanche (phase 5), sauvegardes restic avec diff et dépôt de copie (phase 6), tâches planifiées en lecture (phase 7), alertes avec silences et notifications (phase 4), vulnérabilités des paquets avec Grype (module V ; Debian, Ubuntu, Alpine, Fedora, RHEL, Rocky Linux et AlmaLinux 9 et suivantes), redémarrage et extinction (optionnels).
+- **Livré** : supervision système et Docker, historique, événements, comptes et rôles, sessions, politique de sécurité, journal d'audit, double authentification (TOTP, passkeys et clés FIDO2, codes de secours), jetons d'API en lecture seule, journaux système, services système avec actions en liste blanche (phase 5), journaux des conteneurs et leurs actions optionnelles (D-5), sauvegardes restic avec diff et dépôt de copie (phase 6), tâches planifiées en lecture (phase 7), alertes avec silences et notifications (phase 4), vulnérabilités des paquets avec Grype (module V ; Debian, Ubuntu, Alpine, Fedora, RHEL, Rocky Linux et AlmaLinux 9 et suivantes), redémarrage et extinction (optionnels).
 - **Connexion par passkey seule** : désactivée par défaut ; un administrateur l'autorise dans Utilisateurs → Politique de sécurité (décision D-14 de [docs/SPEC_ADMINISTRATION.md](docs/SPEC_ADMINISTRATION.md)).
 - Historiques bruts ou agrégés, 2 000 points au plus par requête ; l'interface choisit le pas selon la période.
 - À l'intervalle par défaut (10 s), la base croît d'environ 300 Mo par jour jusqu'à la rétention : ≈ 2 Go pour 7 jours.

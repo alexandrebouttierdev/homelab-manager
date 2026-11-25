@@ -30,6 +30,7 @@ type Config struct {
 	DockerDiscoveryIntervalSeconds int
 	MetricsRetentionDays           int
 	PowerActionsEnabled            bool
+	DockerActionsEnabled           bool
 	SecretsKeyFile                 string
 	VulnerabilityScanIntervalHours int
 	VulnscanInventoryPath          string
@@ -72,6 +73,10 @@ func LoadConfig() (Config, error) {
 	// Rebooting and powering off also need the polkit rule of
 	// deployments/polkit; both are off by default.
 	v.SetDefault("power_actions_enabled", false)
+	// Starting, stopping and restarting containers also need
+	// HOMELAB_DOCKER_PROXY_CONTAINER_ACTIONS in the proxy; both are off by
+	// default (D-5).
+	v.SetDefault("docker_actions_enabled", false)
 	v.SetDefault("secrets_key_file", "")
 	// Package vulnerabilities (module V): files exchanged with the
 	// homelab-vulnscan.service unit, created by its tmpfiles.d entry.
@@ -116,6 +121,7 @@ func LoadConfig() (Config, error) {
 		DockerDiscoveryIntervalSeconds: v.GetInt("docker_discovery_interval_seconds"),
 		MetricsRetentionDays:           v.GetInt("metrics_retention_days"),
 		PowerActionsEnabled:            v.GetBool("power_actions_enabled"),
+		DockerActionsEnabled:           v.GetBool("docker_actions_enabled"),
 		SecretsKeyFile:                 v.GetString("secrets_key_file"),
 		VulnerabilityScanIntervalHours: v.GetInt("vulnerability_scan_interval_hours"),
 		VulnscanInventoryPath:          v.GetString("vulnscan_inventory_path"),

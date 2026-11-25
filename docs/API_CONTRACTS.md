@@ -56,6 +56,10 @@ Ce document est le contrat exact de l'API implémentée. Toute différence entre
 | `GET /api/v1/containers/{containerID}/events` | oui | Événements du conteneur (§ 6.2) |
 | `GET /api/v1/events` | oui | Tous les événements (§ 6.2) |
 | `GET /api/v1/docker/inventory` | oui | Images, volumes et réseaux Docker (§ 6.3) |
+| `GET /api/v1/containers/{containerID}/logs` | oui | Fin du journal du conteneur (§ 6.4) |
+| `POST /api/v1/containers/{containerID}/actions` | oui | Démarre, arrête ou redémarre le conteneur (`operator`, `admin`) (§ 6.4) |
+| `GET /api/v1/containers/{containerID}/actions/last` | oui | Dernière action demandée sur le conteneur (§ 6.4) |
+| `GET /api/v1/docker/container-actions` | oui | Actions sur les conteneurs activées ou non (§ 6.4) |
 | `GET /api/v1/settings` | oui | Paramètres effectifs (§ 4.4) |
 | `PUT /api/v1/settings/retention` | admin | Modifie la rétention (§ 4.4) |
 | `GET /api/v1/users` | admin | Comptes (§ 3.1) |
@@ -231,7 +235,7 @@ TOTP (RFC 6238 : HMAC-SHA-1, 6 chiffres, 30 s, ±1 période, un code n'est accep
 
 Jetons en lecture seule pour les scripts (SPEC_ADMINISTRATION.md § 3.5, phase 8A). Chaque compte gère ses jetons ; un administrateur liste et révoque ceux de tous.
 
-- **Usage** : en-tête `Authorization: Bearer hlm_<43 caractères>` sur une route `GET` (ou `HEAD`) de ses portées ; aucun cookie, aucun contrôle d'origine. Portées : `metrics:read` (`/api/v1/dashboard`, `/api/v1/host…`), `containers:read` (`/api/v1/containers…`, `/api/v1/docker…`), `events:read` (`/api/v1/events`), `services:read` (`/api/v1/system/units…`, en lecture), `backups:read` (`/api/v1/backups/summary`, `/runs…`, `/snapshots`). Toute autre route ou méthode : `403 TOKEN_SCOPE_DENIED`. Jeton inconnu, révoqué, expiré, ou compte désactivé ou supprimé : `401 TOKEN_INVALID`. L'usage n'est pas audité ; `lastUsedAt` est écrit au plus une fois par minute.
+- **Usage** : en-tête `Authorization: Bearer hlm_<43 caractères>` sur une route `GET` (ou `HEAD`) de ses portées ; aucun cookie, aucun contrôle d'origine. Portées : `metrics:read` (`/api/v1/dashboard`, `/api/v1/host…`), `containers:read` (`/api/v1/containers…` sauf le journal d'un conteneur, `/api/v1/docker…`), `events:read` (`/api/v1/events`), `services:read` (`/api/v1/system/units…`, en lecture), `backups:read` (`/api/v1/backups/summary`, `/runs…`, `/snapshots`). Toute autre route ou méthode : `403 TOKEN_SCOPE_DENIED`. Jeton inconnu, révoqué, expiré, ou compte désactivé ou supprimé : `401 TOKEN_INVALID`. L'usage n'est pas audité ; `lastUsedAt` est écrit au plus une fois par minute.
 - `POST /api/v1/auth/tokens` avec `{ "name": "Home Assistant", "scopes": ["metrics:read"], "expiresInDays": 90 }` → `201 { "token": "hlm_…", "apiToken": Jeton }`, en-tête `Cache-Control: no-store` : le jeton n'est plus jamais renvoyé, seul son SHA-256 est stocké. `name` 1 à 100 caractères, au moins une portée, sans doublon, `expiresInDays` 1 à 365 (90 si absent ; sans expiration impossible). Plus de 20 jetons pour le compte : `409 TOO_MANY_TOKENS`. Audité (`api_token` / UUID / `create`).
 - `GET /api/v1/auth/tokens` → `{ "tokens": [Jeton], "scopes": [...] }`, les plus récents d'abord ; `?scope=all` (admin) : ceux de tous les comptes, sinon `403 FORBIDDEN` (audité). Jeton : `{ "id", "name", "prefix" (12 premiers caractères), "scopes", "username", "createdAt", "expiresAt", "lastUsedAt" }`.
 - `DELETE /api/v1/auth/tokens/{tokenID}` → `204` ; jeton d'un autre compte pour un non-administrateur, ou inconnu : `404 NOT_FOUND`. Audité (`api_token` / UUID / `revoke`).
@@ -977,6 +981,48 @@ Une unité en échec n'est signalée qu'une fois, même après un redémarrage d
 - Tri : images par premier tag (sans tag en dernier) puis identifiant, volumes et réseaux par nom. Au plus 1 000 images, 1 000 volumes et 200 réseaux ; au-delà, `truncated` vaut `true`.
 - `status` : `starting`, `ok`, `stale` (dernière lecture de plus de 3 minutes) ou `unavailable` (dernière lecture en échec ; la liste précédente est gardée avec son `observedAt`). Les options des pilotes de volumes et de réseaux, les labels et les points de montage ne sont jamais renvoyés.
 
+### 6.4 Journaux et actions des conteneurs
+
+Décision D-5 (SPEC_ADMINISTRATION.md § 10). Ni `exec`, ni suppression, ni `kill`, ni `pause`, ni `prune` : ces routes n'existent pas, et le proxy les refuse.
+
+**Journal** — `GET /api/v1/containers/{containerID}/logs[?tail=200][&since=<RFC 3339>]` (tous les rôles ; **refusé aux jetons d'API**, `403 TOKEN_SCOPE_DENIED`, comme le journal système) → `200` :
+
+```json
+{
+  "container": { "id": "manager-uuid", "name": "web" },
+  "lines": [{ "stream": "stdout", "time": "2026-11-25T08:00:00.123Z", "message": "listening on :80", "cut": false }],
+  "truncated": false,
+  "tail": 200
+}
+```
+
+- `tail` : 1 à 2 000 dernières lignes (200 par défaut) ; `since` : lignes écrites à partir de cet instant, passé. Tout autre paramètre, ou paramètre répété → `400 VALIDATION_ERROR`. Pas de suivi en continu : l'interface relit la route.
+- Lu à chaque requête par le proxy (`GET /v1.41/containers/{id}/logs?stdout=1&stderr=1&timestamps=1&tail=N[&since=…]`, sans `follow`). `stream` vaut `stdout` ou `stderr` (un conteneur avec TTY n'a que `stdout`) ; `time` vaut `null` sans horodatage lisible. Une ligne de plus de 16 Kio est coupée (`cut: true`) ; un texte non UTF-8 est remplacé par `�`.
+- Le proxy refuse une réponse de plus de 8 Mio : le Manager redemande alors un quart des lignes, trois fois au plus, et renvoie `truncated: true` (les lignes les plus anciennes manquent).
+- Le journal n'est pas filtré : il contient ce que l'application écrit. Conteneur inconnu `404 NOT_FOUND` ; conteneur supprimé `409 CONTAINER_REMOVED` ; proxy ou Docker injoignable `503 DOCKER_UNAVAILABLE`.
+
+**Actions** — `GET /api/v1/docker/container-actions` → `200 { "enabled": false, "actions": ["start", "stop", "restart"] }`. `enabled` reflète le réglage `docker_actions_enabled` (défaut `false`) ; le proxy doit aussi les autoriser (`HOMELAB_DOCKER_PROXY_CONTAINER_ACTIONS=true`), ce qui n'est connu qu'au moment de l'action.
+
+`POST /api/v1/containers/{containerID}/actions` (`operator`, `admin`) avec `{ "action": "start" | "stop" | "restart" }` → `202 { "action": Action }`. La demande est auditée (`container` / nom / verbe / `requested`) avant d'être transmise à Docker, puis son résultat (`success` ou `failure`). Elle est suivie en arrière-plan (90 s au plus) ; Docker applique le délai d'arrêt du conteneur (10 s par défaut) avant de le tuer. Un conteneur déjà démarré ou déjà arrêté est un succès.
+
+`GET /api/v1/containers/{containerID}/actions/last` → `200 { "action": Action }`, ou `404 NOT_FOUND` si aucune action n'a été demandée depuis le démarrage du Manager.
+
+```json
+{
+  "containerId": "manager-uuid",
+  "name": "web",
+  "action": "restart",
+  "state": "running",
+  "failure": null,
+  "requestedBy": "olivia",
+  "requestedAt": "2026-11-25T10:00:00Z",
+  "finishedAt": null
+}
+```
+
+- `state` : `running`, `succeeded`, `failed`. `failure` : `not_found` (Docker ne connaît plus le conteneur), `rejected` (Docker refuse ou échoue), `not_allowed` (le proxy refuse les actions), `timeout`, `unavailable` (proxy ou Docker injoignable), `interrupted` (Manager arrêté pendant le suivi).
+- Erreurs : verbe inconnu ou corps invalide `400 VALIDATION_ERROR` ; rôle `viewer` `403 FORBIDDEN` (audité) ; réglage désactivé `409 CONTAINER_ACTIONS_DISABLED` ; conteneur inconnu `404 NOT_FOUND`, supprimé `409 CONTAINER_REMOVED` ; action en cours sur le conteneur `409 ACTION_IN_PROGRESS` ; plus de 30 actions dans la dernière minute pour l'utilisateur `429 CONTAINER_ACTION_RATE_LIMITED` ; sans base de données ou Manager en arrêt `503 CONTAINERS_UNAVAILABLE` ; audit impossible à écrire `500 CONTAINER_ACTION_FAILED`. Un jeton d'API ne peut pas agir (méthode `POST`).
+
 ## 7. Versionnement
 
 Les routes sont versionnées sous `/api/v1`. Un changement incompatible (champ supprimé ou renommé, sémantique modifiée) exige `/api/v2`. Ajouter un champ ou une valeur de `type` d'événement est compatible.
@@ -1060,6 +1106,12 @@ Les routes sont versionnées sous `/api/v1`. Un changement incompatible (champ s
 | `UNIT_ACTION_RATE_LIMITED` | 429 | Plus de 30 actions sur les unités dans la dernière minute |
 | `UNIT_ACTIONS_UNAVAILABLE` | 503 | Actions sur les unités indisponibles (base de données absente, Manager en arrêt) |
 | `UNIT_ACTION_FAILED` | 500 | Demande d'action impossible à enregistrer (audit en échec) |
+| `CONTAINER_ACTIONS_DISABLED` | 409 | Actions sur les conteneurs désactivées (`docker_actions_enabled`) |
+| `CONTAINER_REMOVED` | 409 | Journal ou action d'un conteneur supprimé de Docker |
+| `CONTAINER_ACTION_RATE_LIMITED` | 429 | Plus de 30 actions sur les conteneurs dans la dernière minute |
+| `CONTAINERS_UNAVAILABLE` | 503 | Journaux et actions des conteneurs indisponibles (base de données absente, Manager en arrêt) |
+| `CONTAINER_ACTION_FAILED` | 500 | Demande d'action impossible à enregistrer (audit en échec) |
+| `DOCKER_UNAVAILABLE` | 503 | Journal du conteneur illisible (proxy ou Docker injoignable) |
 | `ALERT_ALREADY_RESOLVED` | 409 | Acquittement d'une alerte résolue |
 | `DEFAULT_RULE` | 409 | Suppression d'une règle d'alerte par défaut |
 | `TOO_MANY_RULES` | 409 | Plus de 200 règles d'alerte |

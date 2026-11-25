@@ -67,7 +67,7 @@ Un service de découverte interroge périodiquement la liste complète des conte
 
 Le port applicatif expose seulement les besoins nécessaires, notamment `ListContainers`, `ContainerStats` et `Inventory` (images, volumes et réseaux, avec le nombre de conteneurs qui les utilisent). L'adaptateur encode les appels API Docker et traduit les réponses vers des types métier ; aucun type du SDK Docker ne traverse les ports/usecases. Les changements d'état sont identifiés par réconciliation périodique, pas par un flux d'événements.
 
-Un proxy local en liste blanche est la frontière de sécurité. Il n'expose que les appels GET de liste, inspection et statistiques ; il refuse toute autre route, méthode, tunnel ou changement de daemon. Le processus Manager n'accède pas directement au socket rootful. Voir [SECURITY.md](./SECURITY.md).
+Un proxy local en liste blanche est la frontière de sécurité. Il n'expose que les appels GET de liste, inspection, statistiques et fin de journal, plus `start`, `stop` et `restart` d'un conteneur lorsqu'ils sont activés (décision D-5) ; il refuse toute autre route, méthode, tunnel ou changement de daemon. Le journal et les actions passent par les ports `ContainerLogReader` et `ContainerController`, servis par `ContainerUsecase`, qui audite chaque action et la suit dans une goroutine détenue par sa méthode `Run`. Le processus Manager n'accède pas directement au socket rootful. Voir [SECURITY.md](./SECURITY.md).
 
 En cas d'indisponibilité du démon, conserver le dernier inventaire connu comme périmé, marquer la collecte en erreur, puis réessayer avec délai borné. Ne pas supprimer l'état connu parce qu'une requête temporaire a échoué.
 

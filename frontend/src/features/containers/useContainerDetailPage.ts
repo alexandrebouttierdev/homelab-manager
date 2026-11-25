@@ -15,6 +15,7 @@ import { formatShortTime } from '../../lib/format'
 import { latestOne, series } from '../../lib/metrics'
 import { useRefreshInterval } from '../../lib/refresh'
 import { useChartTheme } from '../../lib/theme'
+import { useContainerAction, useContainerLogs } from './useContainerControls'
 
 export type RangeKey = '1h' | '6h' | '24h'
 
@@ -173,6 +174,9 @@ export function useContainerDetailPage() {
   const data = container.data
   const tag = data ? imageTag(data.image) : null
   const ports = data ? formatPorts(data.ports) : []
+  const removed = Boolean(data?.removedAt)
+  const logs = useContainerLogs(data ? containerID : '', removed)
+  const actions = useContainerAction(containerID, data?.name ?? '', data?.state ?? '', removed)
 
   return {
     eventList: events.data ?? [],
@@ -199,5 +203,7 @@ export function useContainerDetailPage() {
     data,
     tag,
     ports,
+    logs,
+    actions,
   }
 }

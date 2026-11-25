@@ -79,6 +79,8 @@ func main() {
 	// without a master key.
 	var secretBox ports.SecretBox
 	var monitoringRepository *sqlite.MonitoringRepository
+	var containerUsecase *usecase.ContainerUsecase
+	var containersDone chan struct{}
 	schedulerCtx, cancelScheduler := context.WithCancel(context.Background())
 	defer cancelScheduler()
 	if database != nil {
@@ -145,6 +147,18 @@ func main() {
 			defer close(schedulerDone)
 			monitoringUsecase.Run(schedulerCtx)
 		}()
+		// Container logs and actions (D-5): the actions are audited and
+		// also need the setting of the proxy.
+		containerUsecase = usecase.NewContainerUsecase(monitoringRepository, dockerClient, dockerClient,
+			sqlite.NewAuditRepository(client), config.DockerActionsEnabled, logger)
+		containersDone = make(chan struct{})
+		go func() {
+			defer close(containersDone)
+			containerUsecase.Run(schedulerCtx)
+		}()
+		if config.DockerActionsEnabled {
+			logger.Info("Container start, stop and restart are enabled; they also require HOMELAB_DOCKER_PROXY_CONTAINER_ACTIONS in the proxy")
+		}
 	}
 	journalUsecase := loadJournal(logger)
 	serviceUsecase := usecase.NewServiceUsecase(systemd.New(systemd.SystemBus), failedUnits, journalUsecase, logger)
@@ -245,7 +259,7 @@ func main() {
 		SecondFactors: secondFactorUsecase, Journal: journalUsecase, Units: serviceUsecase, UnitActions: unitActionUsecase,
 		Alerts:        alertUsecase,
 		Notifications: notificationUsecase, Vulnerabilities: vulnerabilityUsecase, Backups: backupUsecase,
-		Cron: cronUsecase, Tokens: apiTokenUsecase,
+		Cron: cronUsecase, Tokens: apiTokenUsecase, Containers: containerUsecase,
 	}, config.SessionSecure, config.WebRoot)
 
 	server := &http.Server{
@@ -320,6 +334,14 @@ func main() {
 		case <-unitActionsDone:
 		case <-time.After(10 * time.Second):
 			logger.Error("unit actions did not stop before deadline")
+		}
+	}
+	if containersDone != nil {
+		// An action being followed ends as interrupted at once.
+		select {
+		case <-containersDone:
+		case <-time.After(10 * time.Second):
+			logger.Error("container actions did not stop before deadline")
 		}
 	}
 	if vulnerabilitiesDone != nil {

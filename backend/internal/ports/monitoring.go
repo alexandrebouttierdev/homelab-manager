@@ -44,3 +44,19 @@ type MonitoringRepository interface {
 	DeleteMetricsBefore(context.Context, time.Time, int) (int, error)
 	DeleteEventsBefore(context.Context, time.Time, int) (int, error)
 }
+
+// ContainerLookup finds a container of the inventory by its id.
+type ContainerLookup interface {
+	GetContainer(ctx context.Context, id string) (domain.Container, error)
+}
+
+// ContainerLogReader reads the end of the log of a container (D-5).
+type ContainerLogReader interface {
+	ContainerLogs(ctx context.Context, dockerID string, query domain.ContainerLogQuery) (domain.ContainerLogs, error)
+}
+
+// ContainerController starts, stops or restarts a container (D-5). A
+// failure is a *domain.ContainerActionError.
+type ContainerController interface {
+	ActOnContainer(ctx context.Context, dockerID string, verb domain.ContainerVerb) error
+}

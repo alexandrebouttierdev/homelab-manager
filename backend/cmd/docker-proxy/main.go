@@ -39,7 +39,16 @@ func main() {
 	if engineSocket == "" {
 		engineSocket = "/var/run/docker.sock"
 	}
-	proxy := dockerproxy.New(engineSocket)
+	// Start, stop and restart are refused unless the administrator turns
+	// them on here and in the Manager (docker_actions_enabled).
+	actions, err := strconv.ParseBool(envOr("HOMELAB_DOCKER_PROXY_CONTAINER_ACTIONS", "false"))
+	if err != nil {
+		logger.Fatal("HOMELAB_DOCKER_PROXY_CONTAINER_ACTIONS must be true or false", zap.Error(err))
+	}
+	proxy := dockerproxy.NewWithOptions(engineSocket, dockerproxy.Options{ContainerActions: actions})
+	if actions {
+		logger.Info("container start, stop and restart are allowed")
+	}
 	defer proxy.CloseIdleConnections()
 	server := &http.Server{
 		Handler:           proxy,
@@ -62,6 +71,13 @@ func main() {
 	if err := server.Shutdown(ctx); err != nil {
 		logger.Warn("Docker proxy shutdown failed", zap.Error(err))
 	}
+}
+
+func envOr(name, fallback string) string {
+	if value := os.Getenv(name); value != "" {
+		return value
+	}
+	return fallback
 }
 
 func systemdListener() (net.Listener, error) {

@@ -38,8 +38,8 @@ L'installation doit rester légère : un binaire, un fichier de base et le proxy
 - Liste, détail, état, configuration d'image, ports, réseaux et volumes observables.
 - Métriques courantes et historiques indépendantes pour chaque conteneur.
 - Historique des créations, suppressions, redémarrages et changements d'état.
-- Affichage des journaux de conteneurs hors périmètre initial.
-- Aucune fonction de création, suppression, démarrage, arrêt, exec ou administration Docker.
+- Fin du journal de chaque conteneur (stdout et stderr), en lecture seule, sans suivi continu (décision D-5).
+- Démarrage, arrêt et redémarrage d'un conteneur, désactivés par défaut, réservés aux `operator` et `admin` (décision D-5). Aucune création, suppression, exec, `kill`, `pause`, nettoyage ni autre administration Docker.
 
 ### Historique, événements et paramètres
 - Séries historiques brutes ou agrégées (1 min, 5 min, 1 h) avec bornes temporelles contrôlées.

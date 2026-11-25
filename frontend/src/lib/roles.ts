@@ -57,3 +57,8 @@ export function canRunBackups(role: Role | undefined): boolean {
 export function canManageBackups(role: Role | undefined): boolean {
   return role === 'admin'
 }
+
+/** Start, stop and restart containers (D-5): operators and administrators. */
+export function canManageContainers(role: Role | undefined): boolean {
+  return role === 'operator' || role === 'admin'
+}

@@ -56,6 +56,9 @@ type Services struct {
 	Vulnerabilities *usecase.VulnerabilityUsecase
 	// Backups configures and runs restic; nil (no database) answers 503.
 	Backups *usecase.BackupUsecase
+	// Containers reads the container logs and starts, stops and restarts
+	// containers; nil (no database, hence no audit) answers 503.
+	Containers *usecase.ContainerUsecase
 	// Cron reads the scheduled tasks; nil answers 503.
 	Cron *usecase.CronUsecase
 	// Tokens manages and authenticates the API tokens; nil (no database)
@@ -76,6 +79,7 @@ func NewRouter(logger *zap.Logger, services Services, sessionSecure bool, webRoo
 	unitActions := services.UnitActions
 	backups := services.Backups
 	cron := services.Cron
+	containers := services.Containers
 	tokens := services.Tokens
 	if units == nil {
 		// Never run: its inventory stays pending and its detail unavailable.
@@ -142,6 +146,13 @@ func NewRouter(logger *zap.Logger, services Services, sessionSecure bool, webRoo
 					active.Get("/containers/{containerID}/metrics/current", currentMetricsHandler(monitoring, true))
 					active.Get("/containers/{containerID}/metrics/{metricName}", metricHistoryHandler(monitoring, true))
 					active.Get("/containers/{containerID}/events", listEventsHandler(monitoring, true))
+					active.With(requireContainers(containers)).Get("/containers/{containerID}/logs", containerLogsHandler(containers))
+					active.Route("/containers/{containerID}/actions", func(actions chi.Router) {
+						actions.Use(requireContainers(containers))
+						actions.With(requirePermission(deny, domain.PermManageContainers)).Post("/", requestContainerActionHandler(containers))
+						actions.Get("/last", lastContainerActionHandler(containers))
+					})
+					active.With(requireContainers(containers)).Get("/docker/container-actions", containerActionsSettingsHandler(containers))
 					active.Get("/events", listEventsHandler(monitoring, false))
 					active.Get("/docker/inventory", dockerInventoryHandler(monitoring))
 					active.Get("/settings", settingsHandler(monitoring))

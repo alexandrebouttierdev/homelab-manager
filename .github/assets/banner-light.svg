@@ -1,0 +1,85 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="420" viewBox="0 0 1280 420" role="img" aria-labelledby="title desc">
+  <title id="title">Homelab Manager</title>
+  <desc id="desc">La supervision de votre serveur Linux, sans le superflu. Un binaire Go, un fichier SQLite, aucun cloud ni terminal web.</desc>
+  <defs>
+    <pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse">
+      <circle cx="2" cy="2" r="1" fill="#dde1e7"/>
+    </pattern>
+    <clipPath id="frame">
+      <rect width="1280" height="420" rx="16"/>
+    </clipPath>
+    <filter id="lift" x="-10%" y="-10%" width="120%" height="130%">
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#0b0d10" flood-opacity="0.06"/>
+    </filter>
+  </defs>
+  <style>
+    .sans { font-family: Geist, Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; }
+    .mono { font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, 'DejaVu Sans Mono', monospace; }
+  </style>
+
+  <g clip-path="url(#frame)">
+    <rect width="1280" height="420" fill="#f6f7f9"/>
+    <rect width="1280" height="420" fill="url(#dots)"/>
+  </g>
+  <rect x="0.5" y="0.5" width="1279" height="419" rx="15.5" fill="none" stroke="#e3e6ea"/>
+
+  <!-- Identity -->
+  <circle cx="76" cy="118" r="4" fill="#23895a"/>
+  <text x="90" y="123" class="mono" font-size="13" letter-spacing="1.04" fill="#4f5661">AUTO-HÉBERGÉ · LINUX · DOCKER</text>
+
+  <g transform="translate(72 146) scale(2)">
+    <rect x="1" y="1" width="30" height="30" rx="7" fill="#111315" stroke="#2a2e33" stroke-width="0.75"/>
+    <g fill="none" stroke="#8b9cfb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <rect x="8" y="8" width="16" height="7" rx="1.5"/>
+      <rect x="8" y="17" width="16" height="7" rx="1.5"/>
+      <path d="M11.5 11.5h.01M11.5 20.5h.01"/>
+    </g>
+  </g>
+  <text x="156" y="201" class="sans" font-size="64" font-weight="650" letter-spacing="-2.5" fill="#0b0d10">Homelab Manager</text>
+
+  <text x="72" y="266" class="sans" font-size="24" fill="#4f5661">La supervision de votre serveur Linux, <tspan fill="#0b0d10">sans le superflu.</tspan></text>
+
+  <g class="mono" font-size="14" fill="#4f5661" text-anchor="middle">
+    <rect x="72.5" y="298.5" width="129" height="32" rx="16" fill="#ffffff" stroke="#d5d9e0"/>
+    <text x="137" y="319"><tspan fill="#3d4fc4">1</tspan> binaire Go</text>
+    <rect x="211.5" y="298.5" width="162" height="32" rx="16" fill="#ffffff" stroke="#d5d9e0"/>
+    <text x="292.5" y="319"><tspan fill="#3d4fc4">1</tspan> fichier SQLite</text>
+    <rect x="383.5" y="298.5" width="87" height="32" rx="16" fill="#ffffff" stroke="#d5d9e0"/>
+    <text x="427" y="319"><tspan fill="#3d4fc4">0</tspan> cloud</text>
+    <rect x="480.5" y="298.5" width="146" height="32" rx="16" fill="#ffffff" stroke="#d5d9e0"/>
+    <text x="553.5" y="319"><tspan fill="#3d4fc4">0</tspan> terminal web</text>
+  </g>
+
+  <!-- Machine card (illustrative, no figures) -->
+  <rect x="808.5" y="60.5" width="400" height="300" rx="14" fill="#ffffff" stroke="#dde1e7" filter="url(#lift)"/>
+  <text x="830" y="94" class="mono" font-size="12" fill="#5d6470">machine locale</text>
+  <circle cx="1119" cy="90" r="3" fill="#23895a"/>
+  <text x="1186" y="94" class="mono" font-size="12" fill="#1f7a50" text-anchor="end">en ligne</text>
+
+  <text x="830" y="124" class="sans" font-size="13" fill="#4f5661">CPU</text>
+  <g transform="translate(830 132)">
+    <path d="M0 30 L24 28 L48 32 L72 22 L96 26 L120 14 L144 20 L168 24 L192 12 L216 18 L240 8 L264 16 L288 20 L312 10 L336 14 L354 12 L354 42 L0 42 Z" fill="#2f6fcf" fill-opacity="0.10"/>
+    <path d="M0 30 L24 28 L48 32 L72 22 L96 26 L120 14 L144 20 L168 24 L192 12 L216 18 L240 8 L264 16 L288 20 L312 10 L336 14 L354 12" fill="none" stroke="#2f6fcf" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+  </g>
+
+  <text x="830" y="196" class="sans" font-size="13" fill="#4f5661">Mémoire</text>
+  <g transform="translate(830 204)">
+    <path d="M0 24 L24 24 L48 22 L72 23 L96 20 L120 21 L144 18 L168 19 L192 18 L216 16 L240 17 L264 15 L288 16 L312 14 L336 15 L354 14 L354 42 L0 42 Z" fill="#7c5ce0" fill-opacity="0.10"/>
+    <path d="M0 24 L24 24 L48 22 L72 23 L96 20 L120 21 L144 18 L168 19 L192 18 L216 16 L240 17 L264 15 L288 16 L312 14 L336 15 L354 14" fill="none" stroke="#7c5ce0" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
+  </g>
+
+  <g class="sans" font-size="13" fill="#0b0d10">
+    <rect x="830" y="262" width="173" height="34" rx="8" fill="#f1f3f6"/>
+    <circle cx="844" cy="279" r="3" fill="#23895a"/>
+    <text x="856" y="284">Docker</text>
+    <rect x="1011" y="262" width="173" height="34" rx="8" fill="#f1f3f6"/>
+    <circle cx="1025" cy="279" r="3" fill="#23895a"/>
+    <text x="1037" y="284">systemd</text>
+    <rect x="830" y="304" width="173" height="34" rx="8" fill="#f1f3f6"/>
+    <circle cx="844" cy="321" r="3" fill="#23895a"/>
+    <text x="856" y="326">restic</text>
+    <rect x="1011" y="304" width="173" height="34" rx="8" fill="#f1f3f6"/>
+    <circle cx="1025" cy="321" r="3" fill="#c98a12"/>
+    <text x="1037" y="326">Grype</text>
+  </g>
+</svg>

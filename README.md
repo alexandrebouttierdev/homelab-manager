@@ -1,22 +1,21 @@
 <div align="center">
 
-<img src="frontend/public/favicon.svg" width="96" height="96" alt="Logo de Homelab Manager">
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset=".github/assets/banner-dark.svg">
+  <img src=".github/assets/banner-light.svg" width="100%" alt="Homelab Manager : la supervision de votre serveur Linux, sans le superflu. Un binaire Go, un fichier SQLite, aucun cloud ni terminal web.">
+</picture>
 
-# Homelab Manager
+<br><br>
 
-**Supervision et administration légères, auto-hébergées, d'une machine Linux et de ses conteneurs Docker.**
+[![CI](https://img.shields.io/github/actions/workflow/status/alexandrebouttierdev/homelab-manager/ci.yml?branch=dev&label=CI&style=flat-square&labelColor=17191c)](https://github.com/alexandrebouttierdev/homelab-manager/actions/workflows/ci.yml)
+[![Audit](https://img.shields.io/github/actions/workflow/status/alexandrebouttierdev/homelab-manager/audit.yml?branch=dev&label=audit&style=flat-square&labelColor=17191c)](https://github.com/alexandrebouttierdev/homelab-manager/actions/workflows/audit.yml)
+[![Release](https://img.shields.io/github/v/release/alexandrebouttierdev/homelab-manager?sort=semver&display_name=tag&label=release&style=flat-square&labelColor=17191c&color=8b9cfb)](https://github.com/alexandrebouttierdev/homelab-manager/releases/latest)
+![Go 1.26](https://img.shields.io/badge/Go-1.26-2a2f37?style=flat-square&labelColor=17191c&logo=go&logoColor=00ADD8)
+![React 19](https://img.shields.io/badge/React-19-2a2f37?style=flat-square&labelColor=17191c&logo=react&logoColor=61DAFB)
+![SQLite](https://img.shields.io/badge/SQLite-embarqué-2a2f37?style=flat-square&labelColor=17191c&logo=sqlite&logoColor=white)
+![Debian 13](https://img.shields.io/badge/Debian-13-2a2f37?style=flat-square&labelColor=17191c&logo=debian&logoColor=white)
 
-Un binaire Go, un fichier SQLite, une interface React. Pas de cloud, pas de serveur de base de données, pas de terminal web.
-
-[![CI](https://github.com/alexandrebouttierdev/homelab-manager/actions/workflows/ci.yml/badge.svg)](https://github.com/alexandrebouttierdev/homelab-manager/actions/workflows/ci.yml)
-[![Audit](https://github.com/alexandrebouttierdev/homelab-manager/actions/workflows/audit.yml/badge.svg)](https://github.com/alexandrebouttierdev/homelab-manager/actions/workflows/audit.yml)
-[![Release](https://img.shields.io/github/v/release/alexandrebouttierdev/homelab-manager?sort=semver&display_name=tag&label=release)](https://github.com/alexandrebouttierdev/homelab-manager/releases/latest)
-![Go 1.26](https://img.shields.io/badge/Go-1.26-00ADD8?logo=go&logoColor=white)
-![React 19](https://img.shields.io/badge/React-19-61DAFB?logo=react&logoColor=black)
-![SQLite](https://img.shields.io/badge/SQLite-embarqué-003B57?logo=sqlite&logoColor=white)
-![Debian 13](https://img.shields.io/badge/Debian-13-A81D33?logo=debian&logoColor=white)
-
-[Site](https://alexandrebouttierdev.github.io/homelab-manager/) · [Fonctionnalités](#fonctionnalités) · [Installation](#installation) · [Modules optionnels](#modules-optionnels) · [Configuration](#configuration) · [Exploitation](#exploitation) · [Développement](#développement) · [Documentation](#documentation)
+**[Site](https://alexandrebouttierdev.github.io/homelab-manager/)** · **[Fonctionnalités](#fonctionnalités)** · **[Installation](#installation)** · **[Modules optionnels](#modules-optionnels)** · **[Configuration](#configuration)** · **[Exploitation](#exploitation)** · **[Développement](#développement)** · **[Documentation](#documentation)**
 
 </div>
 
@@ -28,21 +27,27 @@ Homelab Manager supervise **une seule machine Linux : celle qui l'héberge**. Il
 <tr>
 <td width="33%" valign="top">
 
-**🪶 Léger**
+<img src=".github/assets/icon-light.svg" width="28" height="28" alt="">
+
+**Léger**
 
 Un binaire statique sans CGO, une base SQLite, aucune dépendance cloud. Installation native Debian 13 et systemd, sans Docker Compose.
 
 </td>
 <td width="33%" valign="top">
 
-**🔒 Sûr par conception**
+<img src=".github/assets/icon-secure.svg" width="28" height="28" alt="">
+
+**Sûr par conception**
 
 Aucun terminal, shell ni SSH dans l'application. Le Manager ne tourne jamais en root ; chaque action privilégiée passe par polkit et une liste blanche.
 
 </td>
 <td width="33%" valign="top">
 
-**🎯 Honnête**
+<img src=".github/assets/icon-honest.svg" width="28" height="28" alt="">
+
+**Honnête**
 
 Aucune valeur inventée : une donnée absente s'affiche comme indisponible, un module dont l'outil manque le dit, et le reste fonctionne.
 

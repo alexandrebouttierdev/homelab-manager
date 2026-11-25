@@ -225,8 +225,9 @@ func (s *sshServer) serve(conn net.Conn, config *ssh.ServerConfig) {
 			_ = request.Reply(true, nil)
 			_, _ = channel.Write([]byte(sftpGreeting + "\n"))
 			_, _ = channel.SendRequest("exit-status", false, ssh.Marshal(struct{ Status uint32 }{0}))
+			// The client ends the connection itself: closing it here races
+			// with its disconnect and makes ssh exit with 255.
 			_ = channel.Close()
-			return
 		}
 	}
 }

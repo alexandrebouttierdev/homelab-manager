@@ -411,7 +411,7 @@ La première release est `v2.3.0`, alignée sur la [spécification produit](docs
 ## État et limites connues
 
 - **Livré** : supervision système et Docker, historique, événements, comptes et rôles, sessions, politique de sécurité, journal d'audit, double authentification (TOTP, passkeys et clés FIDO2, codes de secours), jetons d'API en lecture seule, journaux système, services système avec actions en liste blanche (phase 5), sauvegardes restic avec diff et dépôt de copie (phase 6), tâches planifiées en lecture (phase 7), alertes avec silences et notifications (phase 4), vulnérabilités des paquets avec Grype (module V ; Debian, Ubuntu, Alpine, Fedora, RHEL, Rocky Linux et AlmaLinux 9 et suivantes), redémarrage et extinction (optionnels).
-- **Connexion par passkey seule** : désactivée par défaut ; un administrateur l'autorise dans Utilisateurs → Politique de sécurité (décision D-14 de [docs/SPEC_ADMINISTRATION.md](docs/SPEC_ADMINISTRATION.md), à confirmer).
+- **Connexion par passkey seule** : désactivée par défaut ; un administrateur l'autorise dans Utilisateurs → Politique de sécurité (décision D-14 de [docs/SPEC_ADMINISTRATION.md](docs/SPEC_ADMINISTRATION.md)).
 - Historiques bruts ou agrégés, 2 000 points au plus par requête ; l'interface choisit le pas selon la période.
 - À l'intervalle par défaut (10 s), la base croît d'environ 300 Mo par jour jusqu'à la rétention : ≈ 2 Go pour 7 jours.
 - Conteneurs et événements paginés par curseur, autres listes bornées ; images, volumes et réseaux Docker inutilisés listés en lecture seule, relus chaque minute.

@@ -162,12 +162,12 @@ Ordre de réalisation : 1A → M → 1B → 1C → 2 → 3 → 4 → V → 5 →
 
 ### 8 — WebAuthn et jetons d'API
 
-- `github.com/go-webauthn/webauthn` ; configuration `webauthn_rp_id`, `webauthn_origins` ; HTTPS exigé hors `localhost`. Livré en 8B comme second facteur (plan `2026-11-24-phase-8-webauthn-jetons.md`), puis le 25 novembre 2026 en connexion par passkey seule, désactivée par défaut (décision D-14, à confirmer).
+- `github.com/go-webauthn/webauthn` ; configuration `webauthn_rp_id`, `webauthn_origins` ; HTTPS exigé hors `localhost`. Livré en 8B comme second facteur (plan `2026-11-24-phase-8-webauthn-jetons.md`), puis le 25 novembre 2026 en connexion par passkey seule, désactivée par défaut (décision D-14, confirmée).
 - Jetons `hlm_` + 32 octets, affichés une fois, hachés, portées en lecture seule, expiration 90 jours par défaut (sans expiration interdit), en-tête `Authorization: Bearer`. Le contrôle d'origine reste appliqué aux sessions par cookie, pas aux jetons.
 
 ## 5. Décisions à trancher
 
-Ouvertes dans la spécification (`SPEC_ADMINISTRATION.md` § 10) : D-1 (édition Cron), D-2 (restauration en place), D-3 (pré-traitements de sauvegarde), D-4 (portées d'action des jetons), D-5 (actions et journaux Docker), D-6 (préférences système). Aucune ne bloque 1A–3. D-7 et D-8, ajoutées avec le module M, sont tranchées le 23 novembre 2026 : actions d'alimentation réservées à `admin`, sans arrêt programmé ni annulable. D-14 (connexion par passkey seule, autorisée par la politique, désactivée par défaut) est prise le 25 novembre 2026 en autonomie, à confirmer par le propriétaire. D-13 (clé SSH des dépôts SFTP) est prise le 25 novembre 2026 en autonomie, puis confirmée par le propriétaire le même jour : clé propre au Manager, scellée dans le coffre, clé d'hôte épinglée.
+Ouvertes dans la spécification (`SPEC_ADMINISTRATION.md` § 10) : D-1 (édition Cron), D-2 (restauration en place), D-3 (pré-traitements de sauvegarde), D-4 (portées d'action des jetons), D-5 (actions et journaux Docker), D-6 (préférences système). Aucune ne bloque 1A–3. D-7 et D-8, ajoutées avec le module M, sont tranchées le 23 novembre 2026 : actions d'alimentation réservées à `admin`, sans arrêt programmé ni annulable. D-14 (connexion par passkey seule, autorisée par la politique, désactivée par défaut) est prise le 25 novembre 2026 en autonomie, puis confirmée par le propriétaire le même jour. D-13 (clé SSH des dépôts SFTP) est prise le 25 novembre 2026 en autonomie, puis confirmée par le propriétaire le même jour : clé propre au Manager, scellée dans le coffre, clé d'hôte épinglée.
 
 Questions nouvelles relevées en préparant ce plan, à trancher avant l'incrément indiqué :
 

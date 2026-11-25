@@ -1,7 +1,7 @@
 // Package packages reads the distribution (/etc/os-release) and the
-// installed system packages from the package database files, which every
-// account may read: no command is run and no privilege is needed
-// (SPEC_ADMINISTRATION.md § 8 ter.1).
+// installed system packages from the package database files (dpkg, apk,
+// RPM in SQLite), which every account may read: no command is run and no
+// privilege is needed (SPEC_ADMINISTRATION.md § 8 ter.1).
 package packages
 
 import (
@@ -58,6 +58,15 @@ func (r *Reader) Inventory(ctx context.Context) (domain.PackageInventory, error)
 	inventory := domain.PackageInventory{Distro: distro, Manager: distro.PackageManager()}
 	if !distro.Supported() {
 		return inventory, fmt.Errorf("%w: %s", domain.ErrUnsupportedDistro, distro.ID)
+	}
+	if inventory.Manager == domain.PackageManagerRPM {
+		if inventory.Packages, err = r.readRPMDatabase(ctx); err != nil {
+			if errors.Is(err, domain.ErrUnsupportedDistro) {
+				return domain.PackageInventory{Distro: distro, Manager: inventory.Manager}, err
+			}
+			return domain.PackageInventory{}, fmt.Errorf("read %s: %w", rpmSQLitePath, err)
+		}
+		return inventory, nil
 	}
 	var file string
 	var parse func(io.Reader) ([]domain.InstalledPackage, error)

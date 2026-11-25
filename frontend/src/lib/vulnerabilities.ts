@@ -67,7 +67,8 @@ export function fixStateView(state: FixState): { label: string; tone: BadgeTone 
 }
 
 const failureLabels: Record<ScanFailure, string> = {
-  unsupported_distro: 'distribution non prise en charge (Debian, Ubuntu et Alpine le sont)',
+  unsupported_distro:
+    'distribution non prise en charge (Debian, Ubuntu, Alpine et les distributions RPM à base SQLite : Fedora, RHEL, Rocky Linux et AlmaLinux 9 et suivants)',
   inventory_failed: 'base de paquets illisible',
   vulnscan_not_installed: "Grype ou l'unité homelab-vulnscan.service n'est pas installé",
   vulnscan_not_allowed: "la règle polkit qui autorise l'analyse est absente",

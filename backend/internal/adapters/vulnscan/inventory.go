@@ -14,6 +14,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 	"strings"
 
 	"homelab-manager/backend/internal/domain"
@@ -83,6 +84,22 @@ type apkEntry struct {
 	Files         []struct{} `json:"files"`
 }
 
+// rpmEntry is Syft's rpm-db-entry: Grype matches an RPM package by its
+// epoch, version and release, and links it to its advisories by the source
+// RPM and, on RHEL-like systems, the modularity label.
+type rpmEntry struct {
+	Name            string     `json:"name"`
+	Version         string     `json:"version"`
+	Epoch           *int       `json:"epoch"`
+	Architecture    string     `json:"architecture"`
+	Release         string     `json:"release"`
+	SourceRpm       string     `json:"sourceRpm"`
+	Size            int        `json:"size"`
+	Vendor          string     `json:"vendor"`
+	ModularityLabel *string    `json:"modularityLabel,omitempty"`
+	Files           []struct{} `json:"files"`
+}
+
 type syftSource struct {
 	ID       string            `json:"id"`
 	Name     string            `json:"name"`
@@ -132,7 +149,7 @@ func purl(kind, namespace, name, version string, qualifiers map[string]string) s
 }
 
 func artifactID(kind string, pkg domain.InstalledPackage) string {
-	sum := sha256.Sum256([]byte(kind + "\x00" + pkg.Name + "\x00" + pkg.Version + "\x00" + pkg.Architecture))
+	sum := sha256.Sum256([]byte(kind + "\x00" + pkg.Name + "\x00" + pkg.Version + "\x00" + pkg.Release + "\x00" + pkg.Architecture))
 	return hex.EncodeToString(sum[:8])
 }
 
@@ -189,6 +206,37 @@ func syftInventory(inventory domain.PackageInventory, version string) (syftDocum
 			}
 			artifact.PURL = purl("apk", distro.ID, pkg.Name, pkg.Version, map[string]string{
 				"arch": pkg.Architecture, "distro": qualifierDistro, "upstream": origin,
+			})
+		case domain.PackageManagerRPM:
+			artifact.Type, artifact.MetadataType = "rpm", "rpm-db-entry"
+			artifact.Locations = []syftLocation{{Path: "/var/lib/rpm/rpmdb.sqlite", AccessPath: "/var/lib/rpm/rpmdb.sqlite"}}
+			entry := rpmEntry{
+				Name: pkg.Name, Version: pkg.Version, Epoch: pkg.Epoch, Architecture: pkg.Architecture,
+				Release: pkg.Release, SourceRpm: pkg.Source, Files: []struct{}{},
+			}
+			if pkg.ModularityLabel != "" {
+				label := pkg.ModularityLabel
+				entry.ModularityLabel = &label
+			}
+			artifact.Metadata = entry
+			// Syft names the version [epoch:]version-release; the PURL
+			// carries the epoch as a qualifier.
+			versionRelease := pkg.Version
+			if pkg.Release != "" {
+				versionRelease += "-" + pkg.Release
+			}
+			artifact.Version = versionRelease
+			epoch := ""
+			if pkg.Epoch != nil {
+				epoch = strconv.Itoa(*pkg.Epoch)
+				artifact.Version = epoch + ":" + versionRelease
+			}
+			namespace := distro.ID
+			if namespace == "rhel" {
+				namespace = "redhat"
+			}
+			artifact.PURL = purl("rpm", namespace, pkg.Name, versionRelease, map[string]string{
+				"arch": pkg.Architecture, "distro": qualifierDistro, "epoch": epoch, "upstream": pkg.Source,
 			})
 		default:
 			return syftDocument{}, fmt.Errorf("%w: %s", domain.ErrUnsupportedDistro, distro.ID)

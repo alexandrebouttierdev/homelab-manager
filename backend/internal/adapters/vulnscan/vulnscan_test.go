@@ -72,8 +72,43 @@ func TestInventoryFollowsTheSyftFormat(t *testing.T) {
 		apk.Artifacts[1].Metadata.(apkEntry).OriginPackage != "openssl" {
 		t.Fatalf("apk inventory = %+v, %v", apk.Artifacts, err)
 	}
-	if _, err := syftInventory(domain.PackageInventory{Distro: domain.Distro{ID: "rocky"}, Manager: domain.PackageManagerRPM, Packages: inventory.Packages}, "dev"); !errors.Is(err, domain.ErrUnsupportedDistro) {
-		t.Fatalf("rpm inventory = %v", err)
+	one := 1
+	rpm, err := syftInventory(domain.PackageInventory{Distro: domain.Distro{ID: "rocky", VersionID: "9.4"}, Manager: domain.PackageManagerRPM, Packages: []domain.InstalledPackage{
+		{Name: "openssl-libs", Version: "3.0.7", Release: "27.el9", Epoch: &one, Architecture: "x86_64", Source: "openssl-3.0.7-27.el9.src.rpm"},
+		{Name: "bash", Version: "5.1.8", Release: "9.el9", Architecture: "x86_64", Source: "bash-5.1.8-9.el9.src.rpm"},
+		{Name: "nodejs", Version: "18.20.2", Release: "1.module+el9.4.0+21731+46b5c9f6", Architecture: "x86_64", Source: "nodejs-18.20.2-1.module+el9.4.0+21731+46b5c9f6.src.rpm", ModularityLabel: "nodejs:18:9040020240509:rhel9"},
+	}}, "dev")
+	if err != nil {
+		t.Fatal(err)
+	}
+	ssl, bash, node := rpm.Artifacts[0], rpm.Artifacts[1], rpm.Artifacts[2]
+	if ssl.Type != "rpm" || ssl.MetadataType != "rpm-db-entry" || ssl.Version != "1:3.0.7-27.el9" ||
+		ssl.PURL != "pkg:rpm/rocky/openssl-libs@3.0.7-27.el9?arch=x86_64&distro=rocky-9.4&epoch=1&upstream=openssl-3.0.7-27.el9.src.rpm" {
+		t.Fatalf("openssl-libs artifact = %+v", ssl)
+	}
+	sslMetadata := ssl.Metadata.(rpmEntry)
+	if sslMetadata.Version != "3.0.7" || sslMetadata.Release != "27.el9" || *sslMetadata.Epoch != 1 ||
+		sslMetadata.SourceRpm != "openssl-3.0.7-27.el9.src.rpm" || sslMetadata.ModularityLabel != nil {
+		t.Fatalf("openssl-libs metadata = %+v", sslMetadata)
+	}
+	if bash.Version != "5.1.8-9.el9" || bash.Metadata.(rpmEntry).Epoch != nil || strings.Contains(bash.PURL, "epoch=") {
+		t.Fatalf("bash artifact = %+v", bash)
+	}
+	if label := node.Metadata.(rpmEntry).ModularityLabel; label == nil || *label != "nodejs:18:9040020240509:rhel9" {
+		t.Fatalf("nodejs metadata = %+v", node.Metadata)
+	}
+	encoded, _ := json.Marshal(bash)
+	if !strings.Contains(string(encoded), `"epoch":null`) {
+		t.Fatalf("an RPM without epoch keeps a null epoch, as Syft writes it: %s", encoded)
+	}
+	redhat, _ := syftInventory(domain.PackageInventory{Distro: domain.Distro{ID: "rhel", VersionID: "9.4"}, Manager: domain.PackageManagerRPM, Packages: []domain.InstalledPackage{
+		{Name: "bash", Version: "5.1.8", Release: "9.el9", Architecture: "x86_64"},
+	}}, "dev")
+	if redhat.Artifacts[0].PURL != "pkg:rpm/redhat/bash@5.1.8-9.el9?arch=x86_64&distro=rhel-9.4" {
+		t.Fatalf("rhel PURL = %s", redhat.Artifacts[0].PURL)
+	}
+	if _, err := syftInventory(domain.PackageInventory{Distro: domain.Distro{ID: "arch"}, Packages: inventory.Packages}, "dev"); !errors.Is(err, domain.ErrUnsupportedDistro) {
+		t.Fatalf("unknown package manager = %v", err)
 	}
 }
 

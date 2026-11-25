@@ -85,3 +85,16 @@ VA et VB livrées en neuf commits (plan, domaine, adaptateurs, persistance, usec
 - **Recette** (conteneur Linux de la session, Manager compilé, base neuve, chemins d'échange temporaires) : premier scan exactement 2 min après le démarrage ; inventaire réel de 837 paquets écrit en 0640 ; sans bus système, échec propre `vulnscan_not_installed` et nouvel essai planifié 15 min plus tard ; scan manuel d'un opérateur `202` puis `429` cinq minutes durant, audité ; intervalle refusé à l'opérateur (`403`), accepté pour l'administrateur et appliqué au prochain scan. Interface vérifiée dans Chromium en thème sombre et clair et sur téléphone avec un scan réussi et des constats insérés à la main dans la base de recette (aucun débordement horizontal) : échec de la dernière analyse visible à côté du dernier succès, tableau, détail et lien vers l'avis public, synthèse du tableau de bord, réglage de l'intervalle.
 - **Non vérifié** : un scan Grype réel de bout en bout. Le téléchargement de la base de Grype a été refusé dans l'environnement de développement ; l'unité, `tmpfiles.d`, la règle polkit, `ReadWritePaths` et Grype 0.121.3 sont à vérifier sur la machine Debian 13 de test (installation du README, puis « Analyser maintenant »). Lecteur RPM non livré.
 
+## Lecteur RPM (25 novembre 2026)
+
+| Sujet | Choix | Motif |
+|---|---|---|
+| Base | `/var/lib/rpm/rpmdb.sqlite` (rpm 4.16 et suivants : Fedora 33+, RHEL, Rocky Linux et AlmaLinux 9+), lue par le pilote SQLite déjà utilisé (`modernc.org/sqlite`), en lecture seule (`mode=ro`, `query_only`), puis `immutable=1` si le fichier `-shm` d'une base en WAL ne peut pas être créé | Aucune dépendance nouvelle, aucune commande lancée ; lisible par tout compte |
+| Berkeley DB | `/var/lib/rpm/Packages` seul (RHEL 8 et dérivées) : `unsupported_distro` | Format en fin de vie ; un décodeur Berkeley DB serait une dépendance ou un gros code de plus |
+| En-têtes | Décodeur interne : nombre d'entrées et taille des données vérifiés (65 535 entrées, 64 Mio au plus), chaque décalage et chaque chaîne vérifiés avant usage ; balises 1000 (nom), 1001 (version), 1002 (release), 1003 (epoch), 1022 (architecture), 1044 (RPM source), 5096 (label de modularité) | Format documenté par rpm ; aucune lecture hors des données |
+| Inventaire | Format `rpm-db-entry` de Syft ; version `[epoch:]version-release` ; PURL `pkg:rpm/<ID>/<nom>@<version>-<release>?arch=…&distro=<ID>-<VERSION_ID>&epoch=…&upstream=<RPM source>`, espace de noms `redhat` pour `rhel` | Comme Syft, pour que Grype rattache les paquets aux avis de la distribution |
+| Clés | Entrées `gpg-pubkey` ignorées | Ce sont les clés de signature importées, pas des logiciels |
+
+- Livré : lecteur, décodeur et tests sur une vraie base SQLite fabriquée par les tests (en-têtes encodés comme rpm les écrit), en-têtes malformés refusés, base Berkeley DB signalée ; inventaire Syft des paquets RPM ; message « non prise en charge » mis à jour.
+- Non vérifié : une vraie base `rpmdb.sqlite` d'une distribution (aucune n'était disponible sans téléchargement) et la comparaison avec Syft sur cette base, comme pour dpkg (`HOMELAB_TEST_SYFT`, `HOMELAB_TEST_ROOT`) ; un scan Grype réel sur une machine RPM.
+

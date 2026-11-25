@@ -11,7 +11,8 @@ import {
   type MetricSample,
 } from '../../lib/api/monitoring'
 import { formatPorts, imageTag } from '../../lib/containers'
-import { formatShortTime } from '../../lib/format'
+import { axisTooltip, timeAxis, timePoints } from '../../lib/charts'
+import { formatPercent } from '../../lib/format'
 import { latestOne, series } from '../../lib/metrics'
 import { useRefreshInterval } from '../../lib/refresh'
 import { useChartTheme } from '../../lib/theme'
@@ -31,29 +32,14 @@ export function rangeStart(range: RangeKey): Date {
   return new Date(Date.now() - milliseconds)
 }
 
-export function buildTimestamps(...seriesList: Array<Array<{ recordedAt: string }>>): string[] {
-  return Array.from(
-    new Set(seriesList.flatMap((values) => values.map((value) => value.recordedAt))),
-  ).sort()
-}
-
 export function buildChartOption(
   cpuSeries: MetricSample[],
   memorySeries: Array<{ recordedAt: string; value: number }>,
   theme: ReturnType<typeof useChartTheme>,
 ): EChartsOption {
-  const timestamps = buildTimestamps(cpuSeries, memorySeries)
-  const cpuMap = new Map(cpuSeries.map((sample) => [sample.recordedAt, sample.value]))
-  const memoryMap = new Map(memorySeries.map((sample) => [sample.recordedAt, sample.value]))
-
   return {
     backgroundColor: 'transparent',
-    tooltip: {
-      trigger: 'axis',
-      backgroundColor: theme.tooltipBackground,
-      borderColor: theme.tooltipBorder,
-      textStyle: { color: theme.tooltipText, fontSize: 11 },
-    },
+    tooltip: axisTooltip(theme, (value) => formatPercent(value)),
     legend: {
       data: ['CPU', 'RAM'],
       right: 0,
@@ -64,18 +50,7 @@ export function buildChartOption(
       textStyle: { color: theme.text, fontSize: 10, fontFamily: 'JetBrains Mono' },
     },
     grid: { left: 42, right: 8, top: 30, bottom: 24 },
-    xAxis: {
-      type: 'category',
-      boundaryGap: false,
-      data: timestamps,
-      axisTick: { show: false },
-      axisLine: { lineStyle: { color: theme.axis } },
-      axisLabel: {
-        color: theme.muted,
-        fontSize: 10,
-        formatter: (value: string) => formatShortTime(value),
-      },
-    },
+    xAxis: timeAxis(theme),
     yAxis: {
       type: 'value',
       min: 0,
@@ -91,8 +66,7 @@ export function buildChartOption(
         type: 'line',
         smooth: true,
         showSymbol: false,
-        connectNulls: true,
-        data: timestamps.map((timestamp) => cpuMap.get(timestamp) ?? null),
+        data: timePoints(cpuSeries),
         lineStyle: { color: theme.cpu, width: 1.8 },
         itemStyle: { color: theme.cpu },
         areaStyle: { color: theme.cpu, opacity: 0.08 },
@@ -102,8 +76,7 @@ export function buildChartOption(
         type: 'line',
         smooth: true,
         showSymbol: false,
-        connectNulls: true,
-        data: timestamps.map((timestamp) => memoryMap.get(timestamp) ?? null),
+        data: timePoints(memorySeries),
         lineStyle: { color: theme.ram, width: 1.8 },
         itemStyle: { color: theme.ram },
         areaStyle: { color: theme.ram, opacity: 0.06 },

@@ -12,7 +12,8 @@ import {
 import { collectorStatusLabel } from '../../lib/collectors'
 import { containerStateLabel, isErrorState, isRunning } from '../../lib/containers'
 import { eventTypeLabel } from '../../lib/events'
-import { formatRelativeTime, formatShortTime } from '../../lib/format'
+import { axisTooltip, timeAxis, timePoints } from '../../lib/charts'
+import { formatPercent, formatRelativeTime } from '../../lib/format'
 import { filesystemSummary, interfaceSummary } from '../../lib/host'
 import { latestOne, memoryPercentSeries, series } from '../../lib/metrics'
 import { useRefreshInterval } from '../../lib/refresh'
@@ -102,25 +103,12 @@ export function useDashboard() {
   const memoryValues = (memoryHistory.data ?? []).map((sample) => sample.value)
 
   const chartOption = useMemo<EChartsOption>(() => {
-    const cpuSeries = series(cpuHistory.data ?? [], 'cpu.percent', { core: 'all' })
-    const memorySeries = memoryHistory.data ?? []
-    const timestamps = Array.from(
-      new Set([
-        ...cpuSeries.map((sample) => sample.recordedAt),
-        ...memorySeries.map((sample) => sample.recordedAt),
-      ]),
-    ).sort()
-    const cpuMap = new Map(cpuSeries.map((sample) => [sample.recordedAt, sample.value]))
-    const memoryMap = new Map(memorySeries.map((sample) => [sample.recordedAt, sample.value]))
+    const cpuPoints = timePoints(series(cpuHistory.data ?? [], 'cpu.percent', { core: 'all' }))
+    const memoryPoints = timePoints(memoryHistory.data ?? [])
 
     return {
       backgroundColor: 'transparent',
-      tooltip: {
-        trigger: 'axis',
-        backgroundColor: chartTheme.tooltipBackground,
-        borderColor: chartTheme.tooltipBorder,
-        textStyle: { color: chartTheme.tooltipText, fontSize: 11 },
-      },
+      tooltip: axisTooltip(chartTheme, (value) => formatPercent(value)),
       legend: {
         data: ['CPU', 'RAM'],
         right: 0,
@@ -131,18 +119,7 @@ export function useDashboard() {
         textStyle: { color: chartTheme.text, fontSize: 10, fontFamily: 'JetBrains Mono' },
       },
       grid: { left: 42, right: 8, top: 30, bottom: 24 },
-      xAxis: {
-        type: 'category',
-        boundaryGap: false,
-        data: timestamps,
-        axisTick: { show: false },
-        axisLine: { lineStyle: { color: chartTheme.axis } },
-        axisLabel: {
-          color: chartTheme.muted,
-          fontSize: 10,
-          formatter: (value: string) => formatShortTime(value),
-        },
-      },
+      xAxis: timeAxis(chartTheme),
       yAxis: {
         type: 'value',
         min: 0,
@@ -158,8 +135,7 @@ export function useDashboard() {
           type: 'line',
           smooth: true,
           showSymbol: false,
-          connectNulls: true,
-          data: timestamps.map((timestamp) => cpuMap.get(timestamp) ?? null),
+          data: cpuPoints,
           lineStyle: { color: chartTheme.cpu, width: 1.8 },
           itemStyle: { color: chartTheme.cpu },
           areaStyle: { color: chartTheme.cpu, opacity: 0.08 },
@@ -169,8 +145,7 @@ export function useDashboard() {
           type: 'line',
           smooth: true,
           showSymbol: false,
-          connectNulls: true,
-          data: timestamps.map((timestamp) => memoryMap.get(timestamp) ?? null),
+          data: memoryPoints,
           lineStyle: { color: chartTheme.ram, width: 1.8 },
           itemStyle: { color: chartTheme.ram },
           areaStyle: { color: chartTheme.ram, opacity: 0.06 },

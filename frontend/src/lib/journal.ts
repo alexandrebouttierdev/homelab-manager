@@ -8,7 +8,8 @@ import type {
   JournalSource,
   JournalSummary,
 } from './api/journal'
-import { formatChartTime, formatDateTime } from './format'
+import { axisTooltip } from './charts'
+import { formatChartTime, formatCount, formatDateTime } from './format'
 import type { useChartTheme } from './theme'
 
 type ChartTheme = ReturnType<typeof useChartTheme>
@@ -224,13 +225,7 @@ export function summaryTotals(summary: JournalSummary): SummaryTotal[] {
 export function summaryChartOption(summary: JournalSummary, theme: ChartTheme): EChartsOption {
   return {
     backgroundColor: 'transparent',
-    tooltip: {
-      trigger: 'axis',
-      axisPointer: { type: 'shadow' },
-      backgroundColor: theme.tooltipBackground,
-      borderColor: theme.tooltipBorder,
-      textStyle: { color: theme.tooltipText, fontSize: 11 },
-    },
+    tooltip: axisTooltip(theme, (value) => formatCount(value), { shadow: true }),
     legend: {
       bottom: 0,
       textStyle: { color: theme.text, fontSize: 11 },

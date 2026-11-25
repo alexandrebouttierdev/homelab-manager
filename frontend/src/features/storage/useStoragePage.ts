@@ -3,7 +3,8 @@ import { useQuery } from '@tanstack/react-query'
 import type { EChartsOption } from 'echarts'
 import { useState } from 'react'
 import { getCurrentHostMetrics, getHostMetrics } from '../../lib/api/monitoring'
-import { formatChartTime } from '../../lib/format'
+import { axisTooltip, timeAxis, timePoints } from '../../lib/charts'
+import { formatPercent } from '../../lib/format'
 import { diskSummary, filesystemSummary } from '../../lib/host'
 import { series } from '../../lib/metrics'
 import { useRefreshInterval } from '../../lib/refresh'
@@ -51,25 +52,9 @@ export function useStoragePage() {
 
   const chartOption: EChartsOption = {
     backgroundColor: 'transparent',
-    tooltip: {
-      trigger: 'axis',
-      backgroundColor: chartTheme.tooltipBackground,
-      borderColor: chartTheme.tooltipBorder,
-      textStyle: { color: chartTheme.tooltipText, fontSize: 11 },
-    },
+    tooltip: axisTooltip(chartTheme, (value) => formatPercent(value)),
     grid: { left: 44, right: 12, top: 18, bottom: 28 },
-    xAxis: {
-      type: 'category',
-      boundaryGap: false,
-      data: historySeries.map((sample) => sample.recordedAt),
-      axisTick: { show: false },
-      axisLine: { lineStyle: { color: chartTheme.axis } },
-      axisLabel: {
-        color: chartTheme.muted,
-        fontSize: 10,
-        formatter: (value: string) => formatChartTime(value),
-      },
-    },
+    xAxis: timeAxis(chartTheme),
     yAxis: {
       type: 'value',
       min: 0,
@@ -85,7 +70,7 @@ export function useStoragePage() {
         type: 'line',
         smooth: true,
         showSymbol: false,
-        data: historySeries.map((sample) => sample.value),
+        data: timePoints(historySeries),
         lineStyle: { color: chartTheme.cpu, width: 1.8 },
         itemStyle: { color: chartTheme.cpu },
         areaStyle: { color: chartTheme.cpu, opacity: 0.08 },

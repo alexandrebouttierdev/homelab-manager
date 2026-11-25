@@ -3,7 +3,8 @@ import { useQuery } from '@tanstack/react-query'
 import type { EChartsOption } from 'echarts'
 import { useMemo, useState } from 'react'
 import { getCurrentHostMetrics, getHostMetrics, type MetricSample } from '../../lib/api/monitoring'
-import { formatBytes, formatChartTime } from '../../lib/format'
+import { axisTooltip, timeAxis, timePoints } from '../../lib/charts'
+import { formatRate } from '../../lib/format'
 import { interfaceSummary } from '../../lib/host'
 import { series } from '../../lib/metrics'
 import { useRefreshInterval } from '../../lib/refresh'
@@ -71,23 +72,9 @@ export function useNetworkPage() {
   const txSeries = useMemo(() => history.data?.tx ?? [], [history.data])
 
   const chartOption = useMemo<EChartsOption>(() => {
-    const timestamps = Array.from(
-      new Set([
-        ...rxSeries.map((sample) => sample.recordedAt),
-        ...txSeries.map((sample) => sample.recordedAt),
-      ]),
-    ).sort()
-    const rxMap = new Map(rxSeries.map((sample) => [sample.recordedAt, sample.value]))
-    const txMap = new Map(txSeries.map((sample) => [sample.recordedAt, sample.value]))
-
     return {
       backgroundColor: 'transparent',
-      tooltip: {
-        trigger: 'axis',
-        backgroundColor: chartTheme.tooltipBackground,
-        borderColor: chartTheme.tooltipBorder,
-        textStyle: { color: chartTheme.tooltipText, fontSize: 11 },
-      },
+      tooltip: axisTooltip(chartTheme, (value) => formatRate(value)),
       legend: {
         data: ['RX', 'TX'],
         right: 0,
@@ -98,18 +85,7 @@ export function useNetworkPage() {
         textStyle: { color: chartTheme.text, fontSize: 10, fontFamily: 'JetBrains Mono' },
       },
       grid: { left: 54, right: 10, top: 30, bottom: 28 },
-      xAxis: {
-        type: 'category',
-        boundaryGap: false,
-        data: timestamps,
-        axisTick: { show: false },
-        axisLine: { lineStyle: { color: chartTheme.axis } },
-        axisLabel: {
-          color: chartTheme.muted,
-          fontSize: 10,
-          formatter: (value: string) => formatChartTime(value),
-        },
-      },
+      xAxis: timeAxis(chartTheme),
       yAxis: {
         type: 'value',
         axisTick: { show: false },
@@ -117,7 +93,7 @@ export function useNetworkPage() {
         axisLabel: {
           color: chartTheme.muted,
           fontSize: 10,
-          formatter: (value: number) => formatBytes(value),
+          formatter: (value: number) => formatRate(value),
         },
         splitLine: { lineStyle: { color: chartTheme.grid } },
       },
@@ -127,8 +103,7 @@ export function useNetworkPage() {
           type: 'line',
           smooth: true,
           showSymbol: false,
-          connectNulls: true,
-          data: timestamps.map((timestamp) => rxMap.get(timestamp) ?? null),
+          data: timePoints(rxSeries),
           lineStyle: { color: chartTheme.net, width: 1.8 },
           itemStyle: { color: chartTheme.net },
           areaStyle: { color: chartTheme.net, opacity: 0.08 },
@@ -138,8 +113,7 @@ export function useNetworkPage() {
           type: 'line',
           smooth: true,
           showSymbol: false,
-          connectNulls: true,
-          data: timestamps.map((timestamp) => txMap.get(timestamp) ?? null),
+          data: timePoints(txSeries),
           lineStyle: { color: chartTheme.accent, width: 1.8 },
           itemStyle: { color: chartTheme.accent },
           areaStyle: { color: chartTheme.accent, opacity: 0.05 },

@@ -3,7 +3,8 @@ import { useQuery } from '@tanstack/react-query'
 import type { EChartsOption } from 'echarts'
 import { useState } from 'react'
 import { getCurrentHostMetrics, getHostMetrics } from '../../lib/api/monitoring'
-import { formatBytes, formatChartTime, formatRate } from '../../lib/format'
+import { axisTooltip, timeAxis, timePoints } from '../../lib/charts'
+import { formatBytes, formatMetricValue, formatNumber, formatRate } from '../../lib/format'
 import { average, seriesByLabel } from '../../lib/metrics'
 import { useChartTheme } from '../../lib/theme'
 
@@ -157,15 +158,15 @@ export function axisFormatter(unit: string) {
   return (value: number) => {
     switch (unit) {
       case 'percent':
-        return `${value} %`
+        return `${formatNumber(value, 2)} %`
       case 'bytes':
         return formatBytes(value)
       case 'bytes_per_second':
         return formatRate(value)
       case 'celsius':
-        return `${value} °C`
+        return `${formatNumber(value, 2)} °C`
       default:
-        return String(value)
+        return formatNumber(value, 2)
     }
   }
 }
@@ -230,25 +231,9 @@ export function useMetricsPage() {
 
   const chartOption: EChartsOption = {
     backgroundColor: 'transparent',
-    tooltip: {
-      trigger: 'axis',
-      backgroundColor: chartTheme.tooltipBackground,
-      borderColor: chartTheme.tooltipBorder,
-      textStyle: { color: chartTheme.tooltipText, fontSize: 11 },
-    },
+    tooltip: axisTooltip(chartTheme, (value) => formatMetricValue(value, definition.unit)),
     grid: { left: 58, right: 12, top: 18, bottom: 28 },
-    xAxis: {
-      type: 'category',
-      boundaryGap: false,
-      data: samples.map((sample) => sample.recordedAt),
-      axisTick: { show: false },
-      axisLine: { lineStyle: { color: chartTheme.axis } },
-      axisLabel: {
-        color: chartTheme.muted,
-        fontSize: 10,
-        formatter: (value: string) => formatChartTime(value),
-      },
-    },
+    xAxis: timeAxis(chartTheme),
     yAxis: {
       type: 'value',
       min: definition.unit === 'percent' ? 0 : undefined,
@@ -268,7 +253,7 @@ export function useMetricsPage() {
         type: 'line',
         smooth: true,
         showSymbol: false,
-        data: samples.map((sample) => sample.value),
+        data: timePoints(samples),
         lineStyle: { color: chartTheme.cpu, width: 1.8 },
         itemStyle: { color: chartTheme.cpu },
         areaStyle: { color: chartTheme.cpu, opacity: 0.08 },

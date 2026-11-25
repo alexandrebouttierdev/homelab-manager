@@ -821,12 +821,14 @@ Décision D-6 (SPEC_ADMINISTRATION.md § 10). Lues et changées par D-Bus auprè
 ```json
 {
   "enabled": false,
+  "localeEditable": false,
   "preferences": { "hostname": "homelab", "timezone": "Europe/Paris", "locale": "fr_FR.UTF-8" },
   "timezones": ["Africa/Abidjan", "…", "UTC"]
 }
 ```
 
 - `hostname` : nom statique (à défaut, nom courant) ; `timezone` : fuseau de la base tz ; `locale` : valeur de `LANG` (vide si elle n'est pas définie). `timezones` : fuseaux connus de la machine (`ListTimezones`), triés, 1 000 au plus, vide si la liste est illisible.
+- `localeEditable` vaut `false` quand la distribution interdit à systemd de changer la langue : Debian livre `/usr/share/dbus-1/system.d/systemd-localed-read-only.conf`, qui refuse `SetLocale` à tout compte, root compris ; la langue se change alors par `dpkg-reconfigure locales`, hors du Manager.
 - `enabled` reflète `system_preferences_enabled` (défaut `false`) ; la règle polkit `deployments/polkit/50-homelab-manager-system.rules` n'est connue qu'au moment d'un changement.
 - Services injoignables : `503 SYSTEM_PREFERENCES_UNAVAILABLE`.
 
@@ -834,7 +836,7 @@ Décision D-6 (SPEC_ADMINISTRATION.md § 10). Lues et changées par D-Bus auprè
 
 - Seules les valeurs différentes sont changées, dans l'ordre nom, fuseau, langue ; chaque changement est audité (`system` / `hostname`, `timezone` ou `locale` / `set`) avant d'être demandé, puis son résultat. Un échec arrête la suite : les changements précédents restent faits, et le message nomme le réglage en échec.
 - Validation : nom de 1 à 64 caractères, parties de 1 à 63 lettres, chiffres et tirets séparées par des points, sans tiret au début ni à la fin ; fuseau de la forme `Zone/Ville` (lettres, chiffres, `_`, `+`, `-`, quatre niveaux au plus) ; langue de la forme `fr_FR.UTF-8`, `C.UTF-8` ou `POSIX`. La langue ne change que `LANG` : les variables `LC_*` sont gardées.
-- Erreurs : corps invalide, champ inconnu ou valeur hors format `400 VALIDATION_ERROR` ; fuseau inconnu ou langue non installée, refusés par le service, `400 SYSTEM_VALUE_REJECTED` ; rôle autre qu'`admin` `403 FORBIDDEN` (audité) ; réglage désactivé `409 SYSTEM_PREFERENCES_DISABLED` ; changement déjà en cours `409 ACTION_IN_PROGRESS` ; polkit refuse (règle absente) `503 SYSTEM_CHANGE_REFUSED` ; service injoignable `503 SYSTEM_PREFERENCES_UNAVAILABLE` ; audit impossible à écrire `500 SYSTEM_CHANGE_FAILED`.
+- Erreurs : corps invalide, champ inconnu ou valeur hors format `400 VALIDATION_ERROR` ; fuseau inconnu ou langue non installée, refusés par le service, `400 SYSTEM_VALUE_REJECTED` ; langue différente alors que `localeEditable` est faux `409 SYSTEM_SETTING_READ_ONLY`, avant tout changement ; rôle autre qu'`admin` `403 FORBIDDEN` (audité) ; réglage désactivé `409 SYSTEM_PREFERENCES_DISABLED` ; changement déjà en cours `409 ACTION_IN_PROGRESS` ; polkit refuse (règle absente) `503 SYSTEM_CHANGE_REFUSED` ; service injoignable `503 SYSTEM_PREFERENCES_UNAVAILABLE` ; audit impossible à écrire `500 SYSTEM_CHANGE_FAILED`.
 
 ### 4.13 Tâches de maintenance
 
@@ -1176,6 +1178,7 @@ Les routes sont versionnées sous `/api/v1`. Un changement incompatible (champ s
 | `SYSTEM_PREFERENCES_UNAVAILABLE` | 503 | systemd-hostnamed, -timedated ou -localed injoignable |
 | `SYSTEM_PREFERENCES_DISABLED` | 409 | Changement des préférences système désactivé (`system_preferences_enabled`) |
 | `SYSTEM_VALUE_REJECTED` | 400 | Fuseau inconnu ou langue non installée, refusés par le service |
+| `SYSTEM_SETTING_READ_ONLY` | 409 | Langue que la distribution interdit à systemd de changer (Debian) |
 | `SYSTEM_CHANGE_REFUSED` | 503 | polkit refuse le changement (règle absente) |
 | `SYSTEM_CHANGE_FAILED` | 500 | Changement impossible à enregistrer (audit en échec) |
 | `MAINTENANCE_UNAVAILABLE` | 503 | Tâches de maintenance indisponibles (base de données absente, Manager en arrêt) |

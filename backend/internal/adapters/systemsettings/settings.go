@@ -9,6 +9,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"os"
 	"sort"
 	"strings"
 	"time"
@@ -55,12 +56,24 @@ func SystemBus(ctx context.Context) (*dbus.Conn, error) {
 
 var _ ports.SystemSettings = (*Settings)(nil)
 
+// debianLocalePolicy is the D-Bus policy by which Debian forbids SetLocale
+// of systemd-localed, "not even root": the language is then set with
+// dpkg-reconfigure locales, outside of the Manager.
+const debianLocalePolicy = "/usr/share/dbus-1/system.d/systemd-localed-read-only.conf"
+
 type Settings struct {
 	connect Connector
+	// lockedLocale is the file whose presence makes the locale read-only.
+	lockedLocale string
 }
 
 func New(connect Connector) *Settings {
-	return &Settings{connect: connect}
+	return &Settings{connect: connect, lockedLocale: debianLocalePolicy}
+}
+
+func (s *Settings) LocaleEditable() bool {
+	_, err := os.Stat(s.lockedLocale)
+	return errors.Is(err, os.ErrNotExist)
 }
 
 func (s *Settings) with(ctx context.Context, run func(context.Context, *dbus.Conn) error) error {

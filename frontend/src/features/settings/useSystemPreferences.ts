@@ -51,6 +51,9 @@ export function useSystemPreferences() {
     timezones: data?.timezones ?? [],
     locales: commonLocales,
     editable,
+    /** Debian: the language is set with dpkg-reconfigure locales. */
+    localeEditable: editable && data?.localeEditable !== false,
+    localeLocked: data?.localeEditable === false,
     /** Shown to administrators while the setting is off. */
     disabledNotice: canManageSystem(user?.role) && data?.enabled === false,
     register: form.register,

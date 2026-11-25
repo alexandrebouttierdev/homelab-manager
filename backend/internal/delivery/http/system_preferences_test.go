@@ -16,7 +16,10 @@ import (
 type httpFakeSystem struct {
 	current domain.SystemPreferences
 	refuse  bool
+	locked  bool
 }
+
+func (f *httpFakeSystem) LocaleEditable() bool { return !f.locked }
 
 func (f *httpFakeSystem) Preferences(context.Context) (domain.SystemPreferences, error) {
 	return f.current, nil
@@ -82,6 +85,15 @@ func TestSystemPreferencesRoutes(t *testing.T) {
 			t.Fatalf("%s = %d %s", request, response.Code, response.Body)
 		}
 	}
+	fake.locked = true
+	locked := call(router, http.MethodPut, "/api/v1/system/preferences", `{"hostname":"nas","timezone":"UTC","locale":"C.UTF-8"}`, admin)
+	if locked.Code != http.StatusConflict || !strings.Contains(locked.Body.String(), "SYSTEM_SETTING_READ_ONLY") {
+		t.Fatalf("locked locale = %d %s", locked.Code, locked.Body)
+	}
+	if read := call(router, http.MethodGet, "/api/v1/system/preferences", "", admin); !strings.Contains(read.Body.String(), `"localeEditable":false`) {
+		t.Fatalf("read = %s", read.Body)
+	}
+	fake.locked = false
 	fake.refuse = true
 	refused := call(router, http.MethodPut, "/api/v1/system/preferences", `{"hostname":"other","timezone":"UTC","locale":"fr_FR.UTF-8"}`, admin)
 	if refused.Code != http.StatusServiceUnavailable || !strings.Contains(refused.Body.String(), "SYSTEM_CHANGE_REFUSED") {

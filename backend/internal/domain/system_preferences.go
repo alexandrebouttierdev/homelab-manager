@@ -25,6 +25,9 @@ var (
 	// ErrSystemValueRejected: the systemd service refused the value (time
 	// zone unknown, locale not installed…).
 	ErrSystemValueRejected = errors.New("the system refused the value")
+	// ErrSystemSettingReadOnly: the distribution forbids the change through
+	// systemd (Debian denies SetLocale of localed to every account).
+	ErrSystemSettingReadOnly = errors.New("the distribution does not let systemd change this setting")
 	// ErrSystemSettingsUnavailable: the system bus or a systemd service
 	// cannot be reached.
 	ErrSystemSettingsUnavailable = errors.New("system settings are unavailable")

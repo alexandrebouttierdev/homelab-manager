@@ -19,4 +19,7 @@ type SystemSettings interface {
 	SetTimezone(ctx context.Context, name string) error
 	// SetLocale sets LANG and keeps the other LC_* variables.
 	SetLocale(ctx context.Context, name string) error
+	// LocaleEditable is false where the distribution forbids SetLocale
+	// (Debian ships a D-Bus policy that denies it to every account).
+	LocaleEditable() bool
 }

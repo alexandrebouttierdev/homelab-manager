@@ -94,6 +94,8 @@ export const errorMessages: Record<string, string> = {
   SYSTEM_VALUE_REJECTED: 'Le système a refusé la valeur (fuseau inconnu ou langue non installée).',
   SYSTEM_CHANGE_REFUSED:
     'polkit a refusé la modification : installez la règle 50-homelab-manager-system.rules.',
+  SYSTEM_SETTING_READ_ONLY:
+    'La distribution interdit ce changement par systemd ; utilisez ses propres outils (dpkg-reconfigure locales).',
   SYSTEM_CHANGE_FAILED: "La modification n'a pas pu être enregistrée.",
   CONTAINER_ACTIONS_DISABLED:
     'Actions sur les conteneurs désactivées dans la configuration du Manager (docker_actions_enabled).',

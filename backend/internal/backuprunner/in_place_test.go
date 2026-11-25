@@ -32,6 +32,7 @@ func TestInPlaceRestoreBacksUpWhatItReplaces(t *testing.T) {
 	}
 	f.file("backup.out", summaryLine+"\n")
 	f.file("restore.out", restoreSummary+"\n")
+	f.file("snapshots.out", snapshotsJSON)
 	f.job(inPlaceJob(false, "/srv/app", "/srv/gone"), domain.BackupCredentials{Password: "p"})
 	status, result, stderr := f.run("restore-in-place")
 	if status != 0 || !result.Success || !result.Details.InPlace || result.Details.SafetySnapshotID != "abcdef0123456789" || result.Details.FilesRestored != 1 {
@@ -47,6 +48,9 @@ func TestInPlaceRestoreBacksUpWhatItReplaces(t *testing.T) {
 	}
 	if strings.Contains(f.read("args.restore"), "--delete") {
 		t.Fatal("an in-place restore never deletes")
+	}
+	if len(result.Snapshots) != 2 {
+		t.Fatalf("the snapshots are not listed after the restore: %+v", result.Snapshots)
 	}
 }
 

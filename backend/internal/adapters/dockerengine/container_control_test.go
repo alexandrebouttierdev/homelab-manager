@@ -30,7 +30,7 @@ func TestParseLogStream(t *testing.T) {
 		frame(1, "2026-11-25T08:00:02Z second\n") +
 		frame(2, "ial line\n") +
 		frame(1, "no time\n")
-	lines := ParseLogStream([]byte(body), false)
+	lines := ParseLogStream([]byte(body))
 	if len(lines) != 4 {
 		t.Fatalf("lines = %+v", lines)
 	}
@@ -45,20 +45,36 @@ func TestParseLogStream(t *testing.T) {
 		t.Fatalf("line without time = %+v", lines[3])
 	}
 
-	tty := ParseLogStream([]byte("2026-11-25T08:00:00Z a\r\n2026-11-25T08:00:01Z b"), true)
+	tty := ParseLogStream([]byte("2026-11-25T08:00:00Z a\r\n2026-11-25T08:00:01Z b"))
 	if len(tty) != 2 || tty[0].Message != "a" || tty[1].Message != "b" || tty[1].Stream != domain.ContainerStdout {
 		t.Fatalf("raw stream = %+v", tty)
 	}
 	// Text without frame header is read as a raw stream.
-	if plain := ParseLogStream([]byte("hello\n"), false); len(plain) != 1 || plain[0].Message != "hello" {
+	if plain := ParseLogStream([]byte("hello\n")); len(plain) != 1 || plain[0].Message != "hello" {
 		t.Fatalf("plain = %+v", plain)
 	}
-	long := ParseLogStream([]byte(frame(1, strings.Repeat("é", domain.MaxContainerLogLineBytes)+"\n")), false)
+	long := ParseLogStream([]byte(frame(1, strings.Repeat("é", domain.MaxContainerLogLineBytes)+"\n")))
 	if len(long) != 1 || !long[0].Cut || len(long[0].Message) > domain.MaxContainerLogLineBytes || !strings.HasPrefix(long[0].Message, "é") {
 		t.Fatalf("long line cut = %t, %d bytes", long[0].Cut, len(long[0].Message))
 	}
-	if invalid := ParseLogStream([]byte(frame(1, "bad \xff byte\n")), false); invalid[0].Message != "bad � byte" {
+	if invalid := ParseLogStream([]byte(frame(1, "bad \xff byte\n"))); invalid[0].Message != "bad � byte" {
 		t.Fatalf("invalid UTF-8 = %q", invalid[0].Message)
+	}
+}
+
+// TestLogsAnnouncedAsRawAreStillDecoded reproduces Docker 29 on API v1.41:
+// a container without TTY answers frames with the raw-stream content type.
+func TestLogsAnnouncedAsRawAreStillDecoded(t *testing.T) {
+	client := newClient(roundTripFunc(func(*http.Request) (*http.Response, error) {
+		header := make(http.Header)
+		header.Set("Content-Type", "application/vnd.docker.raw-stream")
+		body := frame(2, "2026-11-24T06:29:51.108971334Z 2026/11/24 06:29:51 [notice] 1#1: start worker process 27\n")
+		return &http.Response{StatusCode: http.StatusOK, Header: header, Body: io.NopCloser(strings.NewReader(body))}, nil
+	}))
+	logs, err := client.ContainerLogs(context.Background(), "0123456789ab", domain.ContainerLogQuery{Tail: 5})
+	if err != nil || len(logs.Lines) != 1 || logs.Lines[0].Stream != domain.ContainerStderr || logs.Lines[0].Time == nil ||
+		!strings.HasPrefix(logs.Lines[0].Message, "2026/11/24 06:29:51 [notice]") {
+		t.Fatalf("logs = %+v, %v", logs, err)
 	}
 }
 

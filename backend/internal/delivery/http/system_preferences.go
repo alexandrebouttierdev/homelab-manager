@@ -38,9 +38,10 @@ func writeSystemPreferences(w http.ResponseWriter, r *http.Request, preferences 
 		zones = []string{}
 	}
 	body := map[string]any{
-		"enabled":     preferences.Enabled(),
-		"preferences": systemPreferencesDTO{Hostname: current.Hostname, Timezone: current.Timezone, Locale: current.Locale},
-		"timezones":   zones,
+		"enabled":        preferences.Enabled(),
+		"localeEditable": preferences.LocaleEditable(),
+		"preferences":    systemPreferencesDTO{Hostname: current.Hostname, Timezone: current.Timezone, Locale: current.Locale},
+		"timezones":      zones,
 	}
 	if changed != nil {
 		names := make([]string, 0, len(changed))
@@ -92,6 +93,8 @@ func updateSystemPreferencesHandler(preferences *usecase.SystemPreferencesUsecas
 			writeError(w, r, http.StatusConflict, "SYSTEM_PREFERENCES_DISABLED", "System preferences are disabled in the service configuration.")
 		case errors.Is(err, domain.ErrActionInProgress):
 			writeError(w, r, http.StatusConflict, "ACTION_IN_PROGRESS", "A change of the system preferences is already in progress.")
+		case errors.Is(err, domain.ErrSystemSettingReadOnly):
+			writeError(w, r, http.StatusConflict, "SYSTEM_SETTING_READ_ONLY", "The distribution does not let systemd change this setting"+setting+".")
 		case errors.Is(err, domain.ErrSystemValueRejected):
 			writeError(w, r, http.StatusBadRequest, "SYSTEM_VALUE_REJECTED", "The system refused the value"+setting+".")
 		case errors.Is(err, domain.ErrSystemChangeRefused):

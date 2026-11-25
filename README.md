@@ -349,7 +349,7 @@ La carte « Préférences système » des Paramètres les affiche à tous ; seul
 sudo install -o root -g root -m 0644 deployments/polkit/50-homelab-manager-system.rules /etc/polkit-1/rules.d/
 ```
 
-puis mettre `system_preferences_enabled: true` dans `/etc/homelab-manager/manager.yaml` et redémarrer `homelab-manager.service`. La règle n'autorise que le nom statique, le fuseau et la langue (`LANG`), par le seul compte `homelab-manager`. Un fuseau inconnu ou une langue non installée (`locale-gen`) sont refusés par le système. Changer le nom de la machine peut casser les adresses qui utilisent l'ancien (DNS local, mDNS, certificat TLS) ; la nouvelle langue vaut pour les services à leur prochain démarrage (décision D-6).
+puis mettre `system_preferences_enabled: true` dans `/etc/homelab-manager/manager.yaml` et redémarrer `homelab-manager.service`. La règle n'autorise que le nom statique, le fuseau et la langue (`LANG`), par le seul compte `homelab-manager`. Un fuseau inconnu ou une langue non installée (`locale-gen`) sont refusés par le système. Sur Debian, la langue reste en lecture seule : Debian interdit à systemd de la changer (`systemd-localed-read-only.conf`) ; utiliser `sudo dpkg-reconfigure locales`. Changer le nom de la machine peut casser les adresses qui utilisent l'ancien (DNS local, mDNS, certificat TLS) ; la nouvelle langue vaut pour les services à leur prochain démarrage (décision D-6).
 
 ### Vulnérabilités des paquets (Grype)
 

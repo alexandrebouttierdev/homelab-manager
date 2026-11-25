@@ -34,6 +34,10 @@ func NewSystemPreferencesUsecase(settings ports.SystemSettings, audit ports.Audi
 
 func (u *SystemPreferencesUsecase) Enabled() bool { return u.enabled }
 
+// LocaleEditable reports whether the distribution lets systemd change the
+// language.
+func (u *SystemPreferencesUsecase) LocaleEditable() bool { return u.settings.LocaleEditable() }
+
 // Preferences returns the current values and the time zones of the
 // machine; a failure of the list leaves it empty.
 func (u *SystemPreferencesUsecase) Preferences(ctx context.Context) (domain.SystemPreferences, []string, error) {
@@ -67,6 +71,10 @@ func (u *SystemPreferencesUsecase) Update(ctx context.Context, actor domain.User
 	current, err := u.settings.Preferences(ctx)
 	if err != nil {
 		return nil, err
+	}
+	// Refused before any change, so that none is left half done.
+	if change.Locale != current.Locale && !u.settings.LocaleEditable() {
+		return nil, &domain.SystemChangeError{Setting: domain.SettingLocale, Err: domain.ErrSystemSettingReadOnly}
 	}
 	steps := []struct {
 		setting        domain.SystemSetting

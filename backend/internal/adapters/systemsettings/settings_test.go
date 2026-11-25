@@ -3,6 +3,7 @@ package systemsettings
 import (
 	"context"
 	"errors"
+	"os"
 	"slices"
 	"sync"
 	"testing"
@@ -200,6 +201,20 @@ func TestChangesAreClassified(t *testing.T) {
 	}
 	if len(fake.recorded()) != calls {
 		t.Fatal("an invalid value was sent")
+	}
+}
+
+func TestLocaleIsReadOnlyUnderTheDebianPolicy(t *testing.T) {
+	policy := t.TempDir() + "/systemd-localed-read-only.conf"
+	settings := &Settings{lockedLocale: policy}
+	if !settings.LocaleEditable() {
+		t.Fatal("without the policy the locale is editable")
+	}
+	if err := os.WriteFile(policy, []byte("<busconfig/>"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if settings.LocaleEditable() {
+		t.Fatal("the Debian policy makes the locale read-only")
 	}
 }
 

@@ -69,6 +69,15 @@ func restoreInPlace(ctx context.Context, config Config, env []string, job backup
 		return err
 	}
 	result.Success = true
+	if result.Details.SafetySnapshotID != "" {
+		// The safety snapshot must be listed to restore it, which undoes the
+		// restore; a listing failure does not undo the success.
+		if snapshots, err := listSnapshots(ctx, config, env); err == nil {
+			result.Snapshots = snapshots
+		} else {
+			result.Message = domain.TruncateBackupMessage("snapshot list unavailable: " + err.Error())
+		}
+	}
 	return nil
 }
 

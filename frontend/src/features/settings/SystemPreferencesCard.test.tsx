@@ -38,6 +38,7 @@ describe('SystemPreferencesCard', () => {
     session.role = 'admin'
     vi.mocked(getSystemPreferences).mockResolvedValue({
       enabled: true,
+      localeEditable: true,
       preferences: current,
       timezones: ['Europe/Paris', 'UTC'],
     })
@@ -47,6 +48,7 @@ describe('SystemPreferencesCard', () => {
   it('confirms the changes, then saves them', async () => {
     vi.mocked(updateSystemPreferences).mockResolvedValue({
       enabled: true,
+      localeEditable: true,
       preferences: { ...current, hostname: 'nas' },
       timezones: [],
       changed: ['hostname'],
@@ -105,11 +107,25 @@ describe('SystemPreferencesCard', () => {
   it('tells an administrator the setting is off', async () => {
     vi.mocked(getSystemPreferences).mockResolvedValue({
       enabled: false,
+      localeEditable: true,
       preferences: current,
       timezones: [],
     })
     renderCard()
     expect(await screen.findByText(/system_preferences_enabled/)).toBeInTheDocument()
     expect(screen.queryByRole('button', { name: 'Enregistrer' })).not.toBeInTheDocument()
+  })
+
+  it('keeps the language read-only where Debian forbids it', async () => {
+    vi.mocked(getSystemPreferences).mockResolvedValue({
+      enabled: true,
+      localeEditable: false,
+      preferences: current,
+      timezones: [],
+    })
+    renderCard()
+    expect(await screen.findByLabelText('Langue du système')).toHaveAttribute('readonly')
+    expect(screen.getByLabelText('Nom de la machine')).not.toHaveAttribute('readonly')
+    expect(screen.getByText(/dpkg-reconfigure locales/)).toBeInTheDocument()
   })
 })

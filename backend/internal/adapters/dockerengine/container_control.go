@@ -87,8 +87,7 @@ func (c *Client) readLogs(ctx context.Context, dockerID string, tail int, since 
 	case len(body) > maxLogBody:
 		return domain.ContainerLogs{}, errLogTooLarge
 	}
-	raw := response.Header.Get("Content-Type") == "application/vnd.docker.raw-stream"
-	return domain.ContainerLogs{Lines: ParseLogStream(body, raw)}, nil
+	return domain.ContainerLogs{Lines: ParseLogStream(body)}, nil
 }
 
 // ParseLogStream splits a Docker log answer into lines. A multiplexed
@@ -96,10 +95,12 @@ func (c *Client) readLogs(ctx context.Context, dockerID string, tail int, since 
 // stream, three zero bytes, the length in four big-endian bytes, then the
 // data. A raw stream (container with a TTY) is stdout only. Each line
 // starts with the RFC 3339 time Docker adds with timestamps=1.
-func ParseLogStream(body []byte, raw bool) []domain.ContainerLogLine {
-	if !raw && !looksMultiplexed(body) {
-		raw = true
-	}
+//
+// The format is told from the content, not from the Content-Type: API
+// v1.41 answers application/vnd.docker.raw-stream for both. A frame starts
+// with 0, 1 or 2 and three zero bytes; a raw line starts with its time.
+func ParseLogStream(body []byte) []domain.ContainerLogLine {
+	raw := !looksMultiplexed(body)
 	var lines []domain.ContainerLogLine
 	if raw {
 		return appendLines(lines, domain.ContainerStdout, body, true)

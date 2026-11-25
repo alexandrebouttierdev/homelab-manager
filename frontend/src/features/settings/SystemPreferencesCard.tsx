@@ -64,7 +64,7 @@ export function SystemPreferencesCard() {
                 <input
                   id="system-locale"
                   className={inputClass}
-                  readOnly={!model.editable}
+                  readOnly={!model.localeEditable}
                   list="system-locales"
                   autoComplete="off"
                   {...model.register('locale')}
@@ -76,6 +76,12 @@ export function SystemPreferencesCard() {
                 </datalist>
               </FormField>
             </div>
+            {model.localeLocked && (
+              <p className="text-[11px] text-text-muted">
+                La distribution interdit de changer la langue par systemd-localed (Debian) :
+                utilisez <code>sudo dpkg-reconfigure locales</code> sur la machine.
+              </p>
+            )}
             {model.confirmation && (
               <div
                 className="space-y-2 rounded-md border border-warning/40 bg-warning/5 p-3"

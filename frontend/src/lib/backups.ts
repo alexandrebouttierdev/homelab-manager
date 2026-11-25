@@ -147,10 +147,12 @@ export function describeDetails(run: BackupRun): string | null {
         ? `Simulation : ${formatCount(d.totalFiles ?? 0)} fichier(s), ${formatBytes(d.totalBytes ?? 0)}`
         : `${formatCount(d.filesRestored ?? 0)} fichier(s) restauré(s) dans ${d.target ?? '—'}`
     case 'restore-in-place':
+      // restic counts the directories in files_restored: the files of
+      // the selection are total_files.
       if (d.dryRun)
-        return `Simulation : ${formatCount(d.filesRestored ?? 0)} fichier(s) à remplacer sur ${formatCount(d.totalFiles ?? 0)}, ${formatBytes(d.bytesRestored ?? 0)}`
+        return `Simulation : ${formatCount(d.totalFiles ?? 0)} fichier(s) concerné(s), ${formatBytes(d.totalBytes ?? 0)}`
       return [
-        `${formatCount(d.filesRestored ?? 0)} fichier(s) remplacé(s) à leur emplacement d'origine`,
+        `${formatCount(d.totalFiles ?? 0)} fichier(s) remis à leur emplacement d'origine`,
         d.safetySnapshotId
           ? `état précédent sauvegardé dans l'instantané ${d.safetySnapshotId.slice(0, 8)}`
           : null,

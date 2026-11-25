@@ -307,7 +307,7 @@ describe('BackupsPage', () => {
         restore: { snapshotId: 'abcdef0123456789', include: ['/srv/app'], dryRun: true },
       }),
     )
-    expect(await screen.findByText(/2 fichier\(s\) à remplacer sur 4/)).toBeInTheDocument()
+    expect(await screen.findByText(/4 fichier\(s\) concerné\(s\)/)).toBeInTheDocument()
     expect(restore).toBeDisabled()
     await user.click(screen.getByLabelText(/Je remplace les fichiers actuels/))
     expect(restore).toBeEnabled()

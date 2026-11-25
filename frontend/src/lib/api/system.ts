@@ -8,6 +8,8 @@ export type SystemSetting = 'hostname' | 'timezone' | 'locale'
 export type SystemPreferencesState = {
   /** system_preferences_enabled: changes are possible. */
   enabled: boolean
+  /** False where the distribution forbids systemd to change the language (Debian). */
+  localeEditable: boolean
   preferences: SystemPreferences
   /** Time zones the machine knows; empty when the list could not be read. */
   timezones: string[]

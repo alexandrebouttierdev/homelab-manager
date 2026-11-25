@@ -12,10 +12,13 @@ import (
 )
 
 type fakeSystemSettings struct {
-	current domain.SystemPreferences
-	calls   []string
-	fail    map[string]error
+	current        domain.SystemPreferences
+	calls          []string
+	fail           map[string]error
+	localeReadOnly bool
 }
+
+func (f *fakeSystemSettings) LocaleEditable() bool { return !f.localeReadOnly }
 
 func (f *fakeSystemSettings) Preferences(context.Context) (domain.SystemPreferences, error) {
 	return f.current, f.fail["read"]
@@ -113,5 +116,25 @@ func TestSystemPreferencesNeedTheSettingAndTheAudit(t *testing.T) {
 	current, zones, err := preferences.Preferences(context.Background())
 	if err != nil || current.Hostname != "homelab" || zones != nil {
 		t.Fatalf("preferences without zones = %+v, %v, %v", current, zones, err)
+	}
+}
+
+// TestLockedLocaleIsRefusedBeforeAnyChange: on Debian the language cannot
+// change through localed; nothing else changes either.
+func TestLockedLocaleIsRefusedBeforeAnyChange(t *testing.T) {
+	settings := &fakeSystemSettings{
+		current:        domain.SystemPreferences{Hostname: "homelab", Timezone: "UTC", Locale: "en_US.UTF-8"},
+		localeReadOnly: true,
+	}
+	preferences := NewSystemPreferencesUsecase(settings, &syncAudit{}, true, zap.NewNop())
+	_, err := preferences.Update(context.Background(), systemAdmin,
+		domain.SystemPreferencesChange{Hostname: "nas", Timezone: "UTC", Locale: "C.UTF-8"}, "req")
+	if !errors.Is(err, domain.ErrSystemSettingReadOnly) || len(settings.calls) != 0 {
+		t.Fatalf("locked locale = %v, calls %v", err, settings.calls)
+	}
+	changed, err := preferences.Update(context.Background(), systemAdmin,
+		domain.SystemPreferencesChange{Hostname: "nas", Timezone: "UTC", Locale: "en_US.UTF-8"}, "req")
+	if err != nil || !slices.Equal(changed, []domain.SystemSetting{domain.SettingHostname}) {
+		t.Fatalf("same locale = %v, %v", changed, err)
 	}
 }

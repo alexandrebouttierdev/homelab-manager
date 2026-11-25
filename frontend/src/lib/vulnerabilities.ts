@@ -1,6 +1,7 @@
 import type { BadgeTone } from '../components/ui/Badge'
 import type {
   Finding,
+  FindingPage,
   FixState,
   ScanFailure,
   ScanTrigger,
@@ -204,6 +205,148 @@ export function publicAdvisory(finding: Pick<Finding, 'dataSource' | 'urls'>): {
   return null
 }
 
+type PackageManager = {
+  label: string
+  upgrade: (packages: string[]) => string
+  fullUpgrade: string
+  isKernel: (name: string) => boolean
+}
+
+const packageManagers: Record<string, PackageManager> = {
+  deb: {
+    label: 'Debian / Ubuntu (apt)',
+    upgrade: (packages) =>
+      `sudo apt update && sudo apt install --only-upgrade ${packages.join(' ')}`,
+    fullUpgrade: 'sudo apt update && sudo apt upgrade',
+    isKernel: (name) => name.startsWith('linux-image-'),
+  },
+  apk: {
+    label: 'Alpine (apk)',
+    upgrade: (packages) => `sudo apk update && sudo apk upgrade ${packages.join(' ')}`,
+    fullUpgrade: 'sudo apk update && sudo apk upgrade',
+    isKernel: (name) => /^linux-[a-z]+$/.test(name) && name !== 'linux-headers',
+  },
+  rpm: {
+    label: 'Fedora / RHEL (dnf)',
+    upgrade: (packages) => `sudo dnf upgrade --refresh ${packages.join(' ')}`,
+    fullUpgrade: 'sudo dnf upgrade --refresh',
+    isKernel: (name) => name === 'kernel' || name.startsWith('kernel-core'),
+  },
+}
+
+/** Package names accepted in a command: nothing the shell could interpret. */
+const packageNamePattern = /^[A-Za-z0-9][A-Za-z0-9+._:-]*$/
+
+function managerFor(packageType: string): PackageManager | null {
+  return Object.hasOwn(packageManagers, packageType) ? (packageManagers[packageType] ?? null) : null
+}
+
+/** The command that upgrades these packages, or null if it cannot be built safely. */
+export function upgradeCommand(packageType: string, packages: string[]): string | null {
+  const manager = managerFor(packageType)
+  if (!manager || packages.length === 0) return null
+  if (!packages.every((name) => packageNamePattern.test(name))) return null
+  return manager.upgrade([...new Set(packages)].sort())
+}
+
+export function fullUpgradeCommand(packageType: string): string | null {
+  return managerFor(packageType)?.fullUpgrade ?? null
+}
+
+export function isKernelPackage(packageType: string, name: string): boolean {
+  return managerFor(packageType)?.isKernel(name) ?? false
+}
+
+export type Remediation = {
+  kind: 'command' | 'generic' | 'not-fixed' | 'wont-fix' | 'unknown'
+  summary: string
+  command: string | null
+  target: string | null
+  followUp: string | null
+}
+
+const genericSummary = 'Mettre à jour les paquets du système, puis relancer une analyse.'
+
+/** How to fix a finding; the Manager never runs it, the user does. */
+export function remediationFor(
+  finding: Pick<Finding, 'package' | 'packageType' | 'fixState' | 'fixedVersions'>,
+): Remediation {
+  const none = { command: null, target: null, followUp: null }
+  switch (finding.fixState) {
+    case 'not-fixed':
+      return {
+        ...none,
+        kind: 'not-fixed',
+        summary: 'Aucune correction publiée pour l’instant : relancer une analyse plus tard.',
+      }
+    case 'wont-fix':
+      return {
+        ...none,
+        kind: 'wont-fix',
+        summary: 'La distribution ne prévoit pas de correction pour cette version.',
+      }
+    case 'unknown':
+      return { ...none, kind: 'unknown', summary: genericSummary }
+    case 'fixed': {
+      const command = upgradeCommand(finding.packageType, [finding.package])
+      if (!command) return { ...none, kind: 'generic', summary: genericSummary }
+      return {
+        kind: 'command',
+        summary: 'Mettre à jour le paquet devrait corriger cette vulnérabilité.',
+        command,
+        target: finding.fixedVersions[0] ?? null,
+        followUp: isKernelPackage(finding.packageType, finding.package)
+          ? 'Redémarrer la machine pour charger le nouveau noyau.'
+          : 'Relancer les services qui utilisent ce paquet (needrestart sur Debian), ou redémarrer la machine.',
+      }
+    }
+  }
+}
+
+export type FixAllCommand = {
+  packageType: string
+  label: string
+  command: string
+  packages: number
+  complete: boolean
+  note: string | null
+}
+
+/**
+ * One command per package manager to fix the fixable findings of a page. When
+ * the page does not hold every finding, a full upgrade replaces the list.
+ */
+export function fixAllCommands(page: Pick<FindingPage, 'findings' | 'total'>): FixAllCommand[] {
+  const complete = page.total <= page.findings.length
+  const byType = new Map<string, Set<string>>()
+  for (const finding of page.findings) {
+    if (finding.fixState !== 'fixed' || !managerFor(finding.packageType)) continue
+    const names = byType.get(finding.packageType) ?? new Set<string>()
+    names.add(finding.package)
+    byType.set(finding.packageType, names)
+  }
+  const result: FixAllCommand[] = []
+  for (const [packageType, names] of byType) {
+    const manager = managerFor(packageType)
+    if (!manager) continue
+    const command = complete
+      ? upgradeCommand(packageType, [...names])
+      : fullUpgradeCommand(packageType)
+    if (!command) continue
+    result.push({
+      packageType,
+      label: manager.label,
+      command,
+      packages: names.size,
+      complete,
+      note: complete
+        ? null
+        : `La liste affichée ne couvre pas les ${page.total} constats : mise à jour complète proposée.`,
+    })
+  }
+  return result
+}
+
 export type FindingRow = {
   id: string
   vulnerabilityId: string
@@ -239,6 +382,7 @@ export type FindingDetail = FindingRow & {
   advisory: { url: string; label: string } | null
   references: string[]
   lastSeen: string
+  remediation: Remediation
 }
 
 export function toFindingDetail(finding: Finding): FindingDetail {
@@ -249,6 +393,7 @@ export function toFindingDetail(finding: Finding): FindingDetail {
     advisory: publicAdvisory(finding),
     references: finding.urls,
     lastSeen: formatDateTime(finding.lastSeenAt),
+    remediation: remediationFor(finding),
   }
 }
 

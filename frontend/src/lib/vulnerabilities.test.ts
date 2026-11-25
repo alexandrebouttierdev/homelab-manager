@@ -1,14 +1,18 @@
 import { describe, expect, it } from 'vitest'
 import type { Finding, VulnerabilityScan, VulnerabilitySummary } from './api/vulnerabilities'
 import {
+  fixAllCommands,
   formatScanInterval,
+  isKernelPackage,
   publicAdvisory,
+  remediationFor,
   scanChanges,
   scanFailureLabel,
   scanStatus,
   toFindingDetail,
   toFindingRow,
   totalCards,
+  upgradeCommand,
 } from './vulnerabilities'
 
 const totals = { critical: 1, high: 2, medium: 3, low: 4, negligible: 5, unknown: 6 }
@@ -128,5 +132,107 @@ describe('vulnerabilities', () => {
     expect(detail.fixedVersions).toBe('3.5.1-2, 3.5.2-1')
     expect(detail.advisory?.label).toBe('NVD')
     expect(toFindingRow({ ...finding, fixedVersions: [] }).fixedVersion).toBe('—')
+  })
+})
+
+describe('remediation', () => {
+  const debCommand = 'sudo apt update && sudo apt install --only-upgrade'
+  const fixable = (name: string, packageType = 'deb'): Finding => ({
+    ...finding,
+    package: name,
+    packageType,
+  })
+
+  it('builds an upgrade command, deduplicated and sorted', () => {
+    expect(upgradeCommand('deb', ['openssl', 'libssl3', 'openssl'])).toBe(
+      `${debCommand} libssl3 openssl`,
+    )
+    expect(upgradeCommand('apk', ['musl'])).toBe('sudo apk update && sudo apk upgrade musl')
+    expect(upgradeCommand('rpm', ['openssl-libs'])).toBe('sudo dnf upgrade --refresh openssl-libs')
+  })
+
+  it('refuses unknown types, empty lists and unsafe names', () => {
+    expect(upgradeCommand('deb', ['openssl; rm -rf /'])).toBeNull()
+    expect(upgradeCommand('deb', ['$(id)'])).toBeNull()
+    expect(upgradeCommand('binary', ['x'])).toBeNull()
+    expect(upgradeCommand('deb', [])).toBeNull()
+  })
+
+  it('recognises kernel packages', () => {
+    expect(isKernelPackage('deb', 'linux-image-6.12.0-amd64')).toBe(true)
+    expect(isKernelPackage('deb', 'linux-libc-dev')).toBe(false)
+    expect(isKernelPackage('rpm', 'kernel-core')).toBe(true)
+    expect(isKernelPackage('rpm', 'kernel')).toBe(true)
+    expect(isKernelPackage('apk', 'linux-lts')).toBe(true)
+  })
+
+  it('proposes the command and a follow-up for a fixable package', () => {
+    const fixed = remediationFor({
+      package: 'openssl',
+      packageType: 'deb',
+      fixState: 'fixed',
+      fixedVersions: ['3.5.4-1'],
+    })
+    expect(fixed.kind).toBe('command')
+    expect(fixed.command).toBe(upgradeCommand('deb', ['openssl']))
+    expect(fixed.target).toBe('3.5.4-1')
+    expect(fixed.followUp).toContain('services')
+    const kernel = remediationFor({
+      package: 'linux-image-amd64',
+      packageType: 'deb',
+      fixState: 'fixed',
+      fixedVersions: ['6.12.1-1'],
+    })
+    expect(kernel.followUp).toContain('Redémarrer la machine')
+  })
+
+  it('stays generic for an unsupported package type', () => {
+    const result = remediationFor({
+      package: 'x',
+      packageType: 'binary',
+      fixState: 'fixed',
+      fixedVersions: ['1'],
+    })
+    expect(result.kind).toBe('generic')
+    expect(result.command).toBeNull()
+  })
+
+  it('gives no command when there is no fix', () => {
+    for (const fixState of ['not-fixed', 'wont-fix', 'unknown'] as const) {
+      const result = remediationFor({
+        package: 'openssl',
+        packageType: 'deb',
+        fixState,
+        fixedVersions: [],
+      })
+      expect(result.kind).toBe(fixState)
+      expect(result.command).toBeNull()
+    }
+  })
+
+  it('groups the fixable packages of a page by package type', () => {
+    const all = fixAllCommands({
+      findings: [fixable('openssl'), fixable('openssl'), fixable('curl')],
+      total: 3,
+    })
+    expect(all).toHaveLength(1)
+    expect(all[0]?.command).toBe(`${debCommand} curl openssl`)
+    expect(all[0]?.packages).toBe(2)
+    expect(all[0]?.complete).toBe(true)
+  })
+
+  it('falls back to a full upgrade when the page is partial', () => {
+    const all = fixAllCommands({ findings: [fixable('openssl')], total: 620 })
+    expect(all[0]?.complete).toBe(false)
+    expect(all[0]?.command).toBe('sudo apt update && sudo apt upgrade')
+    expect(all[0]?.note).toContain('620')
+  })
+
+  it('returns nothing without findings', () => {
+    expect(fixAllCommands({ findings: [], total: 0 })).toEqual([])
+  })
+
+  it('adds the remediation to the finding detail', () => {
+    expect(toFindingDetail(finding).remediation.kind).toBe('command')
   })
 })

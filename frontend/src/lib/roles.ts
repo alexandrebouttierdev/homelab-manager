@@ -62,3 +62,8 @@ export function canManageBackups(role: Role | undefined): boolean {
 export function canManageContainers(role: Role | undefined): boolean {
   return role === 'operator' || role === 'admin'
 }
+
+/** Host name, time zone and language of the machine (D-6): administrators. */
+export function canManageSystem(role: Role | undefined): boolean {
+  return role === 'admin'
+}

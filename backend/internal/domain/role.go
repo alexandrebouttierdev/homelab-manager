@@ -34,6 +34,9 @@ const (
 	// PermManageContainers covers starting, stopping and restarting
 	// containers (D-5).
 	PermManageContainers Permission = "containers:manage"
+	// PermManageSystem covers the host name, time zone and language of
+	// the machine (D-6).
+	PermManageSystem Permission = "system:manage"
 	// PermRunBackups covers starting a backup.
 	PermRunBackups Permission = "backups:run"
 	// PermManageBackups covers the repository, the sources, the
@@ -51,7 +54,7 @@ var rolePermissions = map[Role]map[Permission]bool{
 	RoleAdmin: {
 		PermManageSettings: true, PermManageUsers: true, PermManagePower: true, PermViewAudit: true,
 		PermOperateAlerts: true, PermManageAlerts: true, PermScanVulnerabilities: true, PermManageServices: true,
-		PermRunBackups: true, PermManageBackups: true, PermManageContainers: true,
+		PermRunBackups: true, PermManageBackups: true, PermManageContainers: true, PermManageSystem: true,
 	},
 }
 

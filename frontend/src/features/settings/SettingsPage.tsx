@@ -29,6 +29,7 @@ import { useSettings } from './useSettings'
 import { ApiTokensCard } from './ApiTokensCard'
 import { MySessionsCard } from './MySessionsCard'
 import { SecondFactorCard } from './SecondFactorCard'
+import { SystemPreferencesCard } from './SystemPreferencesCard'
 import { useSecondFactor } from './useSecondFactor'
 
 export function SettingsPage() {
@@ -99,6 +100,7 @@ export function SettingsPage() {
 
             <RetentionForm settings={settings} />
             <ScanIntervalForm />
+            <SystemPreferencesCard />
 
             <Card>
               <CardHeader

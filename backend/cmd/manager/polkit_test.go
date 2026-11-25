@@ -147,3 +147,47 @@ func TestLoadConfigDefaultsToAnEmptyAllowList(t *testing.T) {
 		t.Fatalf("default allow list = %v, want empty", names)
 	}
 }
+
+// TestSystemRuleGrantsOnlyTheThreeSettings evaluates the rule shipped for
+// decision D-6.
+func TestSystemRuleGrantsOnlyTheThreeSettings(t *testing.T) {
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("node is not installed")
+	}
+	dir := t.TempDir()
+	scriptPath := filepath.Join(dir, "evaluate.js")
+	if err := os.WriteFile(scriptPath, []byte(evaluator), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	rulePath := filepath.Join("..", "..", "..", "deployments", "polkit", "50-homelab-manager-system.rules")
+	cases := []struct{ id, user, want string }{
+		{"org.freedesktop.hostname1.set-static-hostname", "homelab-manager", "yes"},
+		{"org.freedesktop.timedate1.set-timezone", "homelab-manager", "yes"},
+		{"org.freedesktop.locale1.set-locale", "homelab-manager", "yes"},
+		{"org.freedesktop.hostname1.set-static-hostname", "alice", "undefined"},
+		{"org.freedesktop.hostname1.set-hostname", "homelab-manager", "undefined"},
+		{"org.freedesktop.hostname1.set-machine-info", "homelab-manager", "undefined"},
+		{"org.freedesktop.timedate1.set-time", "homelab-manager", "undefined"},
+		{"org.freedesktop.timedate1.set-ntp", "homelab-manager", "undefined"},
+		{"org.freedesktop.locale1.set-keyboard", "homelab-manager", "undefined"},
+		{"org.freedesktop.login1.reboot", "homelab-manager", "undefined"},
+	}
+	var encoded []string
+	for _, c := range cases {
+		encoded = append(encoded, fmt.Sprintf(`{"id":%q,"user":%q}`, c.id, c.user))
+	}
+	output, err := exec.Command(node, scriptPath, rulePath, "["+strings.Join(encoded, ",")+"]").CombinedOutput()
+	if err != nil {
+		t.Fatalf("node: %v\n%s", err, output)
+	}
+	results := strings.Fields(string(output))
+	if len(results) != len(cases) {
+		t.Fatalf("results = %v", results)
+	}
+	for i, c := range cases {
+		if results[i] != c.want {
+			t.Errorf("%s %s = %s, want %s", c.id, c.user, results[i], c.want)
+		}
+	}
+}

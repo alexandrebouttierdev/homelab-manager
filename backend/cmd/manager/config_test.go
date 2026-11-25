@@ -89,6 +89,18 @@ func TestDockerActionsAreDisabledByDefault(t *testing.T) {
 	}
 }
 
+func TestSystemPreferencesAreDisabledByDefault(t *testing.T) {
+	t.Chdir(t.TempDir())
+	config, err := LoadConfig()
+	if err != nil || config.SystemPreferencesEnabled {
+		t.Fatalf("LoadConfig = (%v, %v), want system preferences disabled", config.SystemPreferencesEnabled, err)
+	}
+	t.Setenv("HOMELAB_SYSTEM_PREFERENCES_ENABLED", "true")
+	if config, err = LoadConfig(); err != nil || !config.SystemPreferencesEnabled {
+		t.Fatalf("LoadConfig = (%v, %v), want system preferences enabled", config.SystemPreferencesEnabled, err)
+	}
+}
+
 func TestSecretsKeyPath(t *testing.T) {
 	if got := (Config{SecretsKeyFile: "/etc/key"}).SecretsKeyPath("/run/credentials/x"); got != "/etc/key" {
 		t.Fatalf("configured file = %q", got)

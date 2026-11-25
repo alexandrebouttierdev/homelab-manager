@@ -44,6 +44,7 @@ L'installation doit rester légère : un binaire, un fichier de base et le proxy
 ### Historique, événements et paramètres
 - Séries historiques brutes ou agrégées (1 min, 5 min, 1 h) avec bornes temporelles contrôlées.
 - Événements de changements d'état Docker et d'unités systemd en échec ou rétablies ; le statut des collecteurs est exposé par la santé et les paramètres.
+- Nom de la machine, fuseau horaire et langue système lisibles par tous et modifiables par un administrateur, désactivés par défaut (décision D-6).
 - Journal systemd de la machine en lecture seule (filtres, recherche, suivi en direct, synthèse sur 24 h, export), champs sensibles masqués.
 - Services, timers et sockets systemd en lecture seule (D-Bus) : inventaire, compteurs, filtres, détail d'une unité avec l'extrait de son journal, événements `service.failed` et `service.recovered`.
 - Authentification locale, session, changement du mot de passe administrateur.

@@ -59,6 +59,9 @@ type Services struct {
 	// Containers reads the container logs and starts, stops and restarts
 	// containers; nil (no database, hence no audit) answers 503.
 	Containers *usecase.ContainerUsecase
+	// SystemPreferences reads and changes the host name, time zone and
+	// language; nil (no database, hence no audit) answers 503.
+	SystemPreferences *usecase.SystemPreferencesUsecase
 	// Cron reads the scheduled tasks; nil answers 503.
 	Cron *usecase.CronUsecase
 	// Tokens manages and authenticates the API tokens; nil (no database)
@@ -80,6 +83,7 @@ func NewRouter(logger *zap.Logger, services Services, sessionSecure bool, webRoo
 	backups := services.Backups
 	cron := services.Cron
 	containers := services.Containers
+	systemPreferences := services.SystemPreferences
 	tokens := services.Tokens
 	if units == nil {
 		// Never run: its inventory stays pending and its detail unavailable.
@@ -187,6 +191,11 @@ func NewRouter(logger *zap.Logger, services Services, sessionSecure bool, webRoo
 						system.Get("/units", journalUnitsHandler(logger, journal))
 						system.Get("/summary", journalSummaryHandler(logger, journal))
 						system.Get("/export", exportJournalHandler(logger, journal))
+					})
+					active.Route("/system/preferences", func(system chi.Router) {
+						system.Use(requireSystemPreferences(systemPreferences))
+						system.Get("/", systemPreferencesHandler(systemPreferences))
+						system.With(requirePermission(deny, domain.PermManageSystem)).Put("/", updateSystemPreferencesHandler(systemPreferences))
 					})
 					active.Route("/system/units", func(system chi.Router) {
 						system.Get("/", listUnitsHandler(units, unitActions))

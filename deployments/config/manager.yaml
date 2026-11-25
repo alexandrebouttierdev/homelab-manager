@@ -14,6 +14,9 @@ power_actions_enabled: false
 # Démarrer, arrêter et redémarrer un conteneur depuis sa page (D-5) : le proxy
 # Docker doit aussi les autoriser (HOMELAB_DOCKER_PROXY_CONTAINER_ACTIONS).
 docker_actions_enabled: false
+# Nom de la machine, fuseau horaire et langue modifiables depuis les Paramètres
+# (D-6) : exige aussi la règle polkit deployments/polkit/50-homelab-manager-system.rules.
+system_preferences_enabled: false
 # Clé maître du coffre de secrets (TOTP). Vide : la clé importée par systemd
 # (ImportCredential=homelab-manager-secrets-key, voir README).
 secrets_key_file: ""

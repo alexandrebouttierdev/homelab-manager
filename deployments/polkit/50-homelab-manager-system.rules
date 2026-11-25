@@ -1,0 +1,18 @@
+// Homelab Manager: lets the homelab-manager account change the static host
+// name, the time zone and the language of the machine through
+// systemd-hostnamed, systemd-timedated and systemd-localed, and nothing else
+// (decision D-6). The transient host name, the pretty name, the clock, NTP,
+// the RTC and the keyboard layout are not granted.
+//
+// Install as root:root 0644 in /etc/polkit-1/rules.d/ and set
+// system_preferences_enabled: true in /etc/homelab-manager/manager.yaml.
+polkit.addRule(function (action, subject) {
+    var allowed = [
+        "org.freedesktop.hostname1.set-static-hostname",
+        "org.freedesktop.timedate1.set-timezone",
+        "org.freedesktop.locale1.set-locale"
+    ];
+    if (subject.user === "homelab-manager" && allowed.indexOf(action.id) >= 0) {
+        return polkit.Result.YES;
+    }
+});

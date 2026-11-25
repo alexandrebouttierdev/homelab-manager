@@ -49,7 +49,7 @@ Chi reste exclusivement dans Delivery/HTTP. Ent reste dans les adaptateurs de pe
 - `domain/` : objets et règles métier pour l'hôte, les conteneurs, les mesures et événements.
 - `usecase/` : orchestration des lectures, collectes, historiques et paramètres.
 - `ports/` : interfaces minimales pour les collecteurs, repositories et horloge si nécessaire.
-- `adapters/` : Linux, API Docker, SQLite/Ent, système de fichiers, `systemd-logind` et gestionnaire systemd (D-Bus, en lecture pour ce dernier), journal système (`journalctl`), coffre de secrets et QR code.
+- `adapters/` : Linux, API Docker, SQLite/Ent, système de fichiers, `systemd-logind`, `systemd-hostnamed`, `-timedated` et `-localed` (préférences système, D-6) et gestionnaire systemd (D-Bus, en lecture pour ce dernier), journal système (`journalctl`), coffre de secrets et QR code.
 - `delivery/http/` : handlers Chi, DTO, middleware et validation HTTP.
 - `cmd/manager/` : composition des dépendances et cycle de vie du processus.
 

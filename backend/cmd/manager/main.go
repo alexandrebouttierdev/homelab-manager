@@ -22,6 +22,7 @@ import (
 	"homelab-manager/backend/internal/adapters/sqlite"
 	"homelab-manager/backend/internal/adapters/sshkey"
 	"homelab-manager/backend/internal/adapters/systemd"
+	"homelab-manager/backend/internal/adapters/systemsettings"
 	"homelab-manager/backend/internal/adapters/vulnscan"
 	webauthnadapter "homelab-manager/backend/internal/adapters/webauthn"
 	systemcollector "homelab-manager/backend/internal/collector/system"
@@ -250,6 +251,17 @@ func main() {
 			backupUsecase.Run(schedulerCtx)
 		}()
 	}
+	// System preferences (D-6): host name, time zone and language through
+	// hostnamed, timedated and localed; changes are audited and also need
+	// the polkit rule.
+	var systemPreferencesUsecase *usecase.SystemPreferencesUsecase
+	if database != nil {
+		systemPreferencesUsecase = usecase.NewSystemPreferencesUsecase(systemsettings.New(systemsettings.SystemBus),
+			sqlite.NewAuditRepository(database.Client()), config.SystemPreferencesEnabled, logger)
+		if config.SystemPreferencesEnabled {
+			logger.Info("Host name, time zone and language changes are enabled; they also require the polkit rule")
+		}
+	}
 	// Scheduled tasks (phase 7): system crontabs read-only, the timers of
 	// the units inventory and the CRON lines of the journal.
 	cronUsecase := usecase.NewCronUsecase(crontab.New("/"), serviceUsecase, journalUsecase, logger)
@@ -260,6 +272,7 @@ func main() {
 		Alerts:        alertUsecase,
 		Notifications: notificationUsecase, Vulnerabilities: vulnerabilityUsecase, Backups: backupUsecase,
 		Cron: cronUsecase, Tokens: apiTokenUsecase, Containers: containerUsecase,
+		SystemPreferences: systemPreferencesUsecase,
 	}, config.SessionSecure, config.WebRoot)
 
 	server := &http.Server{

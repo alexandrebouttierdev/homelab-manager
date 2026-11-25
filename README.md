@@ -54,6 +54,7 @@ Homelab Manager supervise **une seule machine Linux : celle qui l'héberge**. Le
 - Verrouillage après 5 échecs, réseaux autorisés (CIDR)
 - Journal d'audit filtrable, export CSV et JSON
 - Redémarrage et extinction de la machine (optionnel, polkit)
+- Nom de la machine, fuseau horaire et langue système (optionnel, polkit)
 
 </td>
 </tr>
@@ -215,6 +216,7 @@ La configuration est lue dans `manager.yaml` ([deployments/config/manager.yaml](
 | `HOMELAB_WEBAUTHN_ORIGINS` | Adresses exactes de l'interface, séparées par des espaces (par exemple `https://homelab.example:8080`) : HTTPS, dans le domaine de `HOMELAB_WEBAUTHN_RP_ID` (ou `http://localhost:…`). Obligatoire avec lui |
 | `HOMELAB_WEBAUTHN_RP_NAME` | Nom montré par le navigateur à l'enregistrement d'une clé (défaut `Homelab Manager`) |
 | `HOMELAB_POWER_ACTIONS_ENABLED` | Autorise Redémarrer / Éteindre depuis la page Machine (défaut `false`) ; exige aussi la règle polkit |
+| `HOMELAB_SYSTEM_PREFERENCES_ENABLED` | Autorise le changement du nom de la machine, du fuseau horaire et de la langue (défaut `false`) ; exige aussi la règle polkit |
 | `HOMELAB_DOCKER_ACTIONS_ENABLED` | Autorise Démarrer / Arrêter / Redémarrer un conteneur (défaut `false`) ; exige aussi `HOMELAB_DOCKER_PROXY_CONTAINER_ACTIONS=true` dans l'unité du proxy |
 | `HOMELAB_SYSTEMD_MANAGEABLE_UNITS` | Unités que les opérateurs peuvent démarrer, arrêter, redémarrer ou recharger, séparées par des espaces (défaut : aucune ; 200 au plus). Préférer la clé `systemd_manageable_units` de `manager.yaml`, que lit aussi `homelab-manager polkit-rule` ; exige la règle polkit générée (voir « Services système ») |
 
@@ -339,6 +341,16 @@ sudo install -o root -g root -m 0644 deployments/polkit/50-homelab-manager-power
 
 puis mettre `power_actions_enabled: true` dans `/etc/homelab-manager/manager.yaml` et redémarrer `homelab-manager.service`. La règle n'autorise que le redémarrage et l'extinction, par le seul compte `homelab-manager`, et respecte les verrous d'inhibition. Seuls les administrateurs voient la carte « Alimentation » de la page Machine ; la confirmation demande de saisir le nom de la machine. Après une extinction, il faut un accès physique (ou Wake-on-LAN configuré hors de Homelab Manager) pour rallumer la machine.
 
+### Nom de la machine, fuseau horaire et langue (optionnel)
+
+La carte « Préférences système » des Paramètres les affiche à tous ; seuls les administrateurs les changent, une fois la fonction activée :
+
+```bash
+sudo install -o root -g root -m 0644 deployments/polkit/50-homelab-manager-system.rules /etc/polkit-1/rules.d/
+```
+
+puis mettre `system_preferences_enabled: true` dans `/etc/homelab-manager/manager.yaml` et redémarrer `homelab-manager.service`. La règle n'autorise que le nom statique, le fuseau et la langue (`LANG`), par le seul compte `homelab-manager`. Un fuseau inconnu ou une langue non installée (`locale-gen`) sont refusés par le système. Changer le nom de la machine peut casser les adresses qui utilisent l'ancien (DNS local, mDNS, certificat TLS) ; la nouvelle langue vaut pour les services à leur prochain démarrage (décision D-6).
+
 ### Vulnérabilités des paquets (Grype)
 
 Le Manager recherche les vulnérabilités connues (CVE et avis des distributions) des paquets système de sa machine avec [Grype](https://github.com/anchore/grype) : il lit lui-même la liste des paquets (Debian, Ubuntu et dérivées, Alpine, et les distributions RPM dont la base est en SQLite : Fedora 33 et suivantes, RHEL, Rocky Linux et AlmaLinux 9 et suivantes ; une base RPM Berkeley DB, celle de RHEL 8 et de ses dérivées, est signalée non prise en charge), puis fait analyser cet inventaire par l'unité dédiée `homelab-vulnscan.service`, qu'il démarre par D-Bus. Grype ne tourne jamais dans le Manager : il s'exécute sous son propre compte, avec des commandes fixes, une priorité minimale, 1 Gio de mémoire et 15 minutes au plus. Un scan a lieu 2 minutes après le premier démarrage, puis toutes les 24 heures (`vulnerability_scan_interval_hours`, de 6 à 168), et à la demande (rôle opérateur au moins, API `POST /api/v1/vulnerabilities/scans`). Une vulnérabilité listée est connue pour la version installée, pas forcément exploitable sur la machine.
@@ -436,7 +448,7 @@ La première release est `v2.3.0`, alignée sur la [spécification produit](docs
 
 ## État et limites connues
 
-- **Livré** : supervision système et Docker, historique, événements, comptes et rôles, sessions, politique de sécurité, journal d'audit, double authentification (TOTP, passkeys et clés FIDO2, codes de secours), jetons d'API en lecture et en action (D-4), journaux système, services système avec actions en liste blanche (phase 5), journaux des conteneurs et leurs actions optionnelles (D-5), sauvegardes restic avec diff et dépôt de copie (phase 6), tâches planifiées en lecture (phase 7), alertes avec silences et notifications (phase 4), vulnérabilités des paquets avec Grype (module V ; Debian, Ubuntu, Alpine, Fedora, RHEL, Rocky Linux et AlmaLinux 9 et suivantes), redémarrage et extinction (optionnels).
+- **Livré** : supervision système et Docker, historique, événements, comptes et rôles, sessions, politique de sécurité, journal d'audit, double authentification (TOTP, passkeys et clés FIDO2, codes de secours), jetons d'API en lecture et en action (D-4), journaux système, services système avec actions en liste blanche (phase 5), journaux des conteneurs et leurs actions optionnelles (D-5), préférences système optionnelles (D-6), sauvegardes restic avec diff et dépôt de copie (phase 6), tâches planifiées en lecture (phase 7), alertes avec silences et notifications (phase 4), vulnérabilités des paquets avec Grype (module V ; Debian, Ubuntu, Alpine, Fedora, RHEL, Rocky Linux et AlmaLinux 9 et suivantes), redémarrage et extinction (optionnels).
 - **Connexion par passkey seule** : désactivée par défaut ; un administrateur l'autorise dans Utilisateurs → Politique de sécurité (décision D-14 de [docs/SPEC_ADMINISTRATION.md](docs/SPEC_ADMINISTRATION.md)).
 - Historiques bruts ou agrégés, 2 000 points au plus par requête ; l'interface choisit le pas selon la période.
 - À l'intervalle par défaut (10 s), la base croît d'environ 300 Mo par jour jusqu'à la rétention : ≈ 2 Go pour 7 jours.

@@ -42,6 +42,8 @@ Le périmètre est un hôte Linux unique : celui qui exécute le Manager. Aucun 
 | Graphiques | Apache ECharts |
 | Tests | `testing`, `httptest`, Vitest et React Testing Library |
 
+L'interface est découpée en fichiers chargés à la demande : la page de connexion et la mise en page restent dans le fichier principal, chaque page est chargée à sa première visite (propriété `lazy` de React Router), et ECharts, avec son moteur de rendu `zrender` dans un fichier séparé, seulement quand un graphique s'affiche. Aucun fichier ne dépasse 500 ko après minification.
+
 Chi reste exclusivement dans Delivery/HTTP. Ent reste dans les adaptateurs de persistance. Le domaine ne dépend ni de Chi, ni d'Ent, ni de Docker, ni de SQLite, ni de React.
 
 ## 3. Architecture hexagonale

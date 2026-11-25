@@ -5,6 +5,17 @@ import tailwindcss from '@tailwindcss/vite'
 
 export default defineConfig(({ mode }) => ({
   plugins: [react(), tailwindcss()],
+  build: {
+    rolldownOptions: {
+      output: {
+        codeSplitting: {
+          // The charts load on demand; their renderer gets its own chunk so
+          // the two download in parallel and none exceeds 500 kB.
+          groups: [{ name: 'zrender', test: /[\\/]node_modules[\\/]zrender[\\/]/ }],
+        },
+      },
+    },
+  },
   server: {
     port: 5173,
     proxy: {

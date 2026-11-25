@@ -16,7 +16,7 @@ Un binaire Go, un fichier SQLite, une interface React. Pas de cloud, pas de serv
 ![SQLite](https://img.shields.io/badge/SQLite-embarqué-003B57?logo=sqlite&logoColor=white)
 ![Debian 13](https://img.shields.io/badge/Debian-13-A81D33?logo=debian&logoColor=white)
 
-[Fonctionnalités](#fonctionnalités) · [Installation](#installation) · [Modules optionnels](#modules-optionnels) · [Configuration](#configuration) · [Exploitation](#exploitation) · [Développement](#développement) · [Documentation](#documentation)
+[Site](https://alexandrebouttierdev.github.io/homelab-manager/) · [Fonctionnalités](#fonctionnalités) · [Installation](#installation) · [Modules optionnels](#modules-optionnels) · [Configuration](#configuration) · [Exploitation](#exploitation) · [Développement](#développement) · [Documentation](#documentation)
 
 </div>
 
@@ -664,6 +664,7 @@ Les tests d'intégration du journal lancent le vrai `journalctl` sur des fichier
 | `deployments/` | Unités systemd, configuration, règles polkit, `tmpfiles.d` |
 | `scripts/` | Développement, vérification, audit, construction des releases |
 | `docs/` | Spécification, architecture, contrat d'API, données, sécurité, tests, règles de code |
+| `site/` | Page de présentation statique, publiée sur [GitHub Pages](https://alexandrebouttierdev.github.io/homelab-manager/) par `.github/workflows/pages.yml` à chaque push sur `dev` qui la modifie |
 
 Les règles de contribution sont dans [AGENTS.md](AGENTS.md) et [docs/CODE_RULES.md](docs/CODE_RULES.md) : code et commits en anglais, documentation et interface en français, [Conventional Commits](https://www.conventionalcommits.org/fr/).
 

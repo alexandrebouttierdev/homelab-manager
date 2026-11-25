@@ -242,6 +242,7 @@ Une vulnérabilité qui ne peut pas être corrigée immédiatement (pas de versi
 
 - Branche de travail `dev` ; `main` reçoit des fusions de `dev`.
 - Chaque push sur `main` publie une release (`.github/workflows/release.yml`) : vérification complète, archives Linux `amd64` et `arm64`, `SHA256SUMS`, tag `vMAJEUR.MINEUR.CORRECTIF`. La version se déduit des Conventional Commits depuis le dernier tag (`scripts/release/next-version.sh`) : `type!:` ou `BREAKING CHANGE:` → majeure, `feat` → mineure, le reste → correctif ; la première est `2.3.0`. Le type d'un commit compte donc : un `feat` qui n'ajoute rien de visible fausse la version.
+- La page de présentation `site/` est publiée sur GitHub Pages (`.github/workflows/pages.yml`) à chaque push sur `dev` qui la modifie ; elle est statique, sans dépendance à construire, et ne doit décrire que des fonctions livrées.
 - La version est injectée à la construction (`-X main.version`, `VITE_APP_VERSION`) ; ne jamais l'écrire en dur dans le code.
 - Messages au format Conventional Commits, en anglais : `type(scope): résumé à l'impératif`, avec `type` ∈ `feat`, `fix`, `refactor`, `perf`, `test`, `docs`, `chore`, `build` ; corps expliquant le pourquoi.
 - Un commit = un changement cohérent, avec ses tests et sa documentation, qui passe `scripts/verify.sh`.

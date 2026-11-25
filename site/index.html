@@ -1,0 +1,1797 @@
+<!doctype html>
+<html lang="fr">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Homelab Manager · supervision légère et auto-hébergée d'un serveur Linux</title>
+    <meta
+      name="description"
+      content="Homelab Manager supervise et administre la machine Linux qui l'héberge et ses conteneurs Docker. Un binaire Go, un fichier SQLite, une interface web. Pas de cloud, pas de terminal web, jamais root."
+    />
+    <meta property="og:title" content="Homelab Manager" />
+    <meta
+      property="og:description"
+      content="Supervision et administration légères, auto-hébergées, d'une machine Linux et de ses conteneurs Docker."
+    />
+    <meta property="og:type" content="website" />
+    <meta name="theme-color" content="#14171b" />
+    <link rel="icon" href="favicon.svg" type="image/svg+xml" />
+    <link rel="preconnect" href="https://fonts.bunny.net" />
+    <link
+      rel="stylesheet"
+      href="https://fonts.bunny.net/css?family=chakra-petch:500,600|instrument-sans:400,500,600|jetbrains-mono:400,500&display=swap"
+    />
+    <style>
+      :root {
+        --alu: #e4e7eb;
+        --alu-light: #eef0f3;
+        --alu-line: #c9ced5;
+        --graphite: #14171b;
+        --graphite-2: #1e2227;
+        --graphite-line: #33383f;
+        --ink: #14171b;
+        --ink-2: #4b5563;
+        --ink-3: #6b7280;
+        --on-dark: #e8eaed;
+        --on-dark-2: #9299a3;
+        --accent: #8b9cfb;
+        --accent-ink: #4f5fd7;
+        --led: #45b881;
+        --amber: #e5a93c;
+        --danger: #f87171;
+
+        --font-display: 'Chakra Petch', 'Instrument Sans', ui-sans-serif, system-ui, sans-serif;
+        --font-body:
+          'Instrument Sans', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+        --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+
+        --page: min(1120px, 100% - 3rem);
+        --radius: 6px;
+      }
+
+      *,
+      *::before,
+      *::after {
+        box-sizing: border-box;
+      }
+
+      html {
+        scroll-behavior: smooth;
+        -webkit-text-size-adjust: 100%;
+      }
+
+      body {
+        margin: 0;
+        background: var(--alu);
+        color: var(--ink);
+        font: 400 1.0625rem/1.6 var(--font-body);
+        -webkit-font-smoothing: antialiased;
+      }
+
+      /* Rack rails on wide screens: the page sits in a rack, like the machine it manages. */
+      body::before,
+      body::after {
+        content: '';
+        position: fixed;
+        top: 0;
+        bottom: 0;
+        width: 22px;
+        z-index: 0;
+        pointer-events: none;
+        background-color: var(--alu-light);
+        background-image:
+          linear-gradient(var(--alu-line), var(--alu-line)),
+          linear-gradient(var(--alu-line), var(--alu-line)),
+          radial-gradient(circle at 50% 50%, #b9bfc8 0 3.5px, transparent 4px);
+        background-size:
+          1px 100%,
+          1px 100%,
+          22px 14.6px;
+        background-position:
+          0 0,
+          100% 0,
+          0 0;
+        background-repeat: no-repeat, no-repeat, repeat-y;
+        display: none;
+      }
+      body::before {
+        left: 0;
+      }
+      body::after {
+        right: 0;
+      }
+      @media (min-width: 1240px) {
+        body::before,
+        body::after {
+          display: block;
+        }
+      }
+
+      a {
+        color: var(--accent-ink);
+        text-underline-offset: 3px;
+      }
+
+      :focus-visible {
+        outline: 2px solid var(--accent-ink);
+        outline-offset: 3px;
+        border-radius: 3px;
+      }
+
+      .wrap {
+        width: var(--page);
+        margin-inline: auto;
+        position: relative;
+        z-index: 1;
+      }
+
+      .skip {
+        position: absolute;
+        left: 1rem;
+        top: -3rem;
+        background: var(--graphite);
+        color: var(--on-dark);
+        padding: 0.5rem 0.9rem;
+        border-radius: var(--radius);
+        z-index: 10;
+      }
+      .skip:focus {
+        top: 1rem;
+      }
+
+      /* ---------- Header ---------- */
+      .top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        padding-block: 1.25rem;
+      }
+      .brand {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.6rem;
+        color: var(--ink);
+        text-decoration: none;
+        font: 600 1.05rem/1 var(--font-display);
+        letter-spacing: 0.02em;
+      }
+      .brand img {
+        width: 30px;
+        height: 30px;
+      }
+      .top nav {
+        display: flex;
+        gap: 1.5rem;
+        align-items: center;
+        font-size: 0.95rem;
+      }
+      .top nav a {
+        color: var(--ink-2);
+        text-decoration: none;
+      }
+      .top nav a:hover {
+        color: var(--ink);
+      }
+      .top nav .gh {
+        color: var(--ink);
+        font-weight: 500;
+        border: 1px solid var(--alu-line);
+        background: var(--alu-light);
+        padding: 0.4rem 0.8rem;
+        border-radius: var(--radius);
+      }
+      @media (max-width: 760px) {
+        .top nav a:not(.gh) {
+          display: none;
+        }
+      }
+
+      /* ---------- Hero ---------- */
+      .hero {
+        padding-block: clamp(2.5rem, 6vw, 4.5rem) clamp(2.5rem, 5vw, 4rem);
+      }
+      .eyebrow {
+        font: 500 0.78rem/1.4 var(--font-mono);
+        color: var(--ink-3);
+        letter-spacing: 0.04em;
+        margin: 0 0 1.25rem;
+      }
+      .eyebrow a {
+        color: inherit;
+      }
+      h1,
+      h2,
+      h3 {
+        font-family: var(--font-display);
+        font-weight: 600;
+        letter-spacing: -0.01em;
+        margin: 0;
+      }
+      .hero h1 {
+        font-size: clamp(2.6rem, 7vw, 5rem);
+        line-height: 0.98;
+        max-width: 13ch;
+      }
+      .hero h1 em {
+        white-space: nowrap;
+        font-style: normal;
+        color: var(--accent-ink);
+      }
+      .lede {
+        font-size: clamp(1.08rem, 1.8vw, 1.25rem);
+        color: var(--ink-2);
+        max-width: 58ch;
+        margin: 1.5rem 0 2rem;
+      }
+      .actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.75rem;
+      }
+      .btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+        font: 500 1rem/1 var(--font-body);
+        padding: 0.85rem 1.25rem;
+        border-radius: var(--radius);
+        text-decoration: none;
+        border: 1px solid transparent;
+        transition:
+          background-color 0.15s,
+          border-color 0.15s;
+      }
+      .btn-primary {
+        background: var(--graphite);
+        color: var(--on-dark);
+      }
+      .btn-primary:hover {
+        background: #2a2f36;
+      }
+      .btn-secondary {
+        color: var(--ink);
+        border-color: var(--alu-line);
+        background: var(--alu-light);
+      }
+      .btn-secondary:hover {
+        border-color: #aab1bb;
+      }
+
+      /* ---------- Faceplate: the signature ---------- */
+      .chassis {
+        margin-top: clamp(2.5rem, 5vw, 3.5rem);
+        background: linear-gradient(180deg, #1b1f24 0%, var(--graphite) 100%);
+        border-radius: 10px;
+        padding: 14px;
+        display: grid;
+        grid-template-columns: 34px 1fr 34px;
+        gap: 14px;
+        box-shadow:
+          0 1px 0 rgba(255, 255, 255, 0.06) inset,
+          0 24px 48px -24px rgba(20, 23, 27, 0.55),
+          0 2px 4px rgba(20, 23, 27, 0.2);
+        color: var(--on-dark);
+      }
+      .ear {
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        align-items: center;
+        padding-block: 10px;
+        border-radius: 6px;
+        background: var(--graphite-2);
+      }
+      .screw {
+        width: 14px;
+        height: 14px;
+        border-radius: 50%;
+        background: radial-gradient(circle at 35% 35%, #5b626c, #2a2e34 70%);
+        position: relative;
+      }
+      .screw::after {
+        content: '';
+        position: absolute;
+        inset: 6px 2px;
+        background: #15181c;
+        border-radius: 1px;
+        transform: rotate(-30deg);
+      }
+      .plate {
+        display: grid;
+        grid-template-columns: 1fr minmax(240px, 300px);
+        gap: 14px;
+      }
+      .bays {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 8px;
+      }
+      .bay {
+        all: unset;
+        cursor: pointer;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        gap: 1.4rem;
+        min-height: 92px;
+        padding: 12px 12px 10px;
+        border-radius: 5px;
+        background:
+          repeating-linear-gradient(90deg, transparent 0 5px, rgba(255, 255, 255, 0.025) 5px 6px),
+          var(--graphite-2);
+        border: 1px solid var(--graphite-line);
+        transition:
+          border-color 0.15s,
+          background-color 0.15s;
+      }
+      .bay:hover,
+      .bay[aria-pressed='true'] {
+        border-color: #5a6170;
+        background-color: #252a30;
+      }
+      .bay:focus-visible {
+        outline: 2px solid var(--accent);
+        outline-offset: 2px;
+      }
+      .bay-top {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+      .led {
+        width: 8px;
+        height: 8px;
+        border-radius: 50%;
+        background: var(--led);
+        box-shadow: 0 0 8px 1px rgba(69, 184, 129, 0.55);
+      }
+      .led.amber {
+        background: var(--amber);
+        box-shadow: 0 0 8px 1px rgba(229, 169, 60, 0.5);
+      }
+      .slot {
+        width: 26px;
+        height: 4px;
+        border-radius: 2px;
+        background: #0e1013;
+      }
+      .bay-name {
+        font: 500 0.82rem/1.2 var(--font-mono);
+        letter-spacing: 0.03em;
+        color: var(--on-dark);
+      }
+      .bay[aria-pressed='true'] .bay-name {
+        color: var(--accent);
+      }
+      .bays .bay.brand-bay {
+        cursor: default;
+        justify-content: center;
+        background: transparent;
+        border-style: dashed;
+        border-color: var(--graphite-line);
+      }
+      .brand-bay span {
+        font: 600 0.82rem/1.3 var(--font-display);
+        letter-spacing: 0.14em;
+        text-transform: uppercase;
+        color: var(--on-dark-2);
+      }
+      .brand-bay small {
+        display: block;
+        font: 400 0.72rem/1.3 var(--font-mono);
+        letter-spacing: 0.02em;
+        text-transform: none;
+        color: #6b727c;
+        margin-top: 0.35rem;
+      }
+
+      .display {
+        border-radius: 6px;
+        background: #0b0d10;
+        border: 1px solid var(--graphite-line);
+        padding: 14px 16px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        gap: 1rem;
+        box-shadow: inset 0 0 24px rgba(139, 156, 251, 0.06);
+      }
+      .display-label {
+        font: 500 0.7rem/1 var(--font-mono);
+        letter-spacing: 0.12em;
+        text-transform: uppercase;
+        color: #6b727c;
+        display: flex;
+        justify-content: space-between;
+      }
+      .display-text {
+        font: 400 0.95rem/1.5 var(--font-mono);
+        color: var(--accent);
+        margin: 0;
+        min-height: 4.5em;
+      }
+      .display-text .cursor {
+        display: inline-block;
+        width: 0.55em;
+        height: 1.05em;
+        vertical-align: -0.15em;
+        background: var(--accent);
+        margin-left: 2px;
+        animation: blink 1.1s steps(1) infinite;
+      }
+      .display a {
+        font: 500 0.78rem/1 var(--font-mono);
+        color: var(--on-dark-2);
+      }
+      .display a:hover {
+        color: var(--on-dark);
+      }
+      .display a:focus-visible {
+        outline-color: var(--accent);
+      }
+      @keyframes blink {
+        50% {
+          opacity: 0;
+        }
+      }
+
+      .legend {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem 1.5rem;
+        margin: 0.9rem 0 0;
+        padding: 0;
+        list-style: none;
+        font: 400 0.82rem/1.4 var(--font-mono);
+        color: var(--ink-3);
+      }
+      .legend li {
+        display: inline-flex;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .legend .led {
+        box-shadow: none;
+      }
+
+      /* Power-on sequence, once, at load. */
+      .powering .led {
+        animation: power 0.5s ease-out both;
+        animation-delay: calc(var(--i, 0) * 90ms + 250ms);
+      }
+      @keyframes power {
+        0% {
+          opacity: 0.15;
+          box-shadow: none;
+        }
+        60% {
+          opacity: 1;
+          filter: brightness(1.6);
+        }
+        100% {
+          opacity: 1;
+        }
+      }
+
+      @media (max-width: 900px) {
+        .plate {
+          grid-template-columns: 1fr;
+        }
+        .bays {
+          grid-template-columns: repeat(2, 1fr);
+        }
+      }
+      @media (max-width: 520px) {
+        .chassis {
+          grid-template-columns: 1fr;
+          padding: 10px;
+        }
+        .ear {
+          display: none;
+        }
+      }
+
+      /* ---------- Sections ---------- */
+      section {
+        padding-block: clamp(3.5rem, 8vw, 6rem);
+      }
+      .section-head {
+        display: grid;
+        gap: 0.9rem;
+        margin-bottom: clamp(2rem, 4vw, 3rem);
+        max-width: 62ch;
+      }
+      .kicker {
+        font: 500 0.78rem/1 var(--font-mono);
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--accent-ink);
+      }
+      h2 {
+        font-size: clamp(1.9rem, 4vw, 2.75rem);
+        line-height: 1.05;
+      }
+      .section-head p {
+        margin: 0;
+        color: var(--ink-2);
+      }
+
+      .principles {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: clamp(1.5rem, 4vw, 3rem);
+        border-top: 1px solid var(--alu-line);
+        padding-top: 2rem;
+      }
+      .principles h3 {
+        font-size: 1.35rem;
+        margin-bottom: 0.6rem;
+      }
+      .principles p {
+        margin: 0;
+        color: var(--ink-2);
+      }
+      @media (max-width: 760px) {
+        .principles {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      /* Features */
+      .modules {
+        display: grid;
+        grid-template-columns: repeat(2, 1fr);
+        gap: 1px;
+        background: var(--alu-line);
+        border: 1px solid var(--alu-line);
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      .module {
+        background: var(--alu-light);
+        padding: clamp(1.4rem, 3vw, 2rem);
+        scroll-margin-top: 1.5rem;
+      }
+      .module:target {
+        background: #f6f7f9;
+      }
+      .module-head {
+        display: flex;
+        align-items: center;
+        gap: 0.7rem;
+        margin-bottom: 0.9rem;
+      }
+      .module-head .led {
+        box-shadow: none;
+      }
+      .module h3 {
+        font-size: 1.3rem;
+      }
+      .tag {
+        margin-left: auto;
+        font: 500 0.7rem/1 var(--font-mono);
+        letter-spacing: 0.06em;
+        text-transform: uppercase;
+        padding: 0.35rem 0.5rem;
+        border-radius: 4px;
+        border: 1px solid var(--alu-line);
+        color: var(--ink-3);
+        white-space: nowrap;
+      }
+      .module ul {
+        margin: 0;
+        padding-left: 1.1rem;
+        color: var(--ink-2);
+        font-size: 0.98rem;
+      }
+      .module li + li {
+        margin-top: 0.35rem;
+      }
+      .module li::marker {
+        color: var(--ink-3);
+      }
+      .module .opt {
+        color: var(--ink-3);
+        font-style: italic;
+      }
+      @media (max-width: 860px) {
+        .modules {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      /* Refusals: the dark band */
+      .band {
+        background: var(--graphite);
+        color: var(--on-dark);
+        position: relative;
+        z-index: 1;
+      }
+      .band .kicker {
+        color: var(--accent);
+      }
+      .band .section-head p {
+        color: var(--on-dark-2);
+      }
+      .nevers {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1px;
+        background: var(--graphite-line);
+        border: 1px solid var(--graphite-line);
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      .nevers li {
+        background: var(--graphite);
+        padding: 1.4rem 1.5rem;
+      }
+      .nevers strong {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        font: 600 1.1rem/1.25 var(--font-display);
+        margin-bottom: 0.45rem;
+      }
+      .nevers strong::before {
+        content: '';
+        flex: none;
+        width: 12px;
+        height: 12px;
+        border-radius: 50%;
+        border: 2px solid var(--danger);
+        background: linear-gradient(45deg, transparent 44%, var(--danger) 44% 56%, transparent 56%);
+      }
+      .nevers span {
+        color: var(--on-dark-2);
+        font-size: 0.95rem;
+      }
+      .band .aside {
+        margin: 1.75rem 0 0;
+        color: var(--on-dark-2);
+        font-size: 0.95rem;
+      }
+      .band a {
+        color: var(--accent);
+      }
+      .band :focus-visible {
+        outline-color: var(--accent);
+      }
+      @media (max-width: 900px) {
+        .nevers {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+      @media (max-width: 560px) {
+        .nevers {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      /* Architecture diagram */
+      .flow {
+        display: grid;
+        grid-template-columns: 1fr auto 1.25fr auto 1.4fr;
+        align-items: stretch;
+        gap: 0;
+      }
+      .node {
+        background: var(--alu-light);
+        border: 1px solid var(--alu-line);
+        border-radius: 8px;
+        padding: 1.1rem 1.2rem;
+      }
+      .node.dark {
+        background: var(--graphite);
+        border-color: var(--graphite);
+        color: var(--on-dark);
+      }
+      .node-label {
+        font: 500 0.72rem/1 var(--font-mono);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--ink-3);
+        margin-bottom: 0.5rem;
+      }
+      .node.dark .node-label {
+        color: var(--on-dark-2);
+      }
+      .node h3 {
+        font-size: 1.15rem;
+        margin-bottom: 0.45rem;
+      }
+      .node p {
+        margin: 0;
+        font-size: 0.92rem;
+        color: var(--ink-2);
+      }
+      .node.dark p {
+        color: var(--on-dark-2);
+      }
+      .node code {
+        font: 400 0.82rem/1.4 var(--font-mono);
+      }
+      .targets {
+        display: grid;
+        gap: 10px;
+      }
+      .target {
+        display: grid;
+        gap: 0.3rem;
+      }
+      .target ul {
+        margin: 0.3rem 0 0;
+        padding: 0;
+        list-style: none;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+      }
+      .target li {
+        font: 400 0.76rem/1 var(--font-mono);
+        padding: 0.35rem 0.45rem;
+        border-radius: 4px;
+        background: var(--alu);
+        border: 1px solid var(--alu-line);
+        color: var(--ink-2);
+      }
+      .wire {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 0.35rem;
+        padding-inline: 0.6rem;
+        min-width: 92px;
+        font: 400 0.72rem/1.3 var(--font-mono);
+        color: var(--ink-3);
+        text-align: center;
+      }
+      .wire::before {
+        content: '';
+        width: 100%;
+        min-width: 56px;
+        height: 2px;
+        background: linear-gradient(90deg, var(--alu-line) 0 70%, var(--accent-ink) 70%);
+        clip-path: polygon(0 35%, 92% 35%, 92% 0, 100% 50%, 92% 100%, 92% 65%, 0 65%);
+        height: 10px;
+      }
+      @media (max-width: 960px) {
+        .flow {
+          grid-template-columns: 1fr;
+        }
+        .wire {
+          flex-direction: row;
+          padding: 0.6rem 0;
+          min-height: 48px;
+        }
+        .wire::before {
+          width: 10px;
+          min-width: 0;
+          height: 36px;
+          background: linear-gradient(180deg, var(--alu-line) 0 70%, var(--accent-ink) 70%);
+          clip-path: polygon(35% 0, 65% 0, 65% 88%, 100% 88%, 50% 100%, 0 88%, 35% 88%);
+        }
+      }
+
+      /* Optional modules table */
+      .table-wrap {
+        overflow-x: auto;
+        border: 1px solid var(--alu-line);
+        border-radius: 8px;
+        background: var(--alu-light);
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.95rem;
+        min-width: 640px;
+      }
+      th,
+      td {
+        text-align: left;
+        padding: 0.85rem 1.1rem;
+        border-bottom: 1px solid var(--alu-line);
+        vertical-align: top;
+      }
+      thead th {
+        font: 500 0.72rem/1.2 var(--font-mono);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--ink-3);
+        background: var(--alu);
+      }
+      tbody tr:last-child > * {
+        border-bottom: 0;
+      }
+      tbody th {
+        font-weight: 600;
+      }
+      td {
+        color: var(--ink-2);
+      }
+      td code,
+      .role {
+        font: 400 0.82rem/1.3 var(--font-mono);
+        color: var(--ink);
+      }
+
+      /* Installation */
+      .prereq {
+        display: grid;
+        grid-template-columns: repeat(4, 1fr);
+        gap: 1px;
+        background: var(--alu-line);
+        border: 1px solid var(--alu-line);
+        border-radius: 8px;
+        overflow: hidden;
+        margin: 0 0 3rem;
+      }
+      .prereq div {
+        background: var(--alu-light);
+        padding: 1rem 1.1rem;
+      }
+      .prereq dt {
+        font: 500 0.72rem/1 var(--font-mono);
+        letter-spacing: 0.08em;
+        text-transform: uppercase;
+        color: var(--ink-3);
+        margin-bottom: 0.5rem;
+      }
+      .prereq dd {
+        margin: 0;
+        font-size: 0.93rem;
+        color: var(--ink-2);
+      }
+      @media (max-width: 860px) {
+        .prereq {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+      @media (max-width: 520px) {
+        .prereq {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      .steps {
+        list-style: none;
+        margin: 0;
+        padding: 0;
+        counter-reset: step;
+        display: grid;
+        gap: 2.25rem;
+      }
+      .step {
+        counter-increment: step;
+        display: grid;
+        grid-template-columns: 3rem minmax(0, 1fr);
+        gap: 0 1.25rem;
+      }
+      .step::before {
+        content: counter(step);
+        grid-row: 1 / span 4;
+        width: 2.4rem;
+        height: 2.4rem;
+        display: grid;
+        place-items: center;
+        border-radius: 50%;
+        border: 1px solid var(--alu-line);
+        background: var(--alu-light);
+        font: 600 1.05rem/1 var(--font-display);
+        color: var(--ink);
+      }
+      .step > * {
+        grid-column: 2;
+      }
+      .step h3 {
+        font-size: 1.2rem;
+        padding-top: 0.35rem;
+        margin-bottom: 0.4rem;
+      }
+      .step p {
+        margin: 0 0 0.9rem;
+        color: var(--ink-2);
+        font-size: 0.98rem;
+      }
+      .step p code,
+      .note code {
+        font: 400 0.86em/1 var(--font-mono);
+        background: var(--alu-light);
+        border: 1px solid var(--alu-line);
+        padding: 0.12em 0.35em;
+        border-radius: 4px;
+        color: var(--ink);
+      }
+
+      .code {
+        position: relative;
+        background: var(--graphite);
+        border-radius: 8px;
+        border: 1px solid var(--graphite);
+      }
+      .code pre {
+        margin: 0;
+        padding: 1.1rem 1.2rem;
+        padding-right: 6.5rem;
+        overflow-x: auto;
+        font: 400 0.86rem/1.65 var(--font-mono);
+        color: var(--on-dark);
+        tab-size: 2;
+      }
+      .code .c {
+        color: #6b727c;
+      }
+      .code .v {
+        color: var(--accent);
+      }
+      .copy {
+        position: absolute;
+        top: 0.6rem;
+        right: 0.6rem;
+        font: 500 0.75rem/1 var(--font-mono);
+        color: var(--on-dark-2);
+        background: var(--graphite-2);
+        border: 1px solid var(--graphite-line);
+        border-radius: 4px;
+        padding: 0.45rem 0.6rem;
+        cursor: pointer;
+      }
+      .copy:hover {
+        color: var(--on-dark);
+        border-color: #5a6170;
+      }
+      .copy:focus-visible {
+        outline-color: var(--accent);
+      }
+
+      .note {
+        margin: 1rem 0 0;
+        padding: 0.9rem 1.1rem;
+        border-left: 3px solid var(--amber);
+        background: var(--alu-light);
+        border-radius: 0 6px 6px 0;
+        font-size: 0.93rem;
+        color: var(--ink-2);
+      }
+
+      .after {
+        margin-top: 3rem;
+        padding-top: 2rem;
+        border-top: 1px solid var(--alu-line);
+        display: flex;
+        flex-wrap: wrap;
+        gap: 1rem 2rem;
+        align-items: center;
+        justify-content: space-between;
+      }
+      .after p {
+        margin: 0;
+        color: var(--ink-2);
+        max-width: 60ch;
+      }
+
+      /* Docs */
+      .docs {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 1px;
+        background: var(--alu-line);
+        border: 1px solid var(--alu-line);
+        border-radius: 8px;
+        overflow: hidden;
+      }
+      .docs a {
+        display: block;
+        background: var(--alu-light);
+        padding: 1.1rem 1.2rem;
+        text-decoration: none;
+        color: var(--ink);
+      }
+      .docs a:hover {
+        background: #f6f7f9;
+      }
+      .docs a:focus-visible {
+        outline-offset: -3px;
+      }
+      .docs strong {
+        display: block;
+        font: 600 1.02rem/1.3 var(--font-display);
+        margin-bottom: 0.25rem;
+      }
+      .docs span {
+        font-size: 0.9rem;
+        color: var(--ink-2);
+      }
+      @media (max-width: 860px) {
+        .docs {
+          grid-template-columns: 1fr 1fr;
+        }
+      }
+      @media (max-width: 520px) {
+        .docs {
+          grid-template-columns: 1fr;
+        }
+      }
+
+      footer {
+        border-top: 1px solid var(--alu-line);
+        padding-block: 2rem 3rem;
+        font-size: 0.9rem;
+        color: var(--ink-3);
+      }
+      footer .wrap {
+        display: flex;
+        flex-wrap: wrap;
+        justify-content: space-between;
+        gap: 1rem;
+      }
+      footer a {
+        color: var(--ink-2);
+      }
+
+      @media (prefers-reduced-motion: reduce) {
+        html {
+          scroll-behavior: auto;
+        }
+        *,
+        *::before,
+        *::after {
+          animation: none !important;
+          transition: none !important;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <a class="skip" href="#contenu">Aller au contenu</a>
+
+    <header class="wrap top">
+      <a class="brand" href="#">
+        <img src="favicon.svg" alt="" width="30" height="30" />
+        Homelab Manager
+      </a>
+      <nav aria-label="Navigation principale">
+        <a href="#fonctionnalites">Fonctionnalités</a>
+        <a href="#securite">Sécurité</a>
+        <a href="#installation">Installation</a>
+        <a class="gh" href="https://github.com/alexandrebouttierdev/homelab-manager">GitHub</a>
+      </nav>
+    </header>
+
+    <main id="contenu">
+      <div class="wrap hero">
+        <p class="eyebrow">
+          <a href="https://github.com/alexandrebouttierdev/homelab-manager/releases/latest"
+            >v<span data-version>2.3.1</span></a
+          >
+          · Debian 13 · amd64 et arm64 · auto-hébergé
+        </p>
+        <h1>Votre serveur, <em>vu de face.</em></h1>
+        <p class="lede">
+          Homelab Manager supervise et administre la machine Linux qui l'héberge et ses conteneurs
+          Docker. Un binaire Go, un fichier SQLite, une interface web. Pas de cloud, pas de terminal
+          web, jamais root.
+        </p>
+        <div class="actions">
+          <a class="btn btn-primary" href="#installation">Installer</a>
+          <a
+            class="btn btn-secondary"
+            href="https://github.com/alexandrebouttierdev/homelab-manager"
+            >Voir le code sur GitHub</a
+          >
+        </div>
+
+        <div class="chassis powering" id="chassis">
+          <div class="ear" aria-hidden="true">
+            <span class="screw"></span><span class="screw"></span>
+          </div>
+          <div class="plate">
+            <div class="bays" role="group" aria-label="Modules de Homelab Manager">
+              <button
+                class="bay"
+                type="button"
+                aria-pressed="false"
+                data-module="supervision"
+                data-text="CPU, mémoire, swap, stockage, réseau et températures ; historiques bruts ou agrégés, de 1 à 365 jours."
+              >
+                <span class="bay-top"
+                  ><span class="led" style="--i: 0"></span><span class="slot"></span
+                ></span>
+                <span class="bay-name">Supervision</span>
+              </button>
+              <button
+                class="bay"
+                type="button"
+                aria-pressed="false"
+                data-module="docker"
+                data-text="Conteneurs, images, volumes, réseaux et journaux, lus par un proxy restreint en liste blanche."
+              >
+                <span class="bay-top"
+                  ><span class="led" style="--i: 1"></span><span class="slot"></span
+                ></span>
+                <span class="bay-name">Docker</span>
+              </button>
+              <button
+                class="bay"
+                type="button"
+                aria-pressed="false"
+                data-module="systeme"
+                data-text="Journal systemd, services, timers, sockets et tâches planifiées, traduits en français."
+              >
+                <span class="bay-top"
+                  ><span class="led" style="--i: 2"></span><span class="slot"></span
+                ></span>
+                <span class="bay-name">Système</span>
+              </button>
+              <button
+                class="bay"
+                type="button"
+                aria-pressed="false"
+                data-module="alertes"
+                data-text="Règles évaluées toutes les 15 s ; Telegram, Discord, Gotify, ntfy, e-mail et webhook signé."
+              >
+                <span class="bay-top"
+                  ><span class="led" style="--i: 3"></span><span class="slot"></span
+                ></span>
+                <span class="bay-name">Alertes</span>
+              </button>
+              <button
+                class="bay"
+                type="button"
+                aria-pressed="false"
+                data-module="sauvegardes"
+                data-text="Sauvegardes restic chiffrées : local, rest-server, S3 ou SFTP, restauration contrôlée."
+              >
+                <span class="bay-top"
+                  ><span class="led amber" style="--i: 4"></span><span class="slot"></span
+                ></span>
+                <span class="bay-name">Sauvegardes</span>
+              </button>
+              <button
+                class="bay"
+                type="button"
+                aria-pressed="false"
+                data-module="vulnerabilites"
+                data-text="Paquets du système analysés par Grype, chaque jour ou à la demande, dans une unité dédiée."
+              >
+                <span class="bay-top"
+                  ><span class="led amber" style="--i: 5"></span><span class="slot"></span
+                ></span>
+                <span class="bay-name">Vulnérabilités</span>
+              </button>
+              <button
+                class="bay"
+                type="button"
+                aria-pressed="false"
+                data-module="comptes"
+                data-text="Rôles, TOTP, passkeys, sessions révocables, journal d'audit et jetons d'API."
+              >
+                <span class="bay-top"
+                  ><span class="led" style="--i: 6"></span><span class="slot"></span
+                ></span>
+                <span class="bay-name">Comptes</span>
+              </button>
+              <div class="bay brand-bay" aria-hidden="true">
+                <span
+                  >Homelab Manager<small>v<span data-version>2.3.1</span> · 1 machine</small></span
+                >
+              </div>
+            </div>
+            <div class="display">
+              <div class="display-label">
+                <span id="display-title">Homelab Manager</span><span>état</span>
+              </div>
+              <p class="display-text" id="display-text" aria-live="polite">
+                <span id="display-body"
+                  >1 binaire Go · 1 fichier SQLite · 0 shell. Choisissez un module.</span
+                ><span class="cursor" aria-hidden="true"></span>
+              </p>
+              <a id="display-link" href="#fonctionnalites">Toutes les fonctionnalités ↓</a>
+            </div>
+          </div>
+          <div class="ear" aria-hidden="true">
+            <span class="screw"></span><span class="screw"></span>
+          </div>
+        </div>
+        <ul class="legend">
+          <li><span class="led"></span>Fourni dès l'installation</li>
+          <li><span class="led amber"></span>Module à installer (outil, unité et règle polkit)</li>
+        </ul>
+      </div>
+
+      <section class="wrap" aria-labelledby="principes-titre">
+        <div class="section-head">
+          <span class="kicker">Principes</span>
+          <h2 id="principes-titre">Fait pour une seule machine : la vôtre.</h2>
+          <p>
+            Homelab Manager supervise la machine qui l'héberge, et seulement elle. Pas d'agent à
+            déployer, pas de compte à créer chez un tiers.
+          </p>
+        </div>
+        <div class="principles">
+          <div>
+            <h3>Léger</h3>
+            <p>
+              Un binaire statique sans CGO, une base SQLite, aucune dépendance cloud. Installation
+              native Debian et systemd, sans Docker Compose ni serveur de base de données.
+            </p>
+          </div>
+          <div>
+            <h3>Sûr par conception</h3>
+            <p>
+              Aucun terminal, shell ni SSH dans l'application. Le Manager ne tourne jamais en root ;
+              chaque action privilégiée passe par polkit et une liste blanche.
+            </p>
+          </div>
+          <div>
+            <h3>Honnête</h3>
+            <p>
+              Aucune valeur inventée : une donnée absente s'affiche comme indisponible, un module
+              dont l'outil manque le dit, et le reste continue de fonctionner.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section class="wrap" id="fonctionnalites" aria-labelledby="fonctionnalites-titre">
+        <div class="section-head">
+          <span class="kicker">Fonctionnalités</span>
+          <h2 id="fonctionnalites-titre">
+            Tout ce qui se passe sur la machine, sur un seul écran.
+          </h2>
+          <p>
+            Les fonctions qui demandent un privilège sont désactivées par défaut et s'activent une à
+            une.
+          </p>
+        </div>
+        <div class="modules">
+          <article class="module" id="supervision">
+            <div class="module-head">
+              <span class="led"></span>
+              <h3>Supervision</h3>
+              <span class="tag">Inclus</span>
+            </div>
+            <ul>
+              <li>
+                Tableau de bord : CPU, mémoire, swap, stockage, réseau, températures réellement
+                disponibles.
+              </li>
+              <li>Historiques bruts ou agrégés (1 min, 5 min, 1 h), rétention de 1 à 365 jours.</li>
+              <li>
+                Événements : conteneurs créés, supprimés, redémarrés ; services en échec puis
+                rétablis.
+              </li>
+            </ul>
+          </article>
+          <article class="module" id="docker">
+            <div class="module-head">
+              <span class="led"></span>
+              <h3>Docker</h3>
+              <span class="tag">Inclus</span>
+            </div>
+            <ul>
+              <li>Découverte continue des conteneurs, arrêtés compris, avec leurs métriques.</li>
+              <li>
+                Inventaire en lecture seule des images, volumes et réseaux, y compris inutilisés.
+              </li>
+              <li>
+                Journal de chaque conteneur : stdout et stderr, filtre, relecture toutes les 5 s.
+              </li>
+              <li class="opt">En option : démarrer, arrêter et redémarrer un conteneur.</li>
+            </ul>
+          </article>
+          <article class="module" id="systeme">
+            <div class="module-head">
+              <span class="led"></span>
+              <h3>Système</h3>
+              <span class="tag">Inclus</span>
+            </div>
+            <ul>
+              <li>
+                Journal systemd en lecture seule : filtres, recherche, suivi en direct, export,
+                champs sensibles masqués.
+              </li>
+              <li>
+                Services, timers et sockets lus sur D-Bus : états, ressources, événements d'échec.
+              </li>
+              <li>
+                Tâches planifiées : crontabs, scripts <code>run-parts</code> et timers, avec leurs
+                prochaines exécutions.
+              </li>
+              <li class="opt">
+                En option : actions sur une liste blanche d'unités, nettoyage du journal, nom de la
+                machine et fuseau, redémarrage et extinction.
+              </li>
+            </ul>
+          </article>
+          <article class="module" id="alertes">
+            <div class="module-head">
+              <span class="led"></span>
+              <h3>Alertes et notifications</h3>
+              <span class="tag">Inclus</span>
+            </div>
+            <ul>
+              <li>
+                Règles sur les métriques, les conteneurs, les unités, les collecteurs, les
+                sauvegardes et les vulnérabilités.
+              </li>
+              <li>Déclenchement, acquittement, résolution, historique et silences.</li>
+              <li>Telegram, Discord, Gotify, ntfy, e-mail (SMTP) et webhook signé HMAC-SHA256.</li>
+            </ul>
+          </article>
+          <article class="module" id="sauvegardes">
+            <div class="module-head">
+              <span class="led amber"></span>
+              <h3>Sauvegardes</h3>
+              <span class="tag">Module restic</span>
+            </div>
+            <ul>
+              <li>
+                Dépôt chiffré local, rest-server, S3 (dont Backblaze B2) ou SFTP, et dépôt de copie
+                pour la règle 3-2-1.
+              </li>
+              <li>
+                Sauvegardes planifiées et manuelles, copie cohérente des bases SQLite avant chaque
+                passage.
+              </li>
+              <li>Rétention, vérification hebdomadaire, comparaison d'instantanés.</li>
+              <li>Restauration en quarantaine ou, après simulation, à l'emplacement d'origine.</li>
+            </ul>
+          </article>
+          <article class="module" id="vulnerabilites">
+            <div class="module-head">
+              <span class="led amber"></span>
+              <h3>Vulnérabilités</h3>
+              <span class="tag">Module Grype</span>
+            </div>
+            <ul>
+              <li>
+                Analyse des paquets système par Grype : Debian, Ubuntu, Alpine, Fedora, RHEL, Rocky
+                Linux, AlmaLinux.
+              </li>
+              <li>
+                Scans quotidiens et à la demande, dans une unité dédiée, sous son propre compte.
+              </li>
+              <li>
+                Historique, vulnérabilités nouvelles et disparues entre deux scans, règle d'alerte.
+              </li>
+            </ul>
+          </article>
+          <article class="module" id="comptes">
+            <div class="module-head">
+              <span class="led"></span>
+              <h3>Comptes et sécurité</h3>
+              <span class="tag">Inclus</span>
+            </div>
+            <ul>
+              <li>
+                Rôles <code>viewer</code>, <code>operator</code> et <code>admin</code> ; mot de
+                passe initial à changer.
+              </li>
+              <li>
+                Double authentification : application TOTP, passkeys et clés FIDO2, codes de
+                secours.
+              </li>
+              <li>Sessions révocables, verrouillage après 5 échecs, réseaux autorisés (CIDR).</li>
+              <li>
+                Journal d'audit exportable, jetons d'API pour Home Assistant, Grafana ou vos
+                scripts.
+              </li>
+            </ul>
+          </article>
+          <article class="module">
+            <div class="module-head"><h3>Et ce qu'il laisse à d'autres</h3></div>
+            <ul>
+              <li>
+                Les applications PaaS et le déploiement GitOps restent confiés à
+                <a href="https://coolify.io/">Coolify</a>.
+              </li>
+              <li>
+                Vos tableaux de bord et scripts lisent les métriques par l'API, avec un jeton.
+              </li>
+              <li>Une seule machine supervisée : pas d'agent distant ni de multi-hôte.</li>
+            </ul>
+          </article>
+        </div>
+      </section>
+
+      <section class="band" id="securite" aria-labelledby="securite-titre">
+        <div class="wrap">
+          <div class="section-head">
+            <span class="kicker">Sécurité</span>
+            <h2 id="securite-titre">Ce qu'il ne fera jamais.</h2>
+            <p>
+              Un outil d'administration ouvert sur le réseau est une cible. Homelab Manager ne
+              propose rien qui donnerait, depuis le navigateur, un accès direct à la machine.
+            </p>
+          </div>
+          <ul class="nevers">
+            <li>
+              <strong>Aucun terminal web</strong
+              ><span>Ni shell, ni SSH, ni console, ni <code>exec</code> dans un conteneur.</span>
+            </li>
+            <li>
+              <strong>Jamais root</strong
+              ><span
+                >Le Manager tourne sous son propre compte ; polkit n'autorise que des actions
+                listées.</span
+              >
+            </li>
+            <li>
+              <strong>Aucun code fourni</strong
+              ><span>Pas de commande saisie : les tâches de maintenance sont prédéfinies.</span>
+            </li>
+            <li>
+              <strong>Aucun compte Linux</strong
+              ><span
+                >Les utilisateurs sont ceux de Homelab Manager, jamais ceux de PAM, sudo ou
+                SSH.</span
+              >
+            </li>
+            <li>
+              <strong>Aucun socket Docker exposé</strong
+              ><span
+                >Un proxy en liste blanche ; supprimer, nettoyer ou <code>kill</code> reste
+                impossible.</span
+              >
+            </li>
+            <li>
+              <strong>Aucun cloud</strong
+              ><span
+                >Aucun service en ligne requis pour fonctionner ; les secrets sont chiffrés sur la
+                machine.</span
+              >
+            </li>
+          </ul>
+          <p class="aside">
+            Mots de passe Argon2id, sessions sécurisées, contrôle d'origine, journal d'audit
+            complet. Le détail est dans
+            <a
+              href="https://github.com/alexandrebouttierdev/homelab-manager/blob/dev/docs/SECURITY.md"
+              >les exigences de sécurité</a
+            >.
+          </p>
+        </div>
+      </section>
+
+      <section class="wrap" aria-labelledby="architecture-titre">
+        <div class="section-head">
+          <span class="kicker">Architecture</span>
+          <h2 id="architecture-titre">Chaque privilège a sa porte.</h2>
+          <p>
+            Le Manager lit tout lui-même, sans privilège. Ce qui demande davantage passe par une
+            porte étroite : le proxy Docker, ou une unité systemd dédiée lancée via polkit.
+          </p>
+        </div>
+        <div class="flow">
+          <div class="node">
+            <div class="node-label">Navigateur</div>
+            <h3>Interface web</h3>
+            <p>Même origine que l'API, HTTPS en option, jetons d'API pour vos scripts.</p>
+          </div>
+          <div class="wire" aria-hidden="true">HTTP</div>
+          <div class="node dark">
+            <div class="node-label">Compte homelab-manager</div>
+            <h3>Manager</h3>
+            <p>
+              Un binaire Go et un fichier SQLite. Lit <code>/proc</code>, <code>/sys</code>, le
+              journal et D-Bus sans privilège.
+            </p>
+          </div>
+          <div class="wire" aria-hidden="true">socket Unix<br />D-Bus + polkit</div>
+          <div class="targets">
+            <div class="node target">
+              <div class="node-label">Proxy Docker restreint</div>
+              <p>Liste blanche de routes, lecture seule par défaut.</p>
+            </div>
+            <div class="node target">
+              <div class="node-label">Unités systemd dédiées</div>
+              <p>Chacune autorisée par sa propre règle polkit.</p>
+              <ul>
+                <li>homelab-backup@</li>
+                <li>homelab-vulnscan</li>
+                <li>homelab-journal-vacuum@</li>
+                <li>unités listées</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <section class="wrap" aria-labelledby="modules-titre">
+        <div class="section-head">
+          <span class="kicker">Modules optionnels</span>
+          <h2 id="modules-titre">Désactivés par défaut, activés un par un.</h2>
+          <p>
+            Chaque module a sa règle polkit qui n'autorise que lui, et le plus souvent un réglage de
+            <code>manager.yaml</code>.
+          </p>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th scope="col">Module</th>
+                <th scope="col">Ce qu'il permet</th>
+                <th scope="col">Rôle requis</th>
+                <th scope="col">À installer</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <th scope="row">Actions sur les services</th>
+                <td>Démarrer, arrêter, redémarrer, recharger des unités listées</td>
+                <td class="role">operator</td>
+                <td>Règle polkit générée</td>
+              </tr>
+              <tr>
+                <th scope="row">Actions sur les conteneurs</th>
+                <td>Démarrer, arrêter, redémarrer un conteneur</td>
+                <td class="role">operator</td>
+                <td>Deux réglages</td>
+              </tr>
+              <tr>
+                <th scope="row">Sauvegardes</th>
+                <td>Sauvegarder et restaurer avec restic</td>
+                <td class="role">admin, operator pour lancer</td>
+                <td><code>restic</code>, règle polkit</td>
+              </tr>
+              <tr>
+                <th scope="row">Vulnérabilités</th>
+                <td>Analyser les paquets avec Grype</td>
+                <td class="role">operator pour lancer</td>
+                <td><code>grype</code>, unité, règle polkit</td>
+              </tr>
+              <tr>
+                <th scope="row">Maintenance</th>
+                <td>Nettoyer le journal systemd selon un horaire</td>
+                <td class="role">admin</td>
+                <td>Unité, règle polkit</td>
+              </tr>
+              <tr>
+                <th scope="row">Préférences système</th>
+                <td>Nom de la machine, fuseau, langue</td>
+                <td class="role">admin</td>
+                <td>Règle polkit, réglage</td>
+              </tr>
+              <tr>
+                <th scope="row">Alimentation</th>
+                <td>Redémarrer et éteindre la machine</td>
+                <td class="role">admin</td>
+                <td>Règle polkit, réglage</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section class="wrap" id="installation" aria-labelledby="installation-titre">
+        <div class="section-head">
+          <span class="kicker">Installation</span>
+          <h2 id="installation-titre">Six étapes, sans rien compiler.</h2>
+          <p>
+            Chaque release contient, pour une architecture, les trois binaires statiques,
+            l'interface compilée, les unités systemd, la configuration et les règles polkit.
+          </p>
+        </div>
+
+        <dl class="prereq">
+          <div>
+            <dt>Système</dt>
+            <dd>
+              Linux avec systemd, <code>amd64</code> ou <code>arm64</code>. Testé sur Debian 13.
+            </dd>
+          </div>
+          <div>
+            <dt>Docker</dt>
+            <dd>Docker Engine pour les conteneurs ; sans lui, le reste fonctionne.</dd>
+          </div>
+          <div>
+            <dt>Disque</dt>
+            <dd>≈ 2 Go pour 7 jours d'historique, ≈ 3,5 Go de plus avec Grype.</dd>
+          </div>
+          <div>
+            <dt>Modules</dt>
+            <dd>
+              <code>polkitd</code>, puis selon le module <code>restic</code>, <code>grype</code>,
+              <code>openssh-client</code>.
+            </dd>
+          </div>
+        </dl>
+
+        <ol class="steps">
+          <li class="step">
+            <h3>Télécharger et vérifier l'archive</h3>
+            <p>Choisissez l'architecture de la machine, puis vérifiez la somme de contrôle.</p>
+            <div class="code">
+              <pre><code>VERSION=<span class="v" data-version>2.3.1</span>
+ARCH=amd64   <span class="c"># ou arm64 (Raspberry Pi 4/5…)</span>
+BASE=https://github.com/alexandrebouttierdev/homelab-manager/releases/download/v$VERSION
+curl -fsSLO "$BASE/homelab-manager_${VERSION}_linux_${ARCH}.tar.gz"
+curl -fsSLO "$BASE/SHA256SUMS"
+sha256sum -c --ignore-missing SHA256SUMS
+tar -xzf "homelab-manager_${VERSION}_linux_${ARCH}.tar.gz"
+cd "homelab-manager_${VERSION}_linux_${ARCH}"</code></pre>
+            </div>
+          </li>
+          <li class="step">
+            <h3>Créer les comptes système</h3>
+            <p>
+              Le Manager n'est pas membre du groupe <code>docker</code> : seul le proxy restreint
+              l'est.
+            </p>
+            <div class="code">
+              <pre><code>sudo adduser --system --group --no-create-home homelab-manager
+sudo adduser --system --group --no-create-home homelab-docker-proxy
+sudo usermod -aG docker homelab-docker-proxy   <span class="c"># seulement si Docker est installé</span></code></pre>
+            </div>
+          </li>
+          <li class="step">
+            <h3>Installer les fichiers</h3>
+            <p>
+              Les secrets éventuels vont dans <code>/etc/homelab-manager/manager.env</code>, en mode
+              <code>0600</code>.
+            </p>
+            <div class="code">
+              <pre><code>sudo install -m 0755 bin/homelab-manager bin/homelab-docker-proxy bin/homelab-backup-runner /usr/local/bin/
+sudo mkdir -p /opt/homelab-manager/frontend /etc/homelab-manager
+sudo cp -R frontend/dist /opt/homelab-manager/frontend/
+sudo install -m 0644 deployments/config/manager.yaml /etc/homelab-manager/manager.yaml
+sudo install -m 0644 deployments/systemd/*.service deployments/systemd/*.socket /etc/systemd/system/</code></pre>
+            </div>
+          </li>
+          <li class="step">
+            <h3>Créer la clé du coffre de secrets</h3>
+            <p>
+              Elle chiffre les secrets TOTP, les jetons des canaux et les mots de passe des dépôts,
+              avec le TPM 2.0 de la machine s'il existe.
+            </p>
+            <div class="code">
+              <pre><code>sudo mkdir -p /etc/credstore.encrypted
+head -c 32 /dev/urandom | base64 | sudo systemd-creds encrypt \
+  --name=homelab-manager-secrets-key - /etc/credstore.encrypted/homelab-manager-secrets-key</code></pre>
+            </div>
+            <p class="note">
+              Dans un conteneur LXC (Proxmox, OrbStack…), systemd peut ignorer cette clé : le README
+              donne la variante par fichier <code>HOMELAB_SECRETS_KEY_FILE</code>.
+            </p>
+          </li>
+          <li class="step">
+            <h3>Démarrer</h3>
+            <p>La version démarrée est inscrite dans le journal du service.</p>
+            <div class="code">
+              <pre><code>sudo systemctl daemon-reload
+sudo systemctl enable --now homelab-docker-proxy.socket homelab-manager.service
+journalctl -u homelab-manager -n 20</code></pre>
+            </div>
+          </li>
+          <li class="step">
+            <h3>Se connecter</h3>
+            <p>
+              Ouvrez <code>http://&lt;machine&gt;:8080</code>. Le premier compte est
+              <code>admin</code> / <code>admin</code>, et l'interface impose d'en choisir un autre
+              dès la première connexion. Activez ensuite la double authentification.
+            </p>
+          </li>
+        </ol>
+
+        <div class="after">
+          <p>
+            HTTPS, modules optionnels, mise à jour, sauvegarde de la base et récupération d'accès :
+            tout est décrit dans le README.
+          </p>
+          <a
+            class="btn btn-primary"
+            href="https://github.com/alexandrebouttierdev/homelab-manager#installation"
+            >Guide d'installation complet</a
+          >
+        </div>
+      </section>
+
+      <section class="wrap" aria-labelledby="docs-titre">
+        <div class="section-head">
+          <span class="kicker">Documentation</span>
+          <h2 id="docs-titre">Tout est écrit.</h2>
+        </div>
+        <nav class="docs" aria-labelledby="docs-titre">
+          <a
+            href="https://github.com/alexandrebouttierdev/homelab-manager/blob/dev/docs/PRODUCT_SPEC.md"
+            ><strong>Spécification produit</strong><span>Périmètre, décisions, état</span></a
+          >
+          <a
+            href="https://github.com/alexandrebouttierdev/homelab-manager/blob/dev/docs/SPEC_ADMINISTRATION.md"
+            ><strong>Modules d'administration</strong
+            ><span>Comptes, alertes, sauvegardes, vulnérabilités</span></a
+          >
+          <a
+            href="https://github.com/alexandrebouttierdev/homelab-manager/blob/dev/docs/ARCHITECTURE.md"
+            ><strong>Architecture</strong><span>Couches, collecte, planification</span></a
+          >
+          <a
+            href="https://github.com/alexandrebouttierdev/homelab-manager/blob/dev/docs/API_CONTRACTS.md"
+            ><strong>Contrats d'API</strong><span>Routes, DTO, codes d'erreur</span></a
+          >
+          <a
+            href="https://github.com/alexandrebouttierdev/homelab-manager/blob/dev/docs/METRICS_COLLECTION.md"
+            ><strong>Collecte et formules</strong><span>Le calcul de chaque métrique</span></a
+          >
+          <a
+            href="https://github.com/alexandrebouttierdev/homelab-manager/blob/dev/docs/SECURITY.md"
+            ><strong>Sécurité</strong><span>Exigences et frontières</span></a
+          >
+        </nav>
+      </section>
+    </main>
+
+    <footer>
+      <div class="wrap">
+        <span>Homelab Manager · v<span data-version>2.3.1</span></span>
+        <span>
+          <a href="https://github.com/alexandrebouttierdev/homelab-manager">Code source</a> ·
+          <a href="https://github.com/alexandrebouttierdev/homelab-manager/releases">Releases</a> ·
+          <a href="https://github.com/alexandrebouttierdev/homelab-manager/issues"
+            >Signaler un problème</a
+          >
+        </span>
+      </div>
+    </footer>
+
+    <script>
+      ;(() => {
+        // Faceplate: each bay shows its module on the display.
+        const bays = document.querySelectorAll('.bay[data-module]')
+        const title = document.getElementById('display-title')
+        const body = document.getElementById('display-body')
+        const link = document.getElementById('display-link')
+        bays.forEach((bay) => {
+          bay.addEventListener('click', () => {
+            bays.forEach((other) => other.setAttribute('aria-pressed', String(other === bay)))
+            title.textContent = bay.querySelector('.bay-name').textContent
+            body.textContent = bay.dataset.text
+            link.href = '#' + bay.dataset.module
+            link.textContent = 'Détails du module ↓'
+          })
+        })
+        const chassis = document.getElementById('chassis')
+        setTimeout(() => chassis.classList.remove('powering'), 1500)
+
+        // Copy buttons on code blocks.
+        document.querySelectorAll('.code').forEach((block) => {
+          const button = document.createElement('button')
+          button.type = 'button'
+          button.className = 'copy'
+          button.textContent = 'Copier'
+          button.addEventListener('click', async () => {
+            try {
+              await navigator.clipboard.writeText(block.querySelector('code').innerText)
+              button.textContent = 'Copié'
+            } catch {
+              button.textContent = 'Copie impossible'
+            }
+            setTimeout(() => (button.textContent = 'Copier'), 1800)
+          })
+          block.append(button)
+        })
+
+        // Latest release number; the version written in the page stays if GitHub does not answer.
+        fetch('https://api.github.com/repos/alexandrebouttierdev/homelab-manager/releases/latest', {
+          headers: { Accept: 'application/vnd.github+json' },
+        })
+          .then((response) => (response.ok ? response.json() : null))
+          .then((release) => {
+            const version = release && /^v(\d+\.\d+\.\d+)$/.exec(release.tag_name)
+            if (!version) return
+            document.querySelectorAll('[data-version]').forEach((node) => {
+              node.textContent = version[1]
+            })
+          })
+          .catch(() => {})
+      })()
+    </script>
+  </body>
+</html>

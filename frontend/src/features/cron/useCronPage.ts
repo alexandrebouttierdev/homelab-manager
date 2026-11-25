@@ -15,7 +15,7 @@ import {
 import { useRefreshInterval } from '../../lib/refresh'
 import { cronExpressionSchema, type CronExpressionValues } from '../../schemas/cronExpression'
 
-export type CronTab = 'cron' | 'timers' | 'inspector'
+export type CronTab = 'cron' | 'timers' | 'maintenance' | 'inspector'
 
 /** Logic and view model of CronPage (SPEC_ADMINISTRATION.md § 8), read-only. */
 export function useCronPage() {
@@ -47,6 +47,7 @@ export function useCronPage() {
   const tabs: ReadonlyArray<SegmentedOption<CronTab>> = [
     { value: 'cron', label: 'Cron', count: data?.entries.length },
     { value: 'timers', label: 'Timers systemd', count: data?.timers.length },
+    { value: 'maintenance', label: 'Maintenance' },
     { value: 'inspector', label: 'Inspecteur' },
   ]
 

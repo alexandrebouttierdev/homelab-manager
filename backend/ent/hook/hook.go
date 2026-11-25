@@ -188,6 +188,18 @@ func (f LoginFailureFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.LoginFailureMutation", m)
 }
 
+// The MaintenanceTaskFunc type is an adapter to allow the use of ordinary
+// function as MaintenanceTask mutator.
+type MaintenanceTaskFunc func(context.Context, *ent.MaintenanceTaskMutation) (ent.Value, error)
+
+// Mutate calls f(ctx, m).
+func (f MaintenanceTaskFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
+	if mv, ok := m.(*ent.MaintenanceTaskMutation); ok {
+		return f(ctx, mv)
+	}
+	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.MaintenanceTaskMutation", m)
+}
+
 // The NotificationChannelFunc type is an adapter to allow the use of ordinary
 // function as NotificationChannel mutator.
 type NotificationChannelFunc func(context.Context, *ent.NotificationChannelMutation) (ent.Value, error)

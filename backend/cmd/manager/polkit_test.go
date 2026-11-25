@@ -191,3 +191,46 @@ func TestSystemRuleGrantsOnlyTheThreeSettings(t *testing.T) {
 		}
 	}
 }
+
+// TestMaintenanceRuleGrantsTheCatalogOnly evaluates the rule shipped for
+// decision D-1 against the units of the code.
+func TestMaintenanceRuleGrantsTheCatalogOnly(t *testing.T) {
+	node, err := exec.LookPath("node")
+	if err != nil {
+		t.Skip("node is not installed")
+	}
+	dir := t.TempDir()
+	scriptPath := filepath.Join(dir, "evaluate.js")
+	if err := os.WriteFile(scriptPath, []byte(evaluator), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	rulePath := filepath.Join("..", "..", "..", "deployments", "polkit", "50-homelab-manager-maintenance.rules")
+	const manage = "org.freedesktop.systemd1.manage-units"
+	type check struct{ id, user, unit, verb, want string }
+	var cases []check
+	for _, unit := range domain.MaintenanceUnits() {
+		cases = append(cases, check{manage, "homelab-manager", unit, "start", "yes"}, check{manage, "homelab-manager", unit, "stop", "undefined"})
+	}
+	cases = append(cases,
+		check{manage, "alice", "homelab-journal-vacuum@512M.service", "start", "undefined"},
+		check{manage, "homelab-manager", "homelab-journal-vacuum@1M.service", "start", "undefined"},
+		check{manage, "homelab-manager", "homelab-journal-vacuum@.service", "start", "undefined"},
+	)
+	var encoded []string
+	for _, c := range cases {
+		encoded = append(encoded, fmt.Sprintf(`{"id":%q,"user":%q,"unit":%q,"verb":%q}`, c.id, c.user, c.unit, c.verb))
+	}
+	output, err := exec.Command(node, scriptPath, rulePath, "["+strings.Join(encoded, ",")+"]").CombinedOutput()
+	if err != nil {
+		t.Fatalf("node: %v\n%s", err, output)
+	}
+	results := strings.Fields(string(output))
+	if len(results) != len(cases) {
+		t.Fatalf("results = %v", results)
+	}
+	for i, c := range cases {
+		if results[i] != c.want {
+			t.Errorf("%s %s %s = %s, want %s", c.user, c.unit, c.verb, results[i], c.want)
+		}
+	}
+}

@@ -51,6 +51,9 @@ type HostInfo func(*sql.Selector)
 // LoginFailure is the predicate function for loginfailure builders.
 type LoginFailure func(*sql.Selector)
 
+// MaintenanceTask is the predicate function for maintenancetask builders.
+type MaintenanceTask func(*sql.Selector)
+
 // NotificationChannel is the predicate function for notificationchannel builders.
 type NotificationChannel func(*sql.Selector)
 

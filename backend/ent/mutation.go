@@ -21,6 +21,7 @@ import (
 	"homelab-manager/backend/ent/failedunit"
 	"homelab-manager/backend/ent/hostinfo"
 	"homelab-manager/backend/ent/loginfailure"
+	"homelab-manager/backend/ent/maintenancetask"
 	"homelab-manager/backend/ent/notificationchannel"
 	"homelab-manager/backend/ent/predicate"
 	"homelab-manager/backend/ent/recoverycode"
@@ -64,6 +65,7 @@ const (
 	TypeFailedUnit            = "FailedUnit"
 	TypeHostInfo              = "HostInfo"
 	TypeLoginFailure          = "LoginFailure"
+	TypeMaintenanceTask       = "MaintenanceTask"
 	TypeNotificationChannel   = "NotificationChannel"
 	TypeRecoveryCode          = "RecoveryCode"
 	TypeSecurityPolicy        = "SecurityPolicy"
@@ -14996,6 +14998,1127 @@ func (m *LoginFailureMutation) ClearEdge(name string) error {
 // It returns an error if the edge is not defined in the schema.
 func (m *LoginFailureMutation) ResetEdge(name string) error {
 	return fmt.Errorf("unknown LoginFailure edge %s", name)
+}
+
+// MaintenanceTaskMutation represents an operation that mutates the MaintenanceTask nodes in the graph.
+type MaintenanceTaskMutation struct {
+	config
+	op              Op
+	typ             string
+	id              *string
+	enabled         *bool
+	frequency       *string
+	weekday         *int
+	addweekday      *int
+	hour            *int
+	addhour         *int
+	minute          *int
+	addminute       *int
+	max_size_mib    *int
+	addmax_size_mib *int
+	last_run_at     *time.Time
+	last_succeeded  *bool
+	last_message    *string
+	last_origin     *string
+	updated_at      *time.Time
+	updated_by      *string
+	clearedFields   map[string]struct{}
+	done            bool
+	oldValue        func(context.Context) (*MaintenanceTask, error)
+	predicates      []predicate.MaintenanceTask
+}
+
+var _ ent.Mutation = (*MaintenanceTaskMutation)(nil)
+
+// maintenancetaskOption allows management of the mutation configuration using functional options.
+type maintenancetaskOption func(*MaintenanceTaskMutation)
+
+// newMaintenanceTaskMutation creates new mutation for the MaintenanceTask entity.
+func newMaintenanceTaskMutation(c config, op Op, opts ...maintenancetaskOption) *MaintenanceTaskMutation {
+	m := &MaintenanceTaskMutation{
+		config:        c,
+		op:            op,
+		typ:           TypeMaintenanceTask,
+		clearedFields: make(map[string]struct{}),
+	}
+	for _, opt := range opts {
+		opt(m)
+	}
+	return m
+}
+
+// withMaintenanceTaskID sets the ID field of the mutation.
+func withMaintenanceTaskID(id string) maintenancetaskOption {
+	return func(m *MaintenanceTaskMutation) {
+		var (
+			err   error
+			once  sync.Once
+			value *MaintenanceTask
+		)
+		m.oldValue = func(ctx context.Context) (*MaintenanceTask, error) {
+			once.Do(func() {
+				if m.done {
+					err = errors.New("querying old values post mutation is not allowed")
+				} else {
+					value, err = m.Client().MaintenanceTask.Get(ctx, id)
+				}
+			})
+			return value, err
+		}
+		m.id = &id
+	}
+}
+
+// withMaintenanceTask sets the old MaintenanceTask of the mutation.
+func withMaintenanceTask(node *MaintenanceTask) maintenancetaskOption {
+	return func(m *MaintenanceTaskMutation) {
+		m.oldValue = func(context.Context) (*MaintenanceTask, error) {
+			return node, nil
+		}
+		m.id = &node.ID
+	}
+}
+
+// Client returns a new `ent.Client` from the mutation. If the mutation was
+// executed in a transaction (ent.Tx), a transactional client is returned.
+func (m MaintenanceTaskMutation) Client() *Client {
+	client := &Client{config: m.config}
+	client.init()
+	return client
+}
+
+// Tx returns an `ent.Tx` for mutations that were executed in transactions;
+// it returns an error otherwise.
+func (m MaintenanceTaskMutation) Tx() (*Tx, error) {
+	if _, ok := m.driver.(*txDriver); !ok {
+		return nil, errors.New("ent: mutation is not running in a transaction")
+	}
+	tx := &Tx{config: m.config}
+	tx.init()
+	return tx, nil
+}
+
+// SetID sets the value of the id field. Note that this
+// operation is only accepted on creation of MaintenanceTask entities.
+func (m *MaintenanceTaskMutation) SetID(id string) {
+	m.id = &id
+}
+
+// ID returns the ID value in the mutation. Note that the ID is only available
+// if it was provided to the builder or after it was returned from the database.
+func (m *MaintenanceTaskMutation) ID() (id string, exists bool) {
+	if m.id == nil {
+		return
+	}
+	return *m.id, true
+}
+
+// IDs queries the database and returns the entity ids that match the mutation's predicate.
+// That means, if the mutation is applied within a transaction with an isolation level such
+// as sql.LevelSerializable, the returned ids match the ids of the rows that will be updated
+// or updated by the mutation.
+func (m *MaintenanceTaskMutation) IDs(ctx context.Context) ([]string, error) {
+	switch {
+	case m.op.Is(OpUpdateOne | OpDeleteOne):
+		id, exists := m.ID()
+		if exists {
+			return []string{id}, nil
+		}
+		fallthrough
+	case m.op.Is(OpUpdate | OpDelete):
+		return m.Client().MaintenanceTask.Query().Where(m.predicates...).IDs(ctx)
+	default:
+		return nil, fmt.Errorf("IDs is not allowed on %s operations", m.op)
+	}
+}
+
+// SetEnabled sets the "enabled" field.
+func (m *MaintenanceTaskMutation) SetEnabled(b bool) {
+	m.enabled = &b
+}
+
+// Enabled returns the value of the "enabled" field in the mutation.
+func (m *MaintenanceTaskMutation) Enabled() (r bool, exists bool) {
+	v := m.enabled
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldEnabled returns the old "enabled" field's value of the MaintenanceTask entity.
+// If the MaintenanceTask object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MaintenanceTaskMutation) OldEnabled(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldEnabled is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldEnabled requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldEnabled: %w", err)
+	}
+	return oldValue.Enabled, nil
+}
+
+// ResetEnabled resets all changes to the "enabled" field.
+func (m *MaintenanceTaskMutation) ResetEnabled() {
+	m.enabled = nil
+}
+
+// SetFrequency sets the "frequency" field.
+func (m *MaintenanceTaskMutation) SetFrequency(s string) {
+	m.frequency = &s
+}
+
+// Frequency returns the value of the "frequency" field in the mutation.
+func (m *MaintenanceTaskMutation) Frequency() (r string, exists bool) {
+	v := m.frequency
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldFrequency returns the old "frequency" field's value of the MaintenanceTask entity.
+// If the MaintenanceTask object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MaintenanceTaskMutation) OldFrequency(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldFrequency is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldFrequency requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldFrequency: %w", err)
+	}
+	return oldValue.Frequency, nil
+}
+
+// ResetFrequency resets all changes to the "frequency" field.
+func (m *MaintenanceTaskMutation) ResetFrequency() {
+	m.frequency = nil
+}
+
+// SetWeekday sets the "weekday" field.
+func (m *MaintenanceTaskMutation) SetWeekday(i int) {
+	m.weekday = &i
+	m.addweekday = nil
+}
+
+// Weekday returns the value of the "weekday" field in the mutation.
+func (m *MaintenanceTaskMutation) Weekday() (r int, exists bool) {
+	v := m.weekday
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldWeekday returns the old "weekday" field's value of the MaintenanceTask entity.
+// If the MaintenanceTask object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MaintenanceTaskMutation) OldWeekday(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldWeekday is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldWeekday requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldWeekday: %w", err)
+	}
+	return oldValue.Weekday, nil
+}
+
+// AddWeekday adds i to the "weekday" field.
+func (m *MaintenanceTaskMutation) AddWeekday(i int) {
+	if m.addweekday != nil {
+		*m.addweekday += i
+	} else {
+		m.addweekday = &i
+	}
+}
+
+// AddedWeekday returns the value that was added to the "weekday" field in this mutation.
+func (m *MaintenanceTaskMutation) AddedWeekday() (r int, exists bool) {
+	v := m.addweekday
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetWeekday resets all changes to the "weekday" field.
+func (m *MaintenanceTaskMutation) ResetWeekday() {
+	m.weekday = nil
+	m.addweekday = nil
+}
+
+// SetHour sets the "hour" field.
+func (m *MaintenanceTaskMutation) SetHour(i int) {
+	m.hour = &i
+	m.addhour = nil
+}
+
+// Hour returns the value of the "hour" field in the mutation.
+func (m *MaintenanceTaskMutation) Hour() (r int, exists bool) {
+	v := m.hour
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldHour returns the old "hour" field's value of the MaintenanceTask entity.
+// If the MaintenanceTask object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MaintenanceTaskMutation) OldHour(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldHour is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldHour requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldHour: %w", err)
+	}
+	return oldValue.Hour, nil
+}
+
+// AddHour adds i to the "hour" field.
+func (m *MaintenanceTaskMutation) AddHour(i int) {
+	if m.addhour != nil {
+		*m.addhour += i
+	} else {
+		m.addhour = &i
+	}
+}
+
+// AddedHour returns the value that was added to the "hour" field in this mutation.
+func (m *MaintenanceTaskMutation) AddedHour() (r int, exists bool) {
+	v := m.addhour
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetHour resets all changes to the "hour" field.
+func (m *MaintenanceTaskMutation) ResetHour() {
+	m.hour = nil
+	m.addhour = nil
+}
+
+// SetMinute sets the "minute" field.
+func (m *MaintenanceTaskMutation) SetMinute(i int) {
+	m.minute = &i
+	m.addminute = nil
+}
+
+// Minute returns the value of the "minute" field in the mutation.
+func (m *MaintenanceTaskMutation) Minute() (r int, exists bool) {
+	v := m.minute
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMinute returns the old "minute" field's value of the MaintenanceTask entity.
+// If the MaintenanceTask object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MaintenanceTaskMutation) OldMinute(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMinute is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMinute requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMinute: %w", err)
+	}
+	return oldValue.Minute, nil
+}
+
+// AddMinute adds i to the "minute" field.
+func (m *MaintenanceTaskMutation) AddMinute(i int) {
+	if m.addminute != nil {
+		*m.addminute += i
+	} else {
+		m.addminute = &i
+	}
+}
+
+// AddedMinute returns the value that was added to the "minute" field in this mutation.
+func (m *MaintenanceTaskMutation) AddedMinute() (r int, exists bool) {
+	v := m.addminute
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetMinute resets all changes to the "minute" field.
+func (m *MaintenanceTaskMutation) ResetMinute() {
+	m.minute = nil
+	m.addminute = nil
+}
+
+// SetMaxSizeMib sets the "max_size_mib" field.
+func (m *MaintenanceTaskMutation) SetMaxSizeMib(i int) {
+	m.max_size_mib = &i
+	m.addmax_size_mib = nil
+}
+
+// MaxSizeMib returns the value of the "max_size_mib" field in the mutation.
+func (m *MaintenanceTaskMutation) MaxSizeMib() (r int, exists bool) {
+	v := m.max_size_mib
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldMaxSizeMib returns the old "max_size_mib" field's value of the MaintenanceTask entity.
+// If the MaintenanceTask object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MaintenanceTaskMutation) OldMaxSizeMib(ctx context.Context) (v int, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldMaxSizeMib is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldMaxSizeMib requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldMaxSizeMib: %w", err)
+	}
+	return oldValue.MaxSizeMib, nil
+}
+
+// AddMaxSizeMib adds i to the "max_size_mib" field.
+func (m *MaintenanceTaskMutation) AddMaxSizeMib(i int) {
+	if m.addmax_size_mib != nil {
+		*m.addmax_size_mib += i
+	} else {
+		m.addmax_size_mib = &i
+	}
+}
+
+// AddedMaxSizeMib returns the value that was added to the "max_size_mib" field in this mutation.
+func (m *MaintenanceTaskMutation) AddedMaxSizeMib() (r int, exists bool) {
+	v := m.addmax_size_mib
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// ResetMaxSizeMib resets all changes to the "max_size_mib" field.
+func (m *MaintenanceTaskMutation) ResetMaxSizeMib() {
+	m.max_size_mib = nil
+	m.addmax_size_mib = nil
+}
+
+// SetLastRunAt sets the "last_run_at" field.
+func (m *MaintenanceTaskMutation) SetLastRunAt(t time.Time) {
+	m.last_run_at = &t
+}
+
+// LastRunAt returns the value of the "last_run_at" field in the mutation.
+func (m *MaintenanceTaskMutation) LastRunAt() (r time.Time, exists bool) {
+	v := m.last_run_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastRunAt returns the old "last_run_at" field's value of the MaintenanceTask entity.
+// If the MaintenanceTask object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MaintenanceTaskMutation) OldLastRunAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastRunAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastRunAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastRunAt: %w", err)
+	}
+	return oldValue.LastRunAt, nil
+}
+
+// ClearLastRunAt clears the value of the "last_run_at" field.
+func (m *MaintenanceTaskMutation) ClearLastRunAt() {
+	m.last_run_at = nil
+	m.clearedFields[maintenancetask.FieldLastRunAt] = struct{}{}
+}
+
+// LastRunAtCleared returns if the "last_run_at" field was cleared in this mutation.
+func (m *MaintenanceTaskMutation) LastRunAtCleared() bool {
+	_, ok := m.clearedFields[maintenancetask.FieldLastRunAt]
+	return ok
+}
+
+// ResetLastRunAt resets all changes to the "last_run_at" field.
+func (m *MaintenanceTaskMutation) ResetLastRunAt() {
+	m.last_run_at = nil
+	delete(m.clearedFields, maintenancetask.FieldLastRunAt)
+}
+
+// SetLastSucceeded sets the "last_succeeded" field.
+func (m *MaintenanceTaskMutation) SetLastSucceeded(b bool) {
+	m.last_succeeded = &b
+}
+
+// LastSucceeded returns the value of the "last_succeeded" field in the mutation.
+func (m *MaintenanceTaskMutation) LastSucceeded() (r bool, exists bool) {
+	v := m.last_succeeded
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastSucceeded returns the old "last_succeeded" field's value of the MaintenanceTask entity.
+// If the MaintenanceTask object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MaintenanceTaskMutation) OldLastSucceeded(ctx context.Context) (v *bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastSucceeded is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastSucceeded requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastSucceeded: %w", err)
+	}
+	return oldValue.LastSucceeded, nil
+}
+
+// ClearLastSucceeded clears the value of the "last_succeeded" field.
+func (m *MaintenanceTaskMutation) ClearLastSucceeded() {
+	m.last_succeeded = nil
+	m.clearedFields[maintenancetask.FieldLastSucceeded] = struct{}{}
+}
+
+// LastSucceededCleared returns if the "last_succeeded" field was cleared in this mutation.
+func (m *MaintenanceTaskMutation) LastSucceededCleared() bool {
+	_, ok := m.clearedFields[maintenancetask.FieldLastSucceeded]
+	return ok
+}
+
+// ResetLastSucceeded resets all changes to the "last_succeeded" field.
+func (m *MaintenanceTaskMutation) ResetLastSucceeded() {
+	m.last_succeeded = nil
+	delete(m.clearedFields, maintenancetask.FieldLastSucceeded)
+}
+
+// SetLastMessage sets the "last_message" field.
+func (m *MaintenanceTaskMutation) SetLastMessage(s string) {
+	m.last_message = &s
+}
+
+// LastMessage returns the value of the "last_message" field in the mutation.
+func (m *MaintenanceTaskMutation) LastMessage() (r string, exists bool) {
+	v := m.last_message
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastMessage returns the old "last_message" field's value of the MaintenanceTask entity.
+// If the MaintenanceTask object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MaintenanceTaskMutation) OldLastMessage(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastMessage is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastMessage requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastMessage: %w", err)
+	}
+	return oldValue.LastMessage, nil
+}
+
+// ResetLastMessage resets all changes to the "last_message" field.
+func (m *MaintenanceTaskMutation) ResetLastMessage() {
+	m.last_message = nil
+}
+
+// SetLastOrigin sets the "last_origin" field.
+func (m *MaintenanceTaskMutation) SetLastOrigin(s string) {
+	m.last_origin = &s
+}
+
+// LastOrigin returns the value of the "last_origin" field in the mutation.
+func (m *MaintenanceTaskMutation) LastOrigin() (r string, exists bool) {
+	v := m.last_origin
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldLastOrigin returns the old "last_origin" field's value of the MaintenanceTask entity.
+// If the MaintenanceTask object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MaintenanceTaskMutation) OldLastOrigin(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldLastOrigin is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldLastOrigin requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldLastOrigin: %w", err)
+	}
+	return oldValue.LastOrigin, nil
+}
+
+// ResetLastOrigin resets all changes to the "last_origin" field.
+func (m *MaintenanceTaskMutation) ResetLastOrigin() {
+	m.last_origin = nil
+}
+
+// SetUpdatedAt sets the "updated_at" field.
+func (m *MaintenanceTaskMutation) SetUpdatedAt(t time.Time) {
+	m.updated_at = &t
+}
+
+// UpdatedAt returns the value of the "updated_at" field in the mutation.
+func (m *MaintenanceTaskMutation) UpdatedAt() (r time.Time, exists bool) {
+	v := m.updated_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedAt returns the old "updated_at" field's value of the MaintenanceTask entity.
+// If the MaintenanceTask object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MaintenanceTaskMutation) OldUpdatedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedAt: %w", err)
+	}
+	return oldValue.UpdatedAt, nil
+}
+
+// ClearUpdatedAt clears the value of the "updated_at" field.
+func (m *MaintenanceTaskMutation) ClearUpdatedAt() {
+	m.updated_at = nil
+	m.clearedFields[maintenancetask.FieldUpdatedAt] = struct{}{}
+}
+
+// UpdatedAtCleared returns if the "updated_at" field was cleared in this mutation.
+func (m *MaintenanceTaskMutation) UpdatedAtCleared() bool {
+	_, ok := m.clearedFields[maintenancetask.FieldUpdatedAt]
+	return ok
+}
+
+// ResetUpdatedAt resets all changes to the "updated_at" field.
+func (m *MaintenanceTaskMutation) ResetUpdatedAt() {
+	m.updated_at = nil
+	delete(m.clearedFields, maintenancetask.FieldUpdatedAt)
+}
+
+// SetUpdatedBy sets the "updated_by" field.
+func (m *MaintenanceTaskMutation) SetUpdatedBy(s string) {
+	m.updated_by = &s
+}
+
+// UpdatedBy returns the value of the "updated_by" field in the mutation.
+func (m *MaintenanceTaskMutation) UpdatedBy() (r string, exists bool) {
+	v := m.updated_by
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldUpdatedBy returns the old "updated_by" field's value of the MaintenanceTask entity.
+// If the MaintenanceTask object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *MaintenanceTaskMutation) OldUpdatedBy(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldUpdatedBy is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldUpdatedBy requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldUpdatedBy: %w", err)
+	}
+	return oldValue.UpdatedBy, nil
+}
+
+// ResetUpdatedBy resets all changes to the "updated_by" field.
+func (m *MaintenanceTaskMutation) ResetUpdatedBy() {
+	m.updated_by = nil
+}
+
+// Where appends a list predicates to the MaintenanceTaskMutation builder.
+func (m *MaintenanceTaskMutation) Where(ps ...predicate.MaintenanceTask) {
+	m.predicates = append(m.predicates, ps...)
+}
+
+// WhereP appends storage-level predicates to the MaintenanceTaskMutation builder. Using this method,
+// users can use type-assertion to append predicates that do not depend on any generated package.
+func (m *MaintenanceTaskMutation) WhereP(ps ...func(*sql.Selector)) {
+	p := make([]predicate.MaintenanceTask, len(ps))
+	for i := range ps {
+		p[i] = ps[i]
+	}
+	m.Where(p...)
+}
+
+// Op returns the operation name.
+func (m *MaintenanceTaskMutation) Op() Op {
+	return m.op
+}
+
+// SetOp allows setting the mutation operation.
+func (m *MaintenanceTaskMutation) SetOp(op Op) {
+	m.op = op
+}
+
+// Type returns the node type of this mutation (MaintenanceTask).
+func (m *MaintenanceTaskMutation) Type() string {
+	return m.typ
+}
+
+// Fields returns all fields that were changed during this mutation. Note that in
+// order to get all numeric fields that were incremented/decremented, call
+// AddedFields().
+func (m *MaintenanceTaskMutation) Fields() []string {
+	fields := make([]string, 0, 12)
+	if m.enabled != nil {
+		fields = append(fields, maintenancetask.FieldEnabled)
+	}
+	if m.frequency != nil {
+		fields = append(fields, maintenancetask.FieldFrequency)
+	}
+	if m.weekday != nil {
+		fields = append(fields, maintenancetask.FieldWeekday)
+	}
+	if m.hour != nil {
+		fields = append(fields, maintenancetask.FieldHour)
+	}
+	if m.minute != nil {
+		fields = append(fields, maintenancetask.FieldMinute)
+	}
+	if m.max_size_mib != nil {
+		fields = append(fields, maintenancetask.FieldMaxSizeMib)
+	}
+	if m.last_run_at != nil {
+		fields = append(fields, maintenancetask.FieldLastRunAt)
+	}
+	if m.last_succeeded != nil {
+		fields = append(fields, maintenancetask.FieldLastSucceeded)
+	}
+	if m.last_message != nil {
+		fields = append(fields, maintenancetask.FieldLastMessage)
+	}
+	if m.last_origin != nil {
+		fields = append(fields, maintenancetask.FieldLastOrigin)
+	}
+	if m.updated_at != nil {
+		fields = append(fields, maintenancetask.FieldUpdatedAt)
+	}
+	if m.updated_by != nil {
+		fields = append(fields, maintenancetask.FieldUpdatedBy)
+	}
+	return fields
+}
+
+// Field returns the value of a field with the given name. The second boolean
+// return value indicates that this field was not set, or was not defined in the
+// schema.
+func (m *MaintenanceTaskMutation) Field(name string) (ent.Value, bool) {
+	switch name {
+	case maintenancetask.FieldEnabled:
+		return m.Enabled()
+	case maintenancetask.FieldFrequency:
+		return m.Frequency()
+	case maintenancetask.FieldWeekday:
+		return m.Weekday()
+	case maintenancetask.FieldHour:
+		return m.Hour()
+	case maintenancetask.FieldMinute:
+		return m.Minute()
+	case maintenancetask.FieldMaxSizeMib:
+		return m.MaxSizeMib()
+	case maintenancetask.FieldLastRunAt:
+		return m.LastRunAt()
+	case maintenancetask.FieldLastSucceeded:
+		return m.LastSucceeded()
+	case maintenancetask.FieldLastMessage:
+		return m.LastMessage()
+	case maintenancetask.FieldLastOrigin:
+		return m.LastOrigin()
+	case maintenancetask.FieldUpdatedAt:
+		return m.UpdatedAt()
+	case maintenancetask.FieldUpdatedBy:
+		return m.UpdatedBy()
+	}
+	return nil, false
+}
+
+// OldField returns the old value of the field from the database. An error is
+// returned if the mutation operation is not UpdateOne, or the query to the
+// database failed.
+func (m *MaintenanceTaskMutation) OldField(ctx context.Context, name string) (ent.Value, error) {
+	switch name {
+	case maintenancetask.FieldEnabled:
+		return m.OldEnabled(ctx)
+	case maintenancetask.FieldFrequency:
+		return m.OldFrequency(ctx)
+	case maintenancetask.FieldWeekday:
+		return m.OldWeekday(ctx)
+	case maintenancetask.FieldHour:
+		return m.OldHour(ctx)
+	case maintenancetask.FieldMinute:
+		return m.OldMinute(ctx)
+	case maintenancetask.FieldMaxSizeMib:
+		return m.OldMaxSizeMib(ctx)
+	case maintenancetask.FieldLastRunAt:
+		return m.OldLastRunAt(ctx)
+	case maintenancetask.FieldLastSucceeded:
+		return m.OldLastSucceeded(ctx)
+	case maintenancetask.FieldLastMessage:
+		return m.OldLastMessage(ctx)
+	case maintenancetask.FieldLastOrigin:
+		return m.OldLastOrigin(ctx)
+	case maintenancetask.FieldUpdatedAt:
+		return m.OldUpdatedAt(ctx)
+	case maintenancetask.FieldUpdatedBy:
+		return m.OldUpdatedBy(ctx)
+	}
+	return nil, fmt.Errorf("unknown MaintenanceTask field %s", name)
+}
+
+// SetField sets the value of a field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *MaintenanceTaskMutation) SetField(name string, value ent.Value) error {
+	switch name {
+	case maintenancetask.FieldEnabled:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetEnabled(v)
+		return nil
+	case maintenancetask.FieldFrequency:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetFrequency(v)
+		return nil
+	case maintenancetask.FieldWeekday:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetWeekday(v)
+		return nil
+	case maintenancetask.FieldHour:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetHour(v)
+		return nil
+	case maintenancetask.FieldMinute:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMinute(v)
+		return nil
+	case maintenancetask.FieldMaxSizeMib:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetMaxSizeMib(v)
+		return nil
+	case maintenancetask.FieldLastRunAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastRunAt(v)
+		return nil
+	case maintenancetask.FieldLastSucceeded:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastSucceeded(v)
+		return nil
+	case maintenancetask.FieldLastMessage:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastMessage(v)
+		return nil
+	case maintenancetask.FieldLastOrigin:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetLastOrigin(v)
+		return nil
+	case maintenancetask.FieldUpdatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedAt(v)
+		return nil
+	case maintenancetask.FieldUpdatedBy:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetUpdatedBy(v)
+		return nil
+	}
+	return fmt.Errorf("unknown MaintenanceTask field %s", name)
+}
+
+// AddedFields returns all numeric fields that were incremented/decremented during
+// this mutation.
+func (m *MaintenanceTaskMutation) AddedFields() []string {
+	var fields []string
+	if m.addweekday != nil {
+		fields = append(fields, maintenancetask.FieldWeekday)
+	}
+	if m.addhour != nil {
+		fields = append(fields, maintenancetask.FieldHour)
+	}
+	if m.addminute != nil {
+		fields = append(fields, maintenancetask.FieldMinute)
+	}
+	if m.addmax_size_mib != nil {
+		fields = append(fields, maintenancetask.FieldMaxSizeMib)
+	}
+	return fields
+}
+
+// AddedField returns the numeric value that was incremented/decremented on a field
+// with the given name. The second boolean return value indicates that this field
+// was not set, or was not defined in the schema.
+func (m *MaintenanceTaskMutation) AddedField(name string) (ent.Value, bool) {
+	switch name {
+	case maintenancetask.FieldWeekday:
+		return m.AddedWeekday()
+	case maintenancetask.FieldHour:
+		return m.AddedHour()
+	case maintenancetask.FieldMinute:
+		return m.AddedMinute()
+	case maintenancetask.FieldMaxSizeMib:
+		return m.AddedMaxSizeMib()
+	}
+	return nil, false
+}
+
+// AddField adds the value to the field with the given name. It returns an error if
+// the field is not defined in the schema, or if the type mismatched the field
+// type.
+func (m *MaintenanceTaskMutation) AddField(name string, value ent.Value) error {
+	switch name {
+	case maintenancetask.FieldWeekday:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddWeekday(v)
+		return nil
+	case maintenancetask.FieldHour:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddHour(v)
+		return nil
+	case maintenancetask.FieldMinute:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddMinute(v)
+		return nil
+	case maintenancetask.FieldMaxSizeMib:
+		v, ok := value.(int)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.AddMaxSizeMib(v)
+		return nil
+	}
+	return fmt.Errorf("unknown MaintenanceTask numeric field %s", name)
+}
+
+// ClearedFields returns all nullable fields that were cleared during this
+// mutation.
+func (m *MaintenanceTaskMutation) ClearedFields() []string {
+	var fields []string
+	if m.FieldCleared(maintenancetask.FieldLastRunAt) {
+		fields = append(fields, maintenancetask.FieldLastRunAt)
+	}
+	if m.FieldCleared(maintenancetask.FieldLastSucceeded) {
+		fields = append(fields, maintenancetask.FieldLastSucceeded)
+	}
+	if m.FieldCleared(maintenancetask.FieldUpdatedAt) {
+		fields = append(fields, maintenancetask.FieldUpdatedAt)
+	}
+	return fields
+}
+
+// FieldCleared returns a boolean indicating if a field with the given name was
+// cleared in this mutation.
+func (m *MaintenanceTaskMutation) FieldCleared(name string) bool {
+	_, ok := m.clearedFields[name]
+	return ok
+}
+
+// ClearField clears the value of the field with the given name. It returns an
+// error if the field is not defined in the schema.
+func (m *MaintenanceTaskMutation) ClearField(name string) error {
+	switch name {
+	case maintenancetask.FieldLastRunAt:
+		m.ClearLastRunAt()
+		return nil
+	case maintenancetask.FieldLastSucceeded:
+		m.ClearLastSucceeded()
+		return nil
+	case maintenancetask.FieldUpdatedAt:
+		m.ClearUpdatedAt()
+		return nil
+	}
+	return fmt.Errorf("unknown MaintenanceTask nullable field %s", name)
+}
+
+// ResetField resets all changes in the mutation for the field with the given name.
+// It returns an error if the field is not defined in the schema.
+func (m *MaintenanceTaskMutation) ResetField(name string) error {
+	switch name {
+	case maintenancetask.FieldEnabled:
+		m.ResetEnabled()
+		return nil
+	case maintenancetask.FieldFrequency:
+		m.ResetFrequency()
+		return nil
+	case maintenancetask.FieldWeekday:
+		m.ResetWeekday()
+		return nil
+	case maintenancetask.FieldHour:
+		m.ResetHour()
+		return nil
+	case maintenancetask.FieldMinute:
+		m.ResetMinute()
+		return nil
+	case maintenancetask.FieldMaxSizeMib:
+		m.ResetMaxSizeMib()
+		return nil
+	case maintenancetask.FieldLastRunAt:
+		m.ResetLastRunAt()
+		return nil
+	case maintenancetask.FieldLastSucceeded:
+		m.ResetLastSucceeded()
+		return nil
+	case maintenancetask.FieldLastMessage:
+		m.ResetLastMessage()
+		return nil
+	case maintenancetask.FieldLastOrigin:
+		m.ResetLastOrigin()
+		return nil
+	case maintenancetask.FieldUpdatedAt:
+		m.ResetUpdatedAt()
+		return nil
+	case maintenancetask.FieldUpdatedBy:
+		m.ResetUpdatedBy()
+		return nil
+	}
+	return fmt.Errorf("unknown MaintenanceTask field %s", name)
+}
+
+// AddedEdges returns all edge names that were set/added in this mutation.
+func (m *MaintenanceTaskMutation) AddedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// AddedIDs returns all IDs (to other nodes) that were added for the given edge
+// name in this mutation.
+func (m *MaintenanceTaskMutation) AddedIDs(name string) []ent.Value {
+	return nil
+}
+
+// RemovedEdges returns all edge names that were removed in this mutation.
+func (m *MaintenanceTaskMutation) RemovedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// RemovedIDs returns all IDs (to other nodes) that were removed for the edge with
+// the given name in this mutation.
+func (m *MaintenanceTaskMutation) RemovedIDs(name string) []ent.Value {
+	return nil
+}
+
+// ClearedEdges returns all edge names that were cleared in this mutation.
+func (m *MaintenanceTaskMutation) ClearedEdges() []string {
+	edges := make([]string, 0, 0)
+	return edges
+}
+
+// EdgeCleared returns a boolean which indicates if the edge with the given name
+// was cleared in this mutation.
+func (m *MaintenanceTaskMutation) EdgeCleared(name string) bool {
+	return false
+}
+
+// ClearEdge clears the value of the edge with the given name. It returns an error
+// if that edge is not defined in the schema.
+func (m *MaintenanceTaskMutation) ClearEdge(name string) error {
+	return fmt.Errorf("unknown MaintenanceTask unique edge %s", name)
+}
+
+// ResetEdge resets all changes to the edge with the given name in this mutation.
+// It returns an error if the edge is not defined in the schema.
+func (m *MaintenanceTaskMutation) ResetEdge(name string) error {
+	return fmt.Errorf("unknown MaintenanceTask edge %s", name)
 }
 
 // NotificationChannelMutation represents an operation that mutates the NotificationChannel nodes in the graph.

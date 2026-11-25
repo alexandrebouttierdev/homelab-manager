@@ -62,6 +62,9 @@ type Services struct {
 	// SystemPreferences reads and changes the host name, time zone and
 	// language; nil (no database, hence no audit) answers 503.
 	SystemPreferences *usecase.SystemPreferencesUsecase
+	// Maintenance schedules the tasks of the maintenance catalog (D-1);
+	// nil (no database) answers 503.
+	Maintenance *usecase.MaintenanceUsecase
 	// Cron reads the scheduled tasks; nil answers 503.
 	Cron *usecase.CronUsecase
 	// Tokens manages and authenticates the API tokens; nil (no database)
@@ -84,6 +87,7 @@ func NewRouter(logger *zap.Logger, services Services, sessionSecure bool, webRoo
 	cron := services.Cron
 	containers := services.Containers
 	systemPreferences := services.SystemPreferences
+	maintenance := services.Maintenance
 	tokens := services.Tokens
 	if units == nil {
 		// Never run: its inventory stays pending and its detail unavailable.
@@ -274,6 +278,12 @@ func NewRouter(logger *zap.Logger, services Services, sessionSecure bool, webRoo
 						apiTokens.Get("/", listAPITokensHandler(tokens, deny))
 						apiTokens.Post("/", createAPITokenHandler(tokens))
 						apiTokens.Delete("/{tokenID}", revokeAPITokenHandler(tokens))
+					})
+					active.Route("/maintenance/tasks", func(tasks chi.Router) {
+						tasks.Use(requireMaintenance(maintenance))
+						tasks.Get("/", listMaintenanceTasksHandler(maintenance))
+						tasks.With(requirePermission(deny, domain.PermManageSettings)).Put("/{kind}", updateMaintenanceTaskHandler(maintenance))
+						tasks.With(requirePermission(deny, domain.PermManageSettings)).Post("/{kind}/run", runMaintenanceTaskHandler(maintenance))
 					})
 					active.Route("/cron", func(tasks chi.Router) {
 						tasks.Use(func(next http.Handler) http.Handler {

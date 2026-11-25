@@ -262,6 +262,19 @@ func main() {
 			logger.Info("Host name, time zone and language changes are enabled; they also require the polkit rule")
 		}
 	}
+	// Maintenance catalog (D-1): fixed tasks scheduled by the Manager, run
+	// through units shipped with the project and the polkit rule.
+	var maintenanceUsecase *usecase.MaintenanceUsecase
+	var maintenanceDone chan struct{}
+	if database != nil {
+		maintenanceUsecase = usecase.NewMaintenanceUsecase(sqlite.NewMaintenanceRepository(database.Client()),
+			systemd.NewController(systemd.SystemBus), sqlite.NewAuditRepository(database.Client()), logger)
+		maintenanceDone = make(chan struct{})
+		go func() {
+			defer close(maintenanceDone)
+			maintenanceUsecase.Run(schedulerCtx)
+		}()
+	}
 	// Scheduled tasks (phase 7): system crontabs read-only, the timers of
 	// the units inventory and the CRON lines of the journal.
 	cronUsecase := usecase.NewCronUsecase(crontab.New("/"), serviceUsecase, journalUsecase, logger)
@@ -272,7 +285,7 @@ func main() {
 		Alerts:        alertUsecase,
 		Notifications: notificationUsecase, Vulnerabilities: vulnerabilityUsecase, Backups: backupUsecase,
 		Cron: cronUsecase, Tokens: apiTokenUsecase, Containers: containerUsecase,
-		SystemPreferences: systemPreferencesUsecase,
+		SystemPreferences: systemPreferencesUsecase, Maintenance: maintenanceUsecase,
 	}, config.SessionSecure, config.WebRoot)
 
 	server := &http.Server{
@@ -347,6 +360,14 @@ func main() {
 		case <-unitActionsDone:
 		case <-time.After(10 * time.Second):
 			logger.Error("unit actions did not stop before deadline")
+		}
+	}
+	if maintenanceDone != nil {
+		// A running task ends with its context.
+		select {
+		case <-maintenanceDone:
+		case <-time.After(15 * time.Second):
+			logger.Error("maintenance tasks did not stop before deadline")
 		}
 	}
 	if containersDone != nil {

@@ -105,6 +105,9 @@ Ce document est le contrat exact de l'API implémentée. Toute différence entre
 | `GET /api/v1/vulnerabilities/scans` | oui | Derniers scans (§ 4.9) |
 | `POST /api/v1/vulnerabilities/scans` | `operator` | Lance un scan (§ 4.9) |
 | `GET /api/v1/cron` | oui | Tâches Cron du système, scripts run-parts et timers (§ 4.11) |
+| `GET /api/v1/maintenance/tasks` | oui | Tâches du catalogue de maintenance (§ 4.13) |
+| `PUT /api/v1/maintenance/tasks/{kind}` | `admin` | Horaire et paramètres d'une tâche de maintenance (§ 4.13) |
+| `POST /api/v1/maintenance/tasks/{kind}/run` | `admin` | Lance une tâche de maintenance (§ 4.13) |
 | `GET /api/v1/cron/inspect` | oui | Inspecteur d'expression Cron, sans enregistrement (§ 4.11) |
 | `GET /api/v1/backups/summary` | oui | État des sauvegardes (§ 4.10) |
 | `GET /api/v1/backups/config` | oui | Configuration, sans secret (§ 4.10) |
@@ -833,6 +836,35 @@ Décision D-6 (SPEC_ADMINISTRATION.md § 10). Lues et changées par D-Bus auprè
 - Validation : nom de 1 à 64 caractères, parties de 1 à 63 lettres, chiffres et tirets séparées par des points, sans tiret au début ni à la fin ; fuseau de la forme `Zone/Ville` (lettres, chiffres, `_`, `+`, `-`, quatre niveaux au plus) ; langue de la forme `fr_FR.UTF-8`, `C.UTF-8` ou `POSIX`. La langue ne change que `LANG` : les variables `LC_*` sont gardées.
 - Erreurs : corps invalide, champ inconnu ou valeur hors format `400 VALIDATION_ERROR` ; fuseau inconnu ou langue non installée, refusés par le service, `400 SYSTEM_VALUE_REJECTED` ; rôle autre qu'`admin` `403 FORBIDDEN` (audité) ; réglage désactivé `409 SYSTEM_PREFERENCES_DISABLED` ; changement déjà en cours `409 ACTION_IN_PROGRESS` ; polkit refuse (règle absente) `503 SYSTEM_CHANGE_REFUSED` ; service injoignable `503 SYSTEM_PREFERENCES_UNAVAILABLE` ; audit impossible à écrire `500 SYSTEM_CHANGE_FAILED`.
 
+### 4.13 Tâches de maintenance
+
+Décision D-1 (SPEC_ADMINISTRATION.md § 10) : un catalogue fixe de tâches que le Manager planifie lui-même, à la place de l'édition de Cron (règle 3). Aucune commande n'est stockée ni transmise : chaque tâche démarre par D-Bus une unité fournie, autorisée par la règle polkit `deployments/polkit/50-homelab-manager-maintenance.rules` (verbe `start` sur ces unités seules).
+
+Catalogue : `journal-vacuum`, « Nettoyage du journal système », qui démarre `homelab-journal-vacuum@<taille>M.service` (`journalctl --vacuum-size=<taille>M`) ; tailles 256, 512, 1 024 ou 2 048 Mio.
+
+`GET /api/v1/maintenance/tasks` (tous les rôles ; pas de jeton) → `200` :
+
+```json
+{
+  "tasks": [{
+    "kind": "journal-vacuum",
+    "schedule": { "enabled": false, "frequency": "weekly", "weekday": 0, "time": "04:00" },
+    "maxSizeMiB": 512, "sizes": [256, 512, 1024, 2048],
+    "unit": "homelab-journal-vacuum@512M.service",
+    "running": false, "nextRunAt": null,
+    "lastRun": { "at": "2026-11-25T04:00:00Z", "origin": "schedule", "succeeded": true, "message": null },
+    "updatedAt": null, "updatedBy": null
+  }]
+}
+```
+
+- Une tâche jamais réglée a ses valeurs par défaut : désactivée, chaque dimanche à 04:00, 512 Mio. `nextRunAt` : prochaine exécution à l'heure de la machine, `null` si désactivée. `lastRun.message` : cause d'un échec, en français (règle polkit absente, unité absente, unité en échec, délai de 10 minutes dépassé, arrêt du Manager).
+- Les horaires sont vérifiés toutes les 30 secondes ; une exécution manquée pendant un arrêt du Manager n'est pas rattrapée. Une seule tâche tourne à la fois.
+
+`PUT /api/v1/maintenance/tasks/{kind}` (`admin`) avec `{ "schedule": { "enabled": true, "frequency": "daily" | "weekly", "weekday": 0, "time": "HH:MM" }, "maxSizeMiB": 1024 }` → `200 { "task": Tâche }`, audité (`maintenance_task` / `journal-vacuum` / `update`). Taille hors de la liste, horaire invalide ou champ inconnu `400 VALIDATION_ERROR` ; tâche hors du catalogue `404 NOT_FOUND`.
+
+`POST /api/v1/maintenance/tasks/{kind}/run` (`admin`) → `202 { "requested": true }` ; la demande est auditée (`run`, `requested`) avant d'être transmise, puis son résultat (`success` ou `failure`) ; une exécution planifiée est auditée avec l'acteur `schedule`. Une tâche déjà en cours : `409 ACTION_IN_PROGRESS` ; Manager en arrêt ou sans base : `503 MAINTENANCE_UNAVAILABLE`.
+
 ## 5. Métriques
 
 ### 5.1 Échantillon
@@ -1146,6 +1178,8 @@ Les routes sont versionnées sous `/api/v1`. Un changement incompatible (champ s
 | `SYSTEM_VALUE_REJECTED` | 400 | Fuseau inconnu ou langue non installée, refusés par le service |
 | `SYSTEM_CHANGE_REFUSED` | 503 | polkit refuse le changement (règle absente) |
 | `SYSTEM_CHANGE_FAILED` | 500 | Changement impossible à enregistrer (audit en échec) |
+| `MAINTENANCE_UNAVAILABLE` | 503 | Tâches de maintenance indisponibles (base de données absente, Manager en arrêt) |
+| `MAINTENANCE_FAILED` | 500 | Tâches de maintenance illisibles ou impossibles à enregistrer |
 | `CONTAINER_ACTIONS_DISABLED` | 409 | Actions sur les conteneurs désactivées (`docker_actions_enabled`) |
 | `CONTAINER_REMOVED` | 409 | Journal ou action d'un conteneur supprimé de Docker |
 | `CONTAINER_ACTION_RATE_LIMITED` | 429 | Plus de 30 actions sur les conteneurs dans la dernière minute |

@@ -21,6 +21,7 @@ import (
 	"homelab-manager/backend/ent/failedunit"
 	"homelab-manager/backend/ent/hostinfo"
 	"homelab-manager/backend/ent/loginfailure"
+	"homelab-manager/backend/ent/maintenancetask"
 	"homelab-manager/backend/ent/notificationchannel"
 	"homelab-manager/backend/ent/recoverycode"
 	"homelab-manager/backend/ent/securitypolicy"
@@ -112,6 +113,7 @@ func checkColumn(t, c string) error {
 			failedunit.Table:            failedunit.ValidColumn,
 			hostinfo.Table:              hostinfo.ValidColumn,
 			loginfailure.Table:          loginfailure.ValidColumn,
+			maintenancetask.Table:       maintenancetask.ValidColumn,
 			notificationchannel.Table:   notificationchannel.ValidColumn,
 			recoverycode.Table:          recoverycode.ValidColumn,
 			securitypolicy.Table:        securitypolicy.ValidColumn,

@@ -42,6 +42,8 @@ type Tx struct {
 	HostInfo *HostInfoClient
 	// LoginFailure is the client for interacting with the LoginFailure builders.
 	LoginFailure *LoginFailureClient
+	// MaintenanceTask is the client for interacting with the MaintenanceTask builders.
+	MaintenanceTask *MaintenanceTaskClient
 	// NotificationChannel is the client for interacting with the NotificationChannel builders.
 	NotificationChannel *NotificationChannelClient
 	// RecoveryCode is the client for interacting with the RecoveryCode builders.
@@ -208,6 +210,7 @@ func (tx *Tx) init() {
 	tx.FailedUnit = NewFailedUnitClient(tx.config)
 	tx.HostInfo = NewHostInfoClient(tx.config)
 	tx.LoginFailure = NewLoginFailureClient(tx.config)
+	tx.MaintenanceTask = NewMaintenanceTaskClient(tx.config)
 	tx.NotificationChannel = NewNotificationChannelClient(tx.config)
 	tx.RecoveryCode = NewRecoveryCodeClient(tx.config)
 	tx.SecurityPolicy = NewSecurityPolicyClient(tx.config)

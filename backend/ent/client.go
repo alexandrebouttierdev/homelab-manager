@@ -26,6 +26,7 @@ import (
 	"homelab-manager/backend/ent/failedunit"
 	"homelab-manager/backend/ent/hostinfo"
 	"homelab-manager/backend/ent/loginfailure"
+	"homelab-manager/backend/ent/maintenancetask"
 	"homelab-manager/backend/ent/notificationchannel"
 	"homelab-manager/backend/ent/recoverycode"
 	"homelab-manager/backend/ent/securitypolicy"
@@ -79,6 +80,8 @@ type Client struct {
 	HostInfo *HostInfoClient
 	// LoginFailure is the client for interacting with the LoginFailure builders.
 	LoginFailure *LoginFailureClient
+	// MaintenanceTask is the client for interacting with the MaintenanceTask builders.
+	MaintenanceTask *MaintenanceTaskClient
 	// NotificationChannel is the client for interacting with the NotificationChannel builders.
 	NotificationChannel *NotificationChannelClient
 	// RecoveryCode is the client for interacting with the RecoveryCode builders.
@@ -125,6 +128,7 @@ func (c *Client) init() {
 	c.FailedUnit = NewFailedUnitClient(c.config)
 	c.HostInfo = NewHostInfoClient(c.config)
 	c.LoginFailure = NewLoginFailureClient(c.config)
+	c.MaintenanceTask = NewMaintenanceTaskClient(c.config)
 	c.NotificationChannel = NewNotificationChannelClient(c.config)
 	c.RecoveryCode = NewRecoveryCodeClient(c.config)
 	c.SecurityPolicy = NewSecurityPolicyClient(c.config)
@@ -242,6 +246,7 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 		FailedUnit:            NewFailedUnitClient(cfg),
 		HostInfo:              NewHostInfoClient(cfg),
 		LoginFailure:          NewLoginFailureClient(cfg),
+		MaintenanceTask:       NewMaintenanceTaskClient(cfg),
 		NotificationChannel:   NewNotificationChannelClient(cfg),
 		RecoveryCode:          NewRecoveryCodeClient(cfg),
 		SecurityPolicy:        NewSecurityPolicyClient(cfg),
@@ -286,6 +291,7 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 		FailedUnit:            NewFailedUnitClient(cfg),
 		HostInfo:              NewHostInfoClient(cfg),
 		LoginFailure:          NewLoginFailureClient(cfg),
+		MaintenanceTask:       NewMaintenanceTaskClient(cfg),
 		NotificationChannel:   NewNotificationChannelClient(cfg),
 		RecoveryCode:          NewRecoveryCodeClient(cfg),
 		SecurityPolicy:        NewSecurityPolicyClient(cfg),
@@ -328,8 +334,8 @@ func (c *Client) Use(hooks ...Hook) {
 		c.APIToken, c.Alert, c.AlertRule, c.AlertSilence, c.AppSetting, c.AuditLog,
 		c.BackupConfig, c.BackupRun, c.BackupSnapshot, c.Container,
 		c.ContainerMetricSample, c.Event, c.FailedUnit, c.HostInfo, c.LoginFailure,
-		c.NotificationChannel, c.RecoveryCode, c.SecurityPolicy, c.Session,
-		c.SystemMetricSample, c.TotpSecret, c.User, c.VulnerabilityFinding,
+		c.MaintenanceTask, c.NotificationChannel, c.RecoveryCode, c.SecurityPolicy,
+		c.Session, c.SystemMetricSample, c.TotpSecret, c.User, c.VulnerabilityFinding,
 		c.VulnerabilityScan, c.WebauthnCredential,
 	} {
 		n.Use(hooks...)
@@ -343,8 +349,8 @@ func (c *Client) Intercept(interceptors ...Interceptor) {
 		c.APIToken, c.Alert, c.AlertRule, c.AlertSilence, c.AppSetting, c.AuditLog,
 		c.BackupConfig, c.BackupRun, c.BackupSnapshot, c.Container,
 		c.ContainerMetricSample, c.Event, c.FailedUnit, c.HostInfo, c.LoginFailure,
-		c.NotificationChannel, c.RecoveryCode, c.SecurityPolicy, c.Session,
-		c.SystemMetricSample, c.TotpSecret, c.User, c.VulnerabilityFinding,
+		c.MaintenanceTask, c.NotificationChannel, c.RecoveryCode, c.SecurityPolicy,
+		c.Session, c.SystemMetricSample, c.TotpSecret, c.User, c.VulnerabilityFinding,
 		c.VulnerabilityScan, c.WebauthnCredential,
 	} {
 		n.Intercept(interceptors...)
@@ -384,6 +390,8 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.HostInfo.mutate(ctx, m)
 	case *LoginFailureMutation:
 		return c.LoginFailure.mutate(ctx, m)
+	case *MaintenanceTaskMutation:
+		return c.MaintenanceTask.mutate(ctx, m)
 	case *NotificationChannelMutation:
 		return c.NotificationChannel.mutate(ctx, m)
 	case *RecoveryCodeMutation:
@@ -2468,6 +2476,139 @@ func (c *LoginFailureClient) mutate(ctx context.Context, m *LoginFailureMutation
 	}
 }
 
+// MaintenanceTaskClient is a client for the MaintenanceTask schema.
+type MaintenanceTaskClient struct {
+	config
+}
+
+// NewMaintenanceTaskClient returns a client for the MaintenanceTask from the given config.
+func NewMaintenanceTaskClient(c config) *MaintenanceTaskClient {
+	return &MaintenanceTaskClient{config: c}
+}
+
+// Use adds a list of mutation hooks to the hooks stack.
+// A call to `Use(f, g, h)` equals to `maintenancetask.Hooks(f(g(h())))`.
+func (c *MaintenanceTaskClient) Use(hooks ...Hook) {
+	c.hooks.MaintenanceTask = append(c.hooks.MaintenanceTask, hooks...)
+}
+
+// Intercept adds a list of query interceptors to the interceptors stack.
+// A call to `Intercept(f, g, h)` equals to `maintenancetask.Intercept(f(g(h())))`.
+func (c *MaintenanceTaskClient) Intercept(interceptors ...Interceptor) {
+	c.inters.MaintenanceTask = append(c.inters.MaintenanceTask, interceptors...)
+}
+
+// Create returns a builder for creating a MaintenanceTask entity.
+func (c *MaintenanceTaskClient) Create() *MaintenanceTaskCreate {
+	mutation := newMaintenanceTaskMutation(c.config, OpCreate)
+	return &MaintenanceTaskCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// CreateBulk returns a builder for creating a bulk of MaintenanceTask entities.
+func (c *MaintenanceTaskClient) CreateBulk(builders ...*MaintenanceTaskCreate) *MaintenanceTaskCreateBulk {
+	return &MaintenanceTaskCreateBulk{config: c.config, builders: builders}
+}
+
+// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
+// a builder and applies setFunc on it.
+func (c *MaintenanceTaskClient) MapCreateBulk(slice any, setFunc func(*MaintenanceTaskCreate, int)) *MaintenanceTaskCreateBulk {
+	rv := reflect.ValueOf(slice)
+	if rv.Kind() != reflect.Slice {
+		return &MaintenanceTaskCreateBulk{err: fmt.Errorf("calling to MaintenanceTaskClient.MapCreateBulk with wrong type %T, need slice", slice)}
+	}
+	builders := make([]*MaintenanceTaskCreate, rv.Len())
+	for i := 0; i < rv.Len(); i++ {
+		builders[i] = c.Create()
+		setFunc(builders[i], i)
+	}
+	return &MaintenanceTaskCreateBulk{config: c.config, builders: builders}
+}
+
+// Update returns an update builder for MaintenanceTask.
+func (c *MaintenanceTaskClient) Update() *MaintenanceTaskUpdate {
+	mutation := newMaintenanceTaskMutation(c.config, OpUpdate)
+	return &MaintenanceTaskUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOne returns an update builder for the given entity.
+func (c *MaintenanceTaskClient) UpdateOne(_m *MaintenanceTask) *MaintenanceTaskUpdateOne {
+	mutation := newMaintenanceTaskMutation(c.config, OpUpdateOne, withMaintenanceTask(_m))
+	return &MaintenanceTaskUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// UpdateOneID returns an update builder for the given id.
+func (c *MaintenanceTaskClient) UpdateOneID(id string) *MaintenanceTaskUpdateOne {
+	mutation := newMaintenanceTaskMutation(c.config, OpUpdateOne, withMaintenanceTaskID(id))
+	return &MaintenanceTaskUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// Delete returns a delete builder for MaintenanceTask.
+func (c *MaintenanceTaskClient) Delete() *MaintenanceTaskDelete {
+	mutation := newMaintenanceTaskMutation(c.config, OpDelete)
+	return &MaintenanceTaskDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
+}
+
+// DeleteOne returns a builder for deleting the given entity.
+func (c *MaintenanceTaskClient) DeleteOne(_m *MaintenanceTask) *MaintenanceTaskDeleteOne {
+	return c.DeleteOneID(_m.ID)
+}
+
+// DeleteOneID returns a builder for deleting the given entity by its id.
+func (c *MaintenanceTaskClient) DeleteOneID(id string) *MaintenanceTaskDeleteOne {
+	builder := c.Delete().Where(maintenancetask.ID(id))
+	builder.mutation.id = &id
+	builder.mutation.op = OpDeleteOne
+	return &MaintenanceTaskDeleteOne{builder}
+}
+
+// Query returns a query builder for MaintenanceTask.
+func (c *MaintenanceTaskClient) Query() *MaintenanceTaskQuery {
+	return &MaintenanceTaskQuery{
+		config: c.config,
+		ctx:    &QueryContext{Type: TypeMaintenanceTask},
+		inters: c.Interceptors(),
+	}
+}
+
+// Get returns a MaintenanceTask entity by its id.
+func (c *MaintenanceTaskClient) Get(ctx context.Context, id string) (*MaintenanceTask, error) {
+	return c.Query().Where(maintenancetask.ID(id)).Only(ctx)
+}
+
+// GetX is like Get, but panics if an error occurs.
+func (c *MaintenanceTaskClient) GetX(ctx context.Context, id string) *MaintenanceTask {
+	obj, err := c.Get(ctx, id)
+	if err != nil {
+		panic(err)
+	}
+	return obj
+}
+
+// Hooks returns the client hooks.
+func (c *MaintenanceTaskClient) Hooks() []Hook {
+	return c.hooks.MaintenanceTask
+}
+
+// Interceptors returns the client interceptors.
+func (c *MaintenanceTaskClient) Interceptors() []Interceptor {
+	return c.inters.MaintenanceTask
+}
+
+func (c *MaintenanceTaskClient) mutate(ctx context.Context, m *MaintenanceTaskMutation) (Value, error) {
+	switch m.Op() {
+	case OpCreate:
+		return (&MaintenanceTaskCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdate:
+		return (&MaintenanceTaskUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpUpdateOne:
+		return (&MaintenanceTaskUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
+	case OpDelete, OpDeleteOne:
+		return (&MaintenanceTaskDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
+	default:
+		return nil, fmt.Errorf("ent: unknown MaintenanceTask mutation op: %q", m.Op())
+	}
+}
+
 // NotificationChannelClient is a client for the NotificationChannel schema.
 type NotificationChannelClient struct {
 	config
@@ -3835,15 +3976,15 @@ type (
 	hooks struct {
 		APIToken, Alert, AlertRule, AlertSilence, AppSetting, AuditLog, BackupConfig,
 		BackupRun, BackupSnapshot, Container, ContainerMetricSample, Event, FailedUnit,
-		HostInfo, LoginFailure, NotificationChannel, RecoveryCode, SecurityPolicy,
-		Session, SystemMetricSample, TotpSecret, User, VulnerabilityFinding,
-		VulnerabilityScan, WebauthnCredential []ent.Hook
+		HostInfo, LoginFailure, MaintenanceTask, NotificationChannel, RecoveryCode,
+		SecurityPolicy, Session, SystemMetricSample, TotpSecret, User,
+		VulnerabilityFinding, VulnerabilityScan, WebauthnCredential []ent.Hook
 	}
 	inters struct {
 		APIToken, Alert, AlertRule, AlertSilence, AppSetting, AuditLog, BackupConfig,
 		BackupRun, BackupSnapshot, Container, ContainerMetricSample, Event, FailedUnit,
-		HostInfo, LoginFailure, NotificationChannel, RecoveryCode, SecurityPolicy,
-		Session, SystemMetricSample, TotpSecret, User, VulnerabilityFinding,
-		VulnerabilityScan, WebauthnCredential []ent.Interceptor
+		HostInfo, LoginFailure, MaintenanceTask, NotificationChannel, RecoveryCode,
+		SecurityPolicy, Session, SystemMetricSample, TotpSecret, User,
+		VulnerabilityFinding, VulnerabilityScan, WebauthnCredential []ent.Interceptor
 	}
 )

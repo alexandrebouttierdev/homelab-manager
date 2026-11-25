@@ -13,6 +13,7 @@ import { SegmentedTabs } from '../../components/ui/SegmentedTabs'
 import { formatDateTime, formatRelativeTime } from '../../lib/format'
 import { unitStateLabel, unitStateTone } from '../../lib/services'
 import { FormField, inputClass } from '../alerts/FormField'
+import { MaintenanceTab } from './MaintenanceTab'
 import { useCronPage, type CronPageModel } from './useCronPage'
 
 export function CronPage() {
@@ -22,7 +23,7 @@ export function CronPage() {
       <PageHeader
         title="Tâches planifiées"
         breadcrumb={[{ label: 'Système' }, { label: 'Tâches planifiées' }]}
-        description="Tâches Cron du système et timers systemd, en lecture seule : créer, modifier ou lancer une tâche Cron reviendrait à exécuter du code en root."
+        description="Tâches Cron du système et timers systemd, en lecture seule : créer, modifier ou lancer une tâche Cron reviendrait à exécuter du code en root. Les tâches de maintenance du Manager, elles, se planifient ici."
         actions={
           <Button
             size="sm"
@@ -51,6 +52,7 @@ export function CronPage() {
           />
           {page.tab === 'cron' && <CronTab page={page} />}
           {page.tab === 'timers' && <TimersTab page={page} />}
+          {page.tab === 'maintenance' && <MaintenanceTab />}
           {page.tab === 'inspector' && <InspectorTab page={page} />}
         </>
       )}

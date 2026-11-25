@@ -18,6 +18,7 @@ import (
 	"homelab-manager/backend/ent/failedunit"
 	"homelab-manager/backend/ent/hostinfo"
 	"homelab-manager/backend/ent/loginfailure"
+	"homelab-manager/backend/ent/maintenancetask"
 	"homelab-manager/backend/ent/notificationchannel"
 	"homelab-manager/backend/ent/recoverycode"
 	"homelab-manager/backend/ent/schema"
@@ -438,6 +439,48 @@ func init() {
 	loginfailureDescConsecutiveFailures := loginfailureFields[1].Descriptor()
 	// loginfailure.DefaultConsecutiveFailures holds the default value on creation for the consecutive_failures field.
 	loginfailure.DefaultConsecutiveFailures = loginfailureDescConsecutiveFailures.Default.(int)
+	maintenancetaskFields := schema.MaintenanceTask{}.Fields()
+	_ = maintenancetaskFields
+	// maintenancetaskDescEnabled is the schema descriptor for enabled field.
+	maintenancetaskDescEnabled := maintenancetaskFields[1].Descriptor()
+	// maintenancetask.DefaultEnabled holds the default value on creation for the enabled field.
+	maintenancetask.DefaultEnabled = maintenancetaskDescEnabled.Default.(bool)
+	// maintenancetaskDescFrequency is the schema descriptor for frequency field.
+	maintenancetaskDescFrequency := maintenancetaskFields[2].Descriptor()
+	// maintenancetask.DefaultFrequency holds the default value on creation for the frequency field.
+	maintenancetask.DefaultFrequency = maintenancetaskDescFrequency.Default.(string)
+	// maintenancetaskDescWeekday is the schema descriptor for weekday field.
+	maintenancetaskDescWeekday := maintenancetaskFields[3].Descriptor()
+	// maintenancetask.DefaultWeekday holds the default value on creation for the weekday field.
+	maintenancetask.DefaultWeekday = maintenancetaskDescWeekday.Default.(int)
+	// maintenancetaskDescHour is the schema descriptor for hour field.
+	maintenancetaskDescHour := maintenancetaskFields[4].Descriptor()
+	// maintenancetask.DefaultHour holds the default value on creation for the hour field.
+	maintenancetask.DefaultHour = maintenancetaskDescHour.Default.(int)
+	// maintenancetaskDescMinute is the schema descriptor for minute field.
+	maintenancetaskDescMinute := maintenancetaskFields[5].Descriptor()
+	// maintenancetask.DefaultMinute holds the default value on creation for the minute field.
+	maintenancetask.DefaultMinute = maintenancetaskDescMinute.Default.(int)
+	// maintenancetaskDescMaxSizeMib is the schema descriptor for max_size_mib field.
+	maintenancetaskDescMaxSizeMib := maintenancetaskFields[6].Descriptor()
+	// maintenancetask.DefaultMaxSizeMib holds the default value on creation for the max_size_mib field.
+	maintenancetask.DefaultMaxSizeMib = maintenancetaskDescMaxSizeMib.Default.(int)
+	// maintenancetaskDescLastMessage is the schema descriptor for last_message field.
+	maintenancetaskDescLastMessage := maintenancetaskFields[9].Descriptor()
+	// maintenancetask.DefaultLastMessage holds the default value on creation for the last_message field.
+	maintenancetask.DefaultLastMessage = maintenancetaskDescLastMessage.Default.(string)
+	// maintenancetaskDescLastOrigin is the schema descriptor for last_origin field.
+	maintenancetaskDescLastOrigin := maintenancetaskFields[10].Descriptor()
+	// maintenancetask.DefaultLastOrigin holds the default value on creation for the last_origin field.
+	maintenancetask.DefaultLastOrigin = maintenancetaskDescLastOrigin.Default.(string)
+	// maintenancetaskDescUpdatedBy is the schema descriptor for updated_by field.
+	maintenancetaskDescUpdatedBy := maintenancetaskFields[12].Descriptor()
+	// maintenancetask.DefaultUpdatedBy holds the default value on creation for the updated_by field.
+	maintenancetask.DefaultUpdatedBy = maintenancetaskDescUpdatedBy.Default.(string)
+	// maintenancetaskDescID is the schema descriptor for id field.
+	maintenancetaskDescID := maintenancetaskFields[0].Descriptor()
+	// maintenancetask.IDValidator is a validator for the "id" field. It is called by the builders before save.
+	maintenancetask.IDValidator = maintenancetaskDescID.Validators[0].(func(string) error)
 	notificationchannelFields := schema.NotificationChannel{}.Fields()
 	_ = notificationchannelFields
 	// notificationchannelDescName is the schema descriptor for name field.

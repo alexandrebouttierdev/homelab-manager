@@ -328,6 +328,28 @@ var (
 		Columns:    LoginFailuresColumns,
 		PrimaryKey: []*schema.Column{LoginFailuresColumns[0]},
 	}
+	// MaintenanceTasksColumns holds the columns for the "maintenance_tasks" table.
+	MaintenanceTasksColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeString},
+		{Name: "enabled", Type: field.TypeBool, Default: false},
+		{Name: "frequency", Type: field.TypeString, Default: "weekly"},
+		{Name: "weekday", Type: field.TypeInt, Default: 0},
+		{Name: "hour", Type: field.TypeInt, Default: 4},
+		{Name: "minute", Type: field.TypeInt, Default: 0},
+		{Name: "max_size_mib", Type: field.TypeInt, Default: 512},
+		{Name: "last_run_at", Type: field.TypeTime, Nullable: true},
+		{Name: "last_succeeded", Type: field.TypeBool, Nullable: true},
+		{Name: "last_message", Type: field.TypeString, Default: ""},
+		{Name: "last_origin", Type: field.TypeString, Default: ""},
+		{Name: "updated_at", Type: field.TypeTime, Nullable: true},
+		{Name: "updated_by", Type: field.TypeString, Default: ""},
+	}
+	// MaintenanceTasksTable holds the schema information for the "maintenance_tasks" table.
+	MaintenanceTasksTable = &schema.Table{
+		Name:       "maintenance_tasks",
+		Columns:    MaintenanceTasksColumns,
+		PrimaryKey: []*schema.Column{MaintenanceTasksColumns[0]},
+	}
 	// NotificationChannelsColumns holds the columns for the "notification_channels" table.
 	NotificationChannelsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -547,6 +569,7 @@ var (
 		FailedUnitsTable,
 		HostInfosTable,
 		LoginFailuresTable,
+		MaintenanceTasksTable,
 		NotificationChannelsTable,
 		RecoveryCodesTable,
 		SecurityPoliciesTable,

@@ -1,0 +1,38 @@
+# Homelab Manager: maintenance task "journal-vacuum" of the catalog
+# (decision D-1). The instance is the size the systemd journal is kept
+# under; the polkit rule lets homelab-manager start only the instances
+# 256M, 512M, 1024M and 2048M, never another command.
+#
+# Install as root:root 0644 in /etc/systemd/system/ then run
+# "systemctl daemon-reload".
+[Unit]
+Description=Homelab Manager: keep the systemd journal under %i
+
+[Service]
+Type=oneshot
+ExecStart=/usr/bin/journalctl --vacuum-size=%i
+TimeoutStartSec=10min
+Nice=10
+IOSchedulingClass=idle
+NoNewPrivileges=true
+ProtectSystem=strict
+ReadWritePaths=-/var/log/journal -/run/log/journal
+ProtectHome=true
+PrivateTmp=true
+PrivateDevices=true
+PrivateNetwork=true
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectKernelLogs=true
+ProtectControlGroups=true
+ProtectClock=true
+ProtectHostname=true
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+RestrictAddressFamilies=AF_UNIX
+CapabilityBoundingSet=
+AmbientCapabilities=
+SystemCallArchitectures=native
+SystemCallFilter=@system-service

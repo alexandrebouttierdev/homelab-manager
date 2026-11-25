@@ -432,6 +432,14 @@ Collez ensuite la clé d'hôte du serveur dans « Clé d'hôte du serveur » : l
 
 ### Tâches planifiées
 
+**Tâches de maintenance** (décision D-1) : l'onglet « Maintenance » de la page « Tâches planifiées » planifie des tâches prédéfinies, sans commande saisie. La première, « Nettoyage du journal système », garde le journal systemd sous 256 Mio, 512 Mio, 1 Gio ou 2 Gio, chaque jour ou chaque semaine à l'heure choisie, ou à la demande (administrateurs). Installation :
+
+```bash
+sudo install -o root -g root -m 0644 "deployments/systemd/homelab-journal-vacuum@.service" /etc/systemd/system/
+sudo install -o root -g root -m 0644 deployments/polkit/50-homelab-manager-maintenance.rules /etc/polkit-1/rules.d/
+sudo systemctl daemon-reload
+```
+
 La page « Tâches planifiées » montre, pour tous les rôles et en lecture seule, les tâches Cron du système (`/etc/crontab`, `/etc/cron.d`) avec leur planification en français, leurs cinq prochaines exécutions dans le fuseau de la machine et leur dernière exécution lue dans le journal ; les scripts de `/etc/cron.hourly`, `daily`, `weekly` et `monthly` avec la ligne qui les lance (ou anacron) ; les timers systemd avec le résultat de leur dernier passage. Les valeurs de `password=`, `token=` et motifs voisins sont masquées. Un inspecteur calcule les prochaines exécutions d'une expression, sans rien enregistrer. Rien n'est créé, modifié ni lancé : ce serait exécuter du code en root. Les crontabs des comptes (`crontab -e`) ne sont pas lisibles sans privilège et n'apparaissent pas. Le paquet `cron` n'est pas toujours installé (conteneurs, images minimales) : l'onglet Cron reste alors vide, les timers suffisent.
 
 ### Sauvegarde et restauration
@@ -459,7 +467,7 @@ La première release est `v2.3.0`, alignée sur la [spécification produit](docs
 
 ## État et limites connues
 
-- **Livré** : supervision système et Docker, historique, événements, comptes et rôles, sessions, politique de sécurité, journal d'audit, double authentification (TOTP, passkeys et clés FIDO2, codes de secours), jetons d'API en lecture et en action (D-4), journaux système, services système avec actions en liste blanche (phase 5), journaux des conteneurs et leurs actions optionnelles (D-5), préférences système optionnelles (D-6), sauvegardes restic avec diff et dépôt de copie (phase 6), tâches planifiées en lecture (phase 7), alertes avec silences et notifications (phase 4), vulnérabilités des paquets avec Grype (module V ; Debian, Ubuntu, Alpine, Fedora, RHEL, Rocky Linux et AlmaLinux 9 et suivantes), redémarrage et extinction (optionnels).
+- **Livré** : supervision système et Docker, historique, événements, comptes et rôles, sessions, politique de sécurité, journal d'audit, double authentification (TOTP, passkeys et clés FIDO2, codes de secours), jetons d'API en lecture et en action (D-4), journaux système, services système avec actions en liste blanche (phase 5), journaux des conteneurs et leurs actions optionnelles (D-5), préférences système optionnelles (D-6), sauvegardes restic avec diff et dépôt de copie (phase 6), tâches planifiées en lecture (phase 7) et catalogue de tâches de maintenance (D-1), alertes avec silences et notifications (phase 4), vulnérabilités des paquets avec Grype (module V ; Debian, Ubuntu, Alpine, Fedora, RHEL, Rocky Linux et AlmaLinux 9 et suivantes), redémarrage et extinction (optionnels).
 - **Connexion par passkey seule** : désactivée par défaut ; un administrateur l'autorise dans Utilisateurs → Politique de sécurité (décision D-14 de [docs/SPEC_ADMINISTRATION.md](docs/SPEC_ADMINISTRATION.md)).
 - Historiques bruts ou agrégés, 2 000 points au plus par requête ; l'interface choisit le pas selon la période.
 - À l'intervalle par défaut (10 s), la base croît d'environ 300 Mo par jour jusqu'à la rétention : ≈ 2 Go pour 7 jours.

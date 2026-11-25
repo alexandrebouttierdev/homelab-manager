@@ -35,6 +35,11 @@ func (u *APITokenUsecase) Create(ctx context.Context, actor domain.User, request
 	if err != nil {
 		return "", domain.APIToken{}, err
 	}
+	for _, scope := range request.Scopes {
+		if permission, action := scope.Permission(); action && !actor.Role.Can(permission) {
+			return "", domain.APIToken{}, domain.ErrAPITokenScopeNotAllowed
+		}
+	}
 	secret, hash, err := domain.NewAPITokenSecret()
 	if err != nil {
 		return "", domain.APIToken{}, err

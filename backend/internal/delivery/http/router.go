@@ -120,7 +120,7 @@ func NewRouter(logger *zap.Logger, services Services, sessionSecure bool, webRoo
 		r.Get("/auth/session", sessionHandler(auth))
 		r.Group(func(protected chi.Router) {
 			protected.Use(requireSession(auth, tokens))
-			protected.Use(tokenScopeGate)
+			protected.Use(tokenScopeGate(audit, logger))
 			protected.Use(sameOrigin)
 			protected.Post("/auth/logout", logoutHandler(auth, sessionSecure))
 			protected.Post("/auth/password", changePasswordHandler(auth, sessionSecure))

@@ -3,6 +3,7 @@ package httpdelivery
 import (
 	"errors"
 	"net/http"
+	"regexp"
 	"strings"
 	"time"
 
@@ -12,6 +13,8 @@ import (
 
 	"homelab-manager/backend/internal/domain"
 	"homelab-manager/backend/internal/usecase"
+
+	"go.uber.org/zap"
 )
 
 // apiTokenKey holds the token of a request authenticated by one.
@@ -50,22 +53,74 @@ func tokenScopeFor(path string) (domain.APITokenScope, bool) {
 	return "", false
 }
 
+// tokenActionRoutes are the only routes a token may POST to, with their
+// action scope (D-4); the role of the account is checked by the route.
+var tokenActionRoutes = []struct {
+	pattern *regexp.Regexp
+	scope   domain.APITokenScope
+}{
+	{regexp.MustCompile(`^/api/v1/system/units/[^/]+/actions/?$`), domain.ScopeServicesOperate},
+	{regexp.MustCompile(`^/api/v1/containers/[^/]+/actions/?$`), domain.ScopeContainersOperate},
+}
+
+func tokenActionScopeFor(path string) (domain.APITokenScope, bool) {
+	for _, route := range tokenActionRoutes {
+		if route.pattern.MatchString(path) {
+			return route.scope, true
+		}
+	}
+	return "", false
+}
+
+// followedByActionScope reports whether a GET follows an action the token
+// may request: .../actions/last opens to the action scope as well.
+func followedByActionScope(token domain.APIToken, path string) bool {
+	trimmed, ok := strings.CutSuffix(strings.TrimSuffix(path, "/"), "/last")
+	if !ok {
+		return false
+	}
+	scope, known := tokenActionScopeFor(trimmed)
+	return known && token.Allows(scope)
+}
+
 // tokenScopeGate lets a request authenticated by an API token read only
-// the routes of its scopes, with GET; a session goes through untouched.
-func tokenScopeGate(next http.Handler) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		token, ok := r.Context().Value(apiTokenKey{}).(domain.APIToken)
-		if !ok {
+// the routes of its scopes, with GET, and POST only to the action routes
+// of its action scopes, after an audit entry naming the token; a session
+// goes through untouched.
+func tokenScopeGate(audit *usecase.AuditUsecase, logger *zap.Logger) func(http.Handler) http.Handler {
+	return func(next http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			token, ok := r.Context().Value(apiTokenKey{}).(domain.APIToken)
+			if !ok {
+				next.ServeHTTP(w, r)
+				return
+			}
+			if r.Method == http.MethodPost {
+				scope, known := tokenActionScopeFor(r.URL.Path)
+				if !known || !token.Allows(scope) {
+					writeError(w, r, http.StatusForbidden, "TOKEN_SCOPE_DENIED", "The API token does not allow this request.")
+					return
+				}
+				user, _ := sessionUser(r)
+				// No trace, no action: the token is named before the route acts.
+				if audit == nil || audit.RecordTokenAction(r.Context(), user, token, middleware.GetReqID(r.Context())) != nil {
+					logger.Error("Could not audit an action requested with an API token",
+						zap.String("request_id", middleware.GetReqID(r.Context())), zap.String("token", token.Prefix))
+					writeError(w, r, http.StatusServiceUnavailable, "TOKEN_ACTION_NOT_AUDITED", "The action could not be audited.")
+					return
+				}
+				next.ServeHTTP(w, r)
+				return
+			}
+			scope, known := tokenScopeFor(r.URL.Path)
+			readable := (known && token.Allows(scope)) || followedByActionScope(token, r.URL.Path)
+			if (r.Method != http.MethodGet && r.Method != http.MethodHead) || !readable {
+				writeError(w, r, http.StatusForbidden, "TOKEN_SCOPE_DENIED", "The API token does not allow this request.")
+				return
+			}
 			next.ServeHTTP(w, r)
-			return
-		}
-		scope, known := tokenScopeFor(r.URL.Path)
-		if (r.Method != http.MethodGet && r.Method != http.MethodHead) || !known || !token.Allows(scope) {
-			writeError(w, r, http.StatusForbidden, "TOKEN_SCOPE_DENIED", "The API token does not allow this request.")
-			return
-		}
-		next.ServeHTTP(w, r)
-	})
+		})
+	}
 }
 
 type apiTokenDTO struct {
@@ -94,6 +149,8 @@ func writeAPITokenError(w http.ResponseWriter, r *http.Request, err error) {
 	switch {
 	case errors.Is(err, domain.ErrInvalidAPIToken):
 		writeError(w, r, http.StatusBadRequest, "VALIDATION_ERROR", "name (1 to 100 characters), scopes and expiresInDays (1 to 365) are required.")
+	case errors.Is(err, domain.ErrAPITokenScopeNotAllowed):
+		writeError(w, r, http.StatusForbidden, "TOKEN_SCOPE_NOT_ALLOWED", "The role of the account does not allow this token scope.")
 	case errors.Is(err, domain.ErrTooManyAPITokens):
 		writeError(w, r, http.StatusConflict, "TOO_MANY_TOKENS", "An account has at most 20 API tokens.")
 	case errors.Is(err, domain.ErrAPITokenNotFound):

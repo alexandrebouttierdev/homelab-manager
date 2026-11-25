@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { loadState } from '../../hooks/loadState'
+import { useSession } from '../../hooks/useSession'
 import { createApiToken, listApiTokens, revokeApiToken } from '../../lib/api/tokens'
 import { tokenExpiry, tokenScopeLabel, tokenScopeOptions } from '../../lib/tokens'
 import { apiTokenSchema, type ApiTokenValues } from '../../schemas/apiToken'
@@ -12,6 +13,7 @@ const tokensQueryKey = ['auth', 'tokens'] as const
 /** API tokens of the signed-in account (SPEC_ADMINISTRATION.md § 3.5). */
 export function useApiTokens() {
   const queryClient = useQueryClient()
+  const { user } = useSession()
   // The secret of the token just created, shown this once.
   const [secret, setSecret] = useState<string | null>(null)
   const [formOpen, setFormOpen] = useState(false)
@@ -49,7 +51,8 @@ export function useApiTokens() {
   return {
     state: loadState(query),
     rows,
-    scopeOptions: tokenScopeOptions,
+    readScopes: tokenScopeOptions(user?.role).filter((option) => !option.action),
+    actionScopes: tokenScopeOptions(user?.role).filter((option) => option.action),
     formOpen,
     openForm: () => {
       create.reset()

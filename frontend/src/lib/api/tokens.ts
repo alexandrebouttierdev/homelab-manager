@@ -1,8 +1,14 @@
 import { requestJSON } from './client'
 
-/** Read-only scopes of an API token (API_CONTRACTS.md § 3.6). */
+/** Scopes of an API token: read-only, and two action scopes (API_CONTRACTS.md § 3.6). */
 export type TokenScope =
-  'metrics:read' | 'containers:read' | 'events:read' | 'services:read' | 'backups:read'
+  | 'metrics:read'
+  | 'containers:read'
+  | 'events:read'
+  | 'services:read'
+  | 'backups:read'
+  | 'services:operate'
+  | 'containers:operate'
 
 /** A token without its secret, which is shown once at creation. */
 export type ApiToken = {

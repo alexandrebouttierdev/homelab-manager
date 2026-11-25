@@ -84,6 +84,9 @@ export const errorMessages: Record<string, string> = {
   UNIT_ACTIONS_UNAVAILABLE:
     "Actions sur les services indisponibles : la base de données du Manager n'est pas accessible.",
   UNIT_ACTION_FAILED: "L'action n'a pas pu être demandée.",
+  TOKEN_SCOPE_NOT_ALLOWED: "Votre rôle ne permet pas cette portée d'action.",
+  TOKEN_ACTION_NOT_AUDITED:
+    "L'action n'a pas pu être inscrite au journal d'audit : elle n'a pas été faite.",
   CONTAINER_ACTIONS_DISABLED:
     'Actions sur les conteneurs désactivées dans la configuration du Manager (docker_actions_enabled).',
   CONTAINER_REMOVED: "Ce conteneur n'existe plus sur l'hôte Docker.",

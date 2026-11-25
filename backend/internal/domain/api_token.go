@@ -33,11 +33,14 @@ var (
 	ErrAPITokenNotFound     = errors.New("API token not found")
 	ErrTooManyAPITokens     = errors.New("too many API tokens for this account")
 	ErrAPITokenUnauthorized = errors.New("the API token is unknown, expired or revoked")
-	encodedAPITokenLength   = len(APITokenPrefix) + base64.RawURLEncoding.EncodedLen(apiTokenBytes)
+	// ErrAPITokenScopeNotAllowed: an action scope the role of the account
+	// does not grant.
+	ErrAPITokenScopeNotAllowed = errors.New("the role of the account does not allow this token scope")
+	encodedAPITokenLength      = len(APITokenPrefix) + base64.RawURLEncoding.EncodedLen(apiTokenBytes)
 )
 
-// APITokenScope is a read-only part of the API a token may read. There is
-// no action scope in this version (D-4).
+// APITokenScope is a part of the API a token may reach: read-only scopes,
+// and two action scopes (D-4) that also need the permission of the role.
 type APITokenScope string
 
 const (
@@ -46,10 +49,30 @@ const (
 	ScopeEventsRead     APITokenScope = "events:read"
 	ScopeServicesRead   APITokenScope = "services:read"
 	ScopeBackupsRead    APITokenScope = "backups:read"
+	// ScopeServicesOperate starts, stops, restarts or reloads a unit of
+	// the allow list.
+	ScopeServicesOperate APITokenScope = "services:operate"
+	// ScopeContainersOperate starts, stops or restarts a container.
+	ScopeContainersOperate APITokenScope = "containers:operate"
 )
 
 // APITokenScopes lists the scopes in the order shown by the interface.
-var APITokenScopes = []APITokenScope{ScopeMetricsRead, ScopeContainersRead, ScopeEventsRead, ScopeServicesRead, ScopeBackupsRead}
+var APITokenScopes = []APITokenScope{
+	ScopeMetricsRead, ScopeContainersRead, ScopeEventsRead, ScopeServicesRead, ScopeBackupsRead,
+	ScopeServicesOperate, ScopeContainersOperate,
+}
+
+// Permission returns the permission an action scope needs, checked when
+// the token is created and at each use; false for a read-only scope.
+func (s APITokenScope) Permission() (Permission, bool) {
+	switch s {
+	case ScopeServicesOperate:
+		return PermManageServices, true
+	case ScopeContainersOperate:
+		return PermManageContainers, true
+	}
+	return "", false
+}
 
 // APIToken is a token without its secret: only its SHA-256 is stored.
 type APIToken struct {

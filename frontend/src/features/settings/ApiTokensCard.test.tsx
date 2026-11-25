@@ -11,6 +11,16 @@ vi.mock('../../lib/api/tokens', () => ({
   revokeApiToken: vi.fn(),
 }))
 
+const session = vi.hoisted(() => ({ role: 'viewer' as 'viewer' | 'operator' | 'admin' }))
+vi.mock('../../hooks/useSession', () => ({
+  sessionQueryKey: ['session'],
+  useSession: () => ({
+    user: { id: 'u', username: 'vera', displayName: 'Vera', role: session.role },
+    isPending: false,
+    unauthenticated: false,
+  }),
+}))
+
 const existing: ApiToken = {
   id: 't1',
   name: 'Grafana',
@@ -33,7 +43,10 @@ function renderCard() {
 }
 
 describe('ApiTokensCard', () => {
-  afterEach(() => vi.clearAllMocks())
+  afterEach(() => {
+    vi.clearAllMocks()
+    session.role = 'viewer'
+  })
 
   it('lists the tokens, creates one shown once and revokes one', async () => {
     vi.mocked(listApiTokens).mockResolvedValue({ tokens: [existing], scopes: [] })
@@ -69,5 +82,41 @@ describe('ApiTokensCard', () => {
 
     await user.click(screen.getByRole('button', { name: 'Révoquer le jeton Grafana' }))
     await waitFor(() => expect(revokeApiToken).toHaveBeenCalledWith('t1'))
+  })
+
+  it('offers the action scopes to an operator only', async () => {
+    vi.mocked(listApiTokens).mockResolvedValue({ tokens: [], scopes: [] })
+    vi.mocked(createApiToken).mockResolvedValue({
+      token: 'hlm_secret-value',
+      apiToken: { ...existing, id: 't3', scopes: ['containers:operate'] },
+    })
+    const user = userEvent.setup()
+    renderCard()
+    await user.click(await screen.findByRole('button', { name: 'Nouveau jeton' }))
+    expect(screen.queryByLabelText('Agir sur les conteneurs')).not.toBeInTheDocument()
+  })
+
+  it('creates an action token for an operator', async () => {
+    session.role = 'operator'
+    vi.mocked(listApiTokens).mockResolvedValue({ tokens: [], scopes: [] })
+    vi.mocked(createApiToken).mockResolvedValue({
+      token: 'hlm_secret-value',
+      apiToken: { ...existing, id: 't3', scopes: ['containers:operate'] },
+    })
+    const user = userEvent.setup()
+    renderCard()
+    await user.click(await screen.findByRole('button', { name: 'Nouveau jeton' }))
+    expect(screen.getByText(/inscrit au journal d'audit/)).toBeInTheDocument()
+    await user.type(screen.getByLabelText('Nom'), 'Home Assistant')
+    await user.click(screen.getByLabelText('Métriques et synthèse'))
+    await user.click(screen.getByLabelText('Agir sur les conteneurs'))
+    await user.click(screen.getByRole('button', { name: 'Créer le jeton' }))
+    await waitFor(() =>
+      expect(createApiToken).toHaveBeenCalledWith({
+        name: 'Home Assistant',
+        scopes: ['containers:operate'],
+        expiresInDays: 90,
+      }),
+    )
   })
 })

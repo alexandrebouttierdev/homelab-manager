@@ -125,10 +125,10 @@ function TokenForm({ model }: { model: ApiTokensModel }) {
       </div>
       <fieldset className="min-w-0">
         <legend className="mb-1.5 font-mono text-[10px] uppercase tracking-wider text-text-secondary">
-          Portées (lecture seule)
+          Portées en lecture
         </legend>
         <div className="flex flex-wrap gap-x-4 gap-y-1.5">
-          {model.scopeOptions.map((option) => (
+          {model.readScopes.map((option) => (
             <label
               key={option.value}
               className="flex items-center gap-1.5 text-xs text-text-secondary"
@@ -138,6 +138,28 @@ function TokenForm({ model }: { model: ApiTokensModel }) {
             </label>
           ))}
         </div>
+        {model.actionScopes.length > 0 && (
+          <>
+            <p className="mb-1.5 mt-3 font-mono text-[10px] uppercase tracking-wider text-text-secondary">
+              Portées d'action
+            </p>
+            <div className="flex flex-wrap gap-x-4 gap-y-1.5">
+              {model.actionScopes.map((option) => (
+                <label
+                  key={option.value}
+                  className="flex items-center gap-1.5 text-xs text-text-secondary"
+                >
+                  <input type="checkbox" value={option.value} {...model.register('scopes')} />
+                  {option.label}
+                </label>
+              ))}
+            </div>
+            <p className="mt-1 text-[11px] text-text-muted">
+              Un jeton d'action démarre, arrête ou redémarre ce que votre rôle permet ; chaque usage
+              est inscrit au journal d'audit. Ne le confiez qu'à un outil de confiance.
+            </p>
+          </>
+        )}
         {model.errors.scopes && (
           <p className="mt-1 text-[11px] text-danger">{model.errors.scopes.message}</p>
         )}

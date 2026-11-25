@@ -43,6 +43,15 @@ func (u *AuditUsecase) Export(ctx context.Context, filter domain.AuditFilter) ([
 	return u.reader.ListAudit(ctx, filter)
 }
 
+// RecordTokenAction traces an action requested with an API token, before
+// it runs: the audit of the action itself follows with the same request id.
+func (u *AuditUsecase) RecordTokenAction(ctx context.Context, actor domain.User, token domain.APIToken, requestID string) error {
+	return u.recorder.RecordAudit(ctx, domain.AuditEntry{
+		Actor: actor.Username, TargetType: "api_token", TargetID: token.ID.String(),
+		Action: "act", RequestID: requestID, Outcome: domain.AuditRequested,
+	})
+}
+
 // RecordDenied traces a request refused because of the role of its account.
 func (u *AuditUsecase) RecordDenied(ctx context.Context, actor domain.User, method, path, requestID string) error {
 	route := method + " " + path

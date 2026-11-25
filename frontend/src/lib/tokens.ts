@@ -1,5 +1,7 @@
 import type { BadgeTone } from '../components/ui/Badge'
+import type { Role } from './api/auth'
 import type { ApiToken, TokenScope } from './api/tokens'
+import { canManageContainers, canManageServices } from './roles'
 
 const scopeLabels: Record<TokenScope, string> = {
   'metrics:read': 'Métriques et synthèse',
@@ -7,11 +9,28 @@ const scopeLabels: Record<TokenScope, string> = {
   'events:read': 'Événements',
   'services:read': 'Services système',
   'backups:read': 'Sauvegardes',
+  'services:operate': 'Agir sur les services',
+  'containers:operate': 'Agir sur les conteneurs',
 }
 
-export const tokenScopeOptions: ReadonlyArray<{ value: TokenScope; label: string }> = (
-  Object.keys(scopeLabels) as TokenScope[]
-).map((value) => ({ value, label: scopeLabels[value] }))
+/** Action scopes (D-4) and the role check that offers them; the server checks again. */
+const actionScopes: Partial<Record<TokenScope, (role: Role | undefined) => boolean>> = {
+  'services:operate': canManageServices,
+  'containers:operate': canManageContainers,
+}
+
+export function isActionScope(scope: TokenScope): boolean {
+  return scope in actionScopes
+}
+
+/** Scopes offered to the role: read scopes always, action scopes if the role may act. */
+export function tokenScopeOptions(
+  role: Role | undefined,
+): Array<{ value: TokenScope; label: string; action: boolean }> {
+  return (Object.keys(scopeLabels) as TokenScope[])
+    .filter((value) => actionScopes[value]?.(role) ?? true)
+    .map((value) => ({ value, label: scopeLabels[value], action: isActionScope(value) }))
+}
 
 export function tokenScopeLabel(scope: TokenScope): string {
   return scopeLabels[scope]

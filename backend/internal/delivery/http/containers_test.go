@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"sync"
 	"testing"
@@ -162,5 +163,92 @@ func TestTokensCannotReadContainerLogs(t *testing.T) {
 	}
 	if response := callWithToken(router, http.MethodGet, "/api/v1/containers/"+id+"/logs", token); response.Code != http.StatusForbidden {
 		t.Fatalf("logs by token = %d", response.Code)
+	}
+}
+
+func callWithTokenBody(handler http.Handler, method, path, body, token string) *httptest.ResponseRecorder {
+	request := httptest.NewRequest(method, path, strings.NewReader(body))
+	request.RemoteAddr = testClientAddress + ":4000"
+	request.Header.Set("Authorization", "Bearer "+token)
+	request.Header.Set("Content-Type", "application/json")
+	recorder := httptest.NewRecorder()
+	handler.ServeHTTP(recorder, request)
+	return recorder
+}
+
+// TestActionScopesOfAPITokens covers decision D-4: a token acts only on
+// the routes of its action scopes, within the role of its account, and
+// each use is audited with the token.
+func TestActionScopesOfAPITokens(t *testing.T) {
+	router, docker, id, admin := newContainersRouter(t, true)
+	viewer := signInWithRole(t, router, admin, "victor", "viewer")
+	refused := call(router, http.MethodPost, "/api/v1/auth/tokens", `{"name":"ha","scopes":["containers:operate"],"expiresInDays":30}`, viewer)
+	if refused.Code != http.StatusForbidden || !strings.Contains(refused.Body.String(), "TOKEN_SCOPE_NOT_ALLOWED") {
+		t.Fatalf("viewer action token = %d %s", refused.Code, refused.Body)
+	}
+
+	acting, tokenID := createToken(t, router, admin, `{"name":"ha","scopes":["containers:operate"],"expiresInDays":30}`)
+	reading, _ := createToken(t, router, admin, `{"name":"grafana","scopes":["containers:read","services:read"],"expiresInDays":30}`)
+	path := "/api/v1/containers/" + id + "/actions"
+	if response := callWithTokenBody(router, http.MethodPost, path, `{"action":"restart"}`, reading); response.Code != http.StatusForbidden {
+		t.Fatalf("read-only token action = %d", response.Code)
+	}
+	if response := callWithTokenBody(router, http.MethodPost, "/api/v1/system/units/nginx.service/actions", `{"action":"restart"}`, acting); response.Code != http.StatusForbidden {
+		t.Fatalf("action outside the scope = %d", response.Code)
+	}
+	if response := callWithTokenBody(router, http.MethodPost, "/api/v1/users", `{}`, acting); response.Code != http.StatusForbidden {
+		t.Fatalf("other POST = %d", response.Code)
+	}
+	if response := callWithTokenBody(router, http.MethodPost, path, `{"action":"restart"}`, acting); response.Code != http.StatusAccepted {
+		t.Fatalf("token action = %d %s", response.Code, response.Body)
+	}
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		last := callWithToken(router, http.MethodGet, path+"/last", acting)
+		if last.Code == http.StatusOK && strings.Contains(last.Body.String(), `"state":"succeeded"`) {
+			break
+		}
+		if time.Now().After(deadline) {
+			t.Fatalf("last by token = %d %s", last.Code, last.Body)
+		}
+		time.Sleep(5 * time.Millisecond)
+	}
+	if response := callWithToken(router, http.MethodGet, "/api/v1/containers/"+id, acting); response.Code != http.StatusForbidden {
+		t.Fatalf("an action scope reads the container = %d", response.Code)
+	}
+	docker.mu.Lock()
+	calls := len(docker.calls)
+	docker.mu.Unlock()
+	if calls != 1 {
+		t.Fatalf("calls = %d", calls)
+	}
+	audit := call(router, http.MethodGet, "/api/v1/audit?targetType=api_token", "", admin)
+	if audit.Code != http.StatusOK || !strings.Contains(audit.Body.String(), `"targetId":"`+tokenID+`","action":"act"`) {
+		t.Fatalf("audit = %d %s", audit.Code, audit.Body)
+	}
+}
+
+// TestActionTokenFollowsTheRoleOfItsAccount: a token keeps the rights of
+// its account at each use, not those of its creation.
+func TestActionTokenFollowsTheRoleOfItsAccount(t *testing.T) {
+	router, _, id, admin := newContainersRouter(t, true)
+	operator := signInWithRole(t, router, admin, "olivia", "operator")
+	token, _ := createToken(t, router, operator, `{"name":"ha","scopes":["containers:operate"],"expiresInDays":30}`)
+	users := call(router, http.MethodGet, "/api/v1/users", "", admin)
+	var list struct {
+		Users []struct{ ID, Username string } `json:"users"`
+	}
+	if err := json.Unmarshal(users.Body.Bytes(), &list); err != nil {
+		t.Fatal(err)
+	}
+	for _, user := range list.Users {
+		if user.Username == "olivia" {
+			if response := call(router, http.MethodPatch, "/api/v1/users/"+user.ID, `{"role":"viewer"}`, admin); response.Code != http.StatusOK {
+				t.Fatalf("demote = %d %s", response.Code, response.Body)
+			}
+		}
+	}
+	if response := callWithTokenBody(router, http.MethodPost, "/api/v1/containers/"+id+"/actions", `{"action":"stop"}`, token); response.Code != http.StatusForbidden {
+		t.Fatalf("token of a demoted account = %d %s", response.Code, response.Body)
 	}
 }

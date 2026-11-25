@@ -269,13 +269,20 @@ Un opérateur ou un administrateur pose un **silence** depuis une alerte (sur sa
 
 ### Jetons d'API
 
-Dans les Paramètres, carte « Jetons d'API », chaque compte crée des jetons en lecture seule pour ses scripts ou tableaux de bord (Home Assistant, Grafana…) : nom, portées (métriques, conteneurs, événements, services, sauvegardes) et validité de 1 à 365 jours. Le jeton (`hlm_…`) s'affiche une seule fois ; il s'utilise ainsi :
+Dans les Paramètres, carte « Jetons d'API », chaque compte crée des jetons pour ses scripts ou tableaux de bord (Home Assistant, Grafana…) : nom, portées en lecture (métriques, conteneurs, événements, services, sauvegardes), portées d'action pour les opérateurs et administrateurs (agir sur les services de la liste blanche, agir sur les conteneurs) et validité de 1 à 365 jours. Le jeton (`hlm_…`) s'affiche une seule fois ; il s'utilise ainsi :
 
 ```bash
 curl -H "Authorization: Bearer hlm_…" https://homelab.lan:8080/api/v1/dashboard
 ```
 
-Un jeton ne permet aucune action ni l'accès aux comptes, aux paramètres ou à l'audit, et cesse de fonctionner à son expiration, à sa révocation ou si le compte est désactivé. Un administrateur voit et révoque les jetons de tous les comptes.
+Un jeton d'action redémarre par exemple un service depuis Home Assistant :
+
+```bash
+curl -X POST -H "Authorization: Bearer hlm_…" -H "Content-Type: application/json" \
+  -d '{"action":"restart"}' https://homelab.lan:8080/api/v1/system/units/nginx.service/actions
+```
+
+Il n'agit que dans les limites du rôle de son compte, et chaque action est inscrite au journal d'audit avec le jeton. Un jeton ne donne jamais accès aux comptes, aux paramètres ou à l'audit, et cesse de fonctionner à son expiration, à sa révocation ou si le compte est désactivé. Un administrateur voit et révoque les jetons de tous les comptes.
 
 ### Double authentification
 
@@ -429,7 +436,7 @@ La première release est `v2.3.0`, alignée sur la [spécification produit](docs
 
 ## État et limites connues
 
-- **Livré** : supervision système et Docker, historique, événements, comptes et rôles, sessions, politique de sécurité, journal d'audit, double authentification (TOTP, passkeys et clés FIDO2, codes de secours), jetons d'API en lecture seule, journaux système, services système avec actions en liste blanche (phase 5), journaux des conteneurs et leurs actions optionnelles (D-5), sauvegardes restic avec diff et dépôt de copie (phase 6), tâches planifiées en lecture (phase 7), alertes avec silences et notifications (phase 4), vulnérabilités des paquets avec Grype (module V ; Debian, Ubuntu, Alpine, Fedora, RHEL, Rocky Linux et AlmaLinux 9 et suivantes), redémarrage et extinction (optionnels).
+- **Livré** : supervision système et Docker, historique, événements, comptes et rôles, sessions, politique de sécurité, journal d'audit, double authentification (TOTP, passkeys et clés FIDO2, codes de secours), jetons d'API en lecture et en action (D-4), journaux système, services système avec actions en liste blanche (phase 5), journaux des conteneurs et leurs actions optionnelles (D-5), sauvegardes restic avec diff et dépôt de copie (phase 6), tâches planifiées en lecture (phase 7), alertes avec silences et notifications (phase 4), vulnérabilités des paquets avec Grype (module V ; Debian, Ubuntu, Alpine, Fedora, RHEL, Rocky Linux et AlmaLinux 9 et suivantes), redémarrage et extinction (optionnels).
 - **Connexion par passkey seule** : désactivée par défaut ; un administrateur l'autorise dans Utilisateurs → Politique de sécurité (décision D-14 de [docs/SPEC_ADMINISTRATION.md](docs/SPEC_ADMINISTRATION.md)).
 - Historiques bruts ou agrégés, 2 000 points au plus par requête ; l'interface choisit le pas selon la période.
 - À l'intervalle par défaut (10 s), la base croît d'environ 300 Mo par jour jusqu'à la rétention : ≈ 2 Go pour 7 jours.

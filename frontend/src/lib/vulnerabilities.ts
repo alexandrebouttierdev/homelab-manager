@@ -9,7 +9,7 @@ import type {
   VulnerabilitySummary,
   VulnSeverity,
 } from './api/vulnerabilities'
-import { formatDateTime } from './format'
+import { formatCount, formatDateTime } from './format'
 
 /** Severities, most severe first (API_CONTRACTS.md § 4.9). */
 export const vulnSeverities: readonly VulnSeverity[] = [
@@ -207,6 +207,7 @@ export function publicAdvisory(finding: Pick<Finding, 'dataSource' | 'urls'>): {
 
 type PackageManager = {
   label: string
+  tool: string
   upgrade: (packages: string[]) => string
   fullUpgrade: string
   isKernel: (name: string) => boolean
@@ -215,6 +216,7 @@ type PackageManager = {
 const packageManagers: Record<string, PackageManager> = {
   deb: {
     label: 'Debian / Ubuntu (apt)',
+    tool: 'apt',
     upgrade: (packages) =>
       `sudo apt update && sudo apt install --only-upgrade ${packages.join(' ')}`,
     fullUpgrade: 'sudo apt update && sudo apt upgrade',
@@ -222,12 +224,14 @@ const packageManagers: Record<string, PackageManager> = {
   },
   apk: {
     label: 'Alpine (apk)',
+    tool: 'apk',
     upgrade: (packages) => `sudo apk update && sudo apk upgrade ${packages.join(' ')}`,
     fullUpgrade: 'sudo apk update && sudo apk upgrade',
     isKernel: (name) => name.startsWith('linux-'),
   },
   rpm: {
     label: 'Fedora / RHEL (dnf)',
+    tool: 'dnf',
     upgrade: (packages) => `sudo dnf upgrade --refresh ${packages.join(' ')}`,
     fullUpgrade: 'sudo dnf upgrade --refresh',
     isKernel: (name) => name === 'kernel' || name.startsWith('kernel-'),
@@ -267,6 +271,27 @@ export type Remediation = {
 
 const genericSummary = 'Mettre à jour les paquets du système, puis relancer une analyse.'
 
+const verify = 'puis relancer une analyse pour vérifier.'
+const regularFollowUp = `Relancer les services qui utilisent ce paquet (needrestart sur Debian), ou redémarrer la machine, ${verify}`
+const kernelFollowUps: Record<string, string> = {
+  deb: `Redémarrer la machine pour charger le nouveau noyau, retirer les anciens noyaux (sudo apt autoremove sur Debian/Ubuntu, sudo dnf remove --oldinstallonly sur Fedora/RHEL), ${verify}`,
+  rpm: `Redémarrer la machine pour charger le nouveau noyau, retirer les anciens noyaux (sudo apt autoremove sur Debian/Ubuntu, sudo dnf remove --oldinstallonly sur Fedora/RHEL), ${verify}`,
+  apk: `Redémarrer la machine pour charger le nouveau noyau, ${verify}`,
+}
+const partialFollowUp = `Redémarrer la machine si le noyau a été mis à jour, sinon relancer les services concernés, ${verify}`
+
+function followUpFor(packageType: string, kernel: boolean): string {
+  return kernel ? (kernelFollowUps[packageType] ?? regularFollowUp) : regularFollowUp
+}
+
+/**
+ * Debian kernel packages carry their version in their name: a fix is a new
+ * package pulled by the metapackage, so only a full upgrade installs it.
+ */
+function isVersionedDebKernel(packageType: string, name: string): boolean {
+  return packageType === 'deb' && /^linux-image-\d/.test(name)
+}
+
 /** How to fix a finding; the Manager never runs it, the user does. */
 export function remediationFor(
   finding: Pick<Finding, 'package' | 'packageType' | 'fixState' | 'fixedVersions'>,
@@ -288,16 +313,19 @@ export function remediationFor(
     case 'unknown':
       return { ...none, kind: 'unknown', summary: genericSummary }
     case 'fixed': {
-      const command = upgradeCommand(finding.packageType, [finding.package])
+      const command = isVersionedDebKernel(finding.packageType, finding.package)
+        ? fullUpgradeCommand(finding.packageType)
+        : upgradeCommand(finding.packageType, [finding.package])
       if (!command) return { ...none, kind: 'generic', summary: genericSummary }
       return {
         kind: 'command',
         summary: 'Mettre à jour le paquet devrait corriger cette vulnérabilité.',
         command,
         target: finding.fixedVersions[0] ?? null,
-        followUp: isKernelPackage(finding.packageType, finding.package)
-          ? 'Redémarrer la machine pour charger le nouveau noyau.'
-          : 'Relancer les services qui utilisent ce paquet (needrestart sur Debian), ou redémarrer la machine.',
+        followUp: followUpFor(
+          finding.packageType,
+          isKernelPackage(finding.packageType, finding.package),
+        ),
       }
     }
   }
@@ -305,11 +333,16 @@ export function remediationFor(
 
 export type FixAllCommand = {
   packageType: string
+  /** Identifies the command for the copy feedback. */
+  slot: string
   label: string
+  copyLabel: string
   command: string
-  packages: number
+  /** "3 paquets", or null when the page is partial. */
+  packagesLabel: string | null
   complete: boolean
   note: string | null
+  followUp: string
 }
 
 /**
@@ -329,19 +362,38 @@ export function fixAllCommands(page: Pick<FindingPage, 'findings' | 'total'>): F
   for (const [packageType, names] of byType) {
     const manager = managerFor(packageType)
     if (!manager) continue
-    const command = complete
-      ? upgradeCommand(packageType, [...names])
-      : fullUpgradeCommand(packageType)
+    const list = [...names]
+    const hasKernel = list.some((name) => isKernelPackage(packageType, name))
+    let command: string | null
+    let note: string | null = null
+    if (!complete) {
+      command = fullUpgradeCommand(packageType)
+      note = `Plus de 500 vulnérabilités corrigeables (${page.total}) : mise à jour complète du système.`
+    } else if (list.some((name) => isVersionedDebKernel(packageType, name))) {
+      command = fullUpgradeCommand(packageType)
+      note =
+        'Le noyau Debian change de nom à chaque version : il est mis à jour par la mise à jour complète.'
+    } else {
+      command = upgradeCommand(packageType, list)
+      if (!command) {
+        command = fullUpgradeCommand(packageType)
+        note =
+          'Un nom de paquet inattendu empêche une commande ciblée : mise à jour complète du système.'
+      }
+    }
     if (!command) continue
     result.push({
       packageType,
+      slot: `fixAll:${packageType}`,
       label: manager.label,
+      copyLabel: `Copier la commande ${manager.tool}`,
       command,
-      packages: names.size,
+      packagesLabel: complete
+        ? `${formatCount(names.size)} paquet${names.size > 1 ? 's' : ''}`
+        : null,
       complete,
-      note: complete
-        ? null
-        : `La liste affichée ne couvre pas les ${page.total} constats : mise à jour complète proposée.`,
+      note,
+      followUp: complete ? followUpFor(packageType, hasKernel) : partialFollowUp,
     })
   }
   return result
@@ -383,6 +435,8 @@ export type FindingDetail = FindingRow & {
   references: string[]
   lastSeen: string
   remediation: Remediation
+  slot: string
+  copyLabel: string
 }
 
 export function toFindingDetail(finding: Finding): FindingDetail {
@@ -394,6 +448,8 @@ export function toFindingDetail(finding: Finding): FindingDetail {
     references: finding.urls,
     lastSeen: formatDateTime(finding.lastSeenAt),
     remediation: remediationFor(finding),
+    slot: `detail:${finding.id}`,
+    copyLabel: `Copier la commande de ${finding.vulnerabilityId}`,
   }
 }
 

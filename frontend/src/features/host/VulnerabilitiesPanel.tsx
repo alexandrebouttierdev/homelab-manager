@@ -118,9 +118,13 @@ function ScanCard({ page }: { page: VulnerabilitiesPanelModel }) {
 
 function CommandLine({
   command,
+  slot,
+  copyLabel,
   copy,
 }: {
   command: string
+  slot: string
+  copyLabel: string
   copy: VulnerabilitiesPanelModel['copy']
 }) {
   return (
@@ -131,8 +135,9 @@ function CommandLine({
       {copy.available && (
         <Button
           size="sm"
+          aria-label={copyLabel}
           icon={<Copy className="h-3.5 w-3.5" />}
-          onClick={() => copy.copy(command)}
+          onClick={() => copy.copy(slot, command)}
         >
           Copier
         </Button>
@@ -141,21 +146,15 @@ function CommandLine({
   )
 }
 
-function CopyFeedback({
-  command,
-  copy,
-}: {
-  command: string
-  copy: VulnerabilitiesPanelModel['copy']
-}) {
+function CopyFeedback({ slot, copy }: { slot: string; copy: VulnerabilitiesPanelModel['copy'] }) {
   return (
     <>
-      {copy.copied !== null && copy.copied === command && (
+      {copy.copiedSlot === slot && (
         <p className="text-xs text-success" role="status">
           Commande copiée
         </p>
       )}
-      {copy.error && (
+      {copy.errorSlot === slot && (
         <p className="text-xs text-danger" role="alert">
           {copy.error}
         </p>
@@ -165,26 +164,40 @@ function CopyFeedback({
 }
 
 function FixAllCard({ page }: { page: VulnerabilitiesPanelModel }) {
+  if (page.fixAll.state.isError) {
+    return (
+      <ErrorState
+        title="Commandes de correction indisponibles"
+        message={page.fixAll.state.error.message}
+        onRetry={page.fixAll.state.refetch}
+      />
+    )
+  }
   if (page.fixAll.commands.length === 0) return null
   return (
     <section aria-label="Tout corriger">
       <Card>
         <CardHeader
           title="Tout corriger"
-          subtitle="Le Manager n’exécute rien : lancer la commande sur la machine, en root (ou avec sudo)."
+          subtitle="Le Manager n’exécute rien : lancer la commande sur la machine, en root (ou avec sudo), puis relancer une analyse pour vérifier."
         />
         <CardBody className="space-y-3">
           {page.fixAll.commands.map((entry) => (
-            <div key={entry.packageType} className="space-y-1">
+            <div key={entry.slot} className="space-y-1">
               <p className="text-xs text-text-secondary">
-                {entry.label} · {formatCount(entry.packages)} paquet{entry.packages > 1 ? 's' : ''}
+                {entry.label}
+                {entry.packagesLabel && ` · ${entry.packagesLabel}`}
               </p>
-              <CommandLine command={entry.command} copy={page.copy} />
+              <CommandLine
+                command={entry.command}
+                slot={entry.slot}
+                copyLabel={entry.copyLabel}
+                copy={page.copy}
+              />
               {entry.note && <p className="text-[11px] text-text-muted">{entry.note}</p>}
+              <p className="text-xs text-text-secondary">{entry.followUp}</p>
+              <CopyFeedback slot={entry.slot} copy={page.copy} />
             </div>
-          ))}
-          {page.fixAll.commands.map((entry) => (
-            <CopyFeedback key={entry.packageType} command={entry.command} copy={page.copy} />
           ))}
         </CardBody>
       </Card>
@@ -385,7 +398,12 @@ function FindingDetailCard({ page }: { page: VulnerabilitiesPanelModel }) {
         <h4 className="font-medium text-text-primary">Comment la corriger</h4>
         <p className="text-text-secondary">{detail.remediation.summary}</p>
         {detail.remediation.command && (
-          <CommandLine command={detail.remediation.command} copy={page.copy} />
+          <CommandLine
+            command={detail.remediation.command}
+            slot={detail.slot}
+            copyLabel={detail.copyLabel}
+            copy={page.copy}
+          />
         )}
         {detail.remediation.target && (
           <p className="text-text-secondary">Version visée : {detail.remediation.target}</p>
@@ -398,9 +416,7 @@ function FindingDetailCard({ page }: { page: VulnerabilitiesPanelModel }) {
             Le Manager n’exécute rien : lancer la commande sur la machine, en root (ou avec sudo).
           </p>
         )}
-        {detail.remediation.command && (
-          <CopyFeedback command={detail.remediation.command} copy={page.copy} />
-        )}
+        {detail.remediation.command && <CopyFeedback slot={detail.slot} copy={page.copy} />}
       </section>
       {detail.advisory && (
         <a

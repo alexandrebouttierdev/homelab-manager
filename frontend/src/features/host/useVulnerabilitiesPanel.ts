@@ -75,19 +75,20 @@ export function useVulnerabilitiesPanel() {
   const fixablePage = fixableQueryResult.data
   const fixAll = useMemo(() => (fixablePage ? fixAllCommands(fixablePage) : []), [fixablePage])
 
-  const [copied, setCopied] = useState<string | null>(null)
-  const [copyError, setCopyError] = useState<string | null>(null)
+  // Copy feedback is scoped to the command that was copied (its slot).
+  const [copiedSlot, setCopiedSlot] = useState<string | null>(null)
+  const [errorSlot, setErrorSlot] = useState<string | null>(null)
   const clipboard = typeof navigator !== 'undefined' ? navigator.clipboard : undefined
-  const copy = (text: string) => {
+  const copy = (slot: string, text: string) => {
     if (!clipboard) return
     clipboard.writeText(text).then(
       () => {
-        setCopyError(null)
-        setCopied(text)
+        setErrorSlot(null)
+        setCopiedSlot(slot)
       },
       () => {
-        setCopied(null)
-        setCopyError('Copie impossible : sélectionner la commande à la main.')
+        setCopiedSlot(null)
+        setErrorSlot(slot)
       },
     )
   }
@@ -158,9 +159,19 @@ export function useVulnerabilitiesPanel() {
       next: () => setOffset(offset + pageSize),
     },
     selectedID,
-    select: (id: string) => setSelectedID(id === selectedID ? null : id),
+    select: (id: string) => {
+      setSelectedID(id === selectedID ? null : id)
+      setCopiedSlot(null)
+      setErrorSlot(null)
+    },
     fixAll: { state: loadState(fixableQueryResult), commands: fixAll },
-    copy: { available: clipboard !== undefined, copy, copied, error: copyError },
+    copy: {
+      available: clipboard !== undefined,
+      copy,
+      copiedSlot,
+      errorSlot,
+      error: 'Copie impossible : sélectionner la commande à la main.',
+    },
     detail: selected ? toFindingDetail(selected) : null,
   }
 }

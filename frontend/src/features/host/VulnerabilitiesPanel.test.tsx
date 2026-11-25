@@ -202,7 +202,13 @@ describe('VulnerabilitiesPanel remediation', () => {
       ),
     )
   }
-  afterEach(() => vi.clearAllMocks())
+  const clipboardDescriptor = Object.getOwnPropertyDescriptor(navigator, 'clipboard')
+  afterEach(() => {
+    vi.restoreAllMocks()
+    vi.clearAllMocks()
+    if (clipboardDescriptor) Object.defineProperty(navigator, 'clipboard', clipboardDescriptor)
+    else Reflect.deleteProperty(navigator, 'clipboard')
+  })
 
   it('shows how to fix a fixed finding', async () => {
     mockFindings([openssl])
@@ -241,15 +247,55 @@ describe('VulnerabilitiesPanel remediation', () => {
     expect(screen.queryByRole('region', { name: 'Tout corriger' })).not.toBeInTheDocument()
   })
 
-  it('copies a command and confirms it', async () => {
+  it('says what to do after the fix-all command', async () => {
+    mockFindings([openssl])
+    renderWith(<VulnerabilitiesPanel />)
+    const card = await screen.findByRole('region', { name: 'Tout corriger' })
+    expect(
+      within(card).getByText(/^Relancer les services .* relancer une analyse pour vérifier\.$/),
+    ).toBeInTheDocument()
+  })
+
+  it('shows the package count only for a complete list', async () => {
+    mockFindings([openssl])
+    renderWith(<VulnerabilitiesPanel />)
+    const card = await screen.findByRole('region', { name: 'Tout corriger' })
+    expect(within(card).getByText(/1 paquet$/)).toBeInTheDocument()
+  })
+
+  it('copies a command, confirms it and scopes the confirmation', async () => {
     mockFindings([openssl])
     const user = userEvent.setup()
     const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue(undefined)
     renderWith(<VulnerabilitiesPanel />)
     const card = await screen.findByRole('region', { name: 'Tout corriger' })
-    await user.click(within(card).getByRole('button', { name: 'Copier' }))
+    await user.click(within(card).getByRole('button', { name: 'Copier la commande apt' }))
     expect(writeText).toHaveBeenCalledWith(command)
-    expect(await screen.findByRole('status')).toHaveTextContent('Commande copiée')
+    expect(await within(card).findByRole('status')).toHaveTextContent('Commande copiée')
+
+    await user.click(screen.getByRole('button', { name: 'CVE-2026-1000' }))
+    const region = screen.getByRole('region', { name: 'Comment la corriger' })
+    expect(screen.queryByRole('status')).not.toBeInTheDocument()
+    await user.click(
+      within(region).getByRole('button', { name: 'Copier la commande de CVE-2026-1000' }),
+    )
+    expect(await within(region).findByRole('status')).toHaveTextContent('Commande copiée')
+    expect(within(card).queryByRole('status')).not.toBeInTheDocument()
+  })
+
+  it('shows a copy failure only where it happened', async () => {
+    mockFindings([openssl])
+    const user = userEvent.setup()
+    vi.spyOn(navigator.clipboard, 'writeText').mockRejectedValue(new Error('denied'))
+    renderWith(<VulnerabilitiesPanel />)
+    await user.click(await screen.findByRole('button', { name: 'CVE-2026-1000' }))
+    const region = screen.getByRole('region', { name: 'Comment la corriger' })
+    await user.click(
+      within(region).getByRole('button', { name: 'Copier la commande de CVE-2026-1000' }),
+    )
+    expect(await within(region).findByRole('alert')).toHaveTextContent('Copie impossible')
+    const card = screen.getByRole('region', { name: 'Tout corriger' })
+    expect(within(card).queryByRole('alert')).not.toBeInTheDocument()
   })
 
   it('has no copy button without a clipboard', async () => {
@@ -258,7 +304,21 @@ describe('VulnerabilitiesPanel remediation', () => {
     Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true })
     renderWith(<VulnerabilitiesPanel />)
     await screen.findByRole('region', { name: 'Tout corriger' })
-    expect(screen.queryByRole('button', { name: 'Copier' })).not.toBeInTheDocument()
+    expect(screen.queryByRole('button', { name: /Copier/ })).not.toBeInTheDocument()
+  })
+
+  it('reports a failure to load the fix-all commands, with a retry', async () => {
+    mockFindings([openssl])
+    vi.mocked(listFindings).mockImplementation((query) =>
+      query.fixableOnly && query.limit === 500
+        ? Promise.reject(new Error('Chargement impossible'))
+        : Promise.resolve({ findings: [openssl, findings[1]], total: 2, limit: 50, offset: 0 }),
+    )
+    renderWith(<VulnerabilitiesPanel />)
+    expect(await screen.findByText('Commandes de correction indisponibles')).toBeInTheDocument()
+    expect(screen.getByText('Chargement impossible')).toBeInTheDocument()
+    expect(screen.queryByRole('region', { name: 'Tout corriger' })).not.toBeInTheDocument()
+    expect(screen.getAllByRole('button', { name: 'Réessayer' }).length).toBeGreaterThan(0)
   })
 })
 

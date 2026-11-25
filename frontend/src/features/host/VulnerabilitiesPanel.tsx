@@ -1,4 +1,4 @@
-import { ExternalLink, Search, ShieldAlert, ShieldCheck, ShieldQuestion } from 'lucide-react'
+import { Copy, ExternalLink, Search, ShieldAlert, ShieldCheck, ShieldQuestion } from 'lucide-react'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
 import { Card, CardBody, CardHeader } from '../../components/ui/Card'
@@ -45,6 +45,7 @@ export function VulnerabilitiesPanel() {
           ))}
         </div>
       )}
+      <FixAllCard page={page} />
       <Findings page={page} />
     </div>
   )
@@ -112,6 +113,82 @@ function ScanCard({ page }: { page: VulnerabilitiesPanelModel }) {
         )}
       </CardBody>
     </Card>
+  )
+}
+
+function CommandLine({
+  command,
+  copy,
+}: {
+  command: string
+  copy: VulnerabilitiesPanelModel['copy']
+}) {
+  return (
+    <div className="flex items-start gap-2">
+      <code className="min-w-0 flex-1 select-all break-all rounded-md border border-line bg-card px-2 py-1.5 font-mono text-[11px] text-text-primary">
+        {command}
+      </code>
+      {copy.available && (
+        <Button
+          size="sm"
+          icon={<Copy className="h-3.5 w-3.5" />}
+          onClick={() => copy.copy(command)}
+        >
+          Copier
+        </Button>
+      )}
+    </div>
+  )
+}
+
+function CopyFeedback({
+  command,
+  copy,
+}: {
+  command: string
+  copy: VulnerabilitiesPanelModel['copy']
+}) {
+  return (
+    <>
+      {copy.copied !== null && copy.copied === command && (
+        <p className="text-xs text-success" role="status">
+          Commande copiée
+        </p>
+      )}
+      {copy.error && (
+        <p className="text-xs text-danger" role="alert">
+          {copy.error}
+        </p>
+      )}
+    </>
+  )
+}
+
+function FixAllCard({ page }: { page: VulnerabilitiesPanelModel }) {
+  if (page.fixAll.commands.length === 0) return null
+  return (
+    <section aria-label="Tout corriger">
+      <Card>
+        <CardHeader
+          title="Tout corriger"
+          subtitle="Le Manager n’exécute rien : lancer la commande sur la machine, en root (ou avec sudo)."
+        />
+        <CardBody className="space-y-3">
+          {page.fixAll.commands.map((entry) => (
+            <div key={entry.packageType} className="space-y-1">
+              <p className="text-xs text-text-secondary">
+                {entry.label} · {formatCount(entry.packages)} paquet{entry.packages > 1 ? 's' : ''}
+              </p>
+              <CommandLine command={entry.command} copy={page.copy} />
+              {entry.note && <p className="text-[11px] text-text-muted">{entry.note}</p>}
+            </div>
+          ))}
+          {page.fixAll.commands.map((entry) => (
+            <CopyFeedback key={entry.packageType} command={entry.command} copy={page.copy} />
+          ))}
+        </CardBody>
+      </Card>
+    </section>
   )
 }
 
@@ -304,6 +381,27 @@ function FindingDetailCard({ page }: { page: VulnerabilitiesPanelModel }) {
           <dd className="inline">{detail.lastSeen}</dd>
         </div>
       </dl>
+      <section aria-label="Comment la corriger" className="space-y-1.5">
+        <h4 className="font-medium text-text-primary">Comment la corriger</h4>
+        <p className="text-text-secondary">{detail.remediation.summary}</p>
+        {detail.remediation.command && (
+          <CommandLine command={detail.remediation.command} copy={page.copy} />
+        )}
+        {detail.remediation.target && (
+          <p className="text-text-secondary">Version visée : {detail.remediation.target}</p>
+        )}
+        {detail.remediation.followUp && (
+          <p className="text-text-secondary">{detail.remediation.followUp}</p>
+        )}
+        {detail.remediation.command && (
+          <p className="text-[11px] text-text-muted">
+            Le Manager n’exécute rien : lancer la commande sur la machine, en root (ou avec sudo).
+          </p>
+        )}
+        {detail.remediation.command && (
+          <CopyFeedback command={detail.remediation.command} copy={page.copy} />
+        )}
+      </section>
       {detail.advisory && (
         <a
           href={detail.advisory.url}

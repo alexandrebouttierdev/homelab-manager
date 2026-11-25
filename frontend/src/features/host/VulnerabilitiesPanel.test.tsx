@@ -188,6 +188,80 @@ describe('VulnerabilitiesPanel', () => {
   })
 })
 
+describe('VulnerabilitiesPanel remediation', () => {
+  const openssl: Finding = { ...findings[0], fixedVersions: ['3.5.4-1'] }
+  const command = 'sudo apt update && sudo apt install --only-upgrade openssl'
+
+  function mockFindings(fixable: Finding[]) {
+    vi.mocked(getVulnerabilitySummary).mockResolvedValue(summary({}))
+    vi.mocked(listFindings).mockImplementation((query) =>
+      Promise.resolve(
+        query.fixableOnly && query.limit === 500
+          ? { findings: fixable, total: fixable.length, limit: 500, offset: 0 }
+          : { findings: [openssl, findings[1]], total: 2, limit: 50, offset: 0 },
+      ),
+    )
+  }
+  afterEach(() => vi.clearAllMocks())
+
+  it('shows how to fix a fixed finding', async () => {
+    mockFindings([openssl])
+    const user = userEvent.setup()
+    renderWith(<VulnerabilitiesPanel />)
+    await user.click(await screen.findByRole('button', { name: 'CVE-2026-1000' }))
+    const region = screen.getByRole('region', { name: 'Comment la corriger' })
+    expect(within(region).getByText(command)).toBeInTheDocument()
+    expect(within(region).getByText('Version visée : 3.5.4-1')).toBeInTheDocument()
+  })
+
+  it('shows no command when no fix is published', async () => {
+    mockFindings([])
+    const user = userEvent.setup()
+    renderWith(<VulnerabilitiesPanel />)
+    await user.click(await screen.findByRole('button', { name: 'CVE-2026-2000' }))
+    const region = screen.getByRole('region', { name: 'Comment la corriger' })
+    expect(within(region).getByText(/Aucune correction publiée/)).toBeInTheDocument()
+    expect(region.querySelector('code')).toBeNull()
+  })
+
+  it('offers a fix-all command only when something is fixable', async () => {
+    mockFindings([openssl])
+    renderWith(<VulnerabilitiesPanel />)
+    const card = await screen.findByRole('region', { name: 'Tout corriger' })
+    expect(within(card).getByText(command)).toBeInTheDocument()
+    expect(vi.mocked(listFindings).mock.calls.some(([q]) => q.fixableOnly && q.limit === 500)).toBe(
+      true,
+    )
+  })
+
+  it('hides the fix-all card without fixable findings', async () => {
+    mockFindings([])
+    renderWith(<VulnerabilitiesPanel />)
+    await screen.findByText('CVE-2026-1000')
+    expect(screen.queryByRole('region', { name: 'Tout corriger' })).not.toBeInTheDocument()
+  })
+
+  it('copies a command and confirms it', async () => {
+    mockFindings([openssl])
+    const user = userEvent.setup()
+    const writeText = vi.spyOn(navigator.clipboard, 'writeText').mockResolvedValue(undefined)
+    renderWith(<VulnerabilitiesPanel />)
+    const card = await screen.findByRole('region', { name: 'Tout corriger' })
+    await user.click(within(card).getByRole('button', { name: 'Copier' }))
+    expect(writeText).toHaveBeenCalledWith(command)
+    expect(await screen.findByRole('status')).toHaveTextContent('Commande copiée')
+  })
+
+  it('has no copy button without a clipboard', async () => {
+    mockFindings([openssl])
+    userEvent.setup()
+    Object.defineProperty(navigator, 'clipboard', { value: undefined, configurable: true })
+    renderWith(<VulnerabilitiesPanel />)
+    await screen.findByRole('region', { name: 'Tout corriger' })
+    expect(screen.queryByRole('button', { name: 'Copier' })).not.toBeInTheDocument()
+  })
+})
+
 describe('VulnerabilitiesCard', () => {
   afterEach(() => vi.clearAllMocks())
 

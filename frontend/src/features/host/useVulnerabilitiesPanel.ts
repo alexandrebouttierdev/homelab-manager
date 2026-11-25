@@ -12,6 +12,7 @@ import {
 import { useRefreshInterval } from '../../lib/refresh'
 import { canOperateAlerts } from '../../lib/roles'
 import {
+  fixAllCommands,
   formatScanInterval,
   scanChanges,
   scanStatus,
@@ -25,6 +26,15 @@ import {
 export const vulnerabilitiesQueryKey = ['vulnerabilities'] as const
 
 const pageSize = 50
+/** The fixable findings loaded to build the fix-all commands. */
+const fixableQuery: FindingQuery = {
+  state: 'present',
+  severities: [],
+  fixableOnly: true,
+  search: '',
+  limit: 500,
+  offset: 0,
+}
 /** While a scan runs, its end is looked for every 5 s. */
 const runningRefresh = 5000
 
@@ -58,6 +68,29 @@ export function useVulnerabilitiesPanel() {
     queryKey: [...vulnerabilitiesQueryKey, 'findings', query, lastSuccessID],
     queryFn: () => listFindings(query),
   })
+  const fixableQueryResult = useQuery({
+    queryKey: [...vulnerabilitiesQueryKey, 'fixable', lastSuccessID],
+    queryFn: () => listFindings(fixableQuery),
+  })
+  const fixablePage = fixableQueryResult.data
+  const fixAll = useMemo(() => (fixablePage ? fixAllCommands(fixablePage) : []), [fixablePage])
+
+  const [copied, setCopied] = useState<string | null>(null)
+  const [copyError, setCopyError] = useState<string | null>(null)
+  const clipboard = typeof navigator !== 'undefined' ? navigator.clipboard : undefined
+  const copy = (text: string) => {
+    if (!clipboard) return
+    clipboard.writeText(text).then(
+      () => {
+        setCopyError(null)
+        setCopied(text)
+      },
+      () => {
+        setCopied(null)
+        setCopyError('Copie impossible : sélectionner la commande à la main.')
+      },
+    )
+  }
   const scan = useMutation({
     mutationFn: requestScan,
     onSettled: () => queryClient.invalidateQueries({ queryKey: vulnerabilitiesQueryKey }),
@@ -126,6 +159,8 @@ export function useVulnerabilitiesPanel() {
     },
     selectedID,
     select: (id: string) => setSelectedID(id === selectedID ? null : id),
+    fixAll: { state: loadState(fixableQueryResult), commands: fixAll },
+    copy: { available: clipboard !== undefined, copy, copied, error: copyError },
     detail: selected ? toFindingDetail(selected) : null,
   }
 }

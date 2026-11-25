@@ -62,8 +62,8 @@ Modèle logique d'Ent et SQLite. Il décrit un hôte unique et ses conteneurs lo
 - Distincte des événements, que la rétention purge : un échec n'est signalé qu'une fois, même après un redémarrage du Manager ou la purge de son événement. Elle n'a pas de purge propre, sa taille étant bornée par l'inventaire (2 000 unités au plus).
 
 ### AlertRule
-- `alert_rules` : UUID, nom, type (`host_metric`, `container_metric`, `container_state`, `unit_failed`, `collector`), sévérité (`info`, `warning`, `critical`), `enabled`, `is_default`, `params` (objet JSON des paramètres du type : métrique, labels, opérateur, seuil, conteneur, états, motif d'unité, collecteur, `forSeconds`), `created_at`, `updated_at`.
-- Six règles par défaut insérées par la migration `007` avec des UUID fixes (`6f1c2a10-7a4e-4c4b-9a51-00000000000N`) : modifiables et désactivables, jamais supprimées. 200 règles au plus.
+- `alert_rules` : UUID, nom, type (`host_metric`, `container_metric`, `container_state`, `unit_failed`, `collector`, puis `vulnerabilities` avec la migration `009` et `backup` avec la migration `011`), sévérité (`info`, `warning`, `critical`), `enabled`, `is_default`, `params` (objet JSON des paramètres du type : métrique, labels, opérateur, seuil, conteneur, états, motif d'unité, collecteur, `forSeconds`), `created_at`, `updated_at`.
+- Six règles par défaut insérées par la migration `007`, et une septième (sauvegarde en retard ou en échec) par la migration `011`, avec des UUID fixes (`6f1c2a10-7a4e-4c4b-9a51-00000000000N`) : modifiables et désactivables, jamais supprimées. 200 règles au plus.
 
 ### Alert
 - `alerts` : une ligne par déclenchement d'une règle sur une cible. `rule_id` (sans clé étrangère : l'historique survit à la règle), copie de `rule_name`, `rule_type` et `severity`, `target_key` (clé stable de la cible), `target` (JSON : genre, métrique, labels, conteneur, unité, collecteur), `state` (`firing`, `acknowledged`, `resolved`), `value` et `threshold` (règles de métrique), `observed` (état observé des autres règles), `fired_at`, `acknowledged_at`, `acknowledged_by` (nom du compte), `resolved_at`, `resolution` (`condition_cleared`, `no_data`, `target_gone`, `rule_disabled`, `rule_deleted`, `rule_changed`).
@@ -94,12 +94,21 @@ Modèle logique d'Ent et SQLite. Il décrit un hôte unique et ses conteneurs lo
 
 ### BackupRun
 
-- `backup_runs` (migrations `010`, `012` et `015`) : UUID, `operation` (`init`, `backup`, `forget-prune`, `check`, `restore`, `snapshots`, `unlock`, `diff`, `copy`), `details` (JSON des chiffres d'une restauration, d'une rétention, d'une vérification, d'un diff avec ses 1 000 premiers chemins, ou d'une copie), `origin` (`manual`, `schedule`, `catchup`), `requested_by`, `state` (`running`, `succeeded`, `failed`), `failure`, `message` (erreur de restic bornée), `warning`, `snapshot_id`, statistiques de `restic backup` (`files_*`, `dirs_*`, `data_added`, `total_files_processed`, `total_bytes_processed`, `duration_seconds`, nulles sans résumé), `started_at`, `finished_at`. Purge horaire des exécutions terminées de plus d'un an ; une exécution laissée `running` par un arrêt devient `interrupted` au démarrage.
+- `backup_runs` (migrations `010`, `012`, `015` et `019`) : UUID, `operation` (`init`, `backup`, `forget-prune`, `check`, `restore`, `snapshots`, `unlock`, `diff`, `copy`, puis `restore-in-place` et `dump` avec la décision D-2), `details` (JSON des chiffres d'une restauration, d'une rétention, d'une vérification, d'un diff avec ses 1 000 premiers chemins, ou d'une copie), `origin` (`manual`, `schedule`, `catchup`), `requested_by`, `state` (`running`, `succeeded`, `failed`), `failure`, `message` (erreur de restic bornée), `warning`, `snapshot_id`, statistiques de `restic backup` (`files_*`, `dirs_*`, `data_added`, `total_files_processed`, `total_bytes_processed`, `duration_seconds`, nulles sans résumé), `started_at`, `finished_at`. Purge horaire des exécutions terminées de plus d'un an ; une exécution laissée `running` par un arrêt devient `interrupted` au démarrage.
 
 ### BackupSnapshot
 
-- `maintenance_tasks` (migration `020`, décision D-1) : une ligne par tâche du catalogue réglée au moins une fois, clé `id` = type de tâche (`journal-vacuum`, contrainte `CHECK`) ; `enabled`, `frequency` (`daily`, `weekly`), `weekday`, `hour`, `minute`, `max_size_mib` (256, 512, 1024 ou 2048), dernière exécution (`last_run_at`, `last_succeeded`, `last_message`, `last_origin`), `updated_at`, `updated_by`. Aucune commande n'est stockée.
 - `backup_snapshots` (migration `010`) : identifiant restic, `short_id`, `taken_at`, `hostname`, `paths` et `tags` (JSON), `total_files`, `total_bytes`, `data_added`. Remplacée en entier, dans la transaction qui clôt l'exécution, par la liste que restic donne après chaque sauvegarde réussie (500 instantanés au plus).
+
+### MaintenanceTask
+
+- `maintenance_tasks` (migration `020`, décision D-1) : une ligne par tâche du catalogue réglée au moins une fois, clé `id` = type de tâche (`journal-vacuum`, contrainte `CHECK`) ; `enabled`, `frequency` (`daily`, `weekly`), `weekday`, `hour`, `minute`, `max_size_mib` (256, 512, 1024 ou 2048), dernière exécution (`last_run_at`, `last_succeeded`, `last_message`, `last_origin`), `updated_at`, `updated_by`. Aucune commande n'est stockée.
+- Une tâche jamais réglée prend les valeurs par défaut du catalogue, sans ligne ; chaque réglage et chaque exécution sont audités.
+
+### ApiToken
+
+- `api_tokens` (migration `013`) : UUID, compte (`user_id`, `ON DELETE CASCADE`, indexé), `name`, `token_hash` (SHA-256 du jeton, unique), `prefix` (12 premiers caractères, affichés pour reconnaître le jeton), `scopes` (tableau JSON des portées : lecture, et depuis la décision D-4 `services:operate` et `containers:operate`), `created_at`, `expires_at` (1 à 365 jours, jamais nul), `last_used_at` (écrit à intervalle espacé).
+- Le jeton en clair n'est jamais stocké : il est affiché une seule fois à la création. 20 jetons au plus par compte. Un compte désactivé invalide ses jetons sans les supprimer ; sa suppression les supprime.
 
 ### AuditLog
 - UUID, acteur local, cible (`target_type`, `target_id`), action, request ID, résultat, timestamp.

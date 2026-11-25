@@ -3,6 +3,7 @@ import { Button } from '../../components/ui/Button'
 import { Card, CardBody, CardHeader } from '../../components/ui/Card'
 import { LoadingState } from '../../components/ui/LoadingState'
 import { FormField, inputClass } from '../alerts/FormField'
+import { HostKeyField } from './HostKeyField'
 import type { BackupConfigFormModel } from './useBackupConfigForm'
 
 const textareaClass =
@@ -33,7 +34,7 @@ export function BackupConfigForm({ model }: { model: BackupConfigFormModel }) {
                 id="backup-location"
                 label="Emplacement"
                 error={model.errors.location?.message}
-                hint="Chemin absolu, ou adresse https://hôte/… d'un rest-server ou d'un bucket S3"
+                hint={model.locationHint}
               >
                 <input
                   id="backup-location"
@@ -41,6 +42,14 @@ export function BackupConfigForm({ model }: { model: BackupConfigFormModel }) {
                   {...model.register('location')}
                 />
               </FormField>
+              {model.isSFTP && (
+                <HostKeyField
+                  id="backup-host-key"
+                  field={model.register('hostKey')}
+                  error={model.errors.hostKey?.message}
+                  fingerprint={model.hostKeyFingerprint}
+                />
+              )}
               {model.credentials && (
                 <>
                   <FormField

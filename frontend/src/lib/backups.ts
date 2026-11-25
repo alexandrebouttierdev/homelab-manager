@@ -4,6 +4,7 @@ import type {
   BackupConfigInput,
   BackupCopyConfig,
   BackupCopyInput,
+  BackupRepository,
   BackupDiff,
   BackupDiffModifier,
   BackupFailure,
@@ -26,12 +27,14 @@ export const repositoryTypeOptions: ReadonlyArray<{
   { value: 'local', label: 'Répertoire local ou monté' },
   { value: 'rest', label: 'rest-server (HTTPS)' },
   { value: 's3', label: 'S3 compatible (dont Backblaze B2)' },
+  { value: 'sftp', label: 'SFTP (serveur SSH)' },
 ]
 
 const repositoryLabels: Record<RepositoryType, string> = {
   local: 'Répertoire local',
   rest: 'rest-server',
   s3: 'S3',
+  sftp: 'SFTP',
 }
 
 export function repositoryLabel(type: RepositoryType): string {
@@ -45,6 +48,19 @@ export function credentialLabels(
   if (type === 'rest') return { username: 'Utilisateur (facultatif)', secret: 'Mot de passe' }
   if (type === 's3') return { username: "Clé d'accès (access key ID)", secret: 'Clé secrète' }
   return null
+}
+
+const locationHints: Record<BackupConfigValues['type'], string> = {
+  none: '',
+  local: 'Chemin absolu, par exemple /mnt/sauvegarde/restic',
+  rest: "Adresse https://hôte:port/chemin d'un rest-server",
+  s3: 'Adresse https://hôte/bucket[/préfixe]',
+  sftp: 'sftp://utilisateur@hôte[:port]/chemin/absolu ; le Manager se connecte avec sa clé SSH',
+}
+
+/** What the location field of a repository type expects. */
+export function locationHint(type: BackupConfigValues['type']): string {
+  return locationHints[type]
 }
 
 export const weekdayOptions: ReadonlyArray<{ value: number; label: string }> = [
@@ -173,10 +189,18 @@ export function orderForDiff<T extends { id: string; time: string }>(a: T, b: T)
   return new Date(a.time).getTime() <= new Date(b.time).getTime() ? [a, b] : [b, a]
 }
 
+/** The repository of a form; only an SFTP repository carries a host key. */
+function repositoryOf(type: RepositoryType, location: string, hostKey: string): BackupRepository {
+  const repository: BackupRepository = { type, location: location.trim() }
+  if (type === 'sftp') repository.hostKey = hostKey.trim()
+  return repository
+}
+
 export function copyToValues(copy: BackupCopyConfig | null): BackupCopyValues {
   return {
     type: copy?.repository.type ?? 'local',
     location: copy?.repository.location ?? '',
+    hostKey: copy?.repository.hostKey ?? '',
     username: '',
     secret: '',
     afterBackup: copy?.afterBackup ?? true,
@@ -187,7 +211,7 @@ export function copyToValues(copy: BackupCopyConfig | null): BackupCopyValues {
 export function copyValuesToInput(values: BackupCopyValues): BackupCopyInput {
   const remote = values.type === 'rest' || values.type === 's3'
   return {
-    repository: { type: values.type, location: values.location.trim() },
+    repository: repositoryOf(values.type, values.location, values.hostKey),
     username: remote ? values.username || null : '',
     secret: remote ? values.secret || null : '',
     afterBackup: values.afterBackup,
@@ -247,6 +271,7 @@ export function configToValues(config: BackupConfig): BackupConfigValues {
   return {
     type: config.repository?.type ?? 'none',
     location: config.repository?.location ?? '',
+    hostKey: config.repository?.hostKey ?? '',
     username: '',
     secret: '',
     sources: config.sources.join('\n'),
@@ -275,7 +300,7 @@ export function valuesToInput(values: BackupConfigValues): BackupConfigInput {
   const remote = values.type === 'rest' || values.type === 's3'
   return {
     repository:
-      values.type === 'none' ? null : { type: values.type, location: values.location.trim() },
+      values.type === 'none' ? null : repositoryOf(values.type, values.location, values.hostKey),
     username: remote ? values.username || null : '',
     secret: remote ? values.secret || null : '',
     sources: splitLines(values.sources),

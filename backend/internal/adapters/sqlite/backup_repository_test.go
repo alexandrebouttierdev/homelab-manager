@@ -2,14 +2,21 @@ package sqlite
 
 import (
 	"context"
+	"database/sql"
 	"errors"
+	"path/filepath"
+	"strings"
 	"testing"
 	"time"
 
+	"homelab-manager/backend/ent"
 	"homelab-manager/backend/ent/auditlog"
 	"homelab-manager/backend/internal/domain"
 	"homelab-manager/backend/internal/ports"
+	"homelab-manager/backend/migrations"
 
+	"entgo.io/ent/dialect"
+	entsql "entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"
 )
 
@@ -333,5 +340,81 @@ func TestBackupCopyRepositoryAndRuns(t *testing.T) {
 	}
 	if got, _ := repository.BackupConfig(ctx); got.Copy != nil {
 		t.Fatalf("removed copy came back: %+v", got.Copy)
+	}
+}
+
+func TestBackupSFTPRepositoriesAndSSHKey(t *testing.T) {
+	ctx := context.Background()
+	database := openTestDatabase(t, ctx)
+	repository := NewBackupRepository(database.Client())
+	audit := domain.AuditEntry{Actor: "alice", TargetType: "backup_config", TargetID: "local", Action: "update", Outcome: domain.AuditSuccess}
+	created := time.Date(2026, 11, 25, 9, 0, 0, 0, time.UTC)
+	config := domain.BackupConfig{
+		Repository: &domain.BackupRepository{
+			Type: domain.RepositorySFTP, Location: "sftp://backup@nas.lan:2222/srv/restic", HostKey: "ssh-ed25519 AAAAmain",
+		},
+		Schedule: domain.DefaultBackupSchedule, Check: domain.DefaultBackupCheck,
+		Copy: &domain.BackupCopyTarget{Repository: domain.BackupRepository{
+			Type: domain.RepositorySFTP, Location: "sftp://copy@offsite.example.org/srv/copy", HostKey: "ssh-ed25519 AAAAcopy",
+		}},
+		SSHKey: &domain.BackupSSHKey{PublicKey: "ssh-ed25519 AAAAmanager homelab-manager-backup", SealedPrivateKey: "sealed-key", CreatedAt: created},
+	}
+	if err := repository.SaveBackupConfig(ctx, config, audit); err != nil {
+		t.Fatalf("the rebuilt table refuses sftp: %v", err)
+	}
+	got, err := repository.BackupConfig(ctx)
+	if err != nil || *got.Repository != *config.Repository || got.Copy.Repository != config.Copy.Repository ||
+		got.SSHKey == nil || *got.SSHKey != *config.SSHKey {
+		t.Fatalf("config = %+v / %+v / %+v, %v", got.Repository, got.Copy, got.SSHKey, err)
+	}
+	config.Repository, config.Copy, config.SSHKey = &domain.BackupRepository{Type: domain.RepositoryLocal, Location: "/srv/b"}, nil, nil
+	if err := repository.SaveBackupConfig(ctx, config, audit); err != nil {
+		t.Fatal(err)
+	}
+	got, err = repository.BackupConfig(ctx)
+	if err != nil || got.Repository.HostKey != "" || got.Copy != nil || got.SSHKey != nil {
+		t.Fatalf("cleared config = %+v / %+v / %+v, %v", got.Repository, got.Copy, got.SSHKey, err)
+	}
+}
+
+// TestBackupSFTPMigrationKeepsTheConfiguration applies the migrations up to
+// 015, stores a configuration, then applies 016, which rebuilds the table.
+func TestBackupSFTPMigrationKeepsTheConfiguration(t *testing.T) {
+	ctx := context.Background()
+	db, err := sql.Open(driverName, dsn(filepath.Join(t.TempDir(), "manager.db")))
+	if err != nil {
+		t.Fatal(err)
+	}
+	defer db.Close()
+	db.SetMaxOpenConns(1)
+	if _, err := db.ExecContext(ctx, `CREATE TABLE schema_migrations (version TEXT PRIMARY KEY, applied_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP)`); err != nil {
+		t.Fatal(err)
+	}
+	files, err := migrations.Files.ReadDir(".")
+	if err != nil {
+		t.Fatal(err)
+	}
+	for _, file := range files {
+		if name := file.Name(); strings.HasSuffix(name, ".sql") && name < "016" {
+			if err := applyMigration(ctx, db, name); err != nil {
+				t.Fatal(err)
+			}
+		}
+	}
+	if _, err := db.ExecContext(ctx, `INSERT INTO backup_configs (id, repository_type, repository_location, sealed_credentials,
+		sources, keep_daily, copy_repository_type, copy_repository_location, copy_after_backup, updated_at, updated_by)
+		VALUES ('7d4c1a52-6c8e-4d55-9a3e-0f8d1b2c3d4e', 'rest', 'https://nas.lan:8000/r', 'sealed', '["/etc"]', 9,
+		's3', 'https://s3.example.com/b', 1, '2026-11-25 08:00:00', 'alice')`); err != nil {
+		t.Fatal(err)
+	}
+	if err := applyMigrations(ctx, db); err != nil {
+		t.Fatalf("016: %v", err)
+	}
+	client := ent.NewClient(ent.Driver(entsql.OpenDB(dialect.SQLite, db)))
+	config, err := NewBackupRepository(client).BackupConfig(ctx)
+	if err != nil || config.Repository == nil || config.Repository.Location != "https://nas.lan:8000/r" ||
+		config.SealedCredentials != "sealed" || config.Retention.KeepDaily != 9 || config.Copy == nil ||
+		!config.Copy.AfterBackup || config.UpdatedBy != "alice" || len(config.Selection.Sources) != 1 || config.SSHKey != nil {
+		t.Fatalf("config after 016 = %+v, %v", config, err)
 	}
 }

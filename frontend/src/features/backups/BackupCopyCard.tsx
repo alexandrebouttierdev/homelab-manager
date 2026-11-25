@@ -4,6 +4,7 @@ import { Button } from '../../components/ui/Button'
 import { Card, CardBody, CardHeader } from '../../components/ui/Card'
 import { formatDateTime, formatRelativeTime } from '../../lib/format'
 import { FormField, inputClass } from '../alerts/FormField'
+import { HostKeyField } from './HostKeyField'
 import type { BackupCopyModel } from './useBackupCopy'
 
 /** Copy repository (restic copy): a second place for the snapshots, for the 3-2-1 rule. */
@@ -81,10 +82,18 @@ export function BackupCopyCard({ model }: { model: BackupCopyModel }) {
               id="copy-location"
               label="Emplacement"
               error={model.errors.location?.message}
-              hint="Un autre dépôt que le principal"
+              hint={`Un autre dépôt que le principal. ${model.locationHint}`}
             >
               <input id="copy-location" className={inputClass} {...model.register('location')} />
             </FormField>
+            {model.isSFTP && (
+              <HostKeyField
+                id="copy-host-key"
+                field={model.register('hostKey')}
+                error={model.errors.hostKey?.message}
+                fingerprint={model.hostKeyFingerprint}
+              />
+            )}
             {model.credentials && (
               <>
                 <FormField

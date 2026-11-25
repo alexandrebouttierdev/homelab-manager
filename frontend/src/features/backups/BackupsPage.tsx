@@ -21,6 +21,7 @@ import { formatBytes, formatCount, formatDateTime, formatRelativeTime } from '..
 import { FormField } from '../alerts/FormField'
 import { BackupConfigForm } from './BackupConfigForm'
 import { BackupCopyCard } from './BackupCopyCard'
+import { BackupSSHKeyCard } from './BackupSSHKeyCard'
 import { BackupDiffPanel } from './BackupDiffPanel'
 import type { BackupRestoreModel } from './useBackupRestore'
 import { useBackupsPage, type BackupsPageModel } from './useBackupsPage'
@@ -116,6 +117,7 @@ export function BackupsPage() {
       {page.tab === 'snapshots' && <Snapshots page={page} />}
       {page.tab === 'config' && (
         <div className="space-y-4">
+          <BackupSSHKeyCard model={page.sshKey} />
           <BackupConfigForm model={page.configForm} />
           <BackupCopyCard model={page.copy} />
         </div>

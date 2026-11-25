@@ -58,13 +58,13 @@ func NewExecutor(config Config, units unitController) *Executor {
 	return &Executor{config: config, units: units, now: time.Now}
 }
 
-func (e *Executor) Execute(ctx context.Context, job ports.BackupJob, credentials domain.BackupCredentials, copyCredentials *domain.BackupCredentials) (domain.BackupResult, error) {
+func (e *Executor) Execute(ctx context.Context, job ports.BackupJob, given ports.BackupSecrets) (domain.BackupResult, error) {
 	op := job.Operation
 	// Some file systems keep modification times to the second.
 	started := e.now().UTC().Truncate(time.Second)
 	file := backupjob.Job{
 		Version: domain.BackupJobVersion, Operation: op,
-		RepositoryType: job.Repository.Type, Repository: job.Repository.Location,
+		RepositoryType: job.Repository.Type, Repository: job.Repository.Location, HostKey: job.Repository.HostKey,
 		Sources: orEmpty(job.Selection.Sources), Excludes: orEmpty(job.Selection.Excludes),
 		ExcludeCaches: job.Selection.ExcludeCaches, ExcludeIfPresent: job.Selection.ExcludeIfPresent,
 	}
@@ -93,19 +93,24 @@ func (e *Executor) Execute(ctx context.Context, job ports.BackupJob, credentials
 		}
 		file.Diff = &backupjob.Diff{From: job.Diff.From, To: job.Diff.To}
 	case domain.BackupOpCopy:
-		if job.Copy == nil || copyCredentials == nil {
+		if job.Copy == nil || given.Copy == nil {
 			return domain.BackupResult{}, &domain.BackupRunError{Failure: domain.BackupFailureJob, Err: errors.New("a copy needs its destination")}
 		}
-		file.Copy = &backupjob.Copy{RepositoryType: job.Copy.Type, Repository: job.Copy.Location, Init: job.CopyInit}
+		file.Copy = &backupjob.Copy{
+			RepositoryType: job.Copy.Type, Repository: job.Copy.Location, HostKey: job.Copy.HostKey, Init: job.CopyInit,
+		}
 		if r := job.CopyRetention; r != nil {
 			file.Copy.Retention = &backupjob.Retention{
 				KeepDaily: r.KeepDaily, KeepWeekly: r.KeepWeekly, KeepMonthly: r.KeepMonthly, KeepYearly: r.KeepYearly,
 			}
 		}
 	}
-	secrets := backupjob.Secrets{BackupCredentials: credentials}
+	secrets := backupjob.Secrets{BackupCredentials: given.Credentials}
 	if op == domain.BackupOpCopy {
-		secrets.Copy = copyCredentials
+		secrets.Copy = given.Copy
+	}
+	if file.UsesSFTP() {
+		secrets.SSHKey = given.SSHKey
 	}
 	if err := file.Validate(); err != nil {
 		return domain.BackupResult{}, &domain.BackupRunError{Failure: domain.BackupFailureJob, Err: err}

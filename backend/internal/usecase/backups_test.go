@@ -170,16 +170,18 @@ type fakeBackupExecutor struct {
 	jobs        []ports.BackupJob
 	credentials []domain.BackupCredentials
 	copies      []*domain.BackupCredentials
+	sshKeys     []string
 	release     chan struct{}
 	result      domain.BackupResult
 	err         error
 }
 
-func (f *fakeBackupExecutor) Execute(ctx context.Context, job ports.BackupJob, credentials domain.BackupCredentials, copyCredentials *domain.BackupCredentials) (domain.BackupResult, error) {
+func (f *fakeBackupExecutor) Execute(ctx context.Context, job ports.BackupJob, secrets ports.BackupSecrets) (domain.BackupResult, error) {
 	f.mu.Lock()
 	f.jobs = append(f.jobs, job)
-	f.credentials = append(f.credentials, credentials)
-	f.copies = append(f.copies, copyCredentials)
+	f.credentials = append(f.credentials, secrets.Credentials)
+	f.copies = append(f.copies, secrets.Copy)
+	f.sshKeys = append(f.sshKeys, secrets.SSHKey)
 	f.mu.Unlock()
 	if f.release != nil {
 		select {
@@ -201,7 +203,7 @@ var backupAdmin = domain.User{ID: uuid.New(), Username: "alice", Role: domain.Ro
 
 func newBackups(t *testing.T, store *memoryBackupStore, executor *fakeBackupExecutor, box ports.SecretBox) (*BackupUsecase, context.CancelFunc) {
 	t.Helper()
-	backups := NewBackupUsecase(store, executor, box, zap.NewNop())
+	backups := NewBackupUsecase(store, executor, box, nil, zap.NewNop())
 	backups.tick = 10 * time.Millisecond
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
@@ -229,7 +231,7 @@ func waitAccepting(t *testing.T, backups *BackupUsecase) {
 
 func TestBackupRefusedBeforeRun(t *testing.T) {
 	store := newMemoryBackupStore()
-	backups := NewBackupUsecase(store, &fakeBackupExecutor{}, fakeBox{}, zap.NewNop())
+	backups := NewBackupUsecase(store, &fakeBackupExecutor{}, fakeBox{}, nil, zap.NewNop())
 	initialized := time.Now()
 	store.config.Repository = &domain.BackupRepository{Type: domain.RepositoryLocal, Location: "/mnt/backup"}
 	store.config.SealedCredentials, store.config.InitializedAt = "s", &initialized
@@ -446,7 +448,7 @@ func TestBackupScheduleRunsAndCatchesUp(t *testing.T) {
 		now = at
 		mu.Unlock()
 	}
-	backups := NewBackupUsecase(store, executor, fakeBox{}, zap.NewNop())
+	backups := NewBackupUsecase(store, executor, fakeBox{}, nil, zap.NewNop())
 	backups.now, backups.location, backups.tick = clock, time.UTC, 5*time.Millisecond
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
@@ -603,7 +605,7 @@ func TestBackupMaintenanceAfterTheScheduledBackup(t *testing.T) {
 	}
 	now := time.Date(2026, 11, 21, 3, 0, 5, 0, time.UTC)
 	var mu sync.Mutex
-	backups := NewBackupUsecase(store, executor, fakeBox{}, zap.NewNop())
+	backups := NewBackupUsecase(store, executor, fakeBox{}, nil, zap.NewNop())
 	backups.now = func() time.Time {
 		mu.Lock()
 		defer mu.Unlock()

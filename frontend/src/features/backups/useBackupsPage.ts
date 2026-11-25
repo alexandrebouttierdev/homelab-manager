@@ -27,6 +27,7 @@ import { useRefreshInterval } from '../../lib/refresh'
 import { canManageBackups, canRunBackups } from '../../lib/roles'
 import { useBackupConfigForm } from './useBackupConfigForm'
 import { useBackupCopy } from './useBackupCopy'
+import { useBackupSSHKey } from './useBackupSSHKey'
 import { useBackupDiff } from './useBackupDiff'
 import { useBackupRestore } from './useBackupRestore'
 
@@ -84,6 +85,7 @@ export function useBackupsPage() {
   const restore = useBackupRestore(canManage)
   const diff = useBackupDiff(canManage)
   const copy = useBackupCopy(configQuery.data, summaryQuery.data?.lastCopy ?? null, canManage)
+  const sshKey = useBackupSSHKey(configQuery.data, canManage, configForm.isSFTP || copy.isSFTP)
 
   const summary = summaryQuery.data
   const config = configQuery.data
@@ -148,6 +150,7 @@ export function useBackupsPage() {
     restore,
     diff,
     copy,
+    sshKey,
     configForm,
     refresh: () => void queryClient.invalidateQueries({ queryKey: backupsQueryKey }),
   }

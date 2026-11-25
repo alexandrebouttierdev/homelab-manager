@@ -85,7 +85,7 @@ func TestExecuteWritesTheJobStartsTheUnitAndReadsTheResult(t *testing.T) {
 		Snapshots: []backupjob.Snapshot{{ID: "abc", ShortID: "abc", Paths: []string{"/etc"}}},
 	}}
 	executor := newExecutor(t, units)
-	result, err := executor.Execute(context.Background(), job, domain.BackupCredentials{Password: "p"}, nil)
+	result, err := executor.Execute(context.Background(), job, ports.BackupSecrets{Credentials: domain.BackupCredentials{Password: "p"}})
 	if err != nil || result.SnapshotID != "abc" || result.Stats.FilesNew != 2 || len(result.Snapshots) != 1 {
 		t.Fatalf("result = %+v, %v", result, err)
 	}
@@ -122,7 +122,7 @@ func TestExecuteReportsEachFailure(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			executor := newExecutor(t, tc.units)
-			_, err := executor.Execute(context.Background(), job, domain.BackupCredentials{Password: "p"}, nil)
+			_, err := executor.Execute(context.Background(), job, ports.BackupSecrets{Credentials: domain.BackupCredentials{Password: "p"}})
 			if failureOf(err) != tc.want {
 				t.Fatalf("failure = %q (%v), want %q", failureOf(err), err, tc.want)
 			}
@@ -139,7 +139,7 @@ func TestExecuteRefusesAnInvalidJobBeforeWritingIt(t *testing.T) {
 	executor := newExecutor(t, units)
 	bad := job
 	bad.Selection.Sources = []string{"relative"}
-	if _, err := executor.Execute(context.Background(), bad, domain.BackupCredentials{Password: "p"}, nil); failureOf(err) != domain.BackupFailureJob {
+	if _, err := executor.Execute(context.Background(), bad, ports.BackupSecrets{Credentials: domain.BackupCredentials{Password: "p"}}); failureOf(err) != domain.BackupFailureJob {
 		t.Fatalf("err = %v", err)
 	}
 	if len(units.units) != 0 {
@@ -166,7 +166,7 @@ func TestExecuteWritesTheJobOfEachOperation(t *testing.T) {
 			job.Operation = op
 			job.Repository = domain.BackupRepository{Type: domain.RepositoryLocal, Location: "/mnt/backup"}
 			job.Selection = domain.BackupSelection{Sources: []string{"/etc"}}
-			result, err := executor.Execute(context.Background(), job, domain.BackupCredentials{Password: "p"}, nil)
+			result, err := executor.Execute(context.Background(), job, ports.BackupSecrets{Credentials: domain.BackupCredentials{Password: "p"}})
 			if err != nil || result.Details == nil {
 				t.Fatalf("result = %+v, %v", result, err)
 			}
@@ -199,7 +199,7 @@ func TestExecuteWritesADiffAndACopy(t *testing.T) {
 		Operation: domain.BackupOpDiff, Repository: job.Repository,
 		Diff: &domain.BackupDiffRequest{From: "3a253ad8", To: "9f2c11b0"},
 	}
-	result, err := executor.Execute(context.Background(), diffJob, domain.BackupCredentials{Password: "p"}, nil)
+	result, err := executor.Execute(context.Background(), diffJob, ports.BackupSecrets{Credentials: domain.BackupCredentials{Password: "p"}})
 	if err != nil || result.Details == nil || result.Details.Diff.Changes[0].Path != "/etc/hosts" {
 		t.Fatalf("diff = %+v, %v", result, err)
 	}
@@ -217,7 +217,7 @@ func TestExecuteWritesADiffAndACopy(t *testing.T) {
 		CopyRetention: &domain.BackupRetention{Enabled: true, KeepDaily: 7},
 	}
 	copyCredentials := &domain.BackupCredentials{Password: "copy-pass", Username: "u", Secret: "s"}
-	result, err = executor.Execute(context.Background(), copyJob, domain.BackupCredentials{Password: "p"}, copyCredentials)
+	result, err = executor.Execute(context.Background(), copyJob, ports.BackupSecrets{Credentials: domain.BackupCredentials{Password: "p"}, Copy: copyCredentials})
 	if err != nil || result.Details.Copy.SnapshotsCopied != 2 {
 		t.Fatalf("copy = %+v, %v", result, err)
 	}
@@ -227,11 +227,11 @@ func TestExecuteWritesADiffAndACopy(t *testing.T) {
 	if units.sawCreds.Password != "p" || units.sawCreds.Copy == nil || units.sawCreds.Copy.Password != "copy-pass" {
 		t.Fatalf("copy secrets = %+v", units.sawCreds)
 	}
-	if _, err := executor.Execute(context.Background(), copyJob, domain.BackupCredentials{Password: "p"}, nil); failureOf(err) != domain.BackupFailureJob {
+	if _, err := executor.Execute(context.Background(), copyJob, ports.BackupSecrets{Credentials: domain.BackupCredentials{Password: "p"}}); failureOf(err) != domain.BackupFailureJob {
 		t.Fatalf("copy without its credentials = %v", err)
 	}
 	copyJob.Copy = &job.Repository
-	if _, err := executor.Execute(context.Background(), copyJob, domain.BackupCredentials{Password: "p"}, copyCredentials); failureOf(err) != domain.BackupFailureJob {
+	if _, err := executor.Execute(context.Background(), copyJob, ports.BackupSecrets{Credentials: domain.BackupCredentials{Password: "p"}, Copy: copyCredentials}); failureOf(err) != domain.BackupFailureJob {
 		t.Fatalf("copy to the same repository = %v", err)
 	}
 }
@@ -255,5 +255,36 @@ func TestThePolkitRuleListsEveryOperation(t *testing.T) {
 	slices.Sort(want)
 	if !slices.Equal(listed, want) {
 		t.Fatalf("polkit rule lists %v, want %v", listed, want)
+	}
+}
+
+func TestExecuteHandsTheSSHKeyToSFTPOperationsOnly(t *testing.T) {
+	const sshKey = "-----BEGIN OPENSSH PRIVATE KEY-----\nkey\n-----END OPENSSH PRIVATE KEY-----\n"
+	finished := time.Date(2026, 11, 24, 3, 0, 1, 0, time.UTC)
+	secrets := ports.BackupSecrets{Credentials: domain.BackupCredentials{Password: "p"}, SSHKey: sshKey}
+
+	units := &fakeUnits{result: &backupjob.Result{Version: 1, Operation: domain.BackupOpInit, StartedAt: finished, Success: true}}
+	sftp := ports.BackupJob{Operation: domain.BackupOpInit, Repository: domain.BackupRepository{
+		Type: domain.RepositorySFTP, Location: "sftp://backup@nas.lan/srv/restic", HostKey: "ssh-ed25519 AAAAhost",
+	}}
+	if _, err := newExecutor(t, units).Execute(context.Background(), sftp, secrets); err != nil {
+		t.Fatal(err)
+	}
+	if units.sawJob.HostKey != "ssh-ed25519 AAAAhost" || units.sawCreds.SSHKey != sshKey {
+		t.Fatalf("SFTP job = %+v, SSH key %q", units.sawJob, units.sawCreds.SSHKey)
+	}
+
+	units = &fakeUnits{result: &backupjob.Result{Version: 1, Operation: domain.BackupOpInit, StartedAt: finished, Success: true}}
+	local := ports.BackupJob{Operation: domain.BackupOpInit, Repository: domain.BackupRepository{Type: domain.RepositoryLocal, Location: "/mnt/b"}}
+	if _, err := newExecutor(t, units).Execute(context.Background(), local, secrets); err != nil {
+		t.Fatal(err)
+	}
+	if units.sawCreds.SSHKey != "" {
+		t.Fatal("a local repository got the SSH key")
+	}
+
+	missing := ports.BackupSecrets{Credentials: secrets.Credentials}
+	if _, err := newExecutor(t, &fakeUnits{}).Execute(context.Background(), sftp, missing); failureOf(err) != domain.BackupFailureJob {
+		t.Fatalf("SFTP without SSH key = %v", err)
 	}
 }

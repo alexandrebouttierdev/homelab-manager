@@ -12,6 +12,7 @@ import (
 
 	"homelab-manager/backend/internal/adapters/secretbox"
 	"homelab-manager/backend/internal/adapters/sqlite"
+	"homelab-manager/backend/internal/adapters/sshkey"
 	"homelab-manager/backend/internal/domain"
 	"homelab-manager/backend/internal/ports"
 	"homelab-manager/backend/internal/usecase"
@@ -20,7 +21,8 @@ import (
 // instantExecutor succeeds at once with one snapshot.
 type instantExecutor struct{}
 
-func (instantExecutor) Execute(_ context.Context, job ports.BackupJob, _ domain.BackupCredentials, copyCredentials *domain.BackupCredentials) (domain.BackupResult, error) {
+func (instantExecutor) Execute(_ context.Context, job ports.BackupJob, secrets ports.BackupSecrets) (domain.BackupResult, error) {
+	copyCredentials := secrets.Copy
 	switch job.Operation {
 	case domain.BackupOpDiff:
 		return domain.BackupResult{Details: &domain.BackupRunDetails{Diff: &domain.BackupDiff{
@@ -56,7 +58,7 @@ func newBackupsRouter(t *testing.T) http.Handler {
 	if err != nil {
 		t.Fatal(err)
 	}
-	backups := usecase.NewBackupUsecase(sqlite.NewBackupRepository(database.Client()), instantExecutor{}, box, zap.NewNop())
+	backups := usecase.NewBackupUsecase(sqlite.NewBackupRepository(database.Client()), instantExecutor{}, box, sshkey.Keys{}, zap.NewNop())
 	ctx, cancel := context.WithCancel(context.Background())
 	done := make(chan struct{})
 	go func() {
@@ -168,7 +170,7 @@ func TestBackupRouteErrors(t *testing.T) {
 	}{
 		{http.MethodPut, "/api/v1/backups/config", strings.Replace(backupConfigBody, `"/etc"`, `"etc"`, 1), http.StatusBadRequest, "VALIDATION_ERROR"},
 		{http.MethodPut, "/api/v1/backups/config", strings.Replace(backupConfigBody, "04:30", "4h30", 1), http.StatusBadRequest, "VALIDATION_ERROR"},
-		{http.MethodPut, "/api/v1/backups/config", strings.Replace(backupConfigBody, `"local"`, `"sftp"`, 1), http.StatusBadRequest, "VALIDATION_ERROR"},
+		{http.MethodPut, "/api/v1/backups/config", strings.Replace(backupConfigBody, `"local"`, `"ftp"`, 1), http.StatusBadRequest, "VALIDATION_ERROR"},
 		{http.MethodPut, "/api/v1/backups/config", `{"unknown":1}`, http.StatusBadRequest, "VALIDATION_ERROR"},
 		{http.MethodPost, "/api/v1/backups/repository/init", "", http.StatusConflict, "BACKUP_NOT_CONFIGURED"},
 		{http.MethodGet, "/api/v1/backups/runs?limit=0", "", http.StatusBadRequest, "VALIDATION_ERROR"},
@@ -314,5 +316,47 @@ func TestBackupDiffAndCopyRoutes(t *testing.T) {
 		if !strings.Contains(audit, `"action":"`+action+`"`) {
 			t.Fatalf("audit misses %s: %s", action, audit)
 		}
+	}
+}
+
+func TestBackupSFTPRoutes(t *testing.T) {
+	resetLoginRateLimit(t)
+	router := newBackupsRouter(t)
+	admin := signIn(t, router, "admin", "admin-password-1")
+	viewer := signInWithRole(t, router, admin, "vera", "viewer")
+	_, hostPublic, err := (sshkey.Keys{}).Generate("root@nas")
+	if err != nil {
+		t.Fatal(err)
+	}
+	hostKey := strings.Join(strings.Fields(hostPublic)[:2], " ")
+	sftpBody := `{"repository":{"type":"sftp","location":"sftp://backup@nas.lan:2222/srv/restic","hostKey":"` + hostPublic + `"},` +
+		`"sources":["/etc"],"excludes":[],"excludeCaches":true,"excludeIfPresent":"","schedule":{"enabled":false,"frequency":"daily","weekday":0,"time":"03:00"}}`
+
+	if response := call(router, http.MethodPut, "/api/v1/backups/config", sftpBody, admin); response.Code != http.StatusConflict ||
+		!strings.Contains(response.Body.String(), "BACKUP_SSH_KEY_MISSING") {
+		t.Fatalf("SFTP before the SSH key = %d %s", response.Code, response.Body)
+	}
+	if response := call(router, http.MethodPost, "/api/v1/backups/ssh-key", "", viewer); response.Code != http.StatusForbidden {
+		t.Fatalf("viewer generates the SSH key = %d", response.Code)
+	}
+	response := call(router, http.MethodPost, "/api/v1/backups/ssh-key", "", admin)
+	body := response.Body.String()
+	if response.Code != http.StatusOK || !strings.Contains(body, `"sshKey":{"publicKey":"ssh-ed25519 `) ||
+		!strings.Contains(body, ` homelab-manager-backup","fingerprint":"SHA256:`) || strings.Contains(body, "PRIVATE") {
+		t.Fatalf("generate = %d %s", response.Code, body)
+	}
+	bad := strings.Replace(sftpBody, hostPublic, "nope", 1)
+	if response := call(router, http.MethodPut, "/api/v1/backups/config", bad, admin); response.Code != http.StatusBadRequest ||
+		!strings.Contains(response.Body.String(), "hostKey") {
+		t.Fatalf("invalid host key = %d %s", response.Code, response.Body)
+	}
+	response = call(router, http.MethodPut, "/api/v1/backups/config", sftpBody, admin)
+	body = response.Body.String()
+	if response.Code != http.StatusOK ||
+		!strings.Contains(body, `"repository":{"type":"sftp","location":"sftp://backup@nas.lan:2222/srv/restic","hostKey":"`+hostKey+`","hostKeyFingerprint":"SHA256:`) {
+		t.Fatalf("SFTP config = %d %s", response.Code, body)
+	}
+	if body := call(router, http.MethodGet, "/api/v1/backups/config", "", viewer).Body.String(); !strings.Contains(body, `"sshKey":{"publicKey":"ssh-ed25519 `) {
+		t.Fatalf("viewer config = %s", body)
 	}
 }

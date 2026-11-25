@@ -64,15 +64,22 @@ func (r *BackupRepository) BackupConfig(ctx context.Context) (domain.BackupConfi
 	if record.RepositoryType != nil && record.RepositoryLocation != nil {
 		config.Repository = &domain.BackupRepository{
 			Type: domain.BackupRepositoryType(*record.RepositoryType), Location: *record.RepositoryLocation,
+			HostKey: record.RepositoryHostKey,
 		}
 	}
 	if record.CopyRepositoryType != nil && record.CopyRepositoryLocation != nil {
 		config.Copy = &domain.BackupCopyTarget{
 			Repository: domain.BackupRepository{
 				Type: domain.BackupRepositoryType(*record.CopyRepositoryType), Location: *record.CopyRepositoryLocation,
+				HostKey: record.CopyRepositoryHostKey,
 			},
 			SealedCredentials: record.CopySealedCredentials, InitializedAt: utcPointer(record.CopyInitializedAt),
 			AfterBackup: record.CopyAfterBackup,
+		}
+	}
+	if record.SSHPublicKey != "" && record.SSHKeyCreatedAt != nil {
+		config.SSHKey = &domain.BackupSSHKey{
+			PublicKey: record.SSHPublicKey, SealedPrivateKey: record.SSHSealedPrivateKey, CreatedAt: record.SSHKeyCreatedAt.UTC(),
 		}
 	}
 	return config, nil
@@ -122,9 +129,16 @@ func (r *BackupRepository) SaveBackupConfig(ctx context.Context, config domain.B
 			update.SetCheckSubsetPercent(config.Check.SubsetPercent)
 		}
 		if config.Repository != nil {
-			update.SetRepositoryType(string(config.Repository.Type)).SetRepositoryLocation(config.Repository.Location)
+			update.SetRepositoryType(string(config.Repository.Type)).SetRepositoryLocation(config.Repository.Location).
+				SetRepositoryHostKey(config.Repository.HostKey)
 		} else {
-			update.ClearRepositoryType().ClearRepositoryLocation()
+			update.ClearRepositoryType().ClearRepositoryLocation().SetRepositoryHostKey("")
+		}
+		if key := config.SSHKey; key != nil {
+			update.SetSSHPublicKey(key.PublicKey).SetSSHSealedPrivateKey(key.SealedPrivateKey).
+				SetSSHKeyCreatedAt(key.CreatedAt.UTC())
+		} else {
+			update.SetSSHPublicKey("").SetSSHSealedPrivateKey("").ClearSSHKeyCreatedAt()
 		}
 		if config.InitializedAt != nil {
 			update.SetInitializedAt(config.InitializedAt.UTC())
@@ -133,6 +147,7 @@ func (r *BackupRepository) SaveBackupConfig(ctx context.Context, config domain.B
 		}
 		if copy := config.Copy; copy != nil {
 			update.SetCopyRepositoryType(string(copy.Repository.Type)).SetCopyRepositoryLocation(copy.Repository.Location).
+				SetCopyRepositoryHostKey(copy.Repository.HostKey).
 				SetCopySealedCredentials(copy.SealedCredentials).SetCopyAfterBackup(copy.AfterBackup)
 			if copy.InitializedAt != nil {
 				update.SetCopyInitializedAt(copy.InitializedAt.UTC())
@@ -140,7 +155,7 @@ func (r *BackupRepository) SaveBackupConfig(ctx context.Context, config domain.B
 				update.ClearCopyInitializedAt()
 			}
 		} else {
-			update.ClearCopyRepositoryType().ClearCopyRepositoryLocation().SetCopySealedCredentials("").
+			update.ClearCopyRepositoryType().ClearCopyRepositoryLocation().SetCopyRepositoryHostKey("").SetCopySealedCredentials("").
 				ClearCopyInitializedAt().SetCopyAfterBackup(false)
 		}
 		if err := update.Exec(ctx); err != nil {

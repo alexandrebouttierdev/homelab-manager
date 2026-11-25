@@ -18,19 +18,40 @@ import (
 
 // fakeRestic records its arguments, environment and exclusion file, then
 // prints <command>.out and <command>.err and exits with <command>.code.
+// The command is the first argument after the global "-o" options; the
+// files that sftp.args names are copied with their mode.
 const fakeRestic = `#!/bin/sh
 dir=$(dirname "$0")
-printf '%s\n' "$@" > "$dir/args.$1"
-env | sort > "$dir/env.$1"
+cmd=""
+skip=0
+for arg in "$@"; do
+  if [ "$skip" = 1 ]; then
+    skip=0
+    case "$arg" in
+      sftp.args=*)
+        identity=$(printf '%s' "$arg" | sed 's/.* -i \([^ ]*\) .*/\1/')
+        hosts=$(printf '%s' "$arg" | sed 's/.*UserKnownHostsFile=\([^ ]*\).*/\1/')
+        cp "$identity" "$dir/ssh.identity"
+        cp "$hosts" "$dir/ssh.known_hosts"
+        ls -l "$identity" "$hosts" | cut -c1-10 > "$dir/ssh.modes"
+        ;;
+    esac
+    continue
+  fi
+  if [ -z "$cmd" ] && [ "$arg" = "-o" ]; then skip=1; continue; fi
+  [ -z "$cmd" ] && cmd="$arg"
+done
+printf '%s\n' "$@" > "$dir/args.$cmd"
+env | sort > "$dir/env.$cmd"
 previous=""
 for arg in "$@"; do
   if [ "$previous" = "--exclude-file" ]; then cp "$arg" "$dir/excludes"; fi
   previous="$arg"
 done
-[ -f "$dir/$1.out" ] && cat "$dir/$1.out"
-[ -f "$dir/$1.err" ] && cat "$dir/$1.err" >&2
+[ -f "$dir/$cmd.out" ] && cat "$dir/$cmd.out"
+[ -f "$dir/$cmd.err" ] && cat "$dir/$cmd.err" >&2
 code=0
-[ -f "$dir/$1.code" ] && code=$(cat "$dir/$1.code")
+[ -f "$dir/$cmd.code" ] && code=$(cat "$dir/$cmd.code")
 exit "$code"
 `
 

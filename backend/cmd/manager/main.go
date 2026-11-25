@@ -20,6 +20,7 @@ import (
 	"homelab-manager/backend/internal/adapters/qrcode"
 	"homelab-manager/backend/internal/adapters/secretbox"
 	"homelab-manager/backend/internal/adapters/sqlite"
+	"homelab-manager/backend/internal/adapters/sshkey"
 	"homelab-manager/backend/internal/adapters/systemd"
 	"homelab-manager/backend/internal/adapters/vulnscan"
 	webauthnadapter "homelab-manager/backend/internal/adapters/webauthn"
@@ -228,7 +229,7 @@ func main() {
 				JobsDir: config.BackupJobsDir, RunsDir: config.BackupRunsDir,
 				InitTimeout: backupunit.DefaultInitTimeout, BackupTimeout: backupunit.DefaultBackupTimeout,
 			}, systemd.NewController(systemd.SystemBus)),
-			secretBox, logger)
+			secretBox, sshkey.Keys{}, logger)
 		backupsDone = make(chan struct{})
 		go func() {
 			defer close(backupsDone)

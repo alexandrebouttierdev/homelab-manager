@@ -1,7 +1,7 @@
 import { requestJSON } from './client'
 
 /** Backups with restic, increments 6A to 6C (API_CONTRACTS.md § 4.10). */
-export type RepositoryType = 'local' | 'rest' | 's3'
+export type RepositoryType = 'local' | 'rest' | 's3' | 'sftp'
 export type BackupFrequency = 'daily' | 'weekly'
 export type BackupOperation =
   | 'init'
@@ -82,7 +82,19 @@ export type BackupFailure =
   | 'systemd_unavailable'
   | 'interrupted'
 
-export type BackupRepository = { type: RepositoryType; location: string }
+/**
+ * hostKey: the pinned host key of an SFTP server ("type base64"), sent as
+ * pasted and stored normalized; hostKeyFingerprint is answered only.
+ */
+export type BackupRepository = {
+  type: RepositoryType
+  location: string
+  hostKey?: string
+  hostKeyFingerprint?: string
+}
+
+/** Public part of the SSH key of the Manager, for its SFTP repositories. */
+export type BackupSSHKey = { publicKey: string; fingerprint: string; createdAt: string }
 
 /** Schedule kept by the Manager; time is HH:MM in the machine's time zone, weekday 0 is Sunday. */
 export type BackupSchedule = {
@@ -110,6 +122,8 @@ export type BackupConfig = {
   updatedBy: string | null
   /** The copy repository (restic copy), null when none is set. */
   copy: BackupCopyConfig | null
+  /** The SSH key of the Manager, null until generated. */
+  sshKey: BackupSSHKey | null
 }
 
 export type BackupCopyConfig = {
@@ -255,6 +269,11 @@ export function setBackupCopy(input: BackupCopyInput) {
     method: 'PUT',
     body: JSON.stringify(input),
   })
+}
+
+/** Creates or replaces the SSH key of the Manager for its SFTP repositories. */
+export function generateBackupSSHKey() {
+  return requestJSON<BackupConfig>('/api/v1/backups/ssh-key', { method: 'POST' })
 }
 
 /** Forgets the copy repository; its data stays where it is. */

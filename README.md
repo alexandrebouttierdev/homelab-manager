@@ -368,7 +368,18 @@ Puis, dans l'onglet « Configuration » (administrateurs) : choisir le dépôt, 
 
 **Comparer deux instantanés** : dans « Instantanés », un administrateur coche deux instantanés puis « Comparer » ; `restic diff` liste ce qui a été ajouté, supprimé ou modifié du plus ancien au plus récent (les 1 000 premiers chemins, filtrables ; les autres rôles n'en voient que les chiffres).
 
-**Dépôt de copie (règle 3-2-1)** : dans « Configuration », la carte « Dépôt de copie » définit un second dépôt (local, rest-server ou S3), de préférence hors de la machine. « Créer le dépôt de copie » le crée avec les paramètres de découpage du dépôt principal et y copie les instantanés ; son mot de passe, distinct, est affiché **une seule fois**. Un dépôt de copie existant se rattache par son mot de passe. Ensuite, « Copier maintenant », ou une copie automatique après chaque sauvegarde planifiée réussie ; la rétention, si elle est activée, s'applique aussi à la copie. Deux dépôts S3 doivent partager la même clé d'accès (restic n'en lit qu'une pour une copie). **Mise à jour depuis une version précédente** : réinstaller la règle polkit, qui autorise les nouvelles opérations `diff` et `copy` (même commande `install` que ci-dessus). SFTP n'est pas encore proposé.
+**Dépôt de copie (règle 3-2-1)** : dans « Configuration », la carte « Dépôt de copie » définit un second dépôt (local, rest-server ou S3), de préférence hors de la machine. « Créer le dépôt de copie » le crée avec les paramètres de découpage du dépôt principal et y copie les instantanés ; son mot de passe, distinct, est affiché **une seule fois**. Un dépôt de copie existant se rattache par son mot de passe. Ensuite, « Copier maintenant », ou une copie automatique après chaque sauvegarde planifiée réussie ; la rétention, si elle est activée, s'applique aussi à la copie. Deux dépôts S3 doivent partager la même clé d'accès (restic n'en lit qu'une pour une copie). **Mise à jour depuis une version précédente** : réinstaller la règle polkit, qui autorise les nouvelles opérations `diff` et `copy` (même commande `install` que ci-dessus).
+
+**Dépôt SFTP** : le dépôt principal comme le dépôt de copie peuvent être un répertoire d'un serveur SSH, `sftp://utilisateur@hôte[:port]/chemin/absolu`. Le client `ssh` doit être installé (`sudo apt install openssh-client`). Le Manager n'utilise pas la clé SSH de root : la carte « Clé SSH du Manager », qui apparaît quand on choisit SFTP, génère sa propre clé (« Générer la clé SSH »). Sur le serveur, ajoutez la clé publique affichée au fichier `~/.ssh/authorized_keys` du compte indiqué dans l'adresse ; un compte dédié limité à SFTP est préférable, par exemple dans `/etc/ssh/sshd_config` du serveur :
+
+```text
+Match User backup
+    ForceCommand internal-sftp
+    AllowTcpForwarding no
+    X11Forwarding no
+```
+
+Collez ensuite la clé d'hôte du serveur dans « Clé d'hôte du serveur » : le contenu de `/etc/ssh/ssh_host_ed25519_key.pub` **lu sur le serveur lui-même** (ou une ligne de `ssh-keyscan -t ed25519 hôte`, à comparer à l'empreinte que donne `ssh-keygen -lf /etc/ssh/ssh_host_ed25519_key.pub` sur le serveur). Le Manager refuse tout serveur qui présente une autre clé ; si la clé du serveur change (réinstallation), collez la nouvelle, le dépôt reste initialisé. « Remplacer la clé » génère une nouvelle clé SSH du Manager : installez-la sur chaque serveur, l'ancienne ne sert plus.
 
 ### Tâches planifiées
 
@@ -400,7 +411,7 @@ La première release est `v2.3.0`, alignée sur la [spécification produit](docs
 ## État et limites connues
 
 - **Livré** : supervision système et Docker, historique, événements, comptes et rôles, sessions, politique de sécurité, journal d'audit, double authentification (TOTP, passkeys et clés FIDO2, codes de secours), jetons d'API en lecture seule, journaux système, services système avec actions en liste blanche (phase 5), sauvegardes restic avec diff et dépôt de copie (phase 6), tâches planifiées en lecture (phase 7), alertes avec silences et notifications (phase 4), vulnérabilités des paquets avec Grype (module V ; Debian, Ubuntu, Alpine, Fedora, RHEL, Rocky Linux et AlmaLinux 9 et suivantes), redémarrage et extinction (optionnels).
-- **Spécifié, pas encore implémenté** : connexion par passkey seule (sans mot de passe), dépôts de sauvegarde SFTP. Voir [docs/SPEC_ADMINISTRATION.md](docs/SPEC_ADMINISTRATION.md) et la [feuille de route](docs/superpowers/plans/2026-11-23-feuille-de-route-v3.md).
+- **Spécifié, pas encore implémenté** : connexion par passkey seule (sans mot de passe). Voir [docs/SPEC_ADMINISTRATION.md](docs/SPEC_ADMINISTRATION.md) et la [feuille de route](docs/superpowers/plans/2026-11-23-feuille-de-route-v3.md).
 - Historiques bruts ou agrégés, 2 000 points au plus par requête ; l'interface choisit le pas selon la période.
 - À l'intervalle par défaut (10 s), la base croît d'environ 300 Mo par jour jusqu'à la rétention : ≈ 2 Go pour 7 jours.
 - Listes bornées, sans pagination ; images, volumes et réseaux Docker déduits des conteneurs.

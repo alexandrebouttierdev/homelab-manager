@@ -25,18 +25,23 @@ const (
 	MaxJobBytes     = 1 << 20
 	MaxSecretsBytes = 16 << 10
 	MaxResultBytes  = 32 << 20
+	maxSSHKeyBytes  = 8 << 10
 )
+
+const sshKeyHeader = "-----BEGIN OPENSSH PRIVATE KEY-----"
 
 // Job is what an operation must do. It never holds a secret.
 type Job struct {
-	Version          int                         `json:"version"`
-	Operation        domain.BackupOperation      `json:"operation"`
-	RepositoryType   domain.BackupRepositoryType `json:"repositoryType"`
-	Repository       string                      `json:"repository"`
-	Sources          []string                    `json:"sources"`
-	Excludes         []string                    `json:"excludes"`
-	ExcludeCaches    bool                        `json:"excludeCaches"`
-	ExcludeIfPresent string                      `json:"excludeIfPresent"`
+	Version        int                         `json:"version"`
+	Operation      domain.BackupOperation      `json:"operation"`
+	RepositoryType domain.BackupRepositoryType `json:"repositoryType"`
+	Repository     string                      `json:"repository"`
+	// HostKey: the pinned host key of an SFTP repository.
+	HostKey          string   `json:"hostKey,omitempty"`
+	Sources          []string `json:"sources"`
+	Excludes         []string `json:"excludes"`
+	ExcludeCaches    bool     `json:"excludeCaches"`
+	ExcludeIfPresent string   `json:"excludeIfPresent"`
 	// Retention: forget-prune only.
 	Retention *Retention `json:"retention,omitempty"`
 	// CheckSubsetPercent: check only.
@@ -61,19 +66,22 @@ type Diff struct {
 type Copy struct {
 	RepositoryType domain.BackupRepositoryType `json:"repositoryType"`
 	Repository     string                      `json:"repository"`
+	HostKey        string                      `json:"hostKey,omitempty"`
 	Init           bool                        `json:"init"`
 	Retention      *Retention                  `json:"retention,omitempty"`
 }
 
 func (c Copy) BackupRepository() domain.BackupRepository {
-	return domain.BackupRepository{Type: c.RepositoryType, Location: c.Repository}
+	return domain.BackupRepository{Type: c.RepositoryType, Location: c.Repository, HostKey: c.HostKey}
 }
 
 // Secrets are the credentials of the repository, and of the copy
-// repository for a copy. They travel in a one-use file.
+// repository for a copy. SSHKey is the private key of the Manager when an
+// SFTP repository takes part. They travel in a one-use file.
 type Secrets struct {
 	domain.BackupCredentials
-	Copy *domain.BackupCredentials `json:"copy,omitempty"`
+	Copy   *domain.BackupCredentials `json:"copy,omitempty"`
+	SSHKey string                    `json:"sshKey,omitempty"`
 }
 
 // Retention is the policy of restic forget.
@@ -183,6 +191,12 @@ func (j Job) ValidateSecrets(secrets Secrets) error {
 	if (secrets.Copy != nil) != (j.Copy != nil) {
 		return errors.New("the copy credentials belong to copy only")
 	}
+	if (secrets.SSHKey != "") != j.UsesSFTP() {
+		return errors.New("the SSH key belongs to the operations on an SFTP repository only")
+	}
+	if secrets.SSHKey != "" && (len(secrets.SSHKey) > maxSSHKeyBytes || !strings.HasPrefix(secrets.SSHKey, sshKeyHeader)) {
+		return errors.New("the SSH key must be an OpenSSH private key")
+	}
 	if j.Copy == nil {
 		return nil
 	}
@@ -193,7 +207,12 @@ func (j Job) ValidateSecrets(secrets Secrets) error {
 }
 
 func (j Job) BackupRepository() domain.BackupRepository {
-	return domain.BackupRepository{Type: j.RepositoryType, Location: j.Repository}
+	return domain.BackupRepository{Type: j.RepositoryType, Location: j.Repository, HostKey: j.HostKey}
+}
+
+// UsesSFTP reports whether an SFTP repository takes part in the job.
+func (j Job) UsesSFTP() bool {
+	return j.RepositoryType == domain.RepositorySFTP || (j.Copy != nil && j.Copy.RepositoryType == domain.RepositorySFTP)
 }
 
 // Summary holds the figures of restic's backup summary.
@@ -318,6 +337,9 @@ func (s Secrets) Values() []string {
 	values := []string{s.Password, s.Secret}
 	if s.Copy != nil {
 		values = append(values, s.Copy.Password, s.Copy.Secret)
+	}
+	if s.SSHKey != "" {
+		values = append(values, s.SSHKey)
 	}
 	return values
 }

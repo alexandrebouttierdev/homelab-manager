@@ -133,14 +133,14 @@ Ordre de réalisation : 1A → M → 1B → 1C → 2 → 3 → 4 → V → 5 →
 - Rôle `operator` au moins ; nouvelle permission `services:operate` dans le domaine.
 - Action « Redémarrer » depuis une alerte (phase 4).
 
-### 6 — Sauvegardes restic
+### 6 — Sauvegardes restic (livrée)
 
 - Unités fournies `homelab-backup@.service` (durcies) et `homelab-backup-schedule.timer` ; fichiers de travail JSON dans `/var/lib/homelab-manager/backup/jobs/`, résultats `restic --json` dans `.../runs/` ; aucun argument libre.
 - Dépôts local, SFTP, S3/B2, rest-server ; copies `restic copy` ; secrets dans le coffre ; affichage unique du mot de passe du dépôt.
 - Sources, exclusions glob vérifiées, rétention `forget`/`prune`, `check --read-data-subset` hebdomadaire.
 - Instantanés, diff, historique des exécutions ; restauration simulée puis en quarantaine.
 - Alerte en cas d'échec ou de retard (phase 4).
-- Livrée en trois incréments : 6A (dépôts, sauvegarde, historique), 6B (rétention, vérification, restauration) et 6C (diff, dépôt de copie) ; SFTP reste à décider.
+- Livrée en quatre incréments : 6A (dépôts, sauvegarde, historique), 6B (rétention, vérification, restauration), 6C (diff, dépôt de copie) et 6D (SFTP, avec une clé SSH propre au Manager et la clé d'hôte épinglée, décision D-13 du 25 novembre 2026, confirmée).
 
 ### 7 — Tâches planifiées en lecture
 
@@ -167,7 +167,7 @@ Ordre de réalisation : 1A → M → 1B → 1C → 2 → 3 → 4 → V → 5 →
 
 ## 5. Décisions à trancher
 
-Ouvertes dans la spécification (`SPEC_ADMINISTRATION.md` § 10) : D-1 (édition Cron), D-2 (restauration en place), D-3 (pré-traitements de sauvegarde), D-4 (portées d'action des jetons), D-5 (actions et journaux Docker), D-6 (préférences système). Aucune ne bloque 1A–3. D-7 et D-8, ajoutées avec le module M, sont tranchées le 23 novembre 2026 : actions d'alimentation réservées à `admin`, sans arrêt programmé ni annulable.
+Ouvertes dans la spécification (`SPEC_ADMINISTRATION.md` § 10) : D-1 (édition Cron), D-2 (restauration en place), D-3 (pré-traitements de sauvegarde), D-4 (portées d'action des jetons), D-5 (actions et journaux Docker), D-6 (préférences système). Aucune ne bloque 1A–3. D-7 et D-8, ajoutées avec le module M, sont tranchées le 23 novembre 2026 : actions d'alimentation réservées à `admin`, sans arrêt programmé ni annulable. D-13 (clé SSH des dépôts SFTP) est prise le 25 novembre 2026 en autonomie, puis confirmée par le propriétaire le même jour : clé propre au Manager, scellée dans le coffre, clé d'hôte épinglée.
 
 Questions nouvelles relevées en préparant ce plan, à trancher avant l'incrément indiqué :
 

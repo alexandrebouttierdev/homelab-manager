@@ -5019,6 +5019,7 @@ type BackupConfigMutation struct {
 	singleton_key            *string
 	repository_type          *string
 	repository_location      *string
+	repository_host_key      *string
 	sealed_credentials       *string
 	initialized_at           *time.Time
 	sources                  *[]string
@@ -5049,9 +5050,13 @@ type BackupConfigMutation struct {
 	addcheck_subset_percent  *int
 	copy_repository_type     *string
 	copy_repository_location *string
+	copy_repository_host_key *string
 	copy_sealed_credentials  *string
 	copy_initialized_at      *time.Time
 	copy_after_backup        *bool
+	ssh_public_key           *string
+	ssh_sealed_private_key   *string
+	ssh_key_created_at       *time.Time
 	updated_at               *time.Time
 	updated_by               *string
 	clearedFields            map[string]struct{}
@@ -5296,6 +5301,42 @@ func (m *BackupConfigMutation) RepositoryLocationCleared() bool {
 func (m *BackupConfigMutation) ResetRepositoryLocation() {
 	m.repository_location = nil
 	delete(m.clearedFields, backupconfig.FieldRepositoryLocation)
+}
+
+// SetRepositoryHostKey sets the "repository_host_key" field.
+func (m *BackupConfigMutation) SetRepositoryHostKey(s string) {
+	m.repository_host_key = &s
+}
+
+// RepositoryHostKey returns the value of the "repository_host_key" field in the mutation.
+func (m *BackupConfigMutation) RepositoryHostKey() (r string, exists bool) {
+	v := m.repository_host_key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldRepositoryHostKey returns the old "repository_host_key" field's value of the BackupConfig entity.
+// If the BackupConfig object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BackupConfigMutation) OldRepositoryHostKey(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldRepositoryHostKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldRepositoryHostKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldRepositoryHostKey: %w", err)
+	}
+	return oldValue.RepositoryHostKey, nil
+}
+
+// ResetRepositoryHostKey resets all changes to the "repository_host_key" field.
+func (m *BackupConfigMutation) ResetRepositoryHostKey() {
+	m.repository_host_key = nil
 }
 
 // SetSealedCredentials sets the "sealed_credentials" field.
@@ -6247,6 +6288,42 @@ func (m *BackupConfigMutation) ResetCopyRepositoryLocation() {
 	delete(m.clearedFields, backupconfig.FieldCopyRepositoryLocation)
 }
 
+// SetCopyRepositoryHostKey sets the "copy_repository_host_key" field.
+func (m *BackupConfigMutation) SetCopyRepositoryHostKey(s string) {
+	m.copy_repository_host_key = &s
+}
+
+// CopyRepositoryHostKey returns the value of the "copy_repository_host_key" field in the mutation.
+func (m *BackupConfigMutation) CopyRepositoryHostKey() (r string, exists bool) {
+	v := m.copy_repository_host_key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldCopyRepositoryHostKey returns the old "copy_repository_host_key" field's value of the BackupConfig entity.
+// If the BackupConfig object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BackupConfigMutation) OldCopyRepositoryHostKey(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldCopyRepositoryHostKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldCopyRepositoryHostKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldCopyRepositoryHostKey: %w", err)
+	}
+	return oldValue.CopyRepositoryHostKey, nil
+}
+
+// ResetCopyRepositoryHostKey resets all changes to the "copy_repository_host_key" field.
+func (m *BackupConfigMutation) ResetCopyRepositoryHostKey() {
+	m.copy_repository_host_key = nil
+}
+
 // SetCopySealedCredentials sets the "copy_sealed_credentials" field.
 func (m *BackupConfigMutation) SetCopySealedCredentials(s string) {
 	m.copy_sealed_credentials = &s
@@ -6368,6 +6445,127 @@ func (m *BackupConfigMutation) ResetCopyAfterBackup() {
 	m.copy_after_backup = nil
 }
 
+// SetSSHPublicKey sets the "ssh_public_key" field.
+func (m *BackupConfigMutation) SetSSHPublicKey(s string) {
+	m.ssh_public_key = &s
+}
+
+// SSHPublicKey returns the value of the "ssh_public_key" field in the mutation.
+func (m *BackupConfigMutation) SSHPublicKey() (r string, exists bool) {
+	v := m.ssh_public_key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSSHPublicKey returns the old "ssh_public_key" field's value of the BackupConfig entity.
+// If the BackupConfig object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BackupConfigMutation) OldSSHPublicKey(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSSHPublicKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSSHPublicKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSSHPublicKey: %w", err)
+	}
+	return oldValue.SSHPublicKey, nil
+}
+
+// ResetSSHPublicKey resets all changes to the "ssh_public_key" field.
+func (m *BackupConfigMutation) ResetSSHPublicKey() {
+	m.ssh_public_key = nil
+}
+
+// SetSSHSealedPrivateKey sets the "ssh_sealed_private_key" field.
+func (m *BackupConfigMutation) SetSSHSealedPrivateKey(s string) {
+	m.ssh_sealed_private_key = &s
+}
+
+// SSHSealedPrivateKey returns the value of the "ssh_sealed_private_key" field in the mutation.
+func (m *BackupConfigMutation) SSHSealedPrivateKey() (r string, exists bool) {
+	v := m.ssh_sealed_private_key
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSSHSealedPrivateKey returns the old "ssh_sealed_private_key" field's value of the BackupConfig entity.
+// If the BackupConfig object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BackupConfigMutation) OldSSHSealedPrivateKey(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSSHSealedPrivateKey is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSSHSealedPrivateKey requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSSHSealedPrivateKey: %w", err)
+	}
+	return oldValue.SSHSealedPrivateKey, nil
+}
+
+// ResetSSHSealedPrivateKey resets all changes to the "ssh_sealed_private_key" field.
+func (m *BackupConfigMutation) ResetSSHSealedPrivateKey() {
+	m.ssh_sealed_private_key = nil
+}
+
+// SetSSHKeyCreatedAt sets the "ssh_key_created_at" field.
+func (m *BackupConfigMutation) SetSSHKeyCreatedAt(t time.Time) {
+	m.ssh_key_created_at = &t
+}
+
+// SSHKeyCreatedAt returns the value of the "ssh_key_created_at" field in the mutation.
+func (m *BackupConfigMutation) SSHKeyCreatedAt() (r time.Time, exists bool) {
+	v := m.ssh_key_created_at
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSSHKeyCreatedAt returns the old "ssh_key_created_at" field's value of the BackupConfig entity.
+// If the BackupConfig object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BackupConfigMutation) OldSSHKeyCreatedAt(ctx context.Context) (v *time.Time, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSSHKeyCreatedAt is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSSHKeyCreatedAt requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSSHKeyCreatedAt: %w", err)
+	}
+	return oldValue.SSHKeyCreatedAt, nil
+}
+
+// ClearSSHKeyCreatedAt clears the value of the "ssh_key_created_at" field.
+func (m *BackupConfigMutation) ClearSSHKeyCreatedAt() {
+	m.ssh_key_created_at = nil
+	m.clearedFields[backupconfig.FieldSSHKeyCreatedAt] = struct{}{}
+}
+
+// SSHKeyCreatedAtCleared returns if the "ssh_key_created_at" field was cleared in this mutation.
+func (m *BackupConfigMutation) SSHKeyCreatedAtCleared() bool {
+	_, ok := m.clearedFields[backupconfig.FieldSSHKeyCreatedAt]
+	return ok
+}
+
+// ResetSSHKeyCreatedAt resets all changes to the "ssh_key_created_at" field.
+func (m *BackupConfigMutation) ResetSSHKeyCreatedAt() {
+	m.ssh_key_created_at = nil
+	delete(m.clearedFields, backupconfig.FieldSSHKeyCreatedAt)
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (m *BackupConfigMutation) SetUpdatedAt(t time.Time) {
 	m.updated_at = &t
@@ -6474,7 +6672,7 @@ func (m *BackupConfigMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *BackupConfigMutation) Fields() []string {
-	fields := make([]string, 0, 28)
+	fields := make([]string, 0, 33)
 	if m.singleton_key != nil {
 		fields = append(fields, backupconfig.FieldSingletonKey)
 	}
@@ -6483,6 +6681,9 @@ func (m *BackupConfigMutation) Fields() []string {
 	}
 	if m.repository_location != nil {
 		fields = append(fields, backupconfig.FieldRepositoryLocation)
+	}
+	if m.repository_host_key != nil {
+		fields = append(fields, backupconfig.FieldRepositoryHostKey)
 	}
 	if m.sealed_credentials != nil {
 		fields = append(fields, backupconfig.FieldSealedCredentials)
@@ -6544,6 +6745,9 @@ func (m *BackupConfigMutation) Fields() []string {
 	if m.copy_repository_location != nil {
 		fields = append(fields, backupconfig.FieldCopyRepositoryLocation)
 	}
+	if m.copy_repository_host_key != nil {
+		fields = append(fields, backupconfig.FieldCopyRepositoryHostKey)
+	}
 	if m.copy_sealed_credentials != nil {
 		fields = append(fields, backupconfig.FieldCopySealedCredentials)
 	}
@@ -6552,6 +6756,15 @@ func (m *BackupConfigMutation) Fields() []string {
 	}
 	if m.copy_after_backup != nil {
 		fields = append(fields, backupconfig.FieldCopyAfterBackup)
+	}
+	if m.ssh_public_key != nil {
+		fields = append(fields, backupconfig.FieldSSHPublicKey)
+	}
+	if m.ssh_sealed_private_key != nil {
+		fields = append(fields, backupconfig.FieldSSHSealedPrivateKey)
+	}
+	if m.ssh_key_created_at != nil {
+		fields = append(fields, backupconfig.FieldSSHKeyCreatedAt)
 	}
 	if m.updated_at != nil {
 		fields = append(fields, backupconfig.FieldUpdatedAt)
@@ -6573,6 +6786,8 @@ func (m *BackupConfigMutation) Field(name string) (ent.Value, bool) {
 		return m.RepositoryType()
 	case backupconfig.FieldRepositoryLocation:
 		return m.RepositoryLocation()
+	case backupconfig.FieldRepositoryHostKey:
+		return m.RepositoryHostKey()
 	case backupconfig.FieldSealedCredentials:
 		return m.SealedCredentials()
 	case backupconfig.FieldInitializedAt:
@@ -6613,12 +6828,20 @@ func (m *BackupConfigMutation) Field(name string) (ent.Value, bool) {
 		return m.CopyRepositoryType()
 	case backupconfig.FieldCopyRepositoryLocation:
 		return m.CopyRepositoryLocation()
+	case backupconfig.FieldCopyRepositoryHostKey:
+		return m.CopyRepositoryHostKey()
 	case backupconfig.FieldCopySealedCredentials:
 		return m.CopySealedCredentials()
 	case backupconfig.FieldCopyInitializedAt:
 		return m.CopyInitializedAt()
 	case backupconfig.FieldCopyAfterBackup:
 		return m.CopyAfterBackup()
+	case backupconfig.FieldSSHPublicKey:
+		return m.SSHPublicKey()
+	case backupconfig.FieldSSHSealedPrivateKey:
+		return m.SSHSealedPrivateKey()
+	case backupconfig.FieldSSHKeyCreatedAt:
+		return m.SSHKeyCreatedAt()
 	case backupconfig.FieldUpdatedAt:
 		return m.UpdatedAt()
 	case backupconfig.FieldUpdatedBy:
@@ -6638,6 +6861,8 @@ func (m *BackupConfigMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldRepositoryType(ctx)
 	case backupconfig.FieldRepositoryLocation:
 		return m.OldRepositoryLocation(ctx)
+	case backupconfig.FieldRepositoryHostKey:
+		return m.OldRepositoryHostKey(ctx)
 	case backupconfig.FieldSealedCredentials:
 		return m.OldSealedCredentials(ctx)
 	case backupconfig.FieldInitializedAt:
@@ -6678,12 +6903,20 @@ func (m *BackupConfigMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldCopyRepositoryType(ctx)
 	case backupconfig.FieldCopyRepositoryLocation:
 		return m.OldCopyRepositoryLocation(ctx)
+	case backupconfig.FieldCopyRepositoryHostKey:
+		return m.OldCopyRepositoryHostKey(ctx)
 	case backupconfig.FieldCopySealedCredentials:
 		return m.OldCopySealedCredentials(ctx)
 	case backupconfig.FieldCopyInitializedAt:
 		return m.OldCopyInitializedAt(ctx)
 	case backupconfig.FieldCopyAfterBackup:
 		return m.OldCopyAfterBackup(ctx)
+	case backupconfig.FieldSSHPublicKey:
+		return m.OldSSHPublicKey(ctx)
+	case backupconfig.FieldSSHSealedPrivateKey:
+		return m.OldSSHSealedPrivateKey(ctx)
+	case backupconfig.FieldSSHKeyCreatedAt:
+		return m.OldSSHKeyCreatedAt(ctx)
 	case backupconfig.FieldUpdatedAt:
 		return m.OldUpdatedAt(ctx)
 	case backupconfig.FieldUpdatedBy:
@@ -6717,6 +6950,13 @@ func (m *BackupConfigMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetRepositoryLocation(v)
+		return nil
+	case backupconfig.FieldRepositoryHostKey:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetRepositoryHostKey(v)
 		return nil
 	case backupconfig.FieldSealedCredentials:
 		v, ok := value.(string)
@@ -6858,6 +7098,13 @@ func (m *BackupConfigMutation) SetField(name string, value ent.Value) error {
 		}
 		m.SetCopyRepositoryLocation(v)
 		return nil
+	case backupconfig.FieldCopyRepositoryHostKey:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetCopyRepositoryHostKey(v)
+		return nil
 	case backupconfig.FieldCopySealedCredentials:
 		v, ok := value.(string)
 		if !ok {
@@ -6878,6 +7125,27 @@ func (m *BackupConfigMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetCopyAfterBackup(v)
+		return nil
+	case backupconfig.FieldSSHPublicKey:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSSHPublicKey(v)
+		return nil
+	case backupconfig.FieldSSHSealedPrivateKey:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSSHSealedPrivateKey(v)
+		return nil
+	case backupconfig.FieldSSHKeyCreatedAt:
+		v, ok := value.(time.Time)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSSHKeyCreatedAt(v)
 		return nil
 	case backupconfig.FieldUpdatedAt:
 		v, ok := value.(time.Time)
@@ -7040,6 +7308,9 @@ func (m *BackupConfigMutation) ClearedFields() []string {
 	if m.FieldCleared(backupconfig.FieldCopyInitializedAt) {
 		fields = append(fields, backupconfig.FieldCopyInitializedAt)
 	}
+	if m.FieldCleared(backupconfig.FieldSSHKeyCreatedAt) {
+		fields = append(fields, backupconfig.FieldSSHKeyCreatedAt)
+	}
 	return fields
 }
 
@@ -7072,6 +7343,9 @@ func (m *BackupConfigMutation) ClearField(name string) error {
 	case backupconfig.FieldCopyInitializedAt:
 		m.ClearCopyInitializedAt()
 		return nil
+	case backupconfig.FieldSSHKeyCreatedAt:
+		m.ClearSSHKeyCreatedAt()
+		return nil
 	}
 	return fmt.Errorf("unknown BackupConfig nullable field %s", name)
 }
@@ -7088,6 +7362,9 @@ func (m *BackupConfigMutation) ResetField(name string) error {
 		return nil
 	case backupconfig.FieldRepositoryLocation:
 		m.ResetRepositoryLocation()
+		return nil
+	case backupconfig.FieldRepositoryHostKey:
+		m.ResetRepositoryHostKey()
 		return nil
 	case backupconfig.FieldSealedCredentials:
 		m.ResetSealedCredentials()
@@ -7149,6 +7426,9 @@ func (m *BackupConfigMutation) ResetField(name string) error {
 	case backupconfig.FieldCopyRepositoryLocation:
 		m.ResetCopyRepositoryLocation()
 		return nil
+	case backupconfig.FieldCopyRepositoryHostKey:
+		m.ResetCopyRepositoryHostKey()
+		return nil
 	case backupconfig.FieldCopySealedCredentials:
 		m.ResetCopySealedCredentials()
 		return nil
@@ -7157,6 +7437,15 @@ func (m *BackupConfigMutation) ResetField(name string) error {
 		return nil
 	case backupconfig.FieldCopyAfterBackup:
 		m.ResetCopyAfterBackup()
+		return nil
+	case backupconfig.FieldSSHPublicKey:
+		m.ResetSSHPublicKey()
+		return nil
+	case backupconfig.FieldSSHSealedPrivateKey:
+		m.ResetSSHSealedPrivateKey()
+		return nil
+	case backupconfig.FieldSSHKeyCreatedAt:
+		m.ResetSSHKeyCreatedAt()
 		return nil
 	case backupconfig.FieldUpdatedAt:
 		m.ResetUpdatedAt()

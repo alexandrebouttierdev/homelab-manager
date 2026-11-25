@@ -87,10 +87,34 @@ type BackupJob struct {
 	CopyRetention *domain.BackupRetention
 }
 
+// BackupSecrets are the secrets of one operation, written to the one-use
+// secrets file of the run.
+type BackupSecrets struct {
+	Credentials domain.BackupCredentials
+	// Copy: the credentials of the copy repository, for a copy only.
+	Copy *domain.BackupCredentials
+	// SSHKey: the private key of the Manager (OpenSSH format), when an
+	// SFTP repository takes part in the operation.
+	SSHKey string
+}
+
 // BackupExecutor runs an operation in homelab-backup@.service and returns
 // its result. Its failures are *domain.BackupRunError; the context bounds
 // the run.
 type BackupExecutor interface {
-	// copyCredentials are those of the copy repository, for a copy only.
-	Execute(ctx context.Context, job BackupJob, credentials domain.BackupCredentials, copyCredentials *domain.BackupCredentials) (domain.BackupResult, error)
+	Execute(ctx context.Context, job BackupJob, secrets BackupSecrets) (domain.BackupResult, error)
+}
+
+// SSHKeys generates the SSH key of the Manager and reads the host keys of
+// SFTP servers (decision D-13).
+type SSHKeys interface {
+	// Generate returns a new Ed25519 key: its private part in the OpenSSH
+	// format and its authorized_keys line, ending with the comment.
+	Generate(comment string) (privateKey, publicKey string, err error)
+	// Fingerprint is the SHA256 fingerprint of a public key, as ssh shows it.
+	Fingerprint(publicKey string) (string, error)
+	// NormalizeHostKey reads a host key given as an authorized_keys line
+	// (ssh_host_*_key.pub) or a known_hosts line (ssh-keyscan), and returns
+	// it as "type base64". Weak or unsupported keys are refused.
+	NormalizeHostKey(text string) (string, error)
 }

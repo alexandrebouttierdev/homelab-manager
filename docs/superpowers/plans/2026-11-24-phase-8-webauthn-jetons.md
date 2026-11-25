@@ -35,3 +35,23 @@
 
 - Livré comme prévu : domaine, migration `013`, dépôt, usecase, `Authorization: Bearer` dans le middleware de session avec contrôle des portées, routes `/api/v1/auth/tokens`, carte « Jetons d'API ».
 - 8B attend l'accord du propriétaire sur les dépendances listées plus haut.
+
+## Décisions de conception (8B)
+
+Accord du propriétaire sur les dépendances le 24 novembre 2026.
+
+| Sujet | Choix | Motif |
+|---|---|---|
+| Rôle | Second facteur, à côté du TOTP et des codes de secours ; pas de connexion par passkey seule | § 3.3 ; la connexion sans mot de passe reste à spécifier |
+| Configuration | `webauthn_rp_id` (nom de domaine, pas d'adresse IP), `webauthn_origins` (HTTPS du domaine, ou `http://localhost`), `webauthn_rp_name` ; WebAuthn désactivé sans `webauthn_rp_id` | Exigences des navigateurs |
+| Cérémonie | Attestation `none`, clé résidente préférée, vérification de l'utilisateur exigée ; session gardée en mémoire 5 minutes, une seule réponse par cérémonie | Pas de liste d'AAGUID à maintenir ; anti-rejeu |
+| Connexion | Les options d'une connexion par clé s'attachent au défi du mot de passe (cookie `homelab_login`) ; la réponse passe par la route de deuxième étape existante, `method: "webauthn"` | Mêmes essais, verrouillage et limitation que le TOTP |
+| Stockage | Table `webauthn_credentials` : identifiant unique, credential `go-webauthn` en JSON, nom, dates ; 10 clés par compte | Ressources bornées ; une clé ne sert qu'un compte |
+| Codes de secours | Générés à l'ajout de la première clé d'un compte qui n'en a pas ; supprimés quand le dernier facteur part | Un second facteur a toujours un secours |
+| Clonage | Compteur de signatures qui recule : connexion refusée | Recommandation WebAuthn |
+| Audit | `webauthn_add`, `webauthn_remove` (cible `user`) ; l'usage n'est pas audité, `last_used_at` est écrit | Comme les jetons |
+
+## Bilan de 8B (25 novembre 2026)
+
+- Livré : adaptateur `go-webauthn` v0.18.2, migration `014`, dépôt, usecases, routes `/api/v1/auth/second-factor/webauthn…` et `/api/v1/auth/login/second-factor/webauthn`, section « Clés de sécurité et passkeys » de la carte Double authentification, connexion qui propose la clé en premier.
+- Non vérifié : une vraie clé ou passkey dans un navigateur (la VM de recette est servie par adresse IP en HTTP, que WebAuthn refuse) ; à faire sur un domaine en HTTPS.

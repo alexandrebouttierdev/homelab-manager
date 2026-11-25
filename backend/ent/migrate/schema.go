@@ -502,6 +502,22 @@ var (
 		Columns:    VulnerabilityScansColumns,
 		PrimaryKey: []*schema.Column{VulnerabilityScansColumns[0]},
 	}
+	// WebauthnCredentialsColumns holds the columns for the "webauthn_credentials" table.
+	WebauthnCredentialsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "user_id", Type: field.TypeUUID},
+		{Name: "name", Type: field.TypeString},
+		{Name: "credential_id", Type: field.TypeBytes, Unique: true},
+		{Name: "data", Type: field.TypeBytes},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "last_used_at", Type: field.TypeTime, Nullable: true},
+	}
+	// WebauthnCredentialsTable holds the schema information for the "webauthn_credentials" table.
+	WebauthnCredentialsTable = &schema.Table{
+		Name:       "webauthn_credentials",
+		Columns:    WebauthnCredentialsColumns,
+		PrimaryKey: []*schema.Column{WebauthnCredentialsColumns[0]},
+	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
 		APITokensTable,
@@ -528,6 +544,7 @@ var (
 		UsersTable,
 		VulnerabilityFindingsTable,
 		VulnerabilityScansTable,
+		WebauthnCredentialsTable,
 	}
 )
 

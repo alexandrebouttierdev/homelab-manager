@@ -88,3 +88,42 @@ func TestSecretsKeyPath(t *testing.T) {
 		t.Fatalf("no key = %q, want empty", got)
 	}
 }
+
+func TestConfigValidateWebAuthn(t *testing.T) {
+	base := Config{
+		HTTPAddress: ":8080", AdminUsername: "admin", DatabasePath: "/var/lib/homelab-manager/homelab-manager.db", DockerProxySocket: "/run/homelab-docker-proxy/docker.sock",
+		SystemIntervalSeconds: 10, DockerStatsIntervalSeconds: 15,
+		DockerDiscoveryIntervalSeconds: 30, MetricsRetentionDays: 30, VulnerabilityScanIntervalHours: 24,
+		VulnscanInventoryPath: "/var/lib/homelab-vulnscan/inventory/inventory.json", VulnscanResultPath: "/var/lib/homelab-vulnscan/result/result.json",
+		BackupJobsDir: "/var/lib/homelab-backup/jobs", BackupRunsDir: "/var/lib/homelab-backup/runs",
+		WebAuthnRPName: "Homelab Manager",
+	}
+	tests := []struct {
+		name    string
+		rpID    string
+		origins []string
+		valid   bool
+	}{
+		{"off", "", nil, true},
+		{"domain and origin", "homelab.example", []string{"https://homelab.example:8443"}, true},
+		{"subdomain origin", "example.org", []string{"https://manager.example.org"}, true},
+		{"localhost over HTTP", "localhost", []string{"http://localhost:5173"}, true},
+		{"origins without domain", "", []string{"https://homelab.example"}, false},
+		{"IP address", "192.168.1.10", []string{"https://192.168.1.10"}, false},
+		{"URL as domain", "https://homelab.example", []string{"https://homelab.example"}, false},
+		{"no origin", "homelab.example", nil, false},
+		{"other domain", "homelab.example", []string{"https://evil.example"}, false},
+		{"suffix without dot", "homelab.example", []string{"https://myhomelab.example"}, false},
+		{"plain HTTP", "homelab.example", []string{"http://homelab.example"}, false},
+		{"origin with a path", "homelab.example", []string{"https://homelab.example/app"}, false},
+	}
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			config := base
+			config.WebAuthnRPID, config.WebAuthnOrigins = test.rpID, test.origins
+			if err := config.Validate(); (err == nil) != test.valid {
+				t.Fatalf("Validate() = %v, want valid %v", err, test.valid)
+			}
+		})
+	}
+}

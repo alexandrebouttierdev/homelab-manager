@@ -48,7 +48,7 @@ Homelab Manager supervise **une seule machine Linux : celle qui l'héberge**. Le
 
 - Comptes multiples, rôles `viewer`, `operator`, `admin`
 - Mot de passe initial imposé, réinitialisation par un administrateur
-- Double authentification : application TOTP, codes de secours, exigible des administrateurs
+- Double authentification : application TOTP, passkeys et clés FIDO2 (WebAuthn), codes de secours, exigible des administrateurs
 - Sessions consultables et révocables, expiration après inactivité
 - Verrouillage après 5 échecs, réseaux autorisés (CIDR)
 - Journal d'audit filtrable, export CSV et JSON
@@ -210,6 +210,9 @@ La configuration est lue dans `manager.yaml` ([deployments/config/manager.yaml](
 | `HOMELAB_DOCKER_ENGINE_SOCKET` | Socket Engine lu par le proxy, pas par le Manager |
 | `HOMELAB_WEB_ROOT` | Répertoire `dist` servi par le Manager |
 | `HOMELAB_SECRETS_KEY_FILE` | Fichier de la clé du coffre de secrets (32 octets en base64). Vide : la clé importée par systemd, `$CREDENTIALS_DIRECTORY/homelab-manager-secrets-key`. Absente ou invalide : double authentification indisponible, le reste fonctionne |
+| `HOMELAB_WEBAUTHN_RP_ID` | Nom de domaine de l'interface pour les passkeys et clés FIDO2 (par exemple `homelab.example`) ; pas une adresse IP. Vide (défaut) : WebAuthn désactivé |
+| `HOMELAB_WEBAUTHN_ORIGINS` | Adresses exactes de l'interface, séparées par des espaces (par exemple `https://homelab.example:8080`) : HTTPS, dans le domaine de `HOMELAB_WEBAUTHN_RP_ID` (ou `http://localhost:…`). Obligatoire avec lui |
+| `HOMELAB_WEBAUTHN_RP_NAME` | Nom montré par le navigateur à l'enregistrement d'une clé (défaut `Homelab Manager`) |
 | `HOMELAB_POWER_ACTIONS_ENABLED` | Autorise Redémarrer / Éteindre depuis la page Machine (défaut `false`) ; exige aussi la règle polkit |
 | `HOMELAB_SYSTEMD_MANAGEABLE_UNITS` | Unités que les opérateurs peuvent démarrer, arrêter, redémarrer ou recharger, séparées par des espaces (défaut : aucune ; 200 au plus). Préférer la clé `systemd_manageable_units` de `manager.yaml`, que lit aussi `homelab-manager polkit-rule` ; exige la règle polkit générée (voir « Services système ») |
 
@@ -274,7 +277,16 @@ Un jeton ne permet aucune action ni l'accès aux comptes, aux paramètres ou à 
 
 ### Double authentification
 
-Chaque utilisateur l'active dans « Configuration » › Double authentification : mot de passe actuel, QR code à scanner (Aegis, Google Authenticator, 1Password…), premier code, puis 10 codes de secours affichés une seule fois. La connexion demande ensuite un code après le mot de passe. Dans « Utilisateurs & accès » › Politique, un administrateur qui l'a lui-même activée peut l'exiger de tous les administrateurs : ceux qui ne l'ont pas encore ne peuvent plus que l'activer.
+Chaque utilisateur l'active dans « Configuration » › Double authentification : mot de passe actuel, QR code à scanner (Aegis, Google Authenticator, 1Password…), premier code, puis 10 codes de secours affichés une seule fois. La connexion demande ensuite un code après le mot de passe.
+
+**Passkeys et clés de sécurité** : dans la même carte, « Ajouter une clé » enregistre une clé FIDO2 (YubiKey…) ou une passkey du téléphone ou de l'ordinateur, avec un nom ; jusqu'à 10 clés par compte, chacune supprimable. La clé doit vérifier l'utilisateur (PIN, empreinte, visage). À la connexion, la clé est proposée en premier, l'application et les codes de secours restant possibles. Il faut un nom de domaine et HTTPS (le navigateur refuse WebAuthn sur une adresse IP ou en HTTP, sauf `localhost`) :
+
+```yaml
+webauthn_rp_id: "homelab.example"
+webauthn_origins: ["https://homelab.example:8080"]
+```
+
+Changer de domaine rend les clés enregistrées inutilisables : se connecter avec l'application ou un code de secours, puis les réenregistrer. Dans « Utilisateurs & accès » › Politique, un administrateur qui l'a lui-même activée peut l'exiger de tous les administrateurs : ceux qui ne l'ont pas encore ne peuvent plus que l'activer.
 
 **Appareil perdu** : se connecter avec un code de secours, puis désactiver et réactiver la double authentification (ou régénérer les codes). **Appareil et codes perdus** : un autre administrateur supprime le compte et le recrée. S'il s'agit du dernier administrateur, retirer son second facteur en base, service arrêté :
 
@@ -283,6 +295,7 @@ sudo systemctl stop homelab-manager
 sudo -u homelab-manager sqlite3 /var/lib/homelab-manager/homelab-manager.db <<'SQL'
 DELETE FROM recovery_codes WHERE user_id = (SELECT id FROM users WHERE username = 'admin');
 DELETE FROM totp_secrets WHERE id = (SELECT id FROM users WHERE username = 'admin');
+DELETE FROM webauthn_credentials WHERE user_id = (SELECT id FROM users WHERE username = 'admin');
 SQL
 sudo systemctl start homelab-manager
 ```
@@ -382,8 +395,8 @@ La première release est `v2.3.0`, alignée sur la [spécification produit](docs
 
 ## État et limites connues
 
-- **Livré** : supervision système et Docker, historique, événements, comptes et rôles, sessions, politique de sécurité, journal d'audit, double authentification (TOTP et codes de secours), journaux système, services système avec actions en liste blanche (phase 5), sauvegardes restic (phase 6), tâches planifiées en lecture (phase 7), alertes avec silences et notifications (phase 4), vulnérabilités des paquets avec Grype (module V ; Debian, Ubuntu et Alpine), redémarrage et extinction (optionnels).
-- **Spécifié, pas encore implémenté** : passkeys (WebAuthn) et jetons d'API, actions sur les services systemd, sauvegardes restic, tâches planifiées, lecture des paquets RPM (Fedora, Rocky Linux, AlmaLinux) pour le module V. Voir [docs/SPEC_ADMINISTRATION.md](docs/SPEC_ADMINISTRATION.md) et la [feuille de route](docs/superpowers/plans/2026-11-23-feuille-de-route-v3.md).
+- **Livré** : supervision système et Docker, historique, événements, comptes et rôles, sessions, politique de sécurité, journal d'audit, double authentification (TOTP, passkeys et clés FIDO2, codes de secours), jetons d'API en lecture seule, journaux système, services système avec actions en liste blanche (phase 5), sauvegardes restic (phase 6), tâches planifiées en lecture (phase 7), alertes avec silences et notifications (phase 4), vulnérabilités des paquets avec Grype (module V ; Debian, Ubuntu et Alpine), redémarrage et extinction (optionnels).
+- **Spécifié, pas encore implémenté** : connexion par passkey seule (sans mot de passe), lecture des paquets RPM (Fedora, Rocky Linux, AlmaLinux) pour le module V. Voir [docs/SPEC_ADMINISTRATION.md](docs/SPEC_ADMINISTRATION.md) et la [feuille de route](docs/superpowers/plans/2026-11-23-feuille-de-route-v3.md).
 - Historiques bruts ou agrégés, 2 000 points au plus par requête ; l'interface choisit le pas selon la période.
 - À l'intervalle par défaut (10 s), la base croît d'environ 300 Mo par jour jusqu'à la rétention : ≈ 2 Go pour 7 jours.
 - Listes bornées, sans pagination ; images, volumes et réseaux Docker déduits des conteneurs.

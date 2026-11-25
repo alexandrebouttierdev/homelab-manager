@@ -38,10 +38,11 @@ type memoryFactors struct {
 	totp     map[uuid.UUID]domain.TOTPEnrollment
 	recovery map[uuid.UUID]map[string]bool // hash → used
 	audits   []domain.AuditEntry
+	keys     map[uuid.UUID][]domain.WebAuthnCredential
 }
 
 func newMemoryFactors() *memoryFactors {
-	return &memoryFactors{totp: map[uuid.UUID]domain.TOTPEnrollment{}, recovery: map[uuid.UUID]map[string]bool{}}
+	return &memoryFactors{totp: map[uuid.UUID]domain.TOTPEnrollment{}, recovery: map[uuid.UUID]map[string]bool{}, keys: map[uuid.UUID][]domain.WebAuthnCredential{}}
 }
 
 func (m *memoryFactors) TOTP(_ context.Context, userID uuid.UUID) (domain.TOTPEnrollment, bool, error) {
@@ -78,6 +79,7 @@ func (m *memoryFactors) UseTOTPStep(_ context.Context, userID uuid.UUID, step in
 func (m *memoryFactors) DisableSecondFactor(_ context.Context, userID uuid.UUID, audit domain.AuditEntry) error {
 	delete(m.totp, userID)
 	delete(m.recovery, userID)
+	delete(m.keys, userID)
 	m.audits = append(m.audits, audit)
 	return nil
 }
@@ -110,7 +112,7 @@ func (m *memoryFactors) RemainingRecoveryCodes(_ context.Context, userID uuid.UU
 	return count, nil
 }
 func (m *memoryFactors) HasSecondFactor(_ context.Context, userID uuid.UUID) (bool, error) {
-	return m.totp[userID].Confirmed, nil
+	return m.totp[userID].Confirmed || len(m.keys[userID]) > 0, nil
 }
 
 var factorClock = time.Date(2026, 11, 23, 10, 0, 0, 0, time.UTC)

@@ -90,7 +90,7 @@ func loginHandler(auth *usecase.AuthUsecase, secure bool) http.HandlerFunc {
 			http.SetCookie(w, challengeCookie(result.Challenge, result.ExpiresAt, secure))
 			writeJSON(w, http.StatusOK, map[string]any{
 				"secondFactorRequired": true,
-				"methods":              []domain.SecondFactorMethod{domain.SecondFactorTOTP, domain.SecondFactorRecovery},
+				"methods":              result.Methods,
 				"expiresAt":            result.ExpiresAt,
 			})
 			return

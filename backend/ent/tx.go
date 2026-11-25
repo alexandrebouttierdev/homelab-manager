@@ -60,6 +60,8 @@ type Tx struct {
 	VulnerabilityFinding *VulnerabilityFindingClient
 	// VulnerabilityScan is the client for interacting with the VulnerabilityScan builders.
 	VulnerabilityScan *VulnerabilityScanClient
+	// WebauthnCredential is the client for interacting with the WebauthnCredential builders.
+	WebauthnCredential *WebauthnCredentialClient
 
 	// lazily loaded.
 	client     *Client
@@ -215,6 +217,7 @@ func (tx *Tx) init() {
 	tx.User = NewUserClient(tx.config)
 	tx.VulnerabilityFinding = NewVulnerabilityFindingClient(tx.config)
 	tx.VulnerabilityScan = NewVulnerabilityScanClient(tx.config)
+	tx.WebauthnCredential = NewWebauthnCredentialClient(tx.config)
 }
 
 // txDriver wraps the given dialect.Tx with a nop dialect.Driver implementation.

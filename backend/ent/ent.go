@@ -30,6 +30,7 @@ import (
 	"homelab-manager/backend/ent/user"
 	"homelab-manager/backend/ent/vulnerabilityfinding"
 	"homelab-manager/backend/ent/vulnerabilityscan"
+	"homelab-manager/backend/ent/webauthncredential"
 	"reflect"
 	"sync"
 
@@ -120,6 +121,7 @@ func checkColumn(t, c string) error {
 			user.Table:                  user.ValidColumn,
 			vulnerabilityfinding.Table:  vulnerabilityfinding.ValidColumn,
 			vulnerabilityscan.Table:     vulnerabilityscan.ValidColumn,
+			webauthncredential.Table:    webauthncredential.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

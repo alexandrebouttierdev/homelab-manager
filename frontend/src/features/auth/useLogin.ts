@@ -1,16 +1,21 @@
 import { zodResolver } from '@hookform/resolvers/zod'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { useState } from 'react'
-import { useForm, useWatch } from 'react-hook-form'
+import { useState, type FormEvent } from 'react'
+import { useForm } from 'react-hook-form'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { sessionQueryKey } from '../../hooks/useSession'
 import {
   ApiError,
+  beginWebAuthnLogin,
   completeSecondFactor,
+  completeWithKey,
   login,
   needsSecondFactor,
+  type SecondFactorMethod,
   type SessionUser,
 } from '../../lib/api/auth'
+import { otherMethods, preferredMethod } from '../../lib/secondFactor'
+import { getCredential } from '../../lib/webauthn'
 import { loginSchema, type LoginValues } from '../../schemas/login'
 import { secondFactorLoginSchema, type SecondFactorLoginValues } from '../../schemas/secondFactor'
 
@@ -48,11 +53,12 @@ export function useLogin() {
 
   const [challenged, setChallenged] = useState(false)
   const [expiredMessage, setExpiredMessage] = useState<string | null>(null)
+  const [methods, setMethods] = useState<SecondFactorMethod[]>([])
+  const [method, setMethod] = useState<SecondFactorMethod>('totp')
   const codeForm = useForm<SecondFactorLoginValues>({
     resolver: zodResolver(secondFactorLoginSchema),
     defaultValues: { method: 'totp', code: '' },
   })
-  const method = useWatch({ control: codeForm.control, name: 'method' })
 
   const signedIn = (user: SessionUser) => {
     queryClient.setQueryData(sessionQueryKey, { user })
@@ -65,29 +71,43 @@ export function useLogin() {
     onSuccess: (result, values) => {
       rememberUsername(remember ? values.username : null)
       if (needsSecondFactor(result)) {
-        codeForm.reset({ method: 'totp', code: '' })
+        setMethods(result.methods)
+        switchMethod(preferredMethod(result.methods))
         setChallenged(true)
         return
       }
       signedIn(result.user)
     },
   })
+  // The pending login is gone: back to the password, with the reason.
+  const expired = (error: Error) => {
+    if (error instanceof ApiError && error.code === 'LOGIN_CHALLENGE_EXPIRED') {
+      setChallenged(false)
+      setExpiredMessage(error.message)
+      return true
+    }
+    return false
+  }
   const second = useMutation({
     mutationFn: (values: SecondFactorLoginValues) =>
       completeSecondFactor(values.method, values.code),
     onSuccess: (result) => signedIn(result.user),
     onError: (error) => {
-      // The pending login is gone: back to the password, with the reason.
-      if (error instanceof ApiError && error.code === 'LOGIN_CHALLENGE_EXPIRED') {
-        setChallenged(false)
-        setExpiredMessage(error.message)
-        second.reset()
-      }
+      if (expired(error)) second.reset()
     },
   })
-  const switchMethod = (next: SecondFactorLoginValues['method']) => {
-    codeForm.reset({ method: next, code: '' })
+  const keyLogin = useMutation({
+    mutationFn: async () => completeWithKey(await getCredential(await beginWebAuthnLogin())),
+    onSuccess: (result) => signedIn(result.user),
+    onError: (error) => {
+      if (expired(error)) keyLogin.reset()
+    },
+  })
+  const switchMethod = (next: SecondFactorMethod) => {
+    setMethod(next)
+    if (next !== 'webauthn') codeForm.reset({ method: next, code: '' })
     second.reset()
+    keyLogin.reset()
   }
 
   const state = location.state as { notice?: unknown } | null
@@ -107,16 +127,24 @@ export function useLogin() {
     secondFactor: challenged
       ? {
           method,
-          useRecoveryCode: () => switchMethod('recovery'),
-          useApp: () => switchMethod('totp'),
+          /** The other methods of the account, to switch to. */
+          alternatives: otherMethods(methods, method),
+          switchTo: switchMethod,
           registerCode: codeForm.register,
           codeError: codeForm.formState.errors.code?.message ?? null,
-          onSubmit: codeForm.handleSubmit((values) => second.mutate(values)),
-          isPending: second.isPending,
-          errorMessage: second.error?.message ?? null,
+          /** Sends the code, or asks the security key: browsers require a click for it. */
+          onSubmit: (event: FormEvent<HTMLFormElement>) => {
+            if (method !== 'webauthn')
+              return codeForm.handleSubmit((values) => second.mutate(values))(event)
+            event.preventDefault()
+            keyLogin.mutate()
+          },
+          isPending: second.isPending || keyLogin.isPending,
+          errorMessage: (second.error ?? keyLogin.error)?.message ?? null,
           restart: () => {
             setChallenged(false)
             second.reset()
+            keyLogin.reset()
           },
         }
       : null,

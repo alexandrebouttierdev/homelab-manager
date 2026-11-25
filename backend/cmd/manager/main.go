@@ -22,6 +22,7 @@ import (
 	"homelab-manager/backend/internal/adapters/sqlite"
 	"homelab-manager/backend/internal/adapters/systemd"
 	"homelab-manager/backend/internal/adapters/vulnscan"
+	webauthnadapter "homelab-manager/backend/internal/adapters/webauthn"
 	systemcollector "homelab-manager/backend/internal/collector/system"
 	httpdelivery "homelab-manager/backend/internal/delivery/http"
 	"homelab-manager/backend/internal/ports"
@@ -110,6 +111,10 @@ func main() {
 			authUsecase = auth.WithSecurity(securityRepository, auditRepository, security).
 				WithSecondFactor(factorRepository, box)
 			secondFactorUsecase = usecase.NewSecondFactorUsecase(authRepository, factorRepository, box, qrcode.New(), hasher)
+			if verifier := loadWebAuthn(logger, config); verifier != nil {
+				authUsecase.WithWebAuthn(verifier, factorRepository)
+				secondFactorUsecase.WithWebAuthn(verifier, factorRepository)
+			}
 			accountUsecase = usecase.NewAccountUsecase(sqlite.NewAccountRepository(client), authRepository, hasher).
 				WithAudit(auditRepository)
 			apiTokenUsecase = usecase.NewAPITokenUsecase(sqlite.NewAPITokenRepository(client), authRepository, logger)
@@ -337,6 +342,24 @@ func main() {
 	if dockerClientCloser != nil {
 		dockerClientCloser.CloseIdleConnections()
 	}
+}
+
+// loadWebAuthn returns the verifier of the passkeys and security keys, or
+// nil when webauthn_rp_id is empty or the library refuses the settings.
+func loadWebAuthn(logger *zap.Logger, config Config) ports.WebAuthnVerifier {
+	if config.WebAuthnRPID == "" {
+		logger.Info("Passkeys and security keys are off; set webauthn_rp_id and webauthn_origins to enable them")
+		return nil
+	}
+	verifier, err := webauthnadapter.New(webauthnadapter.Config{
+		RPID: config.WebAuthnRPID, RPDisplayName: config.WebAuthnRPName, Origins: config.WebAuthnOrigins,
+	})
+	if err != nil {
+		logger.Error("Could not enable passkeys and security keys", zap.Error(err))
+		return nil
+	}
+	logger.Info("Passkeys and security keys are on", zap.String("rp_id", config.WebAuthnRPID), zap.Strings("origins", config.WebAuthnOrigins))
+	return verifier
 }
 
 // loadSecretBox opens the secrets box with the master key. Without a key the

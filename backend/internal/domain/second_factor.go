@@ -51,10 +51,12 @@ type SecondFactorMethod string
 const (
 	SecondFactorTOTP     SecondFactorMethod = "totp"
 	SecondFactorRecovery SecondFactorMethod = "recovery"
+	// SecondFactorWebAuthn is a passkey or a FIDO2 security key.
+	SecondFactorWebAuthn SecondFactorMethod = "webauthn"
 )
 
 func (m SecondFactorMethod) Valid() bool {
-	return m == SecondFactorTOTP || m == SecondFactorRecovery
+	return m == SecondFactorTOTP || m == SecondFactorRecovery || m == SecondFactorWebAuthn
 }
 
 // TOTPEnrollment is the stored TOTP secret of an account, sealed by the
@@ -72,6 +74,10 @@ type SecondFactorStatus struct {
 	RecoveryCodesRemaining int
 	// Available is false when the secrets key is missing.
 	Available bool
+	// Keys are the passkeys and security keys of the account.
+	Keys []WebAuthnCredential
+	// WebAuthnAvailable is false when webauthn_rp_id is not configured.
+	WebAuthnAvailable bool
 }
 
 // QRMatrix is a QR code as rows of "1" (dark) and "0" (light) modules.

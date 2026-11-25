@@ -28,6 +28,7 @@ import (
 	"homelab-manager/backend/ent/user"
 	"homelab-manager/backend/ent/vulnerabilityfinding"
 	"homelab-manager/backend/ent/vulnerabilityscan"
+	"homelab-manager/backend/ent/webauthncredential"
 	"time"
 
 	"github.com/google/uuid"
@@ -663,4 +664,14 @@ func init() {
 	vulnerabilityscanDescID := vulnerabilityscanFields[0].Descriptor()
 	// vulnerabilityscan.DefaultID holds the default value on creation for the id field.
 	vulnerabilityscan.DefaultID = vulnerabilityscanDescID.Default.(func() uuid.UUID)
+	webauthncredentialFields := schema.WebauthnCredential{}.Fields()
+	_ = webauthncredentialFields
+	// webauthncredentialDescName is the schema descriptor for name field.
+	webauthncredentialDescName := webauthncredentialFields[2].Descriptor()
+	// webauthncredential.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	webauthncredential.NameValidator = webauthncredentialDescName.Validators[0].(func(string) error)
+	// webauthncredentialDescID is the schema descriptor for id field.
+	webauthncredentialDescID := webauthncredentialFields[0].Descriptor()
+	// webauthncredential.DefaultID holds the default value on creation for the id field.
+	webauthncredential.DefaultID = webauthncredentialDescID.Default.(func() uuid.UUID)
 }

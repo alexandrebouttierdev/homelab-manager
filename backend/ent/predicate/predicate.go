@@ -77,3 +77,6 @@ type VulnerabilityFinding func(*sql.Selector)
 
 // VulnerabilityScan is the predicate function for vulnerabilityscan builders.
 type VulnerabilityScan func(*sql.Selector)
+
+// WebauthnCredential is the predicate function for webauthncredential builders.
+type WebauthnCredential func(*sql.Selector)

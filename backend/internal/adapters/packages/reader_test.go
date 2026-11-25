@@ -114,11 +114,6 @@ func TestAlpineInventoryAndOSReleaseFallback(t *testing.T) {
 
 func TestUnsupportedAndMissing(t *testing.T) {
 	root := t.TempDir()
-	writeFile(t, root, "etc/os-release", "ID=rocky\nID_LIKE=\"rhel centos fedora\"\nVERSION_ID=9.4\n")
-	inventory, err := New(root).Inventory(context.Background())
-	if !errors.Is(err, domain.ErrUnsupportedDistro) || inventory.Distro.ID != "rocky" || inventory.Manager != domain.PackageManagerRPM {
-		t.Fatalf("Inventory() = (%+v, %v), want the distro and ErrUnsupportedDistro", inventory, err)
-	}
 	if _, err := New(t.TempDir()).Inventory(context.Background()); err == nil {
 		t.Fatal("Inventory() without os-release succeeded")
 	}

@@ -247,7 +247,7 @@ Ajouté le 23 novembre 2026 à la demande du propriétaire du projet : redémarr
 
 Ajouté le 24 novembre 2026 à la demande du propriétaire du projet : détecter les vulnérabilités connues (CVE et avis des distributions) des paquets système installés avec [Grype](https://github.com/anchore/grype) (Anchore, licence Apache 2.0), les consulter et en voir la synthèse sur le tableau de bord. D-9 (machine du Manager seule), D-10 (mise à jour automatique de la base) et D-11 (unité systemd dédiée) sont tranchées.
 
-**Mise en œuvre (module V, 24 novembre 2026)** : livré pour Debian, Ubuntu et leurs dérivées (dpkg) et Alpine (apk) ; les distributions RPM sont reconnues et signalées « non prises en charge ». Écarts : les fichiers échangés avec l'unité sont dans `/var/lib/homelab-vulnscan/inventory/` et `result/` (répertoires `tmpfiles.d` en 2750, chacun lisible par le groupe de l'autre compte) et non dans le répertoire d'état du Manager, en 0700 ; la règle d'alerte prend une sévérité minimale et l'option « corrigeables seulement », sans règle par défaut. Grype figé à la version 0.121.3. Plan et bilan : `docs/superpowers/plans/2026-11-24-module-v-vulnerabilites.md` ; contrat : API_CONTRACTS.md § 4.9.
+**Mise en œuvre (module V, 24 novembre 2026)** : livré pour Debian, Ubuntu et leurs dérivées (dpkg) et Alpine (apk) ; **lecteur RPM (25 novembre 2026)** : Fedora, RHEL, Rocky Linux, AlmaLinux et dérivées par `/var/lib/rpm/rpmdb.sqlite` (rpm 4.16 et suivants), ouverte en lecture seule par le pilote SQLite du projet, en-têtes RPM décodés par le Manager (nom, version, release, epoch, architecture, RPM source, label de modularité), clés `gpg-pubkey` ignorées ; une base Berkeley DB (RHEL 8 et dérivées) est signalée « non prise en charge ». Écarts : les fichiers échangés avec l'unité sont dans `/var/lib/homelab-vulnscan/inventory/` et `result/` (répertoires `tmpfiles.d` en 2750, chacun lisible par le groupe de l'autre compte) et non dans le répertoire d'état du Manager, en 0700 ; la règle d'alerte prend une sévérité minimale et l'option « corrigeables seulement », sans règle par défaut. Grype figé à la version 0.121.3. Plan et bilan : `docs/superpowers/plans/2026-11-24-module-v-vulnerabilites.md` ; contrat : API_CONTRACTS.md § 4.9.
 
 ### 8 ter.1 Périmètre
 
@@ -299,7 +299,7 @@ Ajouté le 24 novembre 2026 à la demande du propriétaire du projet : détecter
 | 6 | Module B : dépôts, sauvegarde, rétention, restauration en quarantaine. **6A, 6B et 6C livrés** (dépôt, sources, exclusions, sauvegardes manuelles et planifiées, historique, instantanés, rétention, vérification, restauration en quarantaine, rattachement, déverrouillage, diff, dépôt de copie) ; reste SFTP | Phases 1 et 4 |
 | 7 | Module C en lecture. **Livré** | Phase 2 |
 | 8 | WebAuthn, jetons d'API. **Livré** (8A : jetons ; 8B : WebAuthn comme second facteur) | Phase 1, HTTPS |
-| V | Module V : vulnérabilités des paquets (Grype) de la machine du Manager, placé après la phase 4. **Livré** (dpkg et apk ; RPM à venir) | Phase 4 (règle d'alerte) |
+| V | Module V : vulnérabilités des paquets (Grype) de la machine du Manager, placé après la phase 4. **Livré** (dpkg, apk et RPM à base SQLite) | Phase 4 (règle d'alerte) |
 
 Chaque phase livre son contrat dans API_CONTRACTS.md, ses tables dans DATA_MODEL.md, ses risques dans SECURITY.md, ses tests, et retire la mention « à venir » de son entrée de navigation.
 

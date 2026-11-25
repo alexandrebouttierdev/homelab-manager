@@ -14,6 +14,13 @@ const valid: BackupConfigValues = {
   frequency: 'daily',
   weekday: 0,
   time: '03:00',
+  retentionEnabled: false,
+  keepDaily: 7,
+  keepWeekly: 4,
+  keepMonthly: 6,
+  keepYearly: 0,
+  checkEnabled: true,
+  checkSubsetPercent: 5,
 }
 
 function errors(values: Partial<BackupConfigValues>) {
@@ -38,5 +45,28 @@ describe('backupConfigSchema', () => {
     expect(errors({ excludes: '#comment' })).toContain('excludes')
     expect(errors({ excludeIfPresent: 'a/b' })).toContain('excludeIfPresent')
     expect(errors({ time: '25:00' })).toContain('time')
+  })
+
+  it('checks the retention and the check', () => {
+    expect(
+      errors({
+        retentionEnabled: true,
+        keepDaily: 0,
+        keepWeekly: 0,
+        keepMonthly: 0,
+        keepYearly: 0,
+      }),
+    ).toContain('keepDaily')
+    expect(
+      errors({
+        retentionEnabled: false,
+        keepDaily: 0,
+        keepWeekly: 0,
+        keepMonthly: 0,
+        keepYearly: 0,
+      }),
+    ).toEqual([])
+    expect(errors({ keepDaily: -1 })).toContain('keepDaily')
+    expect(errors({ checkSubsetPercent: 0 })).toContain('checkSubsetPercent')
   })
 })

@@ -40,6 +40,20 @@ const (
 	FieldScheduleHour = "schedule_hour"
 	// FieldScheduleMinute holds the string denoting the schedule_minute field in the database.
 	FieldScheduleMinute = "schedule_minute"
+	// FieldRetentionEnabled holds the string denoting the retention_enabled field in the database.
+	FieldRetentionEnabled = "retention_enabled"
+	// FieldKeepDaily holds the string denoting the keep_daily field in the database.
+	FieldKeepDaily = "keep_daily"
+	// FieldKeepWeekly holds the string denoting the keep_weekly field in the database.
+	FieldKeepWeekly = "keep_weekly"
+	// FieldKeepMonthly holds the string denoting the keep_monthly field in the database.
+	FieldKeepMonthly = "keep_monthly"
+	// FieldKeepYearly holds the string denoting the keep_yearly field in the database.
+	FieldKeepYearly = "keep_yearly"
+	// FieldCheckEnabled holds the string denoting the check_enabled field in the database.
+	FieldCheckEnabled = "check_enabled"
+	// FieldCheckSubsetPercent holds the string denoting the check_subset_percent field in the database.
+	FieldCheckSubsetPercent = "check_subset_percent"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
 	FieldUpdatedAt = "updated_at"
 	// FieldUpdatedBy holds the string denoting the updated_by field in the database.
@@ -65,6 +79,13 @@ var Columns = []string{
 	FieldScheduleWeekday,
 	FieldScheduleHour,
 	FieldScheduleMinute,
+	FieldRetentionEnabled,
+	FieldKeepDaily,
+	FieldKeepWeekly,
+	FieldKeepMonthly,
+	FieldKeepYearly,
+	FieldCheckEnabled,
+	FieldCheckSubsetPercent,
 	FieldUpdatedAt,
 	FieldUpdatedBy,
 }
@@ -98,6 +119,20 @@ var (
 	DefaultScheduleHour int
 	// DefaultScheduleMinute holds the default value on creation for the "schedule_minute" field.
 	DefaultScheduleMinute int
+	// DefaultRetentionEnabled holds the default value on creation for the "retention_enabled" field.
+	DefaultRetentionEnabled bool
+	// DefaultKeepDaily holds the default value on creation for the "keep_daily" field.
+	DefaultKeepDaily int
+	// DefaultKeepWeekly holds the default value on creation for the "keep_weekly" field.
+	DefaultKeepWeekly int
+	// DefaultKeepMonthly holds the default value on creation for the "keep_monthly" field.
+	DefaultKeepMonthly int
+	// DefaultKeepYearly holds the default value on creation for the "keep_yearly" field.
+	DefaultKeepYearly int
+	// DefaultCheckEnabled holds the default value on creation for the "check_enabled" field.
+	DefaultCheckEnabled bool
+	// DefaultCheckSubsetPercent holds the default value on creation for the "check_subset_percent" field.
+	DefaultCheckSubsetPercent int
 	// DefaultUpdatedBy holds the default value on creation for the "updated_by" field.
 	DefaultUpdatedBy string
 	// DefaultID holds the default value on creation for the "id" field.
@@ -170,6 +205,41 @@ func ByScheduleHour(opts ...sql.OrderTermOption) OrderOption {
 // ByScheduleMinute orders the results by the schedule_minute field.
 func ByScheduleMinute(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldScheduleMinute, opts...).ToFunc()
+}
+
+// ByRetentionEnabled orders the results by the retention_enabled field.
+func ByRetentionEnabled(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldRetentionEnabled, opts...).ToFunc()
+}
+
+// ByKeepDaily orders the results by the keep_daily field.
+func ByKeepDaily(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldKeepDaily, opts...).ToFunc()
+}
+
+// ByKeepWeekly orders the results by the keep_weekly field.
+func ByKeepWeekly(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldKeepWeekly, opts...).ToFunc()
+}
+
+// ByKeepMonthly orders the results by the keep_monthly field.
+func ByKeepMonthly(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldKeepMonthly, opts...).ToFunc()
+}
+
+// ByKeepYearly orders the results by the keep_yearly field.
+func ByKeepYearly(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldKeepYearly, opts...).ToFunc()
+}
+
+// ByCheckEnabled orders the results by the check_enabled field.
+func ByCheckEnabled(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCheckEnabled, opts...).ToFunc()
+}
+
+// ByCheckSubsetPercent orders the results by the check_subset_percent field.
+func ByCheckSubsetPercent(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldCheckSubsetPercent, opts...).ToFunc()
 }
 
 // ByUpdatedAt orders the results by the updated_at field.

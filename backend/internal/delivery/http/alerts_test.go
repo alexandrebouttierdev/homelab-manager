@@ -219,7 +219,7 @@ func TestAlertRuleManagement(t *testing.T) {
 		} `json:"catalog"`
 	}
 	decodeBody(t, response, &rules)
-	if response.Code != http.StatusOK || len(rules.Rules) != 6 {
+	if response.Code != http.StatusOK || len(rules.Rules) != 7 {
 		t.Fatalf("rules = %d %d", response.Code, len(rules.Rules))
 	}
 	if labels := rules.Catalog.HostMetrics["filesystem.percent"]; len(labels) != 2 || rules.Catalog.ContainerMetrics["memory.percent"] == nil ||
@@ -302,5 +302,24 @@ func TestAlertRoutesWithoutTheEngine(t *testing.T) {
 		if response := call(router, http.MethodGet, path, "", admin); response.Code != http.StatusServiceUnavailable || errorCode(t, response) != "ALERTS_UNAVAILABLE" {
 			t.Errorf("%s = %d %s", path, response.Code, response.Body)
 		}
+	}
+}
+
+func TestBackupAlertRuleOverHTTP(t *testing.T) {
+	resetLoginRateLimit(t)
+	router, _ := newAlertsRouter(t)
+	admin := signIn(t, router, "admin", "admin-password-1")
+	response := call(router, http.MethodPost, "/api/v1/alert-rules",
+		`{"name":"Sauvegarde hebdomadaire","type":"backup","severity":"critical","enabled":true,"params":{"maxAgeHours":170}}`, admin)
+	if response.Code != http.StatusCreated || !strings.Contains(response.Body.String(), `"maxAgeHours":170`) {
+		t.Fatalf("create = %d %s", response.Code, response.Body)
+	}
+	response = call(router, http.MethodPost, "/api/v1/alert-rules",
+		`{"name":"x","type":"backup","severity":"critical","enabled":true,"params":{"maxAgeHours":0}}`, admin)
+	if response.Code != http.StatusBadRequest {
+		t.Fatalf("invalid age = %d %s", response.Code, response.Body)
+	}
+	if body := call(router, http.MethodGet, "/api/v1/alert-rules", "", admin).Body.String(); !strings.Contains(body, `"maxAgeHours":26`) {
+		t.Fatalf("default backup rule missing: %s", body)
 	}
 }

@@ -26,8 +26,11 @@ type memoryBackupStore struct {
 
 func newMemoryBackupStore() *memoryBackupStore {
 	return &memoryBackupStore{
-		config: domain.BackupConfig{Selection: domain.BackupSelection{ExcludeCaches: true}, Schedule: domain.DefaultBackupSchedule},
-		runs:   map[uuid.UUID]domain.BackupRun{},
+		config: domain.BackupConfig{
+			Selection: domain.BackupSelection{ExcludeCaches: true}, Schedule: domain.DefaultBackupSchedule,
+			Retention: domain.DefaultBackupRetention, Check: domain.DefaultBackupCheck,
+		},
+		runs: map[uuid.UUID]domain.BackupRun{},
 	}
 }
 
@@ -112,6 +115,12 @@ func (s *memoryBackupStore) LatestBackupRuns(context.Context) (ports.BackupLates
 			latest.LastScheduled = &run
 		}
 	}
+	for _, run := range s.sorted() {
+		run := run
+		if run.Operation == domain.BackupOpCheck && run.State == domain.BackupSucceeded && latest.LastCheck == nil {
+			latest.LastCheck = &run
+		}
+	}
 	return latest, nil
 }
 
@@ -194,7 +203,30 @@ func newBackups(t *testing.T, store *memoryBackupStore, executor *fakeBackupExec
 		cancel()
 		<-done
 	})
+	waitAccepting(t, backups)
 	return backups, cancel
+}
+
+// waitAccepting waits until Run closed the runs left by a stop.
+func waitAccepting(t *testing.T, backups *BackupUsecase) {
+	t.Helper()
+	waitFor(t, func() bool {
+		backups.mu.Lock()
+		defer backups.mu.Unlock()
+		return backups.accepting
+	})
+}
+
+func TestBackupRefusedBeforeRun(t *testing.T) {
+	store := newMemoryBackupStore()
+	backups := NewBackupUsecase(store, &fakeBackupExecutor{}, fakeBox{}, zap.NewNop())
+	initialized := time.Now()
+	store.config.Repository = &domain.BackupRepository{Type: domain.RepositoryLocal, Location: "/mnt/backup"}
+	store.config.SealedCredentials, store.config.InitializedAt = "s", &initialized
+	store.config.Selection.Sources = []string{"/etc"}
+	if _, err := backups.RequestBackup(context.Background(), backupAdmin, "r"); !errors.Is(err, domain.ErrBackupsNotReady) {
+		t.Fatalf("before Run = %v, want ErrBackupsNotReady", err)
+	}
 }
 
 func finishedRun(t *testing.T, store *memoryBackupStore, id uuid.UUID) domain.BackupRun {
@@ -461,5 +493,135 @@ func TestBackupInterruptedWhenTheManagerStops(t *testing.T) {
 	stop()
 	if done := finishedRun(t, store, run.ID); done.Failure != domain.BackupFailureInterrupted {
 		t.Fatalf("run = %+v", done)
+	}
+}
+
+func (f *fakeBackupExecutor) operations() []domain.BackupOperation {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	ops := make([]domain.BackupOperation, 0, len(f.jobs))
+	for _, job := range f.jobs {
+		ops = append(ops, job.Operation)
+	}
+	return ops
+}
+
+func initializedBackups(t *testing.T, executor *fakeBackupExecutor) (*BackupUsecase, *memoryBackupStore) {
+	t.Helper()
+	store := newMemoryBackupStore()
+	backups, _ := newBackups(t, store, executor, fakeBox{})
+	readyLocalConfig(t, backups)
+	_, initRun, err := backups.InitRepository(context.Background(), backupAdmin, "r")
+	if err != nil {
+		t.Fatal(err)
+	}
+	finishedRun(t, store, initRun.ID)
+	return backups, store
+}
+
+func TestBackupAdministratorOperations(t *testing.T) {
+	executor := &fakeBackupExecutor{result: domain.BackupResult{Details: &domain.BackupRunDetails{FilesRestored: 3}}}
+	backups, store := initializedBackups(t, executor)
+	ctx := context.Background()
+
+	var validation *domain.BackupValidationError
+	if _, err := backups.RequestOperation(ctx, backupAdmin, domain.BackupOpBackup, nil, "r"); !errors.As(err, &validation) {
+		t.Fatalf("backup through RequestOperation = %v", err)
+	}
+	if _, err := backups.RequestOperation(ctx, backupAdmin, domain.BackupOpRestore, &domain.BackupRestore{SnapshotID: "latest"}, "r"); !errors.As(err, &validation) {
+		t.Fatalf("invalid snapshot = %v", err)
+	}
+	// The default policy is disabled but keeps snapshots: a manual forget
+	// applies it.
+	run, err := backups.RequestOperation(ctx, backupAdmin, domain.BackupOpForgetPrune, nil, "req")
+	if err != nil {
+		t.Fatal(err)
+	}
+	finishedRun(t, store, run.ID)
+	run, err = backups.RequestOperation(ctx, backupAdmin, domain.BackupOpRestore, &domain.BackupRestore{SnapshotID: "3a253ad8", DryRun: true}, "req")
+	if err != nil || run.Details == nil || run.Details.Target != domain.RestoreTarget(run.ID) {
+		t.Fatalf("restore = %+v, %v", run, err)
+	}
+	done := finishedRun(t, store, run.ID)
+	if done.State != domain.BackupSucceeded || done.Details.FilesRestored != 3 {
+		t.Fatalf("restore run = %+v", done)
+	}
+	executor.mu.Lock()
+	last := executor.jobs[len(executor.jobs)-1]
+	executor.mu.Unlock()
+	if last.Restore == nil || !last.Restore.DryRun || last.RunID != run.ID {
+		t.Fatalf("restore job = %+v", last)
+	}
+	if store.audits[len(store.audits)-1].Action != "restore" {
+		t.Fatalf("audit = %+v", store.audits[len(store.audits)-1])
+	}
+}
+
+func TestBackupConnectExistingRepository(t *testing.T) {
+	store := newMemoryBackupStore()
+	executor := &fakeBackupExecutor{result: domain.BackupResult{Snapshots: []domain.BackupSnapshot{{ID: "old"}}}}
+	backups, _ := newBackups(t, store, executor, fakeBox{})
+	readyLocalConfig(t, backups)
+	run, err := backups.ConnectRepository(context.Background(), backupAdmin, "the-old-password", "r")
+	if err != nil || run.Operation != domain.BackupOpSnapshots {
+		t.Fatalf("connect = %+v, %v", run, err)
+	}
+	finishedRun(t, store, run.ID)
+	view, _ := backups.Config(context.Background())
+	if !view.Initialized || executor.credentials[0].Password != "the-old-password" {
+		t.Fatalf("view = %+v, credentials = %+v", view, executor.credentials)
+	}
+	if snapshots, _ := backups.Snapshots(context.Background()); len(snapshots) != 1 {
+		t.Fatalf("snapshots = %+v", snapshots)
+	}
+	if _, err := backups.ConnectRepository(context.Background(), backupAdmin, "x", "r"); !errors.Is(err, domain.ErrBackupAlreadyInitialized) {
+		t.Fatalf("second connect = %v", err)
+	}
+}
+
+func TestBackupMaintenanceAfterTheScheduledBackup(t *testing.T) {
+	store, executor := newMemoryBackupStore(), &fakeBackupExecutor{}
+	initialized := time.Date(2026, 11, 20, 12, 0, 0, 0, time.UTC)
+	store.config = domain.BackupConfig{
+		Repository:        &domain.BackupRepository{Type: domain.RepositoryLocal, Location: "/mnt/backup"},
+		SealedCredentials: domain.BackupSecretsAssociatedData + `|{"password":"p"}`, InitializedAt: &initialized,
+		Selection: domain.BackupSelection{Sources: []string{"/etc"}},
+		Schedule:  domain.BackupSchedule{Enabled: true, Frequency: domain.BackupDaily, Hour: 3},
+		Retention: domain.BackupRetention{Enabled: true, KeepDaily: 7},
+		Check:     domain.DefaultBackupCheck,
+		UpdatedAt: &initialized,
+	}
+	now := time.Date(2026, 11, 21, 3, 0, 5, 0, time.UTC)
+	var mu sync.Mutex
+	backups := NewBackupUsecase(store, executor, fakeBox{}, zap.NewNop())
+	backups.now = func() time.Time {
+		mu.Lock()
+		defer mu.Unlock()
+		return now
+	}
+	backups.location, backups.tick = time.UTC, 5*time.Millisecond
+	ctx, cancel := context.WithCancel(context.Background())
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		backups.Run(ctx)
+	}()
+	defer func() {
+		cancel()
+		<-done
+	}()
+	waitFor(t, func() bool { return executor.calls() == 3 })
+	ops := executor.operations()
+	if ops[0] != domain.BackupOpBackup || ops[1] != domain.BackupOpForgetPrune || ops[2] != domain.BackupOpCheck {
+		t.Fatalf("operations = %v", ops)
+	}
+	// The next day, the check is not due again.
+	mu.Lock()
+	now = now.Add(24 * time.Hour)
+	mu.Unlock()
+	waitFor(t, func() bool { return executor.calls() == 5 })
+	time.Sleep(30 * time.Millisecond)
+	if ops := executor.operations(); len(ops) != 5 || ops[4] != domain.BackupOpForgetPrune {
+		t.Fatalf("operations = %v, want backup and forget only", ops)
 	}
 }

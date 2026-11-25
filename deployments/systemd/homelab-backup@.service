@@ -1,5 +1,6 @@
 # Homelab Manager: runs one restic operation for the Manager
-# (SPEC_ADMINISTRATION.md § 7.1), "init" or "backup" in this version. Started
+# (SPEC_ADMINISTRATION.md § 7.1): init, backup, forget-prune, check,
+# restore (into /var/lib/homelab-backup/restore/<run>), snapshots, unlock. Started
 # only by the Manager over D-Bus, allowed by
 # deployments/polkit/50-homelab-manager-backup.rules; never enabled.
 # homelab-backup-runner reads the job the Manager wrote in
@@ -25,7 +26,7 @@ TimeoutStartSec=6h
 UMask=0027
 CacheDirectory=homelab-backup
 CacheDirectoryMode=0700
-ReadWritePaths=/var/lib/homelab-backup/runs /var/lib/homelab-backup/jobs
+ReadWritePaths=/var/lib/homelab-backup/runs /var/lib/homelab-backup/jobs /var/lib/homelab-backup/restore
 ReadWritePaths=-/mnt -/media -/srv -/var/backups
 # Low priority: a backup never competes with the services of the machine.
 CPUWeight=idle
@@ -48,9 +49,9 @@ RestrictSUIDSGID=true
 LockPersonality=true
 # Network for the remote repositories (rest-server, S3), no listening socket.
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
-# Read every file, write the repository and remove the one-use secrets
-# file: nothing else.
-CapabilityBoundingSet=CAP_DAC_READ_SEARCH CAP_DAC_OVERRIDE
+# Read every file, write the repository, remove the one-use secrets file,
+# and restore owners, modes and times in the quarantine: nothing else.
+CapabilityBoundingSet=CAP_DAC_READ_SEARCH CAP_DAC_OVERRIDE CAP_CHOWN CAP_FOWNER
 AmbientCapabilities=
 SystemCallArchitectures=native
 SystemCallFilter=@system-service

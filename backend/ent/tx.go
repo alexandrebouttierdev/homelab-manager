@@ -12,6 +12,8 @@ import (
 // Tx is a transactional client that is created by calling Client.Tx().
 type Tx struct {
 	config
+	// APIToken is the client for interacting with the APIToken builders.
+	APIToken *APITokenClient
 	// Alert is the client for interacting with the Alert builders.
 	Alert *AlertClient
 	// AlertRule is the client for interacting with the AlertRule builders.
@@ -58,6 +60,8 @@ type Tx struct {
 	VulnerabilityFinding *VulnerabilityFindingClient
 	// VulnerabilityScan is the client for interacting with the VulnerabilityScan builders.
 	VulnerabilityScan *VulnerabilityScanClient
+	// WebauthnCredential is the client for interacting with the WebauthnCredential builders.
+	WebauthnCredential *WebauthnCredentialClient
 
 	// lazily loaded.
 	client     *Client
@@ -189,6 +193,7 @@ func (tx *Tx) Client() *Client {
 }
 
 func (tx *Tx) init() {
+	tx.APIToken = NewAPITokenClient(tx.config)
 	tx.Alert = NewAlertClient(tx.config)
 	tx.AlertRule = NewAlertRuleClient(tx.config)
 	tx.AlertSilence = NewAlertSilenceClient(tx.config)
@@ -212,6 +217,7 @@ func (tx *Tx) init() {
 	tx.User = NewUserClient(tx.config)
 	tx.VulnerabilityFinding = NewVulnerabilityFindingClient(tx.config)
 	tx.VulnerabilityScan = NewVulnerabilityScanClient(tx.config)
+	tx.WebauthnCredential = NewWebauthnCredentialClient(tx.config)
 }
 
 // txDriver wraps the given dialect.Tx with a nop dialect.Driver implementation.
@@ -221,7 +227,7 @@ func (tx *Tx) init() {
 // of them in order to commit or rollback the transaction.
 //
 // If a closed transaction is embedded in one of the generated entities, and the entity
-// applies a query, for example: Alert.QueryXXX(), the query will be executed
+// applies a query, for example: APIToken.QueryXXX(), the query will be executed
 // through the driver which created this transaction.
 //
 // Note that txDriver is not goroutine safe.

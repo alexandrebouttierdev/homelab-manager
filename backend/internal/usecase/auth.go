@@ -1,6 +1,7 @@
 package usecase
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"crypto/sha256"
@@ -33,6 +34,9 @@ type AuthUsecase struct {
 	secondFactors ports.SecondFactorRepository
 	box           ports.SecretBox
 	challenges    *loginChallenges
+	// Set by WithWebAuthn; nil without webauthn_rp_id.
+	verifier ports.WebAuthnVerifier
+	keys     ports.WebAuthnRepository
 
 	// dummyHash is verified when the username is unknown, so that a missing
 	// account costs the same Argon2id work as a wrong password.
@@ -55,6 +59,69 @@ type LoginResult struct {
 	User      domain.User
 	// ExpiresAt is the end of the session, or of the challenge.
 	ExpiresAt time.Time
+	// Methods are the second factors the challenge accepts.
+	Methods []domain.SecondFactorMethod
+}
+
+// WithWebAuthn accepts the passkeys and security keys at login.
+func (u *AuthUsecase) WithWebAuthn(verifier ports.WebAuthnVerifier, keys ports.WebAuthnRepository) *AuthUsecase {
+	u.verifier, u.keys = verifier, keys
+	return u
+}
+
+// secondFactorMethods lists the methods an enrolled account can answer
+// with: recovery codes always back up the others.
+func (u *AuthUsecase) secondFactorMethods(ctx context.Context, userID uuid.UUID) ([]domain.SecondFactorMethod, error) {
+	methods := []domain.SecondFactorMethod{}
+	enrollment, found, err := u.secondFactors.TOTP(ctx, userID)
+	if err != nil {
+		return nil, err
+	}
+	if found && enrollment.Confirmed && u.box != nil {
+		methods = append(methods, domain.SecondFactorTOTP)
+	}
+	if u.verifier != nil && u.keys != nil {
+		keys, err := u.keys.WebAuthnCredentials(ctx, userID)
+		if err != nil {
+			return nil, err
+		}
+		if len(keys) > 0 {
+			methods = append(methods, domain.SecondFactorWebAuthn)
+		}
+	}
+	return append(methods, domain.SecondFactorRecovery), nil
+}
+
+// BeginWebAuthnLogin returns the options of a key login for a pending
+// challenge. A new call replaces the previous ceremony.
+func (u *AuthUsecase) BeginWebAuthnLogin(ctx context.Context, challenge string) ([]byte, error) {
+	if u.verifier == nil || u.keys == nil {
+		return nil, domain.ErrWebAuthnUnavailable
+	}
+	pending, ok := u.challenges.find(challenge, u.now().UTC())
+	if !ok {
+		return nil, domain.ErrLoginChallengeExpired
+	}
+	user, err := u.users.FindByID(ctx, pending.userID)
+	if errors.Is(err, domain.ErrUserNotFound) {
+		u.challenges.remove(challenge)
+		return nil, domain.ErrLoginChallengeExpired
+	}
+	if err != nil {
+		return nil, err
+	}
+	keys, err := u.keys.WebAuthnCredentials(ctx, user.ID)
+	if err != nil {
+		return nil, err
+	}
+	options, session, err := u.verifier.BeginLogin(user, keys)
+	if err != nil {
+		return nil, err
+	}
+	if !u.challenges.setSession(challenge, session) {
+		return nil, domain.ErrLoginChallengeExpired
+	}
+	return options, nil
 }
 
 // WithSecondFactor asks accounts that have a second factor for it at login
@@ -120,7 +187,11 @@ func (u *AuthUsecase) Login(ctx context.Context, username, password, ip, userAge
 			if err != nil {
 				return LoginResult{}, err
 			}
-			return LoginResult{Challenge: token, User: user, ExpiresAt: expiresAt}, nil
+			methods, err := u.secondFactorMethods(ctx, user.ID)
+			if err != nil {
+				return LoginResult{}, err
+			}
+			return LoginResult{Challenge: token, User: user, ExpiresAt: expiresAt, Methods: methods}, nil
 		}
 		user.MustEnrollSecondFactor = u.mustEnroll(user, false)
 	}
@@ -152,7 +223,9 @@ func (u *AuthUsecase) CompleteSecondFactor(ctx context.Context, challenge string
 		u.challenges.remove(challenge)
 		return LoginResult{}, domain.ErrLoginChallengeExpired
 	}
-	valid, err := u.checkSecondFactor(ctx, user, method, code, now)
+	// A key ceremony answers once, right or wrong.
+	session := u.challenges.takeSession(challenge)
+	valid, err := u.checkSecondFactor(ctx, user, method, code, session, now)
 	if err != nil {
 		return LoginResult{}, err
 	}
@@ -167,8 +240,32 @@ func (u *AuthUsecase) CompleteSecondFactor(ctx context.Context, challenge string
 	return u.openSession(ctx, user, failures, ip, userAgent, "password+"+string(method), now)
 }
 
-func (u *AuthUsecase) checkSecondFactor(ctx context.Context, user domain.User, method domain.SecondFactorMethod, code string, now time.Time) (bool, error) {
+func (u *AuthUsecase) checkSecondFactor(ctx context.Context, user domain.User, method domain.SecondFactorMethod, code string, session []byte, now time.Time) (bool, error) {
 	switch method {
+	case domain.SecondFactorWebAuthn:
+		if u.verifier == nil || u.keys == nil {
+			return false, domain.ErrWebAuthnUnavailable
+		}
+		if session == nil || len(code) > domain.MaxWebAuthnResponseBytes {
+			return false, nil
+		}
+		keys, err := u.keys.WebAuthnCredentials(ctx, user.ID)
+		if err != nil {
+			return false, err
+		}
+		credentialID, data, err := u.verifier.FinishLogin(user, keys, session, []byte(code))
+		if errors.Is(err, domain.ErrInvalidWebAuthnAnswer) {
+			return false, nil
+		}
+		if err != nil {
+			return false, err
+		}
+		for _, key := range keys {
+			if bytes.Equal(key.CredentialID, credentialID) {
+				return true, u.keys.UseWebAuthnCredential(ctx, key.ID, data, now)
+			}
+		}
+		return false, nil
 	case domain.SecondFactorRecovery:
 		return u.secondFactors.UseRecoveryCode(ctx, user.ID, domain.RecoveryCodeHash(code))
 	case domain.SecondFactorTOTP:

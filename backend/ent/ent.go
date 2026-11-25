@@ -9,6 +9,7 @@ import (
 	"homelab-manager/backend/ent/alert"
 	"homelab-manager/backend/ent/alertrule"
 	"homelab-manager/backend/ent/alertsilence"
+	"homelab-manager/backend/ent/apitoken"
 	"homelab-manager/backend/ent/appsetting"
 	"homelab-manager/backend/ent/auditlog"
 	"homelab-manager/backend/ent/backupconfig"
@@ -29,6 +30,7 @@ import (
 	"homelab-manager/backend/ent/user"
 	"homelab-manager/backend/ent/vulnerabilityfinding"
 	"homelab-manager/backend/ent/vulnerabilityscan"
+	"homelab-manager/backend/ent/webauthncredential"
 	"reflect"
 	"sync"
 
@@ -95,6 +97,7 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
+			apitoken.Table:              apitoken.ValidColumn,
 			alert.Table:                 alert.ValidColumn,
 			alertrule.Table:             alertrule.ValidColumn,
 			alertsilence.Table:          alertsilence.ValidColumn,
@@ -118,6 +121,7 @@ func checkColumn(t, c string) error {
 			user.Table:                  user.ValidColumn,
 			vulnerabilityfinding.Table:  vulnerabilityfinding.ValidColumn,
 			vulnerabilityscan.Table:     vulnerabilityscan.ValidColumn,
+			webauthncredential.Table:    webauthncredential.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

@@ -3,7 +3,36 @@ import { requestJSON } from './client'
 /** Backups with restic, increment 6A (API_CONTRACTS.md § 4.10). */
 export type RepositoryType = 'local' | 'rest' | 's3'
 export type BackupFrequency = 'daily' | 'weekly'
-export type BackupOperation = 'init' | 'backup'
+export type BackupOperation =
+  'init' | 'backup' | 'forget-prune' | 'check' | 'restore' | 'snapshots' | 'unlock'
+
+/** Operations an administrator starts (POST /api/v1/backups/operations). */
+export type AdminBackupOperation = 'forget-prune' | 'check' | 'unlock' | 'restore'
+
+export type BackupRetention = {
+  enabled: boolean
+  keepDaily: number
+  keepWeekly: number
+  keepMonthly: number
+  keepYearly: number
+}
+
+export type BackupCheck = { enabled: boolean; subsetPercent: number }
+
+/** Figures of a restore, a forget or a check. */
+export type BackupRunDetails = {
+  snapshotId?: string
+  target?: string
+  dryRun?: boolean
+  totalFiles?: number
+  filesRestored?: number
+  totalBytes?: number
+  bytesRestored?: number
+  snapshotsRemoved?: number
+  subsetPercent?: number
+}
+
+export type BackupRestore = { snapshotId: string; include: string[]; dryRun: boolean }
 export type BackupOrigin = 'manual' | 'schedule' | 'catchup'
 export type BackupRunState = 'running' | 'succeeded' | 'failed'
 export type BackupFailure =
@@ -39,6 +68,8 @@ export type BackupConfig = {
   excludeCaches: boolean
   excludeIfPresent: string
   schedule: BackupSchedule
+  retention: BackupRetention
+  check: BackupCheck
   updatedAt: string | null
   updatedBy: string | null
 }
@@ -53,6 +84,8 @@ export type BackupConfigInput = {
   excludeCaches: boolean
   excludeIfPresent: string
   schedule: BackupSchedule
+  retention: BackupRetention
+  check: BackupCheck
 }
 
 export type BackupStats = {
@@ -79,6 +112,7 @@ export type BackupRun = {
   warning: boolean
   snapshotId: string | null
   stats: BackupStats | null
+  details: BackupRunDetails | null
   startedAt: string
   finishedAt: string | null
 }
@@ -101,6 +135,7 @@ export type BackupSummary = {
   running: BackupRun | null
   lastRun: BackupRun | null
   lastSuccess: BackupRun | null
+  lastCheck: BackupRun | null
   nextRunAt: string | null
 }
 
@@ -139,4 +174,24 @@ export async function listBackupRuns(limit = 50) {
 export async function listBackupSnapshots() {
   const response = await requestJSON<{ snapshots: BackupSnapshot[] }>('/api/v1/backups/snapshots')
   return response.snapshots
+}
+
+export async function requestBackupOperation(
+  operation: AdminBackupOperation,
+  restore?: BackupRestore,
+) {
+  const response = await requestJSON<{ run: BackupRun }>('/api/v1/backups/operations', {
+    method: 'POST',
+    body: JSON.stringify(restore ? { operation, restore } : { operation }),
+  })
+  return response.run
+}
+
+/** Attaches an existing repository with its password. */
+export async function connectBackupRepository(password: string) {
+  const response = await requestJSON<{ run: BackupRun }>('/api/v1/backups/repository/connect', {
+    method: 'POST',
+    body: JSON.stringify({ password }),
+  })
+  return response.run
 }

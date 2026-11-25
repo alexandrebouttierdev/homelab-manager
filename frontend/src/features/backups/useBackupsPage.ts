@@ -14,6 +14,7 @@ import {
 import {
   backupHealth,
   describeSchedule,
+  describeDetails,
   describeStats,
   formatDuration,
   repositoryLabel,
@@ -25,6 +26,7 @@ import {
 import { useRefreshInterval } from '../../lib/refresh'
 import { canManageBackups, canRunBackups } from '../../lib/roles'
 import { useBackupConfigForm } from './useBackupConfigForm'
+import { useBackupRestore } from './useBackupRestore'
 
 export const backupsQueryKey = ['backups'] as const
 /** While an operation runs, the page follows it every 3 s. */
@@ -77,6 +79,7 @@ export function useBackupsPage() {
   })
   const canManage = canManageBackups(user?.role)
   const configForm = useBackupConfigForm(configQuery.data, canManage)
+  const restore = useBackupRestore(canManage)
 
   const summary = summaryQuery.data
   const config = configQuery.data
@@ -126,13 +129,19 @@ export function useBackupsPage() {
         state: runStateInfo(run),
         startedAt: run.startedAt,
         duration: run.state === 'running' ? 'en cours' : formatDuration(runDurationSeconds(run)),
-        result: run.state === 'succeeded' ? describeStats(run.stats) : null,
+        result:
+          run.state !== 'succeeded'
+            ? null
+            : run.operation === 'backup'
+              ? describeStats(run.stats)
+              : describeDetails(run),
         problem: runFailureText(run),
         requestedBy: run.requestedBy,
         snapshot: run.snapshotId ? run.snapshotId.slice(0, 8) : null,
       })),
     },
     snapshots: { state: loadState(snapshotsQuery), rows: snapshotsQuery.data ?? [] },
+    restore,
     configForm,
     refresh: () => void queryClient.invalidateQueries({ queryKey: backupsQueryKey }),
   }

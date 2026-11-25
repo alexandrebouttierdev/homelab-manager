@@ -193,6 +193,104 @@ func (_c *BackupConfigCreate) SetNillableScheduleMinute(v *int) *BackupConfigCre
 	return _c
 }
 
+// SetRetentionEnabled sets the "retention_enabled" field.
+func (_c *BackupConfigCreate) SetRetentionEnabled(v bool) *BackupConfigCreate {
+	_c.mutation.SetRetentionEnabled(v)
+	return _c
+}
+
+// SetNillableRetentionEnabled sets the "retention_enabled" field if the given value is not nil.
+func (_c *BackupConfigCreate) SetNillableRetentionEnabled(v *bool) *BackupConfigCreate {
+	if v != nil {
+		_c.SetRetentionEnabled(*v)
+	}
+	return _c
+}
+
+// SetKeepDaily sets the "keep_daily" field.
+func (_c *BackupConfigCreate) SetKeepDaily(v int) *BackupConfigCreate {
+	_c.mutation.SetKeepDaily(v)
+	return _c
+}
+
+// SetNillableKeepDaily sets the "keep_daily" field if the given value is not nil.
+func (_c *BackupConfigCreate) SetNillableKeepDaily(v *int) *BackupConfigCreate {
+	if v != nil {
+		_c.SetKeepDaily(*v)
+	}
+	return _c
+}
+
+// SetKeepWeekly sets the "keep_weekly" field.
+func (_c *BackupConfigCreate) SetKeepWeekly(v int) *BackupConfigCreate {
+	_c.mutation.SetKeepWeekly(v)
+	return _c
+}
+
+// SetNillableKeepWeekly sets the "keep_weekly" field if the given value is not nil.
+func (_c *BackupConfigCreate) SetNillableKeepWeekly(v *int) *BackupConfigCreate {
+	if v != nil {
+		_c.SetKeepWeekly(*v)
+	}
+	return _c
+}
+
+// SetKeepMonthly sets the "keep_monthly" field.
+func (_c *BackupConfigCreate) SetKeepMonthly(v int) *BackupConfigCreate {
+	_c.mutation.SetKeepMonthly(v)
+	return _c
+}
+
+// SetNillableKeepMonthly sets the "keep_monthly" field if the given value is not nil.
+func (_c *BackupConfigCreate) SetNillableKeepMonthly(v *int) *BackupConfigCreate {
+	if v != nil {
+		_c.SetKeepMonthly(*v)
+	}
+	return _c
+}
+
+// SetKeepYearly sets the "keep_yearly" field.
+func (_c *BackupConfigCreate) SetKeepYearly(v int) *BackupConfigCreate {
+	_c.mutation.SetKeepYearly(v)
+	return _c
+}
+
+// SetNillableKeepYearly sets the "keep_yearly" field if the given value is not nil.
+func (_c *BackupConfigCreate) SetNillableKeepYearly(v *int) *BackupConfigCreate {
+	if v != nil {
+		_c.SetKeepYearly(*v)
+	}
+	return _c
+}
+
+// SetCheckEnabled sets the "check_enabled" field.
+func (_c *BackupConfigCreate) SetCheckEnabled(v bool) *BackupConfigCreate {
+	_c.mutation.SetCheckEnabled(v)
+	return _c
+}
+
+// SetNillableCheckEnabled sets the "check_enabled" field if the given value is not nil.
+func (_c *BackupConfigCreate) SetNillableCheckEnabled(v *bool) *BackupConfigCreate {
+	if v != nil {
+		_c.SetCheckEnabled(*v)
+	}
+	return _c
+}
+
+// SetCheckSubsetPercent sets the "check_subset_percent" field.
+func (_c *BackupConfigCreate) SetCheckSubsetPercent(v int) *BackupConfigCreate {
+	_c.mutation.SetCheckSubsetPercent(v)
+	return _c
+}
+
+// SetNillableCheckSubsetPercent sets the "check_subset_percent" field if the given value is not nil.
+func (_c *BackupConfigCreate) SetNillableCheckSubsetPercent(v *int) *BackupConfigCreate {
+	if v != nil {
+		_c.SetCheckSubsetPercent(*v)
+	}
+	return _c
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_c *BackupConfigCreate) SetUpdatedAt(v time.Time) *BackupConfigCreate {
 	_c.mutation.SetUpdatedAt(v)
@@ -294,6 +392,34 @@ func (_c *BackupConfigCreate) defaults() {
 		v := backupconfig.DefaultScheduleMinute
 		_c.mutation.SetScheduleMinute(v)
 	}
+	if _, ok := _c.mutation.RetentionEnabled(); !ok {
+		v := backupconfig.DefaultRetentionEnabled
+		_c.mutation.SetRetentionEnabled(v)
+	}
+	if _, ok := _c.mutation.KeepDaily(); !ok {
+		v := backupconfig.DefaultKeepDaily
+		_c.mutation.SetKeepDaily(v)
+	}
+	if _, ok := _c.mutation.KeepWeekly(); !ok {
+		v := backupconfig.DefaultKeepWeekly
+		_c.mutation.SetKeepWeekly(v)
+	}
+	if _, ok := _c.mutation.KeepMonthly(); !ok {
+		v := backupconfig.DefaultKeepMonthly
+		_c.mutation.SetKeepMonthly(v)
+	}
+	if _, ok := _c.mutation.KeepYearly(); !ok {
+		v := backupconfig.DefaultKeepYearly
+		_c.mutation.SetKeepYearly(v)
+	}
+	if _, ok := _c.mutation.CheckEnabled(); !ok {
+		v := backupconfig.DefaultCheckEnabled
+		_c.mutation.SetCheckEnabled(v)
+	}
+	if _, ok := _c.mutation.CheckSubsetPercent(); !ok {
+		v := backupconfig.DefaultCheckSubsetPercent
+		_c.mutation.SetCheckSubsetPercent(v)
+	}
 	if _, ok := _c.mutation.UpdatedBy(); !ok {
 		v := backupconfig.DefaultUpdatedBy
 		_c.mutation.SetUpdatedBy(v)
@@ -343,6 +469,27 @@ func (_c *BackupConfigCreate) check() error {
 	}
 	if _, ok := _c.mutation.ScheduleMinute(); !ok {
 		return &ValidationError{Name: "schedule_minute", err: errors.New(`ent: missing required field "BackupConfig.schedule_minute"`)}
+	}
+	if _, ok := _c.mutation.RetentionEnabled(); !ok {
+		return &ValidationError{Name: "retention_enabled", err: errors.New(`ent: missing required field "BackupConfig.retention_enabled"`)}
+	}
+	if _, ok := _c.mutation.KeepDaily(); !ok {
+		return &ValidationError{Name: "keep_daily", err: errors.New(`ent: missing required field "BackupConfig.keep_daily"`)}
+	}
+	if _, ok := _c.mutation.KeepWeekly(); !ok {
+		return &ValidationError{Name: "keep_weekly", err: errors.New(`ent: missing required field "BackupConfig.keep_weekly"`)}
+	}
+	if _, ok := _c.mutation.KeepMonthly(); !ok {
+		return &ValidationError{Name: "keep_monthly", err: errors.New(`ent: missing required field "BackupConfig.keep_monthly"`)}
+	}
+	if _, ok := _c.mutation.KeepYearly(); !ok {
+		return &ValidationError{Name: "keep_yearly", err: errors.New(`ent: missing required field "BackupConfig.keep_yearly"`)}
+	}
+	if _, ok := _c.mutation.CheckEnabled(); !ok {
+		return &ValidationError{Name: "check_enabled", err: errors.New(`ent: missing required field "BackupConfig.check_enabled"`)}
+	}
+	if _, ok := _c.mutation.CheckSubsetPercent(); !ok {
+		return &ValidationError{Name: "check_subset_percent", err: errors.New(`ent: missing required field "BackupConfig.check_subset_percent"`)}
 	}
 	if _, ok := _c.mutation.UpdatedAt(); !ok {
 		return &ValidationError{Name: "updated_at", err: errors.New(`ent: missing required field "BackupConfig.updated_at"`)}
@@ -440,6 +587,34 @@ func (_c *BackupConfigCreate) createSpec() (*BackupConfig, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.ScheduleMinute(); ok {
 		_spec.SetField(backupconfig.FieldScheduleMinute, field.TypeInt, value)
 		_node.ScheduleMinute = value
+	}
+	if value, ok := _c.mutation.RetentionEnabled(); ok {
+		_spec.SetField(backupconfig.FieldRetentionEnabled, field.TypeBool, value)
+		_node.RetentionEnabled = value
+	}
+	if value, ok := _c.mutation.KeepDaily(); ok {
+		_spec.SetField(backupconfig.FieldKeepDaily, field.TypeInt, value)
+		_node.KeepDaily = value
+	}
+	if value, ok := _c.mutation.KeepWeekly(); ok {
+		_spec.SetField(backupconfig.FieldKeepWeekly, field.TypeInt, value)
+		_node.KeepWeekly = value
+	}
+	if value, ok := _c.mutation.KeepMonthly(); ok {
+		_spec.SetField(backupconfig.FieldKeepMonthly, field.TypeInt, value)
+		_node.KeepMonthly = value
+	}
+	if value, ok := _c.mutation.KeepYearly(); ok {
+		_spec.SetField(backupconfig.FieldKeepYearly, field.TypeInt, value)
+		_node.KeepYearly = value
+	}
+	if value, ok := _c.mutation.CheckEnabled(); ok {
+		_spec.SetField(backupconfig.FieldCheckEnabled, field.TypeBool, value)
+		_node.CheckEnabled = value
+	}
+	if value, ok := _c.mutation.CheckSubsetPercent(); ok {
+		_spec.SetField(backupconfig.FieldCheckSubsetPercent, field.TypeInt, value)
+		_node.CheckSubsetPercent = value
 	}
 	if value, ok := _c.mutation.UpdatedAt(); ok {
 		_spec.SetField(backupconfig.FieldUpdatedAt, field.TypeTime, value)

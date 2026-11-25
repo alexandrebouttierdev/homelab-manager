@@ -11,6 +11,7 @@ export type AlertRuleType =
   | 'unit_failed'
   | 'collector'
   | 'vulnerabilities'
+  | 'backup'
 export type AlertOperator = '>' | '>=' | '<' | '<='
 export type AlertResolution =
   | 'condition_cleared'
@@ -21,7 +22,7 @@ export type AlertResolution =
   | 'rule_changed'
 
 export type AlertTarget = {
-  kind: 'host' | 'container' | 'unit' | 'collector' | 'vulnerabilities'
+  kind: 'host' | 'container' | 'unit' | 'collector' | 'vulnerabilities' | 'backup'
   metric: string | null
   labels: Record<string, string>
   containerId: string | null
@@ -72,6 +73,8 @@ export type AlertRuleParams = {
   /** Vulnerabilities rule: minimum severity and fixable findings only. */
   vulnSeverity?: VulnSeverity
   fixableOnly?: boolean
+  /** backup rule: age of the last successful backup that fires it, 1 to 720 hours. */
+  maxAgeHours?: number
   forSeconds: number
 }
 

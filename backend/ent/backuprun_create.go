@@ -249,6 +249,20 @@ func (_c *BackupRunCreate) SetNillableDurationSeconds(v *float64) *BackupRunCrea
 	return _c
 }
 
+// SetDetails sets the "details" field.
+func (_c *BackupRunCreate) SetDetails(v string) *BackupRunCreate {
+	_c.mutation.SetDetails(v)
+	return _c
+}
+
+// SetNillableDetails sets the "details" field if the given value is not nil.
+func (_c *BackupRunCreate) SetNillableDetails(v *string) *BackupRunCreate {
+	if v != nil {
+		_c.SetDetails(*v)
+	}
+	return _c
+}
+
 // SetStartedAt sets the "started_at" field.
 func (_c *BackupRunCreate) SetStartedAt(v time.Time) *BackupRunCreate {
 	_c.mutation.SetStartedAt(v)
@@ -480,6 +494,10 @@ func (_c *BackupRunCreate) createSpec() (*BackupRun, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.DurationSeconds(); ok {
 		_spec.SetField(backuprun.FieldDurationSeconds, field.TypeFloat64, value)
 		_node.DurationSeconds = &value
+	}
+	if value, ok := _c.mutation.Details(); ok {
+		_spec.SetField(backuprun.FieldDetails, field.TypeString, value)
+		_node.Details = &value
 	}
 	if value, ok := _c.mutation.StartedAt(); ok {
 		_spec.SetField(backuprun.FieldStartedAt, field.TypeTime, value)

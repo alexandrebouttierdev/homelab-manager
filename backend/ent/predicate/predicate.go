@@ -6,6 +6,9 @@ import (
 	"entgo.io/ent/dialect/sql"
 )
 
+// APIToken is the predicate function for apitoken builders.
+type APIToken func(*sql.Selector)
+
 // Alert is the predicate function for alert builders.
 type Alert func(*sql.Selector)
 
@@ -74,3 +77,6 @@ type VulnerabilityFinding func(*sql.Selector)
 
 // VulnerabilityScan is the predicate function for vulnerabilityscan builders.
 type VulnerabilityScan func(*sql.Selector)
+
+// WebauthnCredential is the predicate function for webauthncredential builders.
+type WebauthnCredential func(*sql.Selector)

@@ -56,6 +56,16 @@ export const errorMessages: Record<string, string> = {
   SYSTEMD_UNAVAILABLE:
     "Services système indisponibles : systemd n'est pas joignable sur le bus système de la machine.",
   SYSTEMD_READ_FAILED: "L'unité systemd n'a pas pu être lue.",
+  TOKEN_INVALID: "Jeton d'API invalide, expiré ou révoqué.",
+  TOKEN_SCOPE_DENIED: "Ce jeton d'API ne permet pas cette requête.",
+  TOO_MANY_TOKENS: "Nombre maximal de jetons d'API atteint (20 par compte).",
+  TOKENS_UNAVAILABLE:
+    "Jetons d'API indisponibles : la base de données du Manager n'est pas accessible.",
+  TOKENS_FAILED: "Les jetons d'API n'ont pas pu être lus ou modifiés.",
+  CRON_UNAVAILABLE: 'Tâches planifiées indisponibles.',
+  CRON_READ_FAILED: "Les tâches planifiées n'ont pas pu être lues.",
+  CRON_EXPRESSION_INVALID:
+    'Expression Cron invalide : 5 champs (minute, heure, jour, mois, jour de semaine) ou une macro (@daily…).',
   BACKUPS_UNAVAILABLE:
     "Sauvegardes indisponibles : la base de données du Manager n'est pas accessible.",
   BACKUPS_FAILED: "Les sauvegardes n'ont pas pu être lues ou lancées.",
@@ -85,7 +95,7 @@ export const errorMessages: Record<string, string> = {
     "Vulnérabilités indisponibles : la base de données du Manager n'est pas accessible.",
   VULNERABILITIES_FAILED: "Les vulnérabilités n'ont pas pu être lues ou l'analyse lancée.",
   OWN_PASSWORD_RESET: 'Changez votre propre mot de passe dans Paramètres.',
-  INVALID_SECOND_FACTOR: 'Code incorrect.',
+  INVALID_SECOND_FACTOR: 'Code incorrect ou clé refusée.',
   LOGIN_CHALLENGE_EXPIRED: 'Délai dépassé : reconnectez-vous avec votre mot de passe.',
   SECOND_FACTOR_REQUIRED: 'Activez la double authentification pour continuer.',
   SECOND_FACTOR_UNAVAILABLE:
@@ -95,6 +105,12 @@ export const errorMessages: Record<string, string> = {
   NO_PENDING_ENROLLMENT: "Recommencez l'activation de la double authentification.",
   SECOND_FACTOR_NOT_ENROLLED: "Activez d'abord votre propre double authentification.",
   SECOND_FACTOR_UPDATE_FAILED: "La double authentification n'a pas pu être modifiée.",
+  WEBAUTHN_UNAVAILABLE:
+    "Clés de sécurité indisponibles : le domaine WebAuthn du Manager n'est pas configuré.",
+  WEBAUTHN_KEY_NOT_FOUND: "Cette clé de sécurité n'existe pas ou plus.",
+  WEBAUTHN_KEY_EXISTS: 'Cette clé de sécurité est déjà enregistrée.',
+  TOO_MANY_WEBAUTHN_KEYS: 'Nombre maximal de clés de sécurité atteint (10 par compte).',
+  INVALID_WEBAUTHN_RESPONSE: 'La réponse de la clé de sécurité a été refusée.',
   INTERNAL_ERROR: 'Erreur interne du Manager.',
 }
 

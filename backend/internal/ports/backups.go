@@ -20,6 +20,8 @@ type BackupLatest struct {
 	// LastScheduled is the newest backup started by the schedule (or its
 	// catch-up), whatever its outcome.
 	LastScheduled *domain.BackupRun
+	// LastCheck is the newest successful check of the repository.
+	LastCheck *domain.BackupRun
 }
 
 // BackupStore keeps the configuration, the runs and the snapshots of the
@@ -52,9 +54,18 @@ type BackupStore interface {
 
 // BackupJob is what one operation needs; the secrets travel apart.
 type BackupJob struct {
+	// RunID names the quarantine directory of a restore.
+	RunID      uuid.UUID
 	Operation  domain.BackupOperation
 	Repository domain.BackupRepository
-	Selection  domain.BackupSelection
+	// Selection: backup only.
+	Selection domain.BackupSelection
+	// Retention: forget-prune only.
+	Retention domain.BackupRetention
+	// CheckSubsetPercent: check only.
+	CheckSubsetPercent int
+	// Restore: restore only.
+	Restore *domain.BackupRestore
 }
 
 // BackupExecutor runs an operation in homelab-backup@.service and returns

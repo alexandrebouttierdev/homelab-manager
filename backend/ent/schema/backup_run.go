@@ -30,6 +30,7 @@ func (BackupRun) Fields() []ent.Field {
 		field.Int64("total_files_processed").Optional().Nillable(),
 		field.Int64("total_bytes_processed").Optional().Nillable(),
 		field.Float("duration_seconds").Optional().Nillable(),
+		field.Text("details").Optional().Nillable(),
 		field.Time("started_at"),
 		field.Time("finished_at").Optional().Nillable(),
 	}

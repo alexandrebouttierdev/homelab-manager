@@ -26,6 +26,7 @@ import { CollectorRow } from '../../components/ui/CollectorRow'
 import { useSession, useSignOut } from '../../hooks/useSession'
 import { useChangePassword } from './useChangePassword'
 import { useSettings } from './useSettings'
+import { ApiTokensCard } from './ApiTokensCard'
 import { MySessionsCard } from './MySessionsCard'
 import { SecondFactorCard } from './SecondFactorCard'
 import { useSecondFactor } from './useSecondFactor'
@@ -204,6 +205,8 @@ export function SettingsPage() {
           <SecondFactorCard model={secondFactor} />
 
           <MySessionsCard />
+
+          <ApiTokensCard />
 
           <Card>
             <CardHeader

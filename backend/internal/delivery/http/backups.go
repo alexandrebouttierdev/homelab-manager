@@ -28,6 +28,19 @@ type backupScheduleDTO struct {
 	Time string `json:"time"`
 }
 
+type backupRetentionDTO struct {
+	Enabled     bool `json:"enabled"`
+	KeepDaily   int  `json:"keepDaily"`
+	KeepWeekly  int  `json:"keepWeekly"`
+	KeepMonthly int  `json:"keepMonthly"`
+	KeepYearly  int  `json:"keepYearly"`
+}
+
+type backupCheckDTO struct {
+	Enabled       bool `json:"enabled"`
+	SubsetPercent int  `json:"subsetPercent"`
+}
+
 type backupCredentialsDTO struct {
 	Password bool `json:"password"`
 	Username bool `json:"username"`
@@ -45,6 +58,8 @@ type backupConfigDTO struct {
 	ExcludeCaches    bool                 `json:"excludeCaches"`
 	ExcludeIfPresent string               `json:"excludeIfPresent"`
 	Schedule         backupScheduleDTO    `json:"schedule"`
+	Retention        backupRetentionDTO   `json:"retention"`
+	Check            backupCheckDTO       `json:"check"`
 	UpdatedAt        *time.Time           `json:"updatedAt"`
 	UpdatedBy        *string              `json:"updatedBy"`
 }
@@ -60,6 +75,9 @@ type backupConfigRequest struct {
 	ExcludeCaches    bool                 `json:"excludeCaches"`
 	ExcludeIfPresent string               `json:"excludeIfPresent"`
 	Schedule         backupScheduleDTO    `json:"schedule"`
+	// Retention and Check: absent keeps the stored ones.
+	Retention *backupRetentionDTO `json:"retention"`
+	Check     *backupCheckDTO     `json:"check"`
 }
 
 type backupStatsDTO struct {
@@ -76,18 +94,19 @@ type backupStatsDTO struct {
 }
 
 type backupRunDTO struct {
-	ID          uuid.UUID       `json:"id"`
-	Operation   string          `json:"operation"`
-	Origin      string          `json:"origin"`
-	RequestedBy *string         `json:"requestedBy"`
-	State       string          `json:"state"`
-	Failure     *string         `json:"failure"`
-	Message     *string         `json:"message"`
-	Warning     bool            `json:"warning"`
-	SnapshotID  *string         `json:"snapshotId"`
-	Stats       *backupStatsDTO `json:"stats"`
-	StartedAt   time.Time       `json:"startedAt"`
-	FinishedAt  *time.Time      `json:"finishedAt"`
+	ID          uuid.UUID                `json:"id"`
+	Operation   string                   `json:"operation"`
+	Origin      string                   `json:"origin"`
+	RequestedBy *string                  `json:"requestedBy"`
+	State       string                   `json:"state"`
+	Failure     *string                  `json:"failure"`
+	Message     *string                  `json:"message"`
+	Warning     bool                     `json:"warning"`
+	SnapshotID  *string                  `json:"snapshotId"`
+	Stats       *backupStatsDTO          `json:"stats"`
+	Details     *domain.BackupRunDetails `json:"details"`
+	StartedAt   time.Time                `json:"startedAt"`
+	FinishedAt  *time.Time               `json:"finishedAt"`
 }
 
 type backupSnapshotDTO struct {
@@ -108,6 +127,7 @@ type backupSummaryDTO struct {
 	Running     *backupRunDTO `json:"running"`
 	LastRun     *backupRunDTO `json:"lastRun"`
 	LastSuccess *backupRunDTO `json:"lastSuccess"`
+	LastCheck   *backupRunDTO `json:"lastCheck"`
 	NextRunAt   *time.Time    `json:"nextRunAt"`
 }
 
@@ -119,7 +139,7 @@ func toBackupRunDTO(run *domain.BackupRun) *backupRunDTO {
 		ID: run.ID, Operation: string(run.Operation), Origin: string(run.Origin),
 		RequestedBy: optionalString(run.RequestedBy), State: string(run.State),
 		Failure: optionalString(string(run.Failure)), Message: optionalString(run.Message), Warning: run.Warning,
-		SnapshotID: optionalString(run.SnapshotID), StartedAt: run.StartedAt, FinishedAt: run.FinishedAt,
+		SnapshotID: optionalString(run.SnapshotID), Details: run.Details, StartedAt: run.StartedAt, FinishedAt: run.FinishedAt,
 	}
 	if s := run.Stats; s != nil {
 		dto.Stats = &backupStatsDTO{
@@ -143,6 +163,11 @@ func toBackupConfigDTO(view usecase.BackupConfigView) backupConfigDTO {
 			Enabled: view.Schedule.Enabled, Frequency: string(view.Schedule.Frequency), Weekday: int(view.Schedule.Weekday),
 			Time: fmt.Sprintf("%02d:%02d", view.Schedule.Hour, view.Schedule.Minute),
 		},
+		Retention: backupRetentionDTO{
+			Enabled: view.Retention.Enabled, KeepDaily: view.Retention.KeepDaily, KeepWeekly: view.Retention.KeepWeekly,
+			KeepMonthly: view.Retention.KeepMonthly, KeepYearly: view.Retention.KeepYearly,
+		},
+		Check:     backupCheckDTO{Enabled: view.Check.Enabled, SubsetPercent: view.Check.SubsetPercent},
 		UpdatedAt: view.UpdatedAt, UpdatedBy: optionalString(view.UpdatedBy),
 	}
 	if view.Repository != nil {
@@ -190,6 +215,8 @@ func writeBackupError(w http.ResponseWriter, r *http.Request, err error) {
 		writeError(w, r, http.StatusConflict, "BACKUP_ALREADY_INITIALIZED", "The backup repository is already initialized.")
 	case errors.Is(err, domain.ErrBackupAlreadyRunning), errors.Is(err, domain.ErrBackupRepositoryInUse):
 		writeError(w, r, http.StatusConflict, "BACKUP_IN_PROGRESS", "A backup operation is already running.")
+	case errors.Is(err, domain.ErrBackupsNotReady):
+		writeError(w, r, http.StatusServiceUnavailable, "BACKUPS_UNAVAILABLE", "Backups are starting or stopping.")
 	case errors.Is(err, domain.ErrBackupSecretsMissing):
 		writeError(w, r, http.StatusServiceUnavailable, "SECRETS_UNAVAILABLE", "The secrets key is unavailable.")
 	default:
@@ -207,7 +234,8 @@ func backupSummaryHandler(backups *usecase.BackupUsecase) http.HandlerFunc {
 		writeJSON(w, http.StatusOK, backupSummaryDTO{
 			Configured: summary.Configured, Initialized: summary.Initialized,
 			Running: toBackupRunDTO(summary.Running), LastRun: toBackupRunDTO(summary.LastRun),
-			LastSuccess: toBackupRunDTO(summary.LastSuccess), NextRunAt: summary.NextRunAt,
+			LastSuccess: toBackupRunDTO(summary.LastSuccess), LastCheck: toBackupRunDTO(summary.LastCheck),
+			NextRunAt: summary.NextRunAt,
 		})
 	}
 }
@@ -250,6 +278,14 @@ func updateBackupConfigHandler(backups *usecase.BackupUsecase) http.HandlerFunc 
 				Enabled: request.Schedule.Enabled, Frequency: domain.BackupFrequency(request.Schedule.Frequency),
 				Weekday: time.Weekday(request.Schedule.Weekday), Hour: hour, Minute: minute,
 			},
+		}
+		if r := request.Retention; r != nil {
+			update.Retention = &domain.BackupRetention{
+				Enabled: r.Enabled, KeepDaily: r.KeepDaily, KeepWeekly: r.KeepWeekly, KeepMonthly: r.KeepMonthly, KeepYearly: r.KeepYearly,
+			}
+		}
+		if c := request.Check; c != nil {
+			update.Check = &domain.BackupCheck{Enabled: c.Enabled, SubsetPercent: c.SubsetPercent}
 		}
 		if request.Repository != nil {
 			update.Repository = &domain.BackupRepository{
@@ -361,5 +397,66 @@ func listBackupSnapshotsHandler(backups *usecase.BackupUsecase) http.HandlerFunc
 			})
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"snapshots": response})
+	}
+}
+
+type backupOperationRequest struct {
+	Operation string `json:"operation"`
+	Restore   *struct {
+		SnapshotID string   `json:"snapshotId"`
+		Include    []string `json:"include"`
+		DryRun     bool     `json:"dryRun"`
+	} `json:"restore"`
+}
+
+func requestBackupOperationHandler(backups *usecase.BackupUsecase) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var request backupOperationRequest
+		if err := decodeJSON(r, &request); err != nil {
+			writeError(w, r, http.StatusBadRequest, "VALIDATION_ERROR", "The operation is invalid.")
+			return
+		}
+		actor, ok := sessionUser(r)
+		if !ok {
+			writeError(w, r, http.StatusUnauthorized, "SESSION_NOT_FOUND", "Authentication is required.")
+			return
+		}
+		var restore *domain.BackupRestore
+		if request.Restore != nil {
+			restore = &domain.BackupRestore{
+				SnapshotID: request.Restore.SnapshotID, Include: request.Restore.Include, DryRun: request.Restore.DryRun,
+			}
+		}
+		run, err := backups.RequestOperation(r.Context(), actor, domain.BackupOperation(request.Operation), restore, middleware.GetReqID(r.Context()))
+		if err != nil {
+			writeBackupError(w, r, err)
+			return
+		}
+		writeJSON(w, http.StatusAccepted, map[string]any{"run": toBackupRunDTO(&run)})
+	}
+}
+
+type backupConnectRequest struct {
+	Password string `json:"password"`
+}
+
+func connectBackupRepositoryHandler(backups *usecase.BackupUsecase) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var request backupConnectRequest
+		if err := decodeJSON(r, &request); err != nil {
+			writeError(w, r, http.StatusBadRequest, "VALIDATION_ERROR", "password is required.")
+			return
+		}
+		actor, ok := sessionUser(r)
+		if !ok {
+			writeError(w, r, http.StatusUnauthorized, "SESSION_NOT_FOUND", "Authentication is required.")
+			return
+		}
+		run, err := backups.ConnectRepository(r.Context(), actor, request.Password, middleware.GetReqID(r.Context()))
+		if err != nil {
+			writeBackupError(w, r, err)
+			return
+		}
+		writeJSON(w, http.StatusAccepted, map[string]any{"run": toBackupRunDTO(&run)})
 	}
 }

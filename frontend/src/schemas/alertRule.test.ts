@@ -18,6 +18,7 @@ const base: AlertRuleValues = {
   vulnSeverity: 'critical' as const,
   fixableOnly: false,
   forMinutes: '5',
+  maxAgeHours: '26',
 }
 
 function issues(values: Partial<AlertRuleValues>): string[] {
@@ -59,5 +60,12 @@ describe('alert rule schema', () => {
     expect(parseDecimal('-3.5')).toBe(-3.5)
     expect(parseDecimal('1e3')).toBeNull()
     expect(parseDecimal('')).toBeNull()
+  })
+
+  it('checks the age of a backup rule', () => {
+    expect(issues({ type: 'backup', forMinutes: '' })).toEqual([])
+    expect(issues({ type: 'backup', maxAgeHours: '0' })).toEqual(['maxAgeHours'])
+    expect(issues({ type: 'backup', maxAgeHours: '721' })).toEqual(['maxAgeHours'])
+    expect(issues({ type: 'backup', maxAgeHours: '2,5' })).toEqual(['maxAgeHours'])
   })
 })

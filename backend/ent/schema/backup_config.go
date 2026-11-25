@@ -27,6 +27,13 @@ func (BackupConfig) Fields() []ent.Field {
 		field.Int("schedule_weekday").Default(0),
 		field.Int("schedule_hour").Default(3),
 		field.Int("schedule_minute").Default(0),
+		field.Bool("retention_enabled").Default(false),
+		field.Int("keep_daily").Default(7),
+		field.Int("keep_weekly").Default(4),
+		field.Int("keep_monthly").Default(6),
+		field.Int("keep_yearly").Default(0),
+		field.Bool("check_enabled").Default(true),
+		field.Int("check_subset_percent").Default(5),
 		field.Time("updated_at"),
 		field.String("updated_by").Default(""),
 	}

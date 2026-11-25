@@ -5,6 +5,8 @@ import (
 	"strings"
 	"testing"
 	"time"
+
+	"github.com/google/uuid"
 )
 
 func TestValidateBackupRepository(t *testing.T) {
@@ -200,7 +202,57 @@ func TestBackupOperationUnit(t *testing.T) {
 	if BackupOpBackup.BackupUnit() != "homelab-backup@backup.service" || !ValidUnitName(BackupOpInit.BackupUnit()) {
 		t.Fatal("unit name")
 	}
-	if BackupOperation("restore").Valid() {
-		t.Fatal("restore is not a 6A operation")
+	for _, op := range BackupOperations {
+		if !op.Valid() || !ValidUnitName(op.BackupUnit()) {
+			t.Errorf("%q should be a valid operation and unit", op)
+		}
+	}
+	if BackupOperation("diff").Valid() || BackupOperation("copy").Valid() {
+		t.Fatal("diff and copy are not operations of this version")
+	}
+}
+
+func TestValidateBackupRetentionAndCheck(t *testing.T) {
+	if err := ValidateBackupRetention(DefaultBackupRetention); err != nil {
+		t.Fatal(err)
+	}
+	if err := ValidateBackupRetention(BackupRetention{Enabled: false}); err != nil {
+		t.Fatalf("a disabled empty policy is valid: %v", err)
+	}
+	for _, retention := range []BackupRetention{
+		{Enabled: true},
+		{KeepDaily: -1},
+		{KeepYearly: 1001},
+	} {
+		if err := ValidateBackupRetention(retention); err == nil {
+			t.Errorf("%+v accepted", retention)
+		}
+	}
+	if err := ValidateBackupCheck(DefaultBackupCheck); err != nil {
+		t.Fatal(err)
+	}
+	if ValidateBackupCheck(BackupCheck{SubsetPercent: 0}) == nil || ValidateBackupCheck(BackupCheck{SubsetPercent: 101}) == nil {
+		t.Fatal("subset out of bounds accepted")
+	}
+}
+
+func TestValidateBackupRestore(t *testing.T) {
+	if err := ValidateBackupRestore(BackupRestore{SnapshotID: "3a253ad8", Include: []string{"/etc/hostname"}}); err != nil {
+		t.Fatal(err)
+	}
+	for _, restore := range []BackupRestore{
+		{SnapshotID: "latest"},
+		{SnapshotID: "3A253AD8"},
+		{SnapshotID: "--target=/"},
+		{SnapshotID: "3a253ad8", Include: []string{"etc"}},
+		{SnapshotID: "3a253ad8", Include: []string{"/etc/../root"}},
+	} {
+		if err := ValidateBackupRestore(restore); err == nil {
+			t.Errorf("%+v accepted", restore)
+		}
+	}
+	id := uuid.MustParse("7c9e6679-7425-40de-944b-e07fc1f90ae7")
+	if RestoreTarget(id) != "/var/lib/homelab-backup/restore/7c9e6679-7425-40de-944b-e07fc1f90ae7" {
+		t.Fatal(RestoreTarget(id))
 	}
 }

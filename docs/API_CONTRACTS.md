@@ -34,6 +34,9 @@ Ce document est le contrat exact de l'API implémentée. Toute différence entre
 | `GET /api/v1/auth/sessions` | oui | Ses sessions actives ; `?scope=all` : toutes (admin) (§ 3.2) |
 | `DELETE /api/v1/auth/sessions/{sessionID}` | oui | Révoque une session (§ 3.2) |
 | `POST /api/v1/auth/sessions/revoke-others` | oui | Révoque ses autres sessions (§ 3.2) |
+| `GET /api/v1/auth/tokens` | oui | Ses jetons d'API ; `?scope=all` : tous (admin) (§ 3.6) |
+| `POST /api/v1/auth/tokens` | oui | Crée un jeton d'API, affiché une fois (§ 3.6) |
+| `DELETE /api/v1/auth/tokens/{tokenID}` | oui | Révoque un de ses jetons, ou tout jeton (admin) (§ 3.6) |
 | `GET /api/v1/security/policy` | admin | Politique de sécurité (§ 3.3) |
 | `PUT /api/v1/security/policy` | admin | Modifie la politique (§ 3.3) |
 | `GET /api/v1/audit` | admin | Journal d'audit filtré (§ 3.4) |
@@ -91,10 +94,14 @@ Ce document est le contrat exact de l'API implémentée. Toute différence entre
 | `GET /api/v1/vulnerabilities/{findingID}` | oui | Un constat (§ 4.9) |
 | `GET /api/v1/vulnerabilities/scans` | oui | Derniers scans (§ 4.9) |
 | `POST /api/v1/vulnerabilities/scans` | `operator` | Lance un scan (§ 4.9) |
+| `GET /api/v1/cron` | oui | Tâches Cron du système, scripts run-parts et timers (§ 4.11) |
+| `GET /api/v1/cron/inspect` | oui | Inspecteur d'expression Cron, sans enregistrement (§ 4.11) |
 | `GET /api/v1/backups/summary` | oui | État des sauvegardes (§ 4.10) |
 | `GET /api/v1/backups/config` | oui | Configuration, sans secret (§ 4.10) |
 | `PUT /api/v1/backups/config` | admin | Dépôt, sources, exclusions, planification (§ 4.10) |
 | `POST /api/v1/backups/repository/init` | admin | Initialise le dépôt, renvoie son mot de passe une fois (§ 4.10) |
+| `POST /api/v1/backups/repository/connect` | admin | Rattache un dépôt existant avec son mot de passe (§ 4.10) |
+| `POST /api/v1/backups/operations` | admin | Rétention, vérification, déverrouillage ou restauration en quarantaine (§ 4.10) |
 | `GET /api/v1/backups/runs` | oui | Historique des exécutions (§ 4.10) |
 | `POST /api/v1/backups/runs` | `operator` | Lance une sauvegarde (§ 4.10) |
 | `GET /api/v1/backups/runs/{runID}` | oui | Une exécution (§ 4.10) |
@@ -201,14 +208,29 @@ Comptes de Homelab Manager uniquement : aucun compte Linux n'est lu ni modifié.
 
 ### 3.5 Second facteur
 
-TOTP (RFC 6238 : HMAC-SHA-1, 6 chiffres, 30 s, ±1 période, un code n'est accepté qu'une fois) et 10 codes de secours à usage unique. WebAuthn est prévu en phase 8.
+TOTP (RFC 6238 : HMAC-SHA-1, 6 chiffres, 30 s, ±1 période, un code n'est accepté qu'une fois), passkeys et clés FIDO2 (WebAuthn, phase 8B) et 10 codes de secours à usage unique. WebAuthn n'est disponible que si `webauthn_rp_id` et `webauthn_origins` sont configurés ; sinon les routes WebAuthn répondent `503 WEBAUTHN_UNAVAILABLE`. Les options et réponses WebAuthn suivent le format JSON de WebAuthn niveau 3 (`PublicKeyCredentialCreationOptionsJSON`, `RegistrationResponseJSON`…), binaires en base64url ; une réponse dépasse au plus 64 Kio.
 
-- **Deuxième étape de connexion** — `POST /api/v1/auth/login/second-factor` avec `{ "method": "totp" | "recovery", "code": "123456" }` (1 à 64 octets ; espaces ignorés pour le TOTP, casse, espaces et tirets ignorés pour un code de secours) et le cookie de défi `homelab_login` (`HttpOnly`, `SameSite=Strict`, `Path=/api/v1/auth`, 5 minutes, 5 essais, gardé en mémoire : un redémarrage du Manager impose de ressaisir le mot de passe). Succès `200 { "user": … }`, cookie de session et méthode de session `password+totp` ou `password+recovery`. Code faux : `401 INVALID_SECOND_FACTOR`, compté dans le verrouillage du compte (§ 3.2). Défi absent, expiré, épuisé ou compte devenu indisponible : `401 LOGIN_CHALLENGE_EXPIRED`. TOTP sans clé maître : `503 SECOND_FACTOR_UNAVAILABLE` (les codes de secours restent acceptés). Même limitation par adresse et même contrôle d'origine que la connexion.
-- `GET /api/v1/auth/second-factor` : `200 { "enabled": false, "pending": false, "recoveryCodesRemaining": 0, "available": true }`. `available` est faux quand la clé maître manque (§ 2.5 de la spécification).
+- **Réponse de la première étape** : `200 { "secondFactorRequired": true, "methods": ["webauthn", "totp", "recovery"], "expiresAt": "…" }`. `methods` liste ce que le compte peut utiliser : `totp` s'il a une application confirmée et que la clé maître est présente, `webauthn` s'il a au moins une clé et que WebAuthn est configuré, `recovery` toujours.
+- **Options d'une connexion par clé** — `POST /api/v1/auth/login/second-factor/webauthn`, sans corps, avec le cookie de défi : `200 { "options": { "publicKey": { "challenge", "rpId", "allowCredentials", "userVerification": "required", "timeout" } } }`. Un nouvel appel remplace la cérémonie précédente du défi. Défi absent ou expiré : `401 LOGIN_CHALLENGE_EXPIRED` ; aucune clé : `409 WEBAUTHN_KEY_NOT_FOUND` ; non configuré : `503 WEBAUTHN_UNAVAILABLE`. Même limitation par adresse et même contrôle d'origine que la connexion.
+- **Deuxième étape de connexion** — `POST /api/v1/auth/login/second-factor` avec `{ "method": "totp" | "recovery", "code": "123456" }` ou `{ "method": "webauthn", "response": { …réponse de navigator.credentials.get… } }` (`code` 1 à 64 octets ; espaces ignorés pour le TOTP, casse, espaces et tirets ignorés pour un code de secours) et le cookie de défi `homelab_login` (`HttpOnly`, `SameSite=Strict`, `Path=/api/v1/auth`, 5 minutes, 5 essais, gardé en mémoire : un redémarrage du Manager impose de ressaisir le mot de passe). Succès `200 { "user": … }`, cookie de session et méthode de session `password+totp`, `password+webauthn` ou `password+recovery`. Une cérémonie WebAuthn ne reçoit qu'une réponse : juste ou fausse, il faut redemander des options. La clé doit vérifier l'utilisateur (PIN, empreinte) ; un compteur de signatures qui recule (clé clonée) est refusé. Code ou réponse faux, ou réponse sans cérémonie : `401 INVALID_SECOND_FACTOR`, compté dans le verrouillage du compte (§ 3.2). Défi absent, expiré, épuisé ou compte devenu indisponible : `401 LOGIN_CHALLENGE_EXPIRED`. TOTP sans clé maître : `503 SECOND_FACTOR_UNAVAILABLE` ; clé sans WebAuthn configuré : `503 WEBAUTHN_UNAVAILABLE` (les codes de secours restent acceptés). Même limitation par adresse et même contrôle d'origine que la connexion.
+- `GET /api/v1/auth/second-factor` : `200 { "enabled": false, "pending": false, "recoveryCodesRemaining": 0, "available": true, "keys": [Clé], "webauthnAvailable": true }`. `enabled` et `pending` concernent le TOTP ; `available` est faux quand la clé maître manque (§ 2.5 de la spécification), `webauthnAvailable` quand WebAuthn n'est pas configuré. Clé : `{ "id": "uuid", "name": "YubiKey bleue", "createdAt": "…", "lastUsedAt": "…" | null }` ; l'identifiant et la clé publique ne sortent pas du serveur.
 - `POST /api/v1/auth/second-factor/totp` avec `{ "password": "..." }` : `200 { "secret": "BASE32…", "uri": "otpauth://totp/Homelab%20Manager:alice?…", "qr": { "size": 29, "rows": ["1111111010…", …] } }`. `rows` décrit les modules du QR code (`1` = foncé), à dessiner par l'interface. Remplace un enrôlement en attente. Mot de passe faux : `401 INVALID_CREDENTIALS` ; déjà activé : `409 SECOND_FACTOR_ALREADY_ENABLED` ; sans clé maître : `503 SECOND_FACTOR_UNAVAILABLE`.
 - `POST /api/v1/auth/second-factor/totp/confirm` avec `{ "code": "123456" }` : `200 { "recoveryCodes": ["k7pq-2mzx-b9ht", …] }` (10 codes, affichés cette seule fois). Code faux : `400 INVALID_SECOND_FACTOR` ; aucun enrôlement en attente : `409 NO_PENDING_ENROLLMENT`. Audité (`user`, UUID, `second_factor_enable`).
-- `POST /api/v1/auth/second-factor/recovery-codes` avec `{ "password" }` : `200 { "recoveryCodes": […] }`, les anciens codes ne valent plus. Sans second facteur : `409 SECOND_FACTOR_NOT_ENABLED`. Audité (`recovery_codes_regenerate`).
-- `POST /api/v1/auth/second-factor/disable` avec `{ "password" }` : `200 { "disabled": true }`, secret et codes supprimés. Audité (`second_factor_disable`).
+- `POST /api/v1/auth/second-factor/webauthn` avec `{ "password" }` : `200 { "options": { "publicKey": { "challenge", "rp", "user", "pubKeyCredParams", "excludeCredentials", "authenticatorSelection": { "residentKey": "preferred", "userVerification": "required" }, "attestation": "none", "timeout" } } }`, à passer à `navigator.credentials.create`. Démarre un enregistrement valable 5 minutes, qui remplace le précédent du compte. Mot de passe faux : `401 INVALID_CREDENTIALS` ; 10 clés déjà : `409 TOO_MANY_WEBAUTHN_KEYS`.
+- `POST /api/v1/auth/second-factor/webauthn/confirm` avec `{ "name": "YubiKey bleue", "response": { …réponse de navigator.credentials.create… } }` : `201 { "key": Clé, "recoveryCodes": [...] }`. `name` 1 à 64 caractères, sans caractère de contrôle. `recoveryCodes` contient 10 codes nouveaux si le compte n'en avait plus aucun (premier second facteur), sinon `[]`. L'enregistrement ne reçoit qu'une réponse. Nom invalide : `400 VALIDATION_ERROR` ; réponse invalide (autre origine, autre défi, signature fausse, clé sans vérification de l'utilisateur) : `400 INVALID_WEBAUTHN_RESPONSE` ; pas d'enregistrement en cours ou expiré : `409 NO_PENDING_ENROLLMENT` ; clé déjà enregistrée, sur ce compte ou un autre : `409 WEBAUTHN_KEY_EXISTS` (le navigateur refuse déjà les clés du compte, listées dans `excludeCredentials`) ; 10 clés déjà : `409 TOO_MANY_WEBAUTHN_KEYS`. Audité (`user`, UUID, `webauthn_add`).
+- `POST /api/v1/auth/second-factor/webauthn/{keyID}/delete` avec `{ "password" }` : `200 { "deleted": true }`. Si plus aucun second facteur ne reste, les codes de secours sont supprimés aussi. Clé inconnue ou d'un autre compte : `404 WEBAUTHN_KEY_NOT_FOUND`. Audité (`webauthn_remove`).
+- `POST /api/v1/auth/second-factor/recovery-codes` avec `{ "password" }` : `200 { "recoveryCodes": […] }`, les anciens codes ne valent plus. Sans second facteur (ni TOTP ni clé) : `409 SECOND_FACTOR_NOT_ENABLED`. Audité (`recovery_codes_regenerate`).
+- `POST /api/v1/auth/second-factor/disable` avec `{ "password" }` : `200 { "disabled": true }`, secret TOTP, clés et codes supprimés. Audité (`second_factor_disable`).
+
+### 3.6 Jetons d'API
+
+Jetons en lecture seule pour les scripts (SPEC_ADMINISTRATION.md § 3.5, phase 8A). Chaque compte gère ses jetons ; un administrateur liste et révoque ceux de tous.
+
+- **Usage** : en-tête `Authorization: Bearer hlm_<43 caractères>` sur une route `GET` (ou `HEAD`) de ses portées ; aucun cookie, aucun contrôle d'origine. Portées : `metrics:read` (`/api/v1/dashboard`, `/api/v1/host…`), `containers:read` (`/api/v1/containers…`), `events:read` (`/api/v1/events`), `services:read` (`/api/v1/system/units…`, en lecture), `backups:read` (`/api/v1/backups/summary`, `/runs…`, `/snapshots`). Toute autre route ou méthode : `403 TOKEN_SCOPE_DENIED`. Jeton inconnu, révoqué, expiré, ou compte désactivé ou supprimé : `401 TOKEN_INVALID`. L'usage n'est pas audité ; `lastUsedAt` est écrit au plus une fois par minute.
+- `POST /api/v1/auth/tokens` avec `{ "name": "Home Assistant", "scopes": ["metrics:read"], "expiresInDays": 90 }` → `201 { "token": "hlm_…", "apiToken": Jeton }`, en-tête `Cache-Control: no-store` : le jeton n'est plus jamais renvoyé, seul son SHA-256 est stocké. `name` 1 à 100 caractères, au moins une portée, sans doublon, `expiresInDays` 1 à 365 (90 si absent ; sans expiration impossible). Plus de 20 jetons pour le compte : `409 TOO_MANY_TOKENS`. Audité (`api_token` / UUID / `create`).
+- `GET /api/v1/auth/tokens` → `{ "tokens": [Jeton], "scopes": [...] }`, les plus récents d'abord ; `?scope=all` (admin) : ceux de tous les comptes, sinon `403 FORBIDDEN` (audité). Jeton : `{ "id", "name", "prefix" (12 premiers caractères), "scopes", "username", "createdAt", "expiresAt", "lastUsedAt" }`.
+- `DELETE /api/v1/auth/tokens/{tokenID}` → `204` ; jeton d'un autre compte pour un non-administrateur, ou inconnu : `404 NOT_FOUND`. Audité (`api_token` / UUID / `revoke`).
+- Un jeton ne peut pas gérer les jetons : ces routes exigent une session.
 
 ## 4. Santé, synthèse, hôte et paramètres
 
@@ -467,10 +489,11 @@ Moteur d'alertes intégré (SPEC_ADMINISTRATION.md § 6), évalué toutes les 15
 | `unit_failed` | `unitPattern` (nom ou motif shell `*`, `?`, `[…]`) | Une unité de l'inventaire qui correspond est en `failed` ; immédiat |
 | `collector` | `collector` (`system`, `docker`, `services`), `forSeconds` | Le collecteur n'est ni `ok`, ni en démarrage (`starting`, `pending`) |
 | `vulnerabilities` | `vulnSeverity` (`critical`, `high`, `medium`, `low` : sévérité minimale), `fixableOnly` (facultatif) | Au moins un constat présent (§ 4.9) de cette sévérité ou plus grave, corrigeable si `fixableOnly` ; immédiat. Gelée tant qu'aucun scan n'a réussi. Une alerte par règle (cible `vulnerabilities`), `value` = nombre de constats |
+| `backup` | `maxAgeHours` (1 à 720) | Dernière sauvegarde réussie (§ 4.10) plus ancienne que `maxAgeHours` heures (à défaut, l'initialisation du dépôt), ou dernière sauvegarde en échec ; immédiat. Gelée tant qu'aucun dépôt n'est initialisé. Une alerte par règle (cible `backup`), `value` = âge du dernier succès en heures (au dixième), `threshold` = `maxAgeHours`, `observed` = `failed` après un échec |
 
 - `name` : 1 à 100 octets sans caractère de contrôle ; `severity` : `info`, `warning`, `critical` ; `operator` : `>`, `>=`, `<`, `<=` ; `threshold` : nombre fini ; `forSeconds` : 0 à 86 400 (durée pendant laquelle la condition doit rester vraie) ; `labels` : 5 au plus, clés parmi celles de la métrique, valeurs de 1 à 255 octets. Un paramètre qui n'appartient pas au type est refusé.
 - Métriques : celles du catalogue renvoyé par `GET /api/v1/alert-rules` (`catalog.hostMetrics` et `catalog.containerMetrics`, chacune avec ses labels), sous-ensemble des § 5.4 et § 5.5 sans compteurs cumulés ni totaux, plus `memory.available_percent` (hôte), dérivée par le moteur : `memory.available / memory.total × 100`. `catalog.containerStates`, `catalog.collectors` et `catalog.vulnerabilitySeverities` listent les autres valeurs acceptées.
-- Six règles par défaut (`default: true`) : disque `filesystem.percent > 85` 5 min, mémoire `memory.available_percent < 10` 5 min (`warning`) ; température `temperature.celsius > 85` 2 min (`critical`, seuil fixe : les seuils des capteurs ne sont pas collectés) ; collecte système et collecte Docker indisponibles 2 min (`warning`) ; unité en échec, motif `*` (`critical`). Modifiables et désactivables, non supprimables.
+- Sept règles par défaut (`default: true`) : disque `filesystem.percent > 85` 5 min, mémoire `memory.available_percent < 10` 5 min (`warning`) ; température `temperature.celsius > 85` 2 min (`critical`, seuil fixe : les seuils des capteurs ne sont pas collectés) ; collecte système et collecte Docker indisponibles 2 min (`warning`) ; unité en échec, motif `*` (`critical`) ; sauvegarde en retard ou en échec, `maxAgeHours` 26 (`warning`, migration `011`). Modifiables et désactivables, non supprimables.
 
 **Alerte** :
 
@@ -629,7 +652,7 @@ Vulnérabilités connues des paquets système de la machine du Manager (SPEC_ADM
 
 ### 4.10 Sauvegardes
 
-Sauvegardes chiffrées par restic (SPEC_ADMINISTRATION.md § 7, incrément 6A). restic ne s'exécute que dans l'unité root `homelab-backup@<opération>.service` (`init`, `backup`), démarrée par le Manager par D-Bus (règle polkit `50-homelab-manager-backup.rules`) ; le programme `homelab-backup-runner` y lit le fichier de travail écrit par le Manager, le valide de nouveau et lance restic sans shell. Une opération à la fois. Sans base de données : `503 BACKUPS_UNAVAILABLE` sur toutes les routes.
+Sauvegardes chiffrées par restic (SPEC_ADMINISTRATION.md § 7, incréments 6A et 6B). restic ne s'exécute que dans l'unité root `homelab-backup@<opération>.service` (`init`, `backup`, `forget-prune`, `check`, `restore`, `snapshots`, `unlock`), démarrée par le Manager par D-Bus (règle polkit `50-homelab-manager-backup.rules`) ; le programme `homelab-backup-runner` y lit le fichier de travail écrit par le Manager, le valide de nouveau et lance restic sans shell. Une opération à la fois. Sans base de données : `503 BACKUPS_UNAVAILABLE` sur toutes les routes ; pendant le démarrage du Manager (avant que les exécutions laissées en cours par un arrêt soient closes) et pendant son arrêt, une demande d'opération reçoit aussi `503 BACKUPS_UNAVAILABLE`.
 
 `GET /api/v1/backups/config` (tous les rôles) :
 
@@ -642,20 +665,25 @@ Sauvegardes chiffrées par restic (SPEC_ADMINISTRATION.md § 7, incrément 6A). 
   "sources": ["/etc", "/var/lib/docker/volumes"], "excludes": ["*.tmp", "**/node_modules"],
   "excludeCaches": true, "excludeIfPresent": ".nobackup",
   "schedule": { "enabled": true, "frequency": "weekly", "weekday": 0, "time": "03:00" },
+  "retention": { "enabled": true, "keepDaily": 7, "keepWeekly": 4, "keepMonthly": 6, "keepYearly": 0 },
+  "check": { "enabled": true, "subsetPercent": 5 },
   "updatedAt": "2026-11-24T10:00:00Z", "updatedBy": "alice"
 }
 ```
 
 - `repository` : `null` tant qu'aucun dépôt n'est défini. `type` : `local` (chemin absolu, répertoire local ou monté), `rest` (rest-server) ou `s3` (S3 compatible, dont Backblaze B2) ; `location` d'un dépôt distant : adresse `https://` sans identifiant, requête ni fragment ; celle d'un dépôt S3 nomme le bucket.
 - `credentials` : seulement si chaque secret est défini, jamais sa valeur. `username` et `secret` : utilisateur et mot de passe du rest-server (facultatifs), ou clé d'accès et clé secrète S3 (obligatoires). `secretsAvailable` : `false` sans clé du coffre (§ 2.5 de la spécification) ; les sauvegardes sont alors impossibles.
+- `retention` : politique de `restic forget --prune` (0 à 1 000 par période ; activée, elle garde au moins un instantané), appliquée après chaque sauvegarde planifiée réussie quand `enabled` ; défaut 7 quotidiens, 4 hebdomadaires, 6 mensuels, désactivée. `check` : `restic check --read-data-subset <subsetPercent>%` (1 à 100) après une sauvegarde planifiée réussie, au plus une fois par semaine ; défaut activé, 5 %.
 - `schedule` : planification tenue par le Manager (décision D-12) ; `frequency` `daily` ou `weekly`, `weekday` de 0 (dimanche) à 6, `time` `HH:MM` dans le fuseau de la machine.
 
-`PUT /api/v1/backups/config` (`admin`) remplace la configuration : mêmes champs, sans `initialized`, `credentials`, `secretsAvailable` ni `updated*`, plus `username` et `secret` (absents ou `null` : conservés ; `""` : supprimés). Réponse : la configuration. Audité (`backup_config` / `local` / `update`) dans la même transaction.
+`PUT /api/v1/backups/config` (`admin`) remplace la configuration : mêmes champs, sans `initialized`, `credentials`, `secretsAvailable` ni `updated*`, plus `username` et `secret` (absents ou `null` : conservés ; `""` : supprimés) ; `retention` et `check` absents : conservés. Réponse : la configuration. Audité (`backup_config` / `local` / `update`) dans la même transaction.
 
 - Validation : sources absolues, propres (sans `..`, `//` ni `/` final), 50 au plus, sans doublon ; motifs d'exclusion d'une ligne, 500 au plus, 4 Kio chacun, syntaxe glob valide, sans `#` initial ; `excludeIfPresent` vide ou nom de fichier (`[A-Za-z0-9._-]`) ; champs inconnus refusés. Sinon `400 VALIDATION_ERROR`, le message nommant le champ.
 - Changer de dépôt remet `initialized` à `false` et efface le mot de passe : le nouveau dépôt doit être initialisé. Refusé pendant une opération : `409 BACKUP_IN_PROGRESS`. Modifier une clé sans clé du coffre : `503 SECRETS_UNAVAILABLE`.
 
-`POST /api/v1/backups/repository/init` (`admin`, sans corps) → `202 { "password": "…", "run": Exécution }`, en-tête `Cache-Control: no-store`. Le Manager génère le mot de passe du dépôt (32 octets aléatoires, base64url), le scelle dans le coffre et lance `restic init` ; le mot de passe n'est plus jamais renvoyé. Audité (`backup_config` / `local` / `init_repository`). Sans dépôt : `409 BACKUP_NOT_CONFIGURED` ; déjà initialisé : `409 BACKUP_ALREADY_INITIALIZED` ; opération en cours : `409 BACKUP_IN_PROGRESS` ; sans clé du coffre : `503 SECRETS_UNAVAILABLE`. Un dépôt existant ne peut pas encore être rattaché (incrément 6B).
+`POST /api/v1/backups/repository/init` (`admin`, sans corps) → `202 { "password": "…", "run": Exécution }`, en-tête `Cache-Control: no-store`. Le Manager génère le mot de passe du dépôt (32 octets aléatoires, base64url), le scelle dans le coffre et lance `restic init` ; le mot de passe n'est plus jamais renvoyé. Audité (`backup_config` / `local` / `init_repository`). Sans dépôt : `409 BACKUP_NOT_CONFIGURED` ; déjà initialisé : `409 BACKUP_ALREADY_INITIALIZED` ; opération en cours : `409 BACKUP_IN_PROGRESS` ; sans clé du coffre : `503 SECRETS_UNAVAILABLE`. `POST /api/v1/backups/repository/connect` (`admin`) avec `{ "password": "…" }` → `202 { "run": Exécution }` (`operation: snapshots`) : rattache un dépôt existant à l'emplacement configuré. Le mot de passe est scellé, restic liste les instantanés ; le dépôt devient `initialized` si la liste réussit (sinon `failure: restic_failed`, par exemple « wrong password », et l'administrateur recommence). Audité (`backup_config` / `local` / `connect_repository`). Mêmes erreurs que l'initialisation ; mot de passe vide `400 VALIDATION_ERROR`.
+
+`POST /api/v1/backups/operations` (`admin`) avec `{ "operation": "forget-prune" | "check" | "unlock" | "restore", "restore": { "snapshotId": "…", "include": ["/etc"], "dryRun": true } }` → `202 { "run": Exécution }`. `forget-prune` applique la politique de `retention`, même désactivée, pourvu qu'elle garde au moins un instantané ; `check` relit `check.subsetPercent` des données ; `unlock` supprime **tous** les verrous du dépôt (`restic unlock --remove-all`), à réserver au cas où une opération interrompue en a laissé ; `restore` exige `restore` : `snapshotId` (8 à 64 caractères hexadécimaux minuscules), `include` (chemins absolus propres, 50 au plus, vide pour tout l'instantané) et `dryRun`. La restauration écrit toujours dans `/var/lib/homelab-backup/restore/<id de l'exécution>/` (0700, root), jamais à l'emplacement d'origine (D-2) ; une simulation n'y laisse rien. Audité (`backup_run` / UUID / nom de l'opération). Autre opération ou restauration invalide : `400 VALIDATION_ERROR` ; dépôt non prêt : `409 BACKUP_NOT_CONFIGURED` ou `BACKUP_NOT_INITIALIZED` ; opération en cours : `409 BACKUP_IN_PROGRESS`.
 
 `POST /api/v1/backups/runs` (`operator` ou `admin`, sans corps) → `202 { "run": Exécution }` (`state: running`). Audité (`backup_run` / UUID / `start`). Sans dépôt : `409 BACKUP_NOT_CONFIGURED` ; dépôt non initialisé : `409 BACKUP_NOT_INITIALIZED` ; aucune source : `400 VALIDATION_ERROR` ; opération en cours : `409 BACKUP_IN_PROGRESS` ; sans clé du coffre : `503 SECRETS_UNAVAILABLE`.
 
@@ -673,16 +701,54 @@ Exécution :
 }
 ```
 
-- `operation` : `init` ou `backup`. `origin` : `manual`, `schedule`, `catchup` (sauvegarde planifiée manquée pendant un arrêt du Manager, lancée une fois, 2 min après son redémarrage). `state` : `running`, `succeeded`, `failed`.
+- `operation` : `init`, `backup`, `forget-prune`, `check`, `restore`, `snapshots` (rattachement) ou `unlock`. `origin` : `manual`, `schedule`, `catchup` (sauvegarde planifiée manquée pendant un arrêt du Manager, lancée une fois, 2 min après son redémarrage). `state` : `running`, `succeeded`, `failed`.
 - `failure` (`null` sauf en échec) : `runner_not_installed` (unité ou programme absent), `not_allowed` (refus de polkit), `restic_failed` (`message` : l'erreur de restic, 2 Kio au plus), `timeout` (6 h pour une sauvegarde, 10 min pour une initialisation), `invalid_result` (résultat absent, ancien ou invalide), `secrets_unavailable`, `job_failed`, `systemd_unavailable`, `interrupted` (Manager arrêté pendant l'opération ; restic peut finir dans son unité, mais le résultat n'est pas relu).
 - `warning: true` : l'instantané existe mais restic n'a pas pu lire certains fichiers (code de sortie 3) ; `message` cite le dernier.
-- `stats` : résumé de `restic backup --json`, `null` pour une initialisation ou un échec.
+- `stats` : résumé de `restic backup --json`, `null` pour une autre opération ou un échec.
+- `details` (`null` sauf pour ces opérations) : restauration `{ "snapshotId", "target", "dryRun", "totalFiles", "filesRestored", "totalBytes", "bytesRestored" }` (`snapshotId`, `target` et `dryRun` sont présents dès la demande, même en échec) ; rétention `{ "snapshotsRemoved" }` ; vérification `{ "subsetPercent" }`. Les champs nuls sont omis.
 
 `GET /api/v1/backups/runs?limit=50` (tous les rôles, `limit` de 1 à 200, défaut 50) → `{ "runs": [Exécution] }`, les plus récentes d'abord ; conservées un an. `GET /api/v1/backups/runs/{runID}` → `{ "run": Exécution }` ; inconnue `404 NOT_FOUND` ; identifiant invalide `400 VALIDATION_ERROR`.
 
 `GET /api/v1/backups/snapshots` (tous les rôles) → `{ "snapshots": [{ "id", "shortId", "time", "hostname", "paths", "tags", "totalFiles", "totalBytes", "dataAdded" }] }` : instantanés du dépôt marqués `homelab-manager`, les plus récents d'abord, 500 au plus, relus après chaque sauvegarde réussie (`totalFiles`, `totalBytes` et `dataAdded` valent 0 si restic ne les a pas enregistrés).
 
-`GET /api/v1/backups/summary` (tous les rôles) → `{ "configured": true, "initialized": true, "running": Exécution | null, "lastRun": Exécution | null, "lastSuccess": Exécution | null, "nextRunAt": "…" | null }`. `lastRun` et `lastSuccess` ne portent que sur les sauvegardes ; `nextRunAt` : prochaine sauvegarde planifiée, `null` si la planification est désactivée ou si le dépôt n'est pas prêt.
+`GET /api/v1/backups/summary` (tous les rôles) → `{ "configured": true, "initialized": true, "running": Exécution | null, "lastRun": Exécution | null, "lastSuccess": Exécution | null, "lastCheck": Exécution | null, "nextRunAt": "…" | null }`. `lastRun` et `lastSuccess` ne portent que sur les sauvegardes, `lastCheck` est la dernière vérification réussie ; `nextRunAt` : prochaine sauvegarde planifiée, `null` si la planification est désactivée ou si le dépôt n'est pas prêt.
+
+### 4.11 Tâches planifiées
+
+Lecture seule (SPEC_ADMINISTRATION.md § 8, phase 7), ouverte à tous les rôles : rien n'est créé, modifié ni lancé (D-1). Le Manager lit `/etc/crontab`, `/etc/cron.d/*` (noms acceptés par cron : lettres, chiffres, `_` et `-` ; un fichier comme `x.dpkg-old` est ignoré, comme le fait cron) et les scripts exécutables de `/etc/cron.hourly`, `daily`, `weekly` et `monthly`, lisibles par tous ; les crontabs des comptes (`/var/spool/cron/crontabs`) ne sont pas lisibles sans privilège et ne sont pas lues. 64 Kio au plus par fichier, 1 000 lignes au plus en tout. Les expressions sont analysées par le Manager (cinq champs avec listes, plages, pas et noms, ou `@yearly`, `@monthly`, `@weekly`, `@daily`, `@hourly`, `@reboot` ; jour du mois et jour de semaine tous deux restreints : l'un ou l'autre, comme Vixie cron).
+
+`GET /api/v1/cron` :
+
+```json
+{
+  "timeZone": "CET",
+  "entries": [
+    { "source": "/etc/crontab", "line": 7, "expression": "17 * * * *", "user": "root",
+      "command": "cd / && run-parts --report /etc/cron.hourly", "valid": true, "error": null,
+      "description": "Toutes les heures, à la minute 17",
+      "nextRuns": ["2026-11-24T20:17:00+01:00", "…"], "lastRun": "2026-11-24T19:17:01Z" }
+  ],
+  "directories": [
+    { "period": "daily", "path": "/etc/cron.daily", "scripts": ["apt-compat", "dpkg"], "scheduledBy": { "…": "entrée ci-dessus" } }
+  ],
+  "anacron": false, "unreadable": [],
+  "timers": [
+    { "name": "apt-daily.timer", "description": "Daily apt download activities", "activeState": "active",
+      "nextElapse": "…", "lastTrigger": "…", "service": "apt-daily.service", "serviceResult": "success" }
+  ],
+  "timersAvailable": true, "journalAvailable": true
+}
+```
+
+- `command` : telle qu'écrite, jamais exécutée, 4 Kio au plus. Sont remplacés par `••••` : la valeur d'une variable ou d'une option dont le nom contient `password`, `passwd`, `pwd`, `pass`, `token`, `secret`, `api_key` (`apikey`, `api-key`), `credential` ou `auth` (`DB_PASSWORD=x`, `--token x`, `--api-key=x`), l'en-tête `Authorization`, le mot de passe de `-u utilisateur:motdepasse` et de `-pMOTDEPASSE` (clients MySQL et MariaDB), et les identifiants d'une URL (`https://••••@hôte`).
+- `valid: false` : expression illisible, `error` en donne la raison ; `description` est alors `null` et `nextRuns` vide. `description` : la planification en français, ou « Selon l'expression « … » » quand elle n'a pas de formulation courte.
+- `nextRuns` : les 5 prochaines exécutions dans le fuseau de la machine (`timeZone`), dans les cinq ans ; vide pour `@reboot` ou une date impossible.
+- `lastRun` : dernière ligne `(compte) CMD (commande)` de l'identifiant `CRON` dans les 500 dernières du journal (module J), `null` sinon ; cron ne journalise pas le code de sortie. `journalAvailable: false` si le journal ne peut pas être lu.
+- `directories` : un élément par répertoire présent, ses scripts exécutables triés ; `scheduledBy` : la ligne qui le lance par `run-parts`, `null` sinon. `anacron: true` si `/etc/anacrontab` existe : anacron lance alors les scripts quotidiens, hebdomadaires et mensuels.
+- `timers` : timers de l'inventaire des unités (§ 4.7) ; `serviceResult` : résultat du dernier passage du service déclenché (`success`, `exit-code`…), `null` s'il est inconnu. `timersAvailable: false` tant qu'aucune collecte des unités n'a réussi.
+- `unreadable` : fichiers ou répertoires présents mais illisibles (droits, taille).
+
+`GET /api/v1/cron/inspect?expression=0%209%20*%20*%201-5` → `200 { "description": "Du lundi au vendredi à 09:00", "nextRuns": [5 dates] }`. Rien n'est enregistré. Expression invalide (200 octets au plus) : `400 CRON_EXPRESSION_INVALID` ; autre paramètre ou paramètre répété : `400 VALIDATION_ERROR`.
 
 ## 5. Métriques
 
@@ -898,6 +964,14 @@ Les routes sont versionnées sous `/api/v1`. Un changement incompatible (champ s
 | `JOURNAL_READ_FAILED` | 500 | Lecture du journal système en échec |
 | `SYSTEMD_UNAVAILABLE` | 503 | systemd injoignable ou aucun inventaire des unités |
 | `SYSTEMD_READ_FAILED` | 500 | Lecture d'une unité systemd en échec |
+| `CRON_EXPRESSION_INVALID` | 400 | Expression Cron invalide (inspecteur) |
+| `CRON_READ_FAILED` | 500 | Lecture des crontabs en échec |
+| `CRON_UNAVAILABLE` | 503 | Module des tâches planifiées indisponible |
+| `TOKEN_INVALID` | 401 | Jeton d'API inconnu, expiré ou révoqué, ou compte désactivé |
+| `TOKEN_SCOPE_DENIED` | 403 | Route ou méthode hors des portées du jeton |
+| `TOO_MANY_TOKENS` | 409 | Plus de 20 jetons pour le compte |
+| `TOKENS_UNAVAILABLE` | 503 | Jetons indisponibles (base de données) |
+| `TOKENS_FAILED` | 500 | Lecture ou écriture des jetons en échec |
 | `BACKUPS_UNAVAILABLE` | 503 | Module des sauvegardes arrêté (base de données indisponible) |
 | `BACKUPS_FAILED` | 500 | Lecture ou lancement des sauvegardes en échec |
 | `BACKUP_NOT_CONFIGURED` | 409 | Aucun dépôt de sauvegarde |

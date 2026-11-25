@@ -91,9 +91,40 @@ const originLabels: Record<BackupOrigin, string> = {
   catchup: 'Rattrapage',
 }
 
+const operationLabels: Record<Exclude<BackupRun['operation'], 'backup'>, string> = {
+  init: 'Initialisation du dépôt',
+  'forget-prune': 'Rétention',
+  check: 'Vérification du dépôt',
+  restore: 'Restauration',
+  snapshots: 'Rattachement du dépôt',
+  unlock: 'Déverrouillage',
+}
+
 export function runLabel(run: BackupRun): string {
-  if (run.operation === 'init') return 'Initialisation du dépôt'
-  return `Sauvegarde ${originLabels[run.origin].toLowerCase()}`
+  if (run.operation === 'backup') return `Sauvegarde ${originLabels[run.origin].toLowerCase()}`
+  if (run.operation === 'restore' && run.details?.dryRun) return 'Restauration simulée'
+  const label = operationLabels[run.operation]
+  const scheduled =
+    run.origin !== 'manual' && (run.operation === 'forget-prune' || run.operation === 'check')
+  return scheduled ? `${label} planifiée` : label
+}
+
+/** What an operation other than a backup reports. */
+export function describeDetails(run: BackupRun): string | null {
+  const d = run.details
+  if (!d || run.state !== 'succeeded') return null
+  switch (run.operation) {
+    case 'restore':
+      return d.dryRun
+        ? `Simulation : ${formatCount(d.totalFiles ?? 0)} fichier(s), ${formatBytes(d.totalBytes ?? 0)}`
+        : `${formatCount(d.filesRestored ?? 0)} fichier(s) restauré(s) dans ${d.target ?? '—'}`
+    case 'forget-prune':
+      return `${formatCount(d.snapshotsRemoved ?? 0)} instantané(s) supprimé(s)`
+    case 'check':
+      return `${d.subsetPercent ?? 0} % des données relues sans erreur`
+    default:
+      return null
+  }
 }
 
 export function formatDuration(seconds: number | null | undefined): string {
@@ -159,6 +190,13 @@ export function configToValues(config: BackupConfig): BackupConfigValues {
     frequency: config.schedule.frequency,
     weekday: config.schedule.weekday,
     time: config.schedule.time,
+    retentionEnabled: config.retention.enabled,
+    keepDaily: config.retention.keepDaily,
+    keepWeekly: config.retention.keepWeekly,
+    keepMonthly: config.retention.keepMonthly,
+    keepYearly: config.retention.keepYearly,
+    checkEnabled: config.check.enabled,
+    checkSubsetPercent: config.check.subsetPercent,
   }
 }
 
@@ -183,5 +221,13 @@ export function valuesToInput(values: BackupConfigValues): BackupConfigInput {
       weekday: values.weekday,
       time: values.time,
     },
+    retention: {
+      enabled: values.retentionEnabled,
+      keepDaily: values.keepDaily,
+      keepWeekly: values.keepWeekly,
+      keepMonthly: values.keepMonthly,
+      keepYearly: values.keepYearly,
+    },
+    check: { enabled: values.checkEnabled, subsetPercent: values.checkSubsetPercent },
   }
 }

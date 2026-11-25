@@ -90,7 +90,7 @@ func loginHandler(auth *usecase.AuthUsecase, secure bool) http.HandlerFunc {
 			http.SetCookie(w, challengeCookie(result.Challenge, result.ExpiresAt, secure))
 			writeJSON(w, http.StatusOK, map[string]any{
 				"secondFactorRequired": true,
-				"methods":              []domain.SecondFactorMethod{domain.SecondFactorTOTP, domain.SecondFactorRecovery},
+				"methods":              result.Methods,
 				"expiresAt":            result.ExpiresAt,
 			})
 			return
@@ -197,11 +197,28 @@ func clientIP(r *http.Request) string {
 	return r.RemoteAddr
 }
 
-func requireSession(auth *usecase.AuthUsecase) func(http.Handler) http.Handler {
+func requireSession(auth *usecase.AuthUsecase, tokens *usecase.APITokenUsecase) func(http.Handler) http.Handler {
 	return func(next http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			if auth == nil {
 				writeError(w, r, http.StatusServiceUnavailable, "AUTH_UNAVAILABLE", "Authentication is unavailable.")
+				return
+			}
+			// An API token authenticates a script: Authorization: Bearer hlm_….
+			if header := r.Header.Get("Authorization"); header != "" {
+				secret, ok := strings.CutPrefix(header, "Bearer ")
+				if !ok || tokens == nil {
+					writeError(w, r, http.StatusUnauthorized, "TOKEN_INVALID", "The API token is invalid, expired or revoked.")
+					return
+				}
+				user, token, err := tokens.Authenticate(r.Context(), strings.TrimSpace(secret))
+				if err != nil {
+					writeError(w, r, http.StatusUnauthorized, "TOKEN_INVALID", "The API token is invalid, expired or revoked.")
+					return
+				}
+				ctx := context.WithValue(r.Context(), sessionUserKey{}, user)
+				ctx = context.WithValue(ctx, apiTokenKey{}, token)
+				next.ServeHTTP(w, r.WithContext(ctx))
 				return
 			}
 			cookie, err := r.Cookie(sessionCookieName)

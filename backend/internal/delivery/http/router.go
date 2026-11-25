@@ -56,6 +56,11 @@ type Services struct {
 	Vulnerabilities *usecase.VulnerabilityUsecase
 	// Backups configures and runs restic; nil (no database) answers 503.
 	Backups *usecase.BackupUsecase
+	// Cron reads the scheduled tasks; nil answers 503.
+	Cron *usecase.CronUsecase
+	// Tokens manages and authenticates the API tokens; nil (no database)
+	// refuses every bearer token.
+	Tokens *usecase.APITokenUsecase
 }
 
 func NewRouter(logger *zap.Logger, services Services, sessionSecure bool, webRoot string) http.Handler {
@@ -70,6 +75,8 @@ func NewRouter(logger *zap.Logger, services Services, sessionSecure bool, webRoo
 	vulnerabilities := services.Vulnerabilities
 	unitActions := services.UnitActions
 	backups := services.Backups
+	cron := services.Cron
+	tokens := services.Tokens
 	if units == nil {
 		// Never run: its inventory stays pending and its detail unavailable.
 		units = usecase.NewServiceUsecase(nil, nil, nil, logger)
@@ -102,9 +109,11 @@ func NewRouter(logger *zap.Logger, services Services, sessionSecure bool, webRoo
 		})
 		r.With(sameOrigin, loginRateLimit).Post("/auth/login", loginHandler(auth, sessionSecure))
 		r.With(sameOrigin, loginRateLimit).Post("/auth/login/second-factor", completeSecondFactorHandler(auth, sessionSecure))
+		r.With(sameOrigin, loginRateLimit).Post("/auth/login/second-factor/webauthn", beginWebAuthnLoginHandler(auth, sessionSecure))
 		r.Get("/auth/session", sessionHandler(auth))
 		r.Group(func(protected chi.Router) {
-			protected.Use(requireSession(auth))
+			protected.Use(requireSession(auth, tokens))
+			protected.Use(tokenScopeGate)
 			protected.Use(sameOrigin)
 			protected.Post("/auth/logout", logoutHandler(auth, sessionSecure))
 			protected.Post("/auth/password", changePasswordHandler(auth, sessionSecure))
@@ -115,6 +124,9 @@ func NewRouter(logger *zap.Logger, services Services, sessionSecure bool, webRoo
 				changed.Post("/auth/second-factor/totp/confirm", confirmTOTPHandler(factors))
 				changed.Post("/auth/second-factor/recovery-codes", regenerateRecoveryCodesHandler(factors))
 				changed.Post("/auth/second-factor/disable", disableSecondFactorHandler(factors))
+				changed.Post("/auth/second-factor/webauthn", beginWebAuthnHandler(factors))
+				changed.Post("/auth/second-factor/webauthn/confirm", confirmWebAuthnHandler(factors))
+				changed.Post("/auth/second-factor/webauthn/{keyID}/delete", deleteWebAuthnHandler(factors))
 				changed.Group(func(active chi.Router) {
 					active.Use(requireSecondFactorEnrolled)
 					active.Get("/dashboard", dashboardHandler(monitoring))
@@ -220,10 +232,31 @@ func NewRouter(logger *zap.Logger, services Services, sessionSecure bool, webRoo
 						backup.Get("/config", backupConfigHandler(backups))
 						backup.With(requirePermission(deny, domain.PermManageBackups)).Put("/config", updateBackupConfigHandler(backups))
 						backup.With(requirePermission(deny, domain.PermManageBackups)).Post("/repository/init", initBackupRepositoryHandler(backups))
+						backup.With(requirePermission(deny, domain.PermManageBackups)).Post("/repository/connect", connectBackupRepositoryHandler(backups))
+						backup.With(requirePermission(deny, domain.PermManageBackups)).Post("/operations", requestBackupOperationHandler(backups))
 						backup.Get("/runs", listBackupRunsHandler(backups))
 						backup.With(requirePermission(deny, domain.PermRunBackups)).Post("/runs", requestBackupHandler(backups))
 						backup.Get("/runs/{runID}", backupRunHandler(backups))
 						backup.Get("/snapshots", listBackupSnapshotsHandler(backups))
+					})
+					active.Route("/auth/tokens", func(apiTokens chi.Router) {
+						apiTokens.Use(requireAPITokens(tokens))
+						apiTokens.Get("/", listAPITokensHandler(tokens, deny))
+						apiTokens.Post("/", createAPITokenHandler(tokens))
+						apiTokens.Delete("/{tokenID}", revokeAPITokenHandler(tokens))
+					})
+					active.Route("/cron", func(tasks chi.Router) {
+						tasks.Use(func(next http.Handler) http.Handler {
+							return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+								if cron == nil {
+									writeError(w, r, http.StatusServiceUnavailable, "CRON_UNAVAILABLE", "Scheduled tasks are unavailable.")
+									return
+								}
+								next.ServeHTTP(w, r)
+							})
+						})
+						tasks.Get("/", cronHandler(logger, cron))
+						tasks.Get("/inspect", cronInspectHandler(cron))
 					})
 					active.Route("/machine/power", func(machine chi.Router) {
 						machine.Use(requirePermission(deny, domain.PermManagePower))

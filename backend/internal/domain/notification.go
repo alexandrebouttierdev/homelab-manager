@@ -698,6 +698,10 @@ func renderNotification(n Notification, now time.Time) string {
 	switch {
 	case a.Target.Kind == AlertTargetVulnerabilities && a.Value != nil:
 		parts = append(parts, frenchNumber(*a.Value)+" vulnérabilités")
+	case a.Target.Kind == AlertTargetBackup && a.Observed == "failed":
+		parts = append(parts, "dernière sauvegarde en échec")
+	case a.Target.Kind == AlertTargetBackup && a.Value != nil:
+		parts = append(parts, "dernier succès il y a "+frenchNumber(*a.Value)+" h")
 	case a.Value != nil:
 		value := "valeur " + frenchNumber(*a.Value)
 		if a.Threshold != nil {
@@ -736,6 +740,8 @@ func describeTarget(t AlertTarget) string {
 		return "Unité " + t.Unit
 	case AlertTargetVulnerabilities:
 		return "Paquets de la machine"
+	case AlertTargetBackup:
+		return "Sauvegardes"
 	case AlertTargetCollector:
 		label, ok := collectorLabels[t.Collector]
 		if !ok {

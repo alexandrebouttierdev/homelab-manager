@@ -3,11 +3,14 @@ package sqlite
 import (
 	"context"
 	"errors"
+	"fmt"
 	"testing"
 	"time"
 
 	"homelab-manager/backend/ent/auditlog"
 	"homelab-manager/backend/internal/domain"
+
+	"github.com/google/uuid"
 )
 
 func TestSecondFactorLifecycle(t *testing.T) {
@@ -133,5 +136,100 @@ func TestSecurityPolicyStoresTheSecondFactorRequirement(t *testing.T) {
 	stored, err := repository.SecurityPolicy(ctx)
 	if err != nil || !stored.RequireAdminSecondFactor {
 		t.Fatalf("stored = (%+v, %v)", stored, err)
+	}
+}
+
+func TestWebAuthnCredentials(t *testing.T) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+	database := openTestDatabase(t, ctx)
+	accounts := NewAccountRepository(database.Client())
+	factors := NewSecondFactorRepository(database.Client())
+	audit := domain.AuditEntry{Actor: "admin", TargetType: "user", Action: "create", Outcome: domain.AuditSuccess}
+	alice, err := accounts.CreateUser(ctx, domain.NewUser{Username: "alice", DisplayName: "Alice", Role: domain.RoleViewer}, "hash", audit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	bob, err := accounts.CreateUser(ctx, domain.NewUser{Username: "bob", DisplayName: "Bob", Role: domain.RoleViewer}, "hash", audit)
+	if err != nil {
+		t.Fatal(err)
+	}
+	key := func(owner uuid.UUID, id string) domain.WebAuthnCredential {
+		return domain.WebAuthnCredential{
+			ID: uuid.New(), UserID: owner, Name: "key " + id, CredentialID: []byte(id), Data: []byte(`{"id":"` + id + `"}`),
+			CreatedAt: time.Date(2026, 11, 25, 10, 0, 0, 0, time.UTC),
+		}
+	}
+
+	audit.Action, audit.TargetID = "webauthn_add", alice.ID.String()
+	first := key(alice.ID, "k0")
+	codes := []string{domain.RecoveryCodeHash("aaaa-bbbb-cccc")}
+	if err := factors.AddWebAuthnCredential(ctx, first, codes, audit); err != nil {
+		t.Fatal(err)
+	}
+	if has, _ := factors.HasSecondFactor(ctx, alice.ID); !has {
+		t.Fatal("a key is a second factor")
+	}
+	if remaining, _ := factors.RemainingRecoveryCodes(ctx, alice.ID); remaining != 1 {
+		t.Fatalf("recovery codes = %d, want those stored with the first key", remaining)
+	}
+	if err := factors.AddWebAuthnCredential(ctx, key(bob.ID, "k0"), nil, audit); !errors.Is(err, domain.ErrWebAuthnKeyExists) {
+		t.Fatalf("same key on another account = %v, want ErrWebAuthnKeyExists", err)
+	}
+	for i := 1; i < domain.MaxWebAuthnCredentials; i++ {
+		if err := factors.AddWebAuthnCredential(ctx, key(alice.ID, fmt.Sprintf("k%d", i)), nil, audit); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if err := factors.AddWebAuthnCredential(ctx, key(alice.ID, "extra"), nil, audit); !errors.Is(err, domain.ErrTooManyWebAuthnKeys) {
+		t.Fatalf("eleventh key = %v", err)
+	}
+	if remaining, _ := factors.RemainingRecoveryCodes(ctx, alice.ID); remaining != 1 {
+		t.Fatal("adding a key with nil hashes keeps the recovery codes")
+	}
+
+	used := time.Date(2026, 11, 25, 11, 0, 0, 0, time.UTC)
+	if err := factors.UseWebAuthnCredential(ctx, first.ID, []byte(`{"count":1}`), used); err != nil {
+		t.Fatal(err)
+	}
+	keys, err := factors.WebAuthnCredentials(ctx, alice.ID)
+	if err != nil || len(keys) != domain.MaxWebAuthnCredentials {
+		t.Fatalf("keys = (%d, %v)", len(keys), err)
+	}
+	var stored domain.WebAuthnCredential
+	for _, candidate := range keys {
+		if candidate.ID == first.ID {
+			stored = candidate
+		}
+	}
+	if stored.ID != first.ID || string(stored.Data) != `{"count":1}` || stored.LastUsedAt == nil || !stored.LastUsedAt.Equal(used) || string(stored.CredentialID) != "k0" {
+		t.Fatalf("first key = %+v", stored)
+	}
+
+	audit.Action = "webauthn_remove"
+	if err := factors.DeleteWebAuthnCredential(ctx, bob.ID, first.ID, audit); !errors.Is(err, domain.ErrWebAuthnKeyNotFound) {
+		t.Fatalf("delete the key of another account = %v", err)
+	}
+	for _, stored := range keys {
+		if err := factors.DeleteWebAuthnCredential(ctx, alice.ID, stored.ID, audit); err != nil {
+			t.Fatal(err)
+		}
+	}
+	if has, _ := factors.HasSecondFactor(ctx, alice.ID); has {
+		t.Fatal("no key left, no second factor")
+	}
+	if remaining, _ := factors.RemainingRecoveryCodes(ctx, alice.ID); remaining != 0 {
+		t.Fatal("the recovery codes go with the last second factor")
+	}
+
+	// Disabling the second factor removes the keys.
+	if err := factors.AddWebAuthnCredential(ctx, key(alice.ID, "again"), codes, audit); err != nil {
+		t.Fatal(err)
+	}
+	if err := factors.DisableSecondFactor(ctx, alice.ID, audit); err != nil {
+		t.Fatal(err)
+	}
+	if keys, _ := factors.WebAuthnCredentials(ctx, alice.ID); len(keys) != 0 {
+		t.Fatalf("keys after disable = %d", len(keys))
 	}
 }

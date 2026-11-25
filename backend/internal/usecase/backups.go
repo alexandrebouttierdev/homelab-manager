@@ -42,6 +42,8 @@ type BackupConfigView struct {
 	HasSecret      bool
 	Selection      domain.BackupSelection
 	Schedule       domain.BackupSchedule
+	Retention      domain.BackupRetention
+	Check          domain.BackupCheck
 	UpdatedAt      *time.Time
 	UpdatedBy      string
 	SecretsEnabled bool
@@ -56,6 +58,9 @@ type BackupConfigUpdate struct {
 	Secret     *string
 	Selection  domain.BackupSelection
 	Schedule   domain.BackupSchedule
+	// Retention and Check: nil keeps the stored ones.
+	Retention *domain.BackupRetention
+	Check     *domain.BackupCheck
 }
 
 // BackupUsecase configures and runs the backups (SPEC_ADMINISTRATION.md
@@ -74,12 +79,16 @@ type BackupUsecase struct {
 
 	mu      sync.Mutex
 	running bool
+	// accepting is set once Run closed the runs left by a stop, and
+	// cleared when it ends: no run starts outside of it.
+	accepting bool
 	// requests holds one run already recorded and claimed.
 	requests chan pendingBackup
 }
 
 type pendingBackup struct {
-	run domain.BackupRun
+	run     domain.BackupRun
+	restore *domain.BackupRestore
 }
 
 func NewBackupUsecase(store ports.BackupStore, executor ports.BackupExecutor, box ports.SecretBox, logger *zap.Logger) *BackupUsecase {
@@ -98,6 +107,8 @@ func (u *BackupUsecase) Run(ctx context.Context) {
 	if err := u.store.InterruptRunningBackupRuns(ctx, u.now().UTC()); err != nil {
 		u.logger.Warn("could not close the interrupted backup runs", zap.Error(err))
 	}
+	u.setAccepting(true)
+	defer u.setAccepting(false)
 	ticker := time.NewTicker(u.tick)
 	defer ticker.Stop()
 	lastPurge := time.Time{}
@@ -106,7 +117,7 @@ func (u *BackupUsecase) Run(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case pending := <-u.requests:
-			u.execute(ctx, pending.run)
+			u.execute(ctx, pending.run, pending.restore)
 		case <-ticker.C:
 			if u.now().Sub(lastPurge) >= backupPurgeEvery {
 				lastPurge = u.now()
@@ -117,14 +128,24 @@ func (u *BackupUsecase) Run(ctx context.Context) {
 	}
 }
 
-func (u *BackupUsecase) claim() bool {
+func (u *BackupUsecase) setAccepting(accepting bool) {
+	u.mu.Lock()
+	u.accepting = accepting
+	u.mu.Unlock()
+}
+
+// claim reserves the single operation slot.
+func (u *BackupUsecase) claim() error {
 	u.mu.Lock()
 	defer u.mu.Unlock()
-	if u.running {
-		return false
+	switch {
+	case !u.accepting:
+		return domain.ErrBackupsNotReady
+	case u.running:
+		return domain.ErrBackupAlreadyRunning
 	}
 	u.running = true
-	return true
+	return nil
 }
 
 func (u *BackupUsecase) release() {
@@ -142,6 +163,7 @@ func (u *BackupUsecase) Config(ctx context.Context) (BackupConfigView, error) {
 	view := BackupConfigView{
 		Repository: config.Repository, Initialized: config.InitializedAt != nil, InitializedAt: config.InitializedAt,
 		HasPassword: config.SealedCredentials != "", Selection: config.Selection, Schedule: config.Schedule,
+		Retention: config.Retention, Check: config.Check,
 		UpdatedAt: config.UpdatedAt, UpdatedBy: config.UpdatedBy, SecretsEnabled: u.box != nil,
 	}
 	if config.SealedCredentials != "" && u.box != nil {
@@ -166,6 +188,16 @@ func (u *BackupUsecase) UpdateConfig(ctx context.Context, actor domain.User, upd
 	}
 	if err := domain.ValidateBackupSchedule(update.Schedule); err != nil {
 		return BackupConfigView{}, err
+	}
+	if update.Retention != nil {
+		if err := domain.ValidateBackupRetention(*update.Retention); err != nil {
+			return BackupConfigView{}, err
+		}
+	}
+	if update.Check != nil {
+		if err := domain.ValidateBackupCheck(*update.Check); err != nil {
+			return BackupConfigView{}, err
+		}
 	}
 	config, err := u.store.BackupConfig(ctx)
 	if err != nil {
@@ -204,6 +236,12 @@ func (u *BackupUsecase) UpdateConfig(ctx context.Context, actor domain.User, upd
 	}
 	now := u.now().UTC()
 	config.Repository, config.Selection, config.Schedule = update.Repository, update.Selection, update.Schedule
+	if update.Retention != nil {
+		config.Retention = *update.Retention
+	}
+	if update.Check != nil {
+		config.Check = *update.Check
+	}
 	config.UpdatedAt, config.UpdatedBy = &now, actor.Username
 	audit := domain.AuditEntry{
 		Actor: actor.Username, TargetType: auditTargetBackupConfig, TargetID: "local", Action: "update",
@@ -292,8 +330,8 @@ func (u *BackupUsecase) InitRepository(ctx context.Context, actor domain.User, r
 	if err := domain.ValidateBackupCredentials(config.Repository.Type, credentials); err != nil {
 		return "", domain.BackupRun{}, err
 	}
-	if !u.claim() {
-		return "", domain.BackupRun{}, domain.ErrBackupAlreadyRunning
+	if err := u.claim(); err != nil {
+		return "", domain.BackupRun{}, err
 	}
 	if config.SealedCredentials, err = u.sealCredentials(credentials); err != nil {
 		u.release()
@@ -309,7 +347,7 @@ func (u *BackupUsecase) InitRepository(ctx context.Context, actor domain.User, r
 		u.release()
 		return "", domain.BackupRun{}, err
 	}
-	run, err := u.enqueue(ctx, domain.BackupOpInit, domain.BackupManual, actor.Username, nil)
+	run, err := u.enqueue(ctx, domain.BackupOpInit, domain.BackupManual, actor.Username, nil, nil)
 	if err != nil {
 		return "", domain.BackupRun{}, err
 	}
@@ -319,42 +357,144 @@ func (u *BackupUsecase) InitRepository(ctx context.Context, actor domain.User, r
 // RequestBackup records a manual backup as running and hands it to Run.
 // Callers must hold domain.PermRunBackups.
 func (u *BackupUsecase) RequestBackup(ctx context.Context, actor domain.User, requestID string) (domain.BackupRun, error) {
+	if err := u.claim(); err != nil {
+		return domain.BackupRun{}, err
+	}
 	config, err := u.store.BackupConfig(ctx)
+	if err == nil {
+		err = config.Ready()
+	}
+	if err == nil && u.box == nil {
+		err = domain.ErrBackupSecretsMissing
+	}
 	if err != nil {
+		u.release()
 		return domain.BackupRun{}, err
-	}
-	if err := config.Ready(); err != nil {
-		return domain.BackupRun{}, err
-	}
-	if u.box == nil {
-		return domain.BackupRun{}, domain.ErrBackupSecretsMissing
-	}
-	if !u.claim() {
-		return domain.BackupRun{}, domain.ErrBackupAlreadyRunning
 	}
 	id := uuid.New()
 	audit := domain.AuditEntry{
 		Actor: actor.Username, TargetType: auditTargetBackupRun, TargetID: id.String(), Action: "start",
 		RequestID: requestID, Outcome: domain.AuditSuccess,
 	}
-	return u.enqueueWithID(ctx, id, domain.BackupOpBackup, domain.BackupManual, actor.Username, &audit)
+	return u.enqueueWithID(ctx, id, domain.BackupOpBackup, domain.BackupManual, actor.Username, &audit, nil)
+}
+
+// RequestOperation starts an operation of an administrator: forget-prune
+// (with the configured policy), check, unlock or restore (into the
+// quarantine directory of the run). Callers must hold
+// domain.PermManageBackups.
+func (u *BackupUsecase) RequestOperation(ctx context.Context, actor domain.User, op domain.BackupOperation, restore *domain.BackupRestore, requestID string) (domain.BackupRun, error) {
+	switch op {
+	case domain.BackupOpForgetPrune, domain.BackupOpCheck, domain.BackupOpUnlock:
+		restore = nil
+	case domain.BackupOpRestore:
+		if restore == nil {
+			return domain.BackupRun{}, invalidOperation("a restore needs a snapshot")
+		}
+		if err := domain.ValidateBackupRestore(*restore); err != nil {
+			return domain.BackupRun{}, err
+		}
+	default:
+		return domain.BackupRun{}, invalidOperation("operation must be forget-prune, check, unlock or restore")
+	}
+	if err := u.claim(); err != nil {
+		return domain.BackupRun{}, err
+	}
+	config, err := u.store.BackupConfig(ctx)
+	if err == nil {
+		err = config.Operations()
+	}
+	if err == nil && u.box == nil {
+		err = domain.ErrBackupSecretsMissing
+	}
+	if err == nil && op == domain.BackupOpForgetPrune {
+		policy := config.Retention
+		policy.Enabled = true
+		err = domain.ValidateBackupRetention(policy)
+	}
+	if err != nil {
+		u.release()
+		return domain.BackupRun{}, err
+	}
+	id := uuid.New()
+	audit := domain.AuditEntry{
+		Actor: actor.Username, TargetType: auditTargetBackupRun, TargetID: id.String(), Action: string(op),
+		RequestID: requestID, Outcome: domain.AuditSuccess,
+	}
+	return u.enqueueWithID(ctx, id, op, domain.BackupManual, actor.Username, &audit, restore)
+}
+
+func invalidOperation(message string) error {
+	return &domain.BackupValidationError{Field: "operation", Message: message}
+}
+
+// ConnectRepository attaches an existing repository with its password: the
+// password is sealed and restic lists the snapshots; the repository is
+// initialized once the listing succeeds. Callers must hold
+// domain.PermManageBackups.
+func (u *BackupUsecase) ConnectRepository(ctx context.Context, actor domain.User, password, requestID string) (domain.BackupRun, error) {
+	if u.box == nil {
+		return domain.BackupRun{}, domain.ErrBackupSecretsMissing
+	}
+	config, err := u.store.BackupConfig(ctx)
+	if err != nil {
+		return domain.BackupRun{}, err
+	}
+	if config.Repository == nil {
+		return domain.BackupRun{}, domain.ErrBackupNotConfigured
+	}
+	if config.InitializedAt != nil {
+		return domain.BackupRun{}, domain.ErrBackupAlreadyInitialized
+	}
+	var credentials domain.BackupCredentials
+	if config.SealedCredentials != "" {
+		if credentials, err = u.openCredentials(config.SealedCredentials); err != nil {
+			return domain.BackupRun{}, err
+		}
+	}
+	credentials.Password = password
+	if err := domain.ValidateBackupCredentials(config.Repository.Type, credentials); err != nil {
+		return domain.BackupRun{}, err
+	}
+	if err := u.claim(); err != nil {
+		return domain.BackupRun{}, err
+	}
+	if config.SealedCredentials, err = u.sealCredentials(credentials); err != nil {
+		u.release()
+		return domain.BackupRun{}, err
+	}
+	now := u.now().UTC()
+	config.UpdatedAt, config.UpdatedBy = &now, actor.Username
+	audit := domain.AuditEntry{
+		Actor: actor.Username, TargetType: auditTargetBackupConfig, TargetID: "local", Action: "connect_repository",
+		RequestID: requestID, Outcome: domain.AuditSuccess,
+	}
+	if err := u.store.SaveBackupConfig(ctx, config, audit); err != nil {
+		u.release()
+		return domain.BackupRun{}, err
+	}
+	return u.enqueue(ctx, domain.BackupOpSnapshots, domain.BackupManual, actor.Username, nil, nil)
 }
 
 // enqueue records a claimed run and hands it to Run; it releases the claim
 // on failure.
-func (u *BackupUsecase) enqueue(ctx context.Context, op domain.BackupOperation, origin domain.BackupOrigin, actor string, audit *domain.AuditEntry) (domain.BackupRun, error) {
-	return u.enqueueWithID(ctx, uuid.New(), op, origin, actor, audit)
+func (u *BackupUsecase) enqueue(ctx context.Context, op domain.BackupOperation, origin domain.BackupOrigin, actor string, audit *domain.AuditEntry, restore *domain.BackupRestore) (domain.BackupRun, error) {
+	return u.enqueueWithID(ctx, uuid.New(), op, origin, actor, audit, restore)
 }
 
-func (u *BackupUsecase) enqueueWithID(ctx context.Context, id uuid.UUID, op domain.BackupOperation, origin domain.BackupOrigin, actor string, audit *domain.AuditEntry) (domain.BackupRun, error) {
+func (u *BackupUsecase) enqueueWithID(ctx context.Context, id uuid.UUID, op domain.BackupOperation, origin domain.BackupOrigin, actor string, audit *domain.AuditEntry, restore *domain.BackupRestore) (domain.BackupRun, error) {
 	run := domain.BackupRun{ID: id, Operation: op, Origin: origin, RequestedBy: actor, State: domain.BackupRunning, StartedAt: u.now().UTC()}
+	if restore != nil {
+		// Known before the run, kept if it fails.
+		run.Details = &domain.BackupRunDetails{SnapshotID: restore.SnapshotID, Target: domain.RestoreTarget(id), DryRun: restore.DryRun}
+	}
 	if err := u.store.StartBackupRun(ctx, run, audit); err != nil {
 		u.release()
 		return domain.BackupRun{}, err
 	}
 	// The channel holds one run and only a claimed run is sent: it never
 	// blocks.
-	u.requests <- pendingBackup{run: run}
+	u.requests <- pendingBackup{run: run, restore: restore}
 	return run, nil
 }
 
@@ -372,7 +512,7 @@ func (u *BackupUsecase) checkSchedule(ctx context.Context) {
 			return
 		}
 	}
-	if !u.claim() {
+	if u.claim() != nil {
 		return
 	}
 	storeCtx, cancel := context.WithTimeout(ctx, backupStoreTimeout)
@@ -384,7 +524,43 @@ func (u *BackupUsecase) checkSchedule(ctx context.Context) {
 		u.logger.Warn("could not record a scheduled backup", zap.Error(err))
 		return
 	}
-	u.execute(ctx, run)
+	if done := u.execute(ctx, run, nil); done.State == domain.BackupSucceeded {
+		u.maintain(ctx, origin)
+	}
+}
+
+// maintain follows a successful scheduled backup: the retention policy
+// when enabled, then the check of the repository when enabled and due.
+func (u *BackupUsecase) maintain(ctx context.Context, origin domain.BackupOrigin) {
+	config, err := u.store.BackupConfig(ctx)
+	if err != nil {
+		return
+	}
+	var operations []domain.BackupOperation
+	if config.Retention.Enabled {
+		operations = append(operations, domain.BackupOpForgetPrune)
+	}
+	if config.Check.Enabled {
+		latest, err := u.store.LatestBackupRuns(ctx)
+		if err == nil && (latest.LastCheck == nil || u.now().Sub(latest.LastCheck.StartedAt) >= domain.BackupCheckEvery) {
+			operations = append(operations, domain.BackupOpCheck)
+		}
+	}
+	for _, op := range operations {
+		if ctx.Err() != nil || u.claim() != nil {
+			return
+		}
+		storeCtx, cancel := context.WithTimeout(ctx, backupStoreTimeout)
+		run := domain.BackupRun{ID: uuid.New(), Operation: op, Origin: origin, State: domain.BackupRunning, StartedAt: u.now().UTC()}
+		err := u.store.StartBackupRun(storeCtx, run, nil)
+		cancel()
+		if err != nil {
+			u.release()
+			u.logger.Warn("could not record a backup maintenance", zap.Error(err))
+			return
+		}
+		u.execute(ctx, run, nil)
+	}
 }
 
 // nextScheduled returns the scheduled time of the next backup: the first
@@ -410,11 +586,14 @@ func (u *BackupUsecase) nextScheduled(ctx context.Context) (time.Time, domain.Ba
 	return next, domain.BackupScheduled, ok
 }
 
-// execute runs a run already recorded as running and claimed, and records
-// its outcome.
-func (u *BackupUsecase) execute(ctx context.Context, run domain.BackupRun) {
+// execute runs a run already recorded as running and claimed, records its
+// outcome and returns the finished run.
+func (u *BackupUsecase) execute(ctx context.Context, run domain.BackupRun, restore *domain.BackupRestore) domain.BackupRun {
 	defer u.release()
-	result, err := u.runOperation(ctx, run)
+	if restore != nil && run.Details == nil {
+		run.Details = &domain.BackupRunDetails{SnapshotID: restore.SnapshotID, Target: domain.RestoreTarget(run.ID), DryRun: restore.DryRun}
+	}
+	result, err := u.runOperation(ctx, run, restore)
 	finished := u.now().UTC()
 	run.FinishedAt = &finished
 	var snapshots []domain.BackupSnapshot
@@ -437,7 +616,11 @@ func (u *BackupUsecase) execute(ctx context.Context, run domain.BackupRun) {
 	} else {
 		run.State, run.Warning, run.Message = domain.BackupSucceeded, result.Warning, result.Message
 		run.SnapshotID, run.Stats, snapshots = result.SnapshotID, result.Stats, result.Snapshots
-		if run.Operation == domain.BackupOpInit {
+		if result.Details != nil {
+			run.Details = result.Details
+		}
+		// init creates the repository; snapshots connects an existing one.
+		if run.Operation == domain.BackupOpInit || run.Operation == domain.BackupOpSnapshots {
 			initializedAt = &finished
 		}
 		u.logger.Info("Backup operation done", zap.String("operation", string(run.Operation)), zap.String("snapshot", run.SnapshotID))
@@ -447,9 +630,10 @@ func (u *BackupUsecase) execute(ctx context.Context, run domain.BackupRun) {
 	if err := u.store.FinishBackupRun(storeCtx, run, snapshots, initializedAt); err != nil {
 		u.logger.Error("could not record the outcome of a backup run", zap.Error(err))
 	}
+	return run
 }
 
-func (u *BackupUsecase) runOperation(ctx context.Context, run domain.BackupRun) (domain.BackupResult, error) {
+func (u *BackupUsecase) runOperation(ctx context.Context, run domain.BackupRun, restore *domain.BackupRestore) (domain.BackupResult, error) {
 	config, err := u.store.BackupConfig(ctx)
 	if err != nil {
 		return domain.BackupResult{}, err
@@ -461,7 +645,10 @@ func (u *BackupUsecase) runOperation(ctx context.Context, run domain.BackupRun) 
 	if err != nil {
 		return domain.BackupResult{}, err
 	}
-	job := ports.BackupJob{Operation: run.Operation, Repository: *config.Repository, Selection: config.Selection}
+	job := ports.BackupJob{
+		RunID: run.ID, Operation: run.Operation, Repository: *config.Repository, Selection: config.Selection,
+		Retention: config.Retention, CheckSubsetPercent: config.Check.SubsetPercent, Restore: restore,
+	}
 	return u.executor.Execute(ctx, job, credentials)
 }
 
@@ -483,7 +670,7 @@ func (u *BackupUsecase) Summary(ctx context.Context) (domain.BackupSummary, erro
 	}
 	summary := domain.BackupSummary{
 		Configured: config.Repository != nil, Initialized: config.InitializedAt != nil,
-		Running: latest.Running, LastRun: latest.LastBackup, LastSuccess: latest.LastSuccess,
+		Running: latest.Running, LastRun: latest.LastBackup, LastSuccess: latest.LastSuccess, LastCheck: latest.LastCheck,
 	}
 	if next, _, ok := u.nextScheduled(ctx); ok {
 		if next.Before(u.now()) {

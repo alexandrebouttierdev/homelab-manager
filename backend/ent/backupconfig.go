@@ -47,6 +47,20 @@ type BackupConfig struct {
 	ScheduleHour int `json:"schedule_hour,omitempty"`
 	// ScheduleMinute holds the value of the "schedule_minute" field.
 	ScheduleMinute int `json:"schedule_minute,omitempty"`
+	// RetentionEnabled holds the value of the "retention_enabled" field.
+	RetentionEnabled bool `json:"retention_enabled,omitempty"`
+	// KeepDaily holds the value of the "keep_daily" field.
+	KeepDaily int `json:"keep_daily,omitempty"`
+	// KeepWeekly holds the value of the "keep_weekly" field.
+	KeepWeekly int `json:"keep_weekly,omitempty"`
+	// KeepMonthly holds the value of the "keep_monthly" field.
+	KeepMonthly int `json:"keep_monthly,omitempty"`
+	// KeepYearly holds the value of the "keep_yearly" field.
+	KeepYearly int `json:"keep_yearly,omitempty"`
+	// CheckEnabled holds the value of the "check_enabled" field.
+	CheckEnabled bool `json:"check_enabled,omitempty"`
+	// CheckSubsetPercent holds the value of the "check_subset_percent" field.
+	CheckSubsetPercent int `json:"check_subset_percent,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
 	UpdatedAt time.Time `json:"updated_at,omitempty"`
 	// UpdatedBy holds the value of the "updated_by" field.
@@ -61,9 +75,9 @@ func (*BackupConfig) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case backupconfig.FieldSources, backupconfig.FieldExcludes:
 			values[i] = new([]byte)
-		case backupconfig.FieldExcludeCaches, backupconfig.FieldScheduleEnabled:
+		case backupconfig.FieldExcludeCaches, backupconfig.FieldScheduleEnabled, backupconfig.FieldRetentionEnabled, backupconfig.FieldCheckEnabled:
 			values[i] = new(sql.NullBool)
-		case backupconfig.FieldScheduleWeekday, backupconfig.FieldScheduleHour, backupconfig.FieldScheduleMinute:
+		case backupconfig.FieldScheduleWeekday, backupconfig.FieldScheduleHour, backupconfig.FieldScheduleMinute, backupconfig.FieldKeepDaily, backupconfig.FieldKeepWeekly, backupconfig.FieldKeepMonthly, backupconfig.FieldKeepYearly, backupconfig.FieldCheckSubsetPercent:
 			values[i] = new(sql.NullInt64)
 		case backupconfig.FieldSingletonKey, backupconfig.FieldRepositoryType, backupconfig.FieldRepositoryLocation, backupconfig.FieldSealedCredentials, backupconfig.FieldExcludeIfPresent, backupconfig.FieldScheduleFrequency, backupconfig.FieldUpdatedBy:
 			values[i] = new(sql.NullString)
@@ -183,6 +197,48 @@ func (_m *BackupConfig) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.ScheduleMinute = int(value.Int64)
 			}
+		case backupconfig.FieldRetentionEnabled:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field retention_enabled", values[i])
+			} else if value.Valid {
+				_m.RetentionEnabled = value.Bool
+			}
+		case backupconfig.FieldKeepDaily:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field keep_daily", values[i])
+			} else if value.Valid {
+				_m.KeepDaily = int(value.Int64)
+			}
+		case backupconfig.FieldKeepWeekly:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field keep_weekly", values[i])
+			} else if value.Valid {
+				_m.KeepWeekly = int(value.Int64)
+			}
+		case backupconfig.FieldKeepMonthly:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field keep_monthly", values[i])
+			} else if value.Valid {
+				_m.KeepMonthly = int(value.Int64)
+			}
+		case backupconfig.FieldKeepYearly:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field keep_yearly", values[i])
+			} else if value.Valid {
+				_m.KeepYearly = int(value.Int64)
+			}
+		case backupconfig.FieldCheckEnabled:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field check_enabled", values[i])
+			} else if value.Valid {
+				_m.CheckEnabled = value.Bool
+			}
+		case backupconfig.FieldCheckSubsetPercent:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field check_subset_percent", values[i])
+			} else if value.Valid {
+				_m.CheckSubsetPercent = int(value.Int64)
+			}
 		case backupconfig.FieldUpdatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field updated_at", values[i])
@@ -277,6 +333,27 @@ func (_m *BackupConfig) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("schedule_minute=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ScheduleMinute))
+	builder.WriteString(", ")
+	builder.WriteString("retention_enabled=")
+	builder.WriteString(fmt.Sprintf("%v", _m.RetentionEnabled))
+	builder.WriteString(", ")
+	builder.WriteString("keep_daily=")
+	builder.WriteString(fmt.Sprintf("%v", _m.KeepDaily))
+	builder.WriteString(", ")
+	builder.WriteString("keep_weekly=")
+	builder.WriteString(fmt.Sprintf("%v", _m.KeepWeekly))
+	builder.WriteString(", ")
+	builder.WriteString("keep_monthly=")
+	builder.WriteString(fmt.Sprintf("%v", _m.KeepMonthly))
+	builder.WriteString(", ")
+	builder.WriteString("keep_yearly=")
+	builder.WriteString(fmt.Sprintf("%v", _m.KeepYearly))
+	builder.WriteString(", ")
+	builder.WriteString("check_enabled=")
+	builder.WriteString(fmt.Sprintf("%v", _m.CheckEnabled))
+	builder.WriteString(", ")
+	builder.WriteString("check_subset_percent=")
+	builder.WriteString(fmt.Sprintf("%v", _m.CheckSubsetPercent))
 	builder.WriteString(", ")
 	builder.WriteString("updated_at=")
 	builder.WriteString(_m.UpdatedAt.Format(time.ANSIC))

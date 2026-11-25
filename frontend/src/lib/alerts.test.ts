@@ -419,3 +419,29 @@ describe('vulnerabilities rule', () => {
     })
   })
 })
+
+describe('backup alert rule', () => {
+  it('describes, converts and shows a backup rule', () => {
+    const backupRule = rule({ type: 'backup', params: { maxAgeHours: 48, forSeconds: 0 } })
+    expect(describeRule(backupRule)).toBe(
+      'Aucune sauvegarde réussie depuis 48 h, ou la dernière a échoué',
+    )
+    const values = ruleToValues(backupRule)
+    expect(values.maxAgeHours).toBe('48')
+    expect(alertRuleInput({ ...values, maxAgeHours: '30' }).params).toEqual({
+      maxAgeHours: 30,
+      forSeconds: 0,
+    })
+    const late = alert({
+      ruleType: 'backup',
+      target: { ...alert().target, kind: 'backup', metric: null, labels: {} },
+      value: 30.5,
+      threshold: 26,
+      observed: null,
+    })
+    expect(describeTarget(late)).toBe('Sauvegardes')
+    expect(alertValueText(late)).toBe('Dernier succès il y a 30,5 h (seuil 26 h)')
+    expect(alertValueText({ ...late, observed: 'failed' })).toBe('Dernière sauvegarde en échec')
+    expect(alertLink(late)).toEqual({ to: '/backups', label: 'Voir les sauvegardes' })
+  })
+})

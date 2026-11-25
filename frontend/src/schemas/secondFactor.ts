@@ -28,3 +28,11 @@ export const passwordConfirmationSchema = z.object({
 })
 
 export type PasswordConfirmationValues = z.infer<typeof passwordConfirmationSchema>
+
+/** A new passkey or security key: its name and the current password. */
+export const webauthnKeySchema = z.object({
+  name: z.string().trim().min(1, 'Nom requis').max(64, 'Nom trop long (64 caractères au plus)'),
+  password: z.string().min(1, 'Mot de passe requis').max(1024, 'Mot de passe trop long'),
+})
+
+export type WebAuthnKeyValues = z.infer<typeof webauthnKeySchema>

@@ -17,6 +17,7 @@ import { EventsPage } from '../features/events/EventsPage'
 import { JournalPage } from '../features/journal/JournalPage'
 import { ServicesPage } from '../features/services/ServicesPage'
 import { BackupsPage } from '../features/backups/BackupsPage'
+import { CronPage } from '../features/cron/CronPage'
 import { AlertsPage } from '../features/alerts/AlertsPage'
 import { UsersPage } from '../features/users/UsersPage'
 import { RequireAuth } from './RequireAuth'
@@ -48,6 +49,7 @@ export const router = createBrowserRouter([
       { path: '/logs', element: <JournalPage /> },
       { path: '/services', element: <ServicesPage /> },
       { path: '/backups', element: <BackupsPage /> },
+      { path: '/cron', element: <CronPage /> },
       { path: '/settings', element: <SettingsPage /> },
       { path: '/users', element: <UsersPage /> },
     ],

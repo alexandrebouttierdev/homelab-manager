@@ -12,9 +12,12 @@ import (
 	"io"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"homelab-manager/backend/internal/domain"
+
+	"github.com/google/uuid"
 )
 
 // Bounds of the exchanged files.
@@ -34,6 +37,29 @@ type Job struct {
 	Excludes         []string                    `json:"excludes"`
 	ExcludeCaches    bool                        `json:"excludeCaches"`
 	ExcludeIfPresent string                      `json:"excludeIfPresent"`
+	// Retention: forget-prune only.
+	Retention *Retention `json:"retention,omitempty"`
+	// CheckSubsetPercent: check only.
+	CheckSubsetPercent int `json:"checkSubsetPercent,omitempty"`
+	// Restore: restore only.
+	Restore *Restore `json:"restore,omitempty"`
+}
+
+// Retention is the policy of restic forget.
+type Retention struct {
+	KeepDaily   int `json:"keepDaily"`
+	KeepWeekly  int `json:"keepWeekly"`
+	KeepMonthly int `json:"keepMonthly"`
+	KeepYearly  int `json:"keepYearly"`
+}
+
+// Restore is what a restore brings back and where: Target is always the
+// quarantine directory of the run.
+type Restore struct {
+	SnapshotID string   `json:"snapshotId"`
+	Include    []string `json:"include"`
+	DryRun     bool     `json:"dryRun"`
+	Target     string   `json:"target"`
 }
 
 // Validate applies the domain rules again: the runner trusts nothing the
@@ -56,6 +82,39 @@ func (j Job) Validate() error {
 	}
 	if j.Operation == domain.BackupOpBackup && len(j.Sources) == 0 {
 		return errors.New("a backup needs at least one source")
+	}
+	if (j.Retention != nil) != (j.Operation == domain.BackupOpForgetPrune) {
+		return errors.New("a retention policy belongs to forget-prune only")
+	}
+	if j.Retention != nil {
+		policy := domain.BackupRetention{
+			Enabled: true, KeepDaily: j.Retention.KeepDaily, KeepWeekly: j.Retention.KeepWeekly,
+			KeepMonthly: j.Retention.KeepMonthly, KeepYearly: j.Retention.KeepYearly,
+		}
+		if err := domain.ValidateBackupRetention(policy); err != nil {
+			return err
+		}
+	}
+	if (j.CheckSubsetPercent != 0) != (j.Operation == domain.BackupOpCheck) {
+		return errors.New("a check subset belongs to check only")
+	}
+	if j.Operation == domain.BackupOpCheck {
+		if err := domain.ValidateBackupCheck(domain.BackupCheck{SubsetPercent: j.CheckSubsetPercent}); err != nil {
+			return err
+		}
+	}
+	if (j.Restore != nil) != (j.Operation == domain.BackupOpRestore) {
+		return errors.New("a restore belongs to restore only")
+	}
+	if j.Restore != nil {
+		restore := domain.BackupRestore{SnapshotID: j.Restore.SnapshotID, Include: j.Restore.Include, DryRun: j.Restore.DryRun}
+		if err := domain.ValidateBackupRestore(restore); err != nil {
+			return err
+		}
+		name, ok := strings.CutPrefix(j.Restore.Target, domain.BackupRestoreRoot+"/")
+		if id, err := uuid.Parse(name); !ok || err != nil || id.String() != name {
+			return errors.New("the restore target must be a run directory of the quarantine")
+		}
 	}
 	return nil
 }
@@ -104,6 +163,8 @@ type Result struct {
 	SnapshotID string     `json:"snapshotId"`
 	Summary    *Summary   `json:"summary"`
 	Snapshots  []Snapshot `json:"snapshots"`
+	// Details: figures of a restore, a forget or a check.
+	Details *domain.BackupRunDetails `json:"details"`
 }
 
 // Paths of the files of an operation in the exchange directories.

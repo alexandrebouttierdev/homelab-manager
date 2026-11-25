@@ -63,7 +63,6 @@ const (
 var AlertSeverities = []AlertSeverity{AlertInfo, AlertWarning, AlertCritical}
 
 // AlertRuleType is one of the rule types of SPEC_ADMINISTRATION.md § 6.1.
-// The backup rule comes with the backups module, which has its data.
 type AlertRuleType string
 
 const (
@@ -75,7 +74,13 @@ const (
 	// AlertRuleVulnerabilities fires while the latest successful scan
 	// holds a matching finding (SPEC_ADMINISTRATION.md § 8 ter.5).
 	AlertRuleVulnerabilities AlertRuleType = "vulnerabilities"
+	// AlertRuleBackup fires while the last successful backup is older than
+	// MaxAgeHours, or the last backup failed (SPEC_ADMINISTRATION.md § 6.1).
+	AlertRuleBackup AlertRuleType = "backup"
 )
+
+// MaxBackupAgeHours bounds the age a backup rule tolerates (30 days).
+const MaxBackupAgeHours = 720
 
 // AlertOperator compares a metric value with the threshold.
 type AlertOperator string
@@ -167,6 +172,9 @@ type AlertRuleParams struct {
 	// with a fixed version count.
 	VulnSeverity VulnSeverity `json:"vulnSeverity,omitempty"`
 	FixableOnly  bool         `json:"fixableOnly,omitempty"`
+	// MaxAgeHours: backup rule, the age of the last successful backup
+	// that fires it (1 to 720).
+	MaxAgeHours int `json:"maxAgeHours,omitempty"`
 	// ForSeconds is how long the condition must hold (0 to 86 400). A
 	// failed unit and a vulnerability fire at once.
 	ForSeconds int `json:"forSeconds,omitempty"`
@@ -178,7 +186,9 @@ var alertVulnSeverities = []VulnSeverity{VulnCritical, VulnHigh, VulnMedium, Vul
 
 func AlertVulnSeverities() []VulnSeverity { return slices.Clone(alertVulnSeverities) }
 
-func hasVulnParams(p AlertRuleParams) bool { return p.VulnSeverity != "" || p.FixableOnly }
+func hasVulnParams(p AlertRuleParams) bool {
+	return p.VulnSeverity != "" || p.FixableOnly || p.MaxAgeHours != 0
+}
 
 func invalidRule(format string, args ...any) error {
 	return fmt.Errorf("%w: %s", ErrInvalidAlertRule, fmt.Sprintf(format, args...))
@@ -248,9 +258,21 @@ func (r AlertRule) Validate() error {
 		if !slices.Contains(alertVulnSeverities, p.VulnSeverity) {
 			return invalidRule("vulnSeverity must be critical, high, medium or low")
 		}
+		if p.MaxAgeHours != 0 {
+			return invalidRule("a vulnerabilities rule takes vulnSeverity and fixableOnly only")
+		}
+		return nil
+	case AlertRuleBackup:
+		if p.Metric != "" || len(p.Labels) > 0 || p.Operator != "" || p.Threshold != nil || p.ContainerID != nil || len(p.States) > 0 ||
+			p.UnitPattern != "" || p.Collector != "" || p.ForSeconds != 0 || p.VulnSeverity != "" || p.FixableOnly {
+			return invalidRule("a backup rule takes maxAgeHours only")
+		}
+		if p.MaxAgeHours < 1 || p.MaxAgeHours > MaxBackupAgeHours {
+			return invalidRule("maxAgeHours must be 1 to %d", MaxBackupAgeHours)
+		}
 		return nil
 	default:
-		return invalidRule("type must be host_metric, container_metric, container_state, unit_failed, collector or vulnerabilities")
+		return invalidRule("type must be host_metric, container_metric, container_state, unit_failed, collector, vulnerabilities or backup")
 	}
 }
 
@@ -326,6 +348,8 @@ const (
 	AlertTargetCollector AlertTargetKind = "collector"
 	// AlertTargetVulnerabilities is the packages of the machine.
 	AlertTargetVulnerabilities AlertTargetKind = "vulnerabilities"
+	// AlertTargetBackup is the backups of the machine.
+	AlertTargetBackup AlertTargetKind = "backup"
 )
 
 // AlertTarget describes the target of an alert for display and links.
@@ -426,6 +450,20 @@ type AlertSnapshot struct {
 	// VulnerabilityCounts counts the present findings.
 	VulnerabilitiesKnown bool
 	VulnerabilityCounts  []VulnerabilityCount
+	// BackupKnown is false while no repository is initialized: backup
+	// rules stay frozen. BackupAgeHours is the age of the last successful
+	// backup (of the initialisation when none succeeded yet).
+	BackupKnown         bool
+	BackupAgeHours      float64
+	BackupLastRunFailed bool
+}
+
+// BackupAlertStatus is what a backup rule watches.
+type BackupAlertStatus struct {
+	// Reference is the end of the last successful backup, or the
+	// initialisation of the repository when none succeeded yet.
+	Reference     time.Time
+	LastRunFailed bool
 }
 
 // VulnerabilityCount counts the present findings of a severity, fixable or
@@ -651,6 +689,21 @@ func observe(rule AlertRule, snapshot AlertSnapshot) (observations []observation
 		return []observation{{
 			key: "vulnerabilities", target: AlertTarget{Kind: AlertTargetVulnerabilities},
 			holds: count > 0, value: &value,
+		}}, true
+	case AlertRuleBackup:
+		if !snapshot.BackupKnown {
+			return nil, false
+		}
+		age := math.Round(snapshot.BackupAgeHours*10) / 10
+		threshold := float64(p.MaxAgeHours)
+		observed := ""
+		if snapshot.BackupLastRunFailed {
+			observed = "failed"
+		}
+		return []observation{{
+			key: "backup", target: AlertTarget{Kind: AlertTargetBackup},
+			holds: snapshot.BackupLastRunFailed || snapshot.BackupAgeHours > threshold,
+			value: &age, threshold: &threshold, observed: observed,
 		}}, true
 	case AlertRuleCollector:
 		status, ok := snapshot.Collectors[p.Collector]

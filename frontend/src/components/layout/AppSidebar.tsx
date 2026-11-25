@@ -34,11 +34,6 @@ type NavItem = {
   end?: boolean
 }
 
-type SoonItem = {
-  label: string
-  icon: LucideIcon
-}
-
 const dockerItems: NavItem[] = [
   { label: 'Tous les conteneurs', to: '/containers', icon: Container },
   { label: 'Images', to: '/images', icon: Images },
@@ -54,14 +49,13 @@ const systemItems: NavItem[] = [
   { label: 'Journaux système', to: '/logs', icon: ScrollText },
   { label: 'Services système', to: '/services', icon: Wrench },
   { label: 'Sauvegardes', to: '/backups', icon: DatabaseBackup },
+  { label: 'Tâches planifiées', to: '/cron', icon: CalendarClock },
 ]
 
 const activityItems: NavItem[] = [
   { label: 'Alertes', to: '/alerts', icon: Bell },
   { label: 'Événements', to: '/events', icon: Gauge },
 ]
-
-const soonItems: SoonItem[] = [{ label: 'Tâches Cron', icon: CalendarClock }]
 
 function navLinkClass({ isActive }: { isActive: boolean }) {
   return cn(
@@ -171,27 +165,6 @@ export function AppSidebar({ open, onClose }: AppSidebarProps) {
                 <span>Utilisateurs & accès</span>
               </NavLink>
             )}
-          </div>
-
-          <div>
-            <p className="mb-1.5 px-2.5 font-mono text-[10px] font-medium uppercase tracking-wider text-text-muted/70">
-              Feuille de route
-            </p>
-            <div className="space-y-0.5">
-              {soonItems.map((item) => (
-                <span
-                  key={item.label}
-                  title="Fonctionnalité non disponible dans cette version"
-                  className="flex cursor-not-allowed items-center gap-2.5 rounded-md px-2.5 py-1.5 text-[12px] text-text-muted/60"
-                >
-                  <item.icon className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
-                  <span className="truncate">{item.label}</span>
-                  <span className="ml-auto rounded-sm border border-line/60 px-1 font-mono text-[9px] uppercase tracking-wide">
-                    à venir
-                  </span>
-                </span>
-              ))}
-            </div>
           </div>
         </nav>
 

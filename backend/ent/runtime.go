@@ -6,6 +6,7 @@ import (
 	"homelab-manager/backend/ent/alert"
 	"homelab-manager/backend/ent/alertrule"
 	"homelab-manager/backend/ent/alertsilence"
+	"homelab-manager/backend/ent/apitoken"
 	"homelab-manager/backend/ent/appsetting"
 	"homelab-manager/backend/ent/auditlog"
 	"homelab-manager/backend/ent/backupconfig"
@@ -27,6 +28,7 @@ import (
 	"homelab-manager/backend/ent/user"
 	"homelab-manager/backend/ent/vulnerabilityfinding"
 	"homelab-manager/backend/ent/vulnerabilityscan"
+	"homelab-manager/backend/ent/webauthncredential"
 	"time"
 
 	"github.com/google/uuid"
@@ -36,6 +38,16 @@ import (
 // (default values, validators, hooks and policies) and stitches it
 // to their package variables.
 func init() {
+	apitokenFields := schema.APIToken{}.Fields()
+	_ = apitokenFields
+	// apitokenDescName is the schema descriptor for name field.
+	apitokenDescName := apitokenFields[2].Descriptor()
+	// apitoken.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	apitoken.NameValidator = apitokenDescName.Validators[0].(func(string) error)
+	// apitokenDescID is the schema descriptor for id field.
+	apitokenDescID := apitokenFields[0].Descriptor()
+	// apitoken.DefaultID holds the default value on creation for the id field.
+	apitoken.DefaultID = apitokenDescID.Default.(func() uuid.UUID)
 	alertFields := schema.Alert{}.Fields()
 	_ = alertFields
 	// alertDescRuleName is the schema descriptor for rule_name field.
@@ -210,8 +222,36 @@ func init() {
 	backupconfigDescScheduleMinute := backupconfigFields[14].Descriptor()
 	// backupconfig.DefaultScheduleMinute holds the default value on creation for the schedule_minute field.
 	backupconfig.DefaultScheduleMinute = backupconfigDescScheduleMinute.Default.(int)
+	// backupconfigDescRetentionEnabled is the schema descriptor for retention_enabled field.
+	backupconfigDescRetentionEnabled := backupconfigFields[15].Descriptor()
+	// backupconfig.DefaultRetentionEnabled holds the default value on creation for the retention_enabled field.
+	backupconfig.DefaultRetentionEnabled = backupconfigDescRetentionEnabled.Default.(bool)
+	// backupconfigDescKeepDaily is the schema descriptor for keep_daily field.
+	backupconfigDescKeepDaily := backupconfigFields[16].Descriptor()
+	// backupconfig.DefaultKeepDaily holds the default value on creation for the keep_daily field.
+	backupconfig.DefaultKeepDaily = backupconfigDescKeepDaily.Default.(int)
+	// backupconfigDescKeepWeekly is the schema descriptor for keep_weekly field.
+	backupconfigDescKeepWeekly := backupconfigFields[17].Descriptor()
+	// backupconfig.DefaultKeepWeekly holds the default value on creation for the keep_weekly field.
+	backupconfig.DefaultKeepWeekly = backupconfigDescKeepWeekly.Default.(int)
+	// backupconfigDescKeepMonthly is the schema descriptor for keep_monthly field.
+	backupconfigDescKeepMonthly := backupconfigFields[18].Descriptor()
+	// backupconfig.DefaultKeepMonthly holds the default value on creation for the keep_monthly field.
+	backupconfig.DefaultKeepMonthly = backupconfigDescKeepMonthly.Default.(int)
+	// backupconfigDescKeepYearly is the schema descriptor for keep_yearly field.
+	backupconfigDescKeepYearly := backupconfigFields[19].Descriptor()
+	// backupconfig.DefaultKeepYearly holds the default value on creation for the keep_yearly field.
+	backupconfig.DefaultKeepYearly = backupconfigDescKeepYearly.Default.(int)
+	// backupconfigDescCheckEnabled is the schema descriptor for check_enabled field.
+	backupconfigDescCheckEnabled := backupconfigFields[20].Descriptor()
+	// backupconfig.DefaultCheckEnabled holds the default value on creation for the check_enabled field.
+	backupconfig.DefaultCheckEnabled = backupconfigDescCheckEnabled.Default.(bool)
+	// backupconfigDescCheckSubsetPercent is the schema descriptor for check_subset_percent field.
+	backupconfigDescCheckSubsetPercent := backupconfigFields[21].Descriptor()
+	// backupconfig.DefaultCheckSubsetPercent holds the default value on creation for the check_subset_percent field.
+	backupconfig.DefaultCheckSubsetPercent = backupconfigDescCheckSubsetPercent.Default.(int)
 	// backupconfigDescUpdatedBy is the schema descriptor for updated_by field.
-	backupconfigDescUpdatedBy := backupconfigFields[16].Descriptor()
+	backupconfigDescUpdatedBy := backupconfigFields[23].Descriptor()
 	// backupconfig.DefaultUpdatedBy holds the default value on creation for the updated_by field.
 	backupconfig.DefaultUpdatedBy = backupconfigDescUpdatedBy.Default.(string)
 	// backupconfigDescID is the schema descriptor for id field.
@@ -624,4 +664,14 @@ func init() {
 	vulnerabilityscanDescID := vulnerabilityscanFields[0].Descriptor()
 	// vulnerabilityscan.DefaultID holds the default value on creation for the id field.
 	vulnerabilityscan.DefaultID = vulnerabilityscanDescID.Default.(func() uuid.UUID)
+	webauthncredentialFields := schema.WebauthnCredential{}.Fields()
+	_ = webauthncredentialFields
+	// webauthncredentialDescName is the schema descriptor for name field.
+	webauthncredentialDescName := webauthncredentialFields[2].Descriptor()
+	// webauthncredential.NameValidator is a validator for the "name" field. It is called by the builders before save.
+	webauthncredential.NameValidator = webauthncredentialDescName.Validators[0].(func(string) error)
+	// webauthncredentialDescID is the schema descriptor for id field.
+	webauthncredentialDescID := webauthncredentialFields[0].Descriptor()
+	// webauthncredential.DefaultID holds the default value on creation for the id field.
+	webauthncredential.DefaultID = webauthncredentialDescID.Default.(func() uuid.UUID)
 }

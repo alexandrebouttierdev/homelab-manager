@@ -39,7 +39,7 @@ Chaque incrément, quel qu'il soit :
 | **5** | Actions sur les services par polkit (`start`, `stop`, `restart`, `reload`) | 1B (audit), 3 | — | M |
 | **6** | Sauvegardes restic : dépôts, sources, exclusions, rétention, restauration en quarantaine | 1C, 4, 5 | `010_backups.sql` | XL |
 | **7** | Tâches planifiées en lecture (Cron et timers) | 2, 3 | — | S |
-| **8** | WebAuthn (passkeys, FIDO2) et jetons d'API en lecture | 1C, HTTPS | `011_webauthn_tokens.sql` | L |
+| **8** | WebAuthn (passkeys, FIDO2) et jetons d'API en lecture — **livré** (8A, 8B) | 1C, HTTPS | `013_api_tokens.sql`, `014_webauthn_credentials.sql` | L |
 | **V** | Vulnérabilités des paquets (Grype) : scans automatiques et manuels, onglet de la page Machine, synthèse du tableau de bord, historique | 4 | `009_vulnerabilities.sql` | L |
 | *Option* | Dettes v2.1 : pagination par curseur, inventaire complet images/volumes/réseaux | Décision Q-4 | selon choix | M |
 
@@ -162,7 +162,7 @@ Ordre de réalisation : 1A → M → 1B → 1C → 2 → 3 → 4 → V → 5 →
 
 ### 8 — WebAuthn et jetons d'API
 
-- `github.com/go-webauthn/webauthn` ; configuration `webauthn_rp_id`, `webauthn_origins` ; HTTPS exigé hors `localhost`.
+- `github.com/go-webauthn/webauthn` ; configuration `webauthn_rp_id`, `webauthn_origins` ; HTTPS exigé hors `localhost`. Livré en 8B comme second facteur (plan `2026-11-24-phase-8-webauthn-jetons.md`).
 - Jetons `hlm_` + 32 octets, affichés une fois, hachés, portées en lecture seule, expiration 90 jours par défaut (sans expiration interdit), en-tête `Authorization: Bearer`. Le contrôle d'origine reste appliqué aux sessions par cookie, pas aux jetons.
 
 ## 5. Décisions à trancher

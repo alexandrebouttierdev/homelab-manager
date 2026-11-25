@@ -48,7 +48,7 @@ Homelab Manager supervise **une seule machine Linux : celle qui l'héberge**. Le
 
 - Comptes multiples, rôles `viewer`, `operator`, `admin`
 - Mot de passe initial imposé, réinitialisation par un administrateur
-- Double authentification : application TOTP, codes de secours, exigible des administrateurs
+- Double authentification : application TOTP, passkeys et clés FIDO2 (WebAuthn), codes de secours, exigible des administrateurs
 - Sessions consultables et révocables, expiration après inactivité
 - Verrouillage après 5 échecs, réseaux autorisés (CIDR)
 - Journal d'audit filtrable, export CSV et JSON
@@ -210,6 +210,9 @@ La configuration est lue dans `manager.yaml` ([deployments/config/manager.yaml](
 | `HOMELAB_DOCKER_ENGINE_SOCKET` | Socket Engine lu par le proxy, pas par le Manager |
 | `HOMELAB_WEB_ROOT` | Répertoire `dist` servi par le Manager |
 | `HOMELAB_SECRETS_KEY_FILE` | Fichier de la clé du coffre de secrets (32 octets en base64). Vide : la clé importée par systemd, `$CREDENTIALS_DIRECTORY/homelab-manager-secrets-key`. Absente ou invalide : double authentification indisponible, le reste fonctionne |
+| `HOMELAB_WEBAUTHN_RP_ID` | Nom de domaine de l'interface pour les passkeys et clés FIDO2 (par exemple `homelab.example`) ; pas une adresse IP. Vide (défaut) : WebAuthn désactivé |
+| `HOMELAB_WEBAUTHN_ORIGINS` | Adresses exactes de l'interface, séparées par des espaces (par exemple `https://homelab.example:8080`) : HTTPS, dans le domaine de `HOMELAB_WEBAUTHN_RP_ID` (ou `http://localhost:…`). Obligatoire avec lui |
+| `HOMELAB_WEBAUTHN_RP_NAME` | Nom montré par le navigateur à l'enregistrement d'une clé (défaut `Homelab Manager`) |
 | `HOMELAB_POWER_ACTIONS_ENABLED` | Autorise Redémarrer / Éteindre depuis la page Machine (défaut `false`) ; exige aussi la règle polkit |
 | `HOMELAB_SYSTEMD_MANAGEABLE_UNITS` | Unités que les opérateurs peuvent démarrer, arrêter, redémarrer ou recharger, séparées par des espaces (défaut : aucune ; 200 au plus). Préférer la clé `systemd_manageable_units` de `manager.yaml`, que lit aussi `homelab-manager polkit-rule` ; exige la règle polkit générée (voir « Services système ») |
 
@@ -258,13 +261,32 @@ sudo systemctl restart homelab-manager
 
 ### Alertes
 
-La page « Alertes » montre les alertes ouvertes (les plus graves d'abord, avec un lien vers l'unité, le conteneur ou les métriques en cause), l'historique et des indicateurs sur 24 heures. Le Manager évalue ses règles toutes les 15 secondes sur les données qu'il collecte déjà, sans requête externe. Six règles sont fournies : disque utilisé à plus de 85 %, mémoire disponible sous 10 %, température au-dessus de 85 °C (seuil fixe : les seuils des capteurs ne sont pas collectés), collecte système ou Docker indisponible depuis 2 minutes, unité systemd en échec. Elles se modifient et se désactivent, sans se supprimer. Un administrateur ajoute ses propres règles ; un opérateur ou un administrateur acquitte une alerte, qui reste ouverte jusqu'à sa résolution. Une source illisible (Docker arrêté, systemd injoignable) ne déclenche ni ne résout les règles qui en dépendent. Les alertes sont notifiées aux canaux qu'un administrateur configure dans l'onglet « Canaux » : Telegram, Discord, Gotify, ntfy, e-mail (SMTP avec STARTTLS ou TLS) et webhook JSON signé en HMAC-SHA256. Chaque canal a une sévérité minimale et une renotification (toutes les 30 minutes par défaut) tant que l'alerte n'est pas acquittée ; il reçoit au plus un message par minute, qui regroupe les déclenchements et les résolutions arrivés entre-temps. Le bouton « Tester » envoie un message aussitôt ; le dernier envoi réussi et la dernière erreur s'affichent sur le canal. Les jetons et mots de passe sont chiffrés par le coffre (clé maître `homelab-manager-secrets-key`, comme pour la double authentification) et ne sont jamais réaffichés : sans clé, seuls les canaux sans secret (ntfy public, webhook non signé) fonctionnent. Ces envois sont la seule communication sortante du Manager ; un échec n'est pas réessayé et n'affecte pas la supervision.
+La page « Alertes » montre les alertes ouvertes (les plus graves d'abord, avec un lien vers l'unité, le conteneur ou les métriques en cause), l'historique et des indicateurs sur 24 heures. Le Manager évalue ses règles toutes les 15 secondes sur les données qu'il collecte déjà, sans requête externe. Sept règles sont fournies : disque utilisé à plus de 85 %, mémoire disponible sous 10 %, température au-dessus de 85 °C (seuil fixe : les seuils des capteurs ne sont pas collectés), collecte système ou Docker indisponible depuis 2 minutes, unité systemd en échec, sauvegarde en retard (aucune réussie depuis 26 heures) ou en échec, gelée tant qu'aucun dépôt n'est initialisé. Elles se modifient et se désactivent, sans se supprimer. Un administrateur ajoute ses propres règles ; un opérateur ou un administrateur acquitte une alerte, qui reste ouverte jusqu'à sa résolution. Une source illisible (Docker arrêté, systemd injoignable) ne déclenche ni ne résout les règles qui en dépendent. Les alertes sont notifiées aux canaux qu'un administrateur configure dans l'onglet « Canaux » : Telegram, Discord, Gotify, ntfy, e-mail (SMTP avec STARTTLS ou TLS) et webhook JSON signé en HMAC-SHA256. Chaque canal a une sévérité minimale et une renotification (toutes les 30 minutes par défaut) tant que l'alerte n'est pas acquittée ; il reçoit au plus un message par minute, qui regroupe les déclenchements et les résolutions arrivés entre-temps. Le bouton « Tester » envoie un message aussitôt ; le dernier envoi réussi et la dernière erreur s'affichent sur le canal. Les jetons et mots de passe sont chiffrés par le coffre (clé maître `homelab-manager-secrets-key`, comme pour la double authentification) et ne sont jamais réaffichés : sans clé, seuls les canaux sans secret (ntfy public, webhook non signé) fonctionnent. Ces envois sont la seule communication sortante du Manager ; un échec n'est pas réessayé et n'affecte pas la supervision.
 
 Un opérateur ou un administrateur pose un **silence** depuis une alerte (sur sa cible ou sur toute sa règle) ou un silence global depuis l'onglet « Silences », de 15 minutes à 7 jours, avec un motif ; il le lève quand il veut. Les alertes sous silence restent ouvertes et visibles (« Sous silence ») ; seules leurs notifications sont suspendues. Le format du webhook et la vérification de sa signature sont décrits dans [docs/API_CONTRACTS.md](docs/API_CONTRACTS.md) § 4.8.
 
+### Jetons d'API
+
+Dans les Paramètres, carte « Jetons d'API », chaque compte crée des jetons en lecture seule pour ses scripts ou tableaux de bord (Home Assistant, Grafana…) : nom, portées (métriques, conteneurs, événements, services, sauvegardes) et validité de 1 à 365 jours. Le jeton (`hlm_…`) s'affiche une seule fois ; il s'utilise ainsi :
+
+```bash
+curl -H "Authorization: Bearer hlm_…" https://homelab.lan:8080/api/v1/dashboard
+```
+
+Un jeton ne permet aucune action ni l'accès aux comptes, aux paramètres ou à l'audit, et cesse de fonctionner à son expiration, à sa révocation ou si le compte est désactivé. Un administrateur voit et révoque les jetons de tous les comptes.
+
 ### Double authentification
 
-Chaque utilisateur l'active dans « Configuration » › Double authentification : mot de passe actuel, QR code à scanner (Aegis, Google Authenticator, 1Password…), premier code, puis 10 codes de secours affichés une seule fois. La connexion demande ensuite un code après le mot de passe. Dans « Utilisateurs & accès » › Politique, un administrateur qui l'a lui-même activée peut l'exiger de tous les administrateurs : ceux qui ne l'ont pas encore ne peuvent plus que l'activer.
+Chaque utilisateur l'active dans « Configuration » › Double authentification : mot de passe actuel, QR code à scanner (Aegis, Google Authenticator, 1Password…), premier code, puis 10 codes de secours affichés une seule fois. La connexion demande ensuite un code après le mot de passe.
+
+**Passkeys et clés de sécurité** : dans la même carte, « Ajouter une clé » enregistre une clé FIDO2 (YubiKey…) ou une passkey du téléphone ou de l'ordinateur, avec un nom ; jusqu'à 10 clés par compte, chacune supprimable. La clé doit vérifier l'utilisateur (PIN, empreinte, visage). À la connexion, la clé est proposée en premier, l'application et les codes de secours restant possibles. Il faut un nom de domaine et HTTPS (le navigateur refuse WebAuthn sur une adresse IP ou en HTTP, sauf `localhost`) :
+
+```yaml
+webauthn_rp_id: "homelab.example"
+webauthn_origins: ["https://homelab.example:8080"]
+```
+
+Changer de domaine rend les clés enregistrées inutilisables : se connecter avec l'application ou un code de secours, puis les réenregistrer. Dans « Utilisateurs & accès » › Politique, un administrateur qui l'a lui-même activée peut l'exiger de tous les administrateurs : ceux qui ne l'ont pas encore ne peuvent plus que l'activer.
 
 **Appareil perdu** : se connecter avec un code de secours, puis désactiver et réactiver la double authentification (ou régénérer les codes). **Appareil et codes perdus** : un autre administrateur supprime le compte et le recrée. S'il s'agit du dernier administrateur, retirer son second facteur en base, service arrêté :
 
@@ -273,6 +295,7 @@ sudo systemctl stop homelab-manager
 sudo -u homelab-manager sqlite3 /var/lib/homelab-manager/homelab-manager.db <<'SQL'
 DELETE FROM recovery_codes WHERE user_id = (SELECT id FROM users WHERE username = 'admin');
 DELETE FROM totp_secrets WHERE id = (SELECT id FROM users WHERE username = 'admin');
+DELETE FROM webauthn_credentials WHERE user_id = (SELECT id FROM users WHERE username = 'admin');
 SQL
 sudo systemctl start homelab-manager
 ```
@@ -339,7 +362,13 @@ sudo systemctl daemon-reload && sudo systemctl restart homelab-manager
 
 Puis, dans l'onglet « Configuration » (administrateurs) : choisir le dépôt, les sources, les exclusions et l'horaire, enregistrer, puis « Initialiser le dépôt ». Le Manager génère le mot de passe du dépôt et l'affiche **une seule fois** : le conserver hors ligne, car sans lui aucune restauration n'est possible si la machine est perdue (`restic -r <dépôt> restore …` le demande). Le mot de passe et les clés d'accès sont scellés par le coffre de secrets : sans clé du coffre, les sauvegardes sont indisponibles. Un dépôt local doit se trouver sous `/mnt`, `/media`, `/srv` ou `/var/backups`, seuls emplacements où l'unité peut écrire ; ailleurs, ajouter `ReadWritePaths=` par `sudo systemctl edit homelab-backup@.service`. Un administrateur du Manager peut ainsi sauvegarder n'importe quel fichier de la machine vers le dépôt choisi : réserver ce rôle en conséquence.
 
-Cette version (incrément 6A) sauvegarde et liste les instantanés ; la rétention (`forget`/`prune`), la vérification, la restauration en quarantaine, le rattachement d'un dépôt existant et SFTP viendront avec l'incrément 6B. D'ici là, restaurer et purger avec `restic` en ligne de commande.
+**Rétention et vérification** : dans « Configuration », la rétention (par défaut 7 quotidiens, 4 hebdomadaires, 6 mensuels, désactivée) supprime les instantanés au-delà de la politique après chaque sauvegarde planifiée réussie ; la vérification relit 5 % des données au plus une fois par semaine. Les deux se lancent aussi à la main depuis la carte « Maintenance », avec « Forcer le déverrouillage » pour un dépôt resté verrouillé par une opération interrompue (à éviter si un autre programme utilise le dépôt).
+
+**Restauration** : dans « Instantanés », un administrateur choisit un instantané et, au besoin, des chemins, simule puis restaure. Les fichiers arrivent dans `/var/lib/homelab-backup/restore/<identifiant>/`, accessible à root seulement, jamais à leur emplacement d'origine : les recopier ensuite à la main (`sudo cp -a …`) et supprimer le répertoire. **Rattacher un dépôt existant** (réinstallation, autre machine) : enregistrer son emplacement puis saisir son mot de passe dans la carte « Initialiser le dépôt ». Le diff entre instantanés, la copie vers un second dépôt et SFTP ne sont pas encore proposés.
+
+### Tâches planifiées
+
+La page « Tâches planifiées » montre, pour tous les rôles et en lecture seule, les tâches Cron du système (`/etc/crontab`, `/etc/cron.d`) avec leur planification en français, leurs cinq prochaines exécutions dans le fuseau de la machine et leur dernière exécution lue dans le journal ; les scripts de `/etc/cron.hourly`, `daily`, `weekly` et `monthly` avec la ligne qui les lance (ou anacron) ; les timers systemd avec le résultat de leur dernier passage. Les valeurs de `password=`, `token=` et motifs voisins sont masquées. Un inspecteur calcule les prochaines exécutions d'une expression, sans rien enregistrer. Rien n'est créé, modifié ni lancé : ce serait exécuter du code en root. Les crontabs des comptes (`crontab -e`) ne sont pas lisibles sans privilège et n'apparaissent pas. Le paquet `cron` n'est pas toujours installé (conteneurs, images minimales) : l'onglet Cron reste alors vide, les timers suffisent.
 
 ### Sauvegarde et restauration
 
@@ -366,8 +395,8 @@ La première release est `v2.3.0`, alignée sur la [spécification produit](docs
 
 ## État et limites connues
 
-- **Livré** : supervision système et Docker, historique, événements, comptes et rôles, sessions, politique de sécurité, journal d'audit, double authentification (TOTP et codes de secours), journaux système, services système avec actions en liste blanche (phase 5), sauvegardes restic (phase 6, incrément 6A), alertes avec silences et notifications (phase 4), vulnérabilités des paquets avec Grype (module V ; Debian, Ubuntu et Alpine), redémarrage et extinction (optionnels).
-- **Spécifié, pas encore implémenté** : passkeys (WebAuthn) et jetons d'API, actions sur les services systemd, sauvegardes restic, tâches planifiées, lecture des paquets RPM (Fedora, Rocky Linux, AlmaLinux) pour le module V. Voir [docs/SPEC_ADMINISTRATION.md](docs/SPEC_ADMINISTRATION.md) et la [feuille de route](docs/superpowers/plans/2026-11-23-feuille-de-route-v3.md).
+- **Livré** : supervision système et Docker, historique, événements, comptes et rôles, sessions, politique de sécurité, journal d'audit, double authentification (TOTP, passkeys et clés FIDO2, codes de secours), jetons d'API en lecture seule, journaux système, services système avec actions en liste blanche (phase 5), sauvegardes restic (phase 6), tâches planifiées en lecture (phase 7), alertes avec silences et notifications (phase 4), vulnérabilités des paquets avec Grype (module V ; Debian, Ubuntu et Alpine), redémarrage et extinction (optionnels).
+- **Spécifié, pas encore implémenté** : connexion par passkey seule (sans mot de passe), lecture des paquets RPM (Fedora, Rocky Linux, AlmaLinux) pour le module V. Voir [docs/SPEC_ADMINISTRATION.md](docs/SPEC_ADMINISTRATION.md) et la [feuille de route](docs/superpowers/plans/2026-11-23-feuille-de-route-v3.md).
 - Historiques bruts ou agrégés, 2 000 points au plus par requête ; l'interface choisit le pas selon la période.
 - À l'intervalle par défaut (10 s), la base croît d'environ 300 Mo par jour jusqu'à la rétention : ≈ 2 Go pour 7 jours.
 - Listes bornées, sans pagination ; images, volumes et réseaux Docker déduits des conteneurs.
@@ -380,7 +409,7 @@ La première release est `v2.3.0`, alignée sur la [spécification produit](docs
 | Document | Contenu |
 |---|---|
 | [Spécification produit](docs/PRODUCT_SPEC.md) | Périmètre, décisions, état |
-| [Modules d'administration](docs/SPEC_ADMINISTRATION.md) | Comptes, sessions, alimentation, modules v3 à venir |
+| [Modules d'administration](docs/SPEC_ADMINISTRATION.md) | Comptes, sessions, alimentation, modules v3 |
 | [Architecture](docs/ARCHITECTURE.md) | Couches, collecte, planification |
 | [Contrats API](docs/API_CONTRACTS.md) | Routes, DTO, codes d'erreur exacts |
 | [Modèle de données](docs/DATA_MODEL.md) | Tables SQLite, migrations |

@@ -2,6 +2,7 @@ package sqlite
 
 import (
 	"context"
+	"encoding/json"
 	"fmt"
 	"time"
 
@@ -33,7 +34,10 @@ func NewBackupRepository(client *ent.Client) *BackupRepository {
 func (r *BackupRepository) BackupConfig(ctx context.Context) (domain.BackupConfig, error) {
 	record, err := r.client.BackupConfig.Query().Where(entconfig.SingletonKey(settingsSingletonKey)).Only(ctx)
 	if ent.IsNotFound(err) {
-		return domain.BackupConfig{Selection: domain.BackupSelection{ExcludeCaches: true}, Schedule: domain.DefaultBackupSchedule}, nil
+		return domain.BackupConfig{
+			Selection: domain.BackupSelection{ExcludeCaches: true}, Schedule: domain.DefaultBackupSchedule,
+			Retention: domain.DefaultBackupRetention, Check: domain.DefaultBackupCheck,
+		}, nil
 	}
 	if err != nil {
 		return domain.BackupConfig{}, fmt.Errorf("read backup configuration: %w", err)
@@ -48,6 +52,11 @@ func (r *BackupRepository) BackupConfig(ctx context.Context) (domain.BackupConfi
 			Enabled: record.ScheduleEnabled, Frequency: domain.BackupFrequency(record.ScheduleFrequency),
 			Weekday: time.Weekday(record.ScheduleWeekday), Hour: record.ScheduleHour, Minute: record.ScheduleMinute,
 		},
+		Retention: domain.BackupRetention{
+			Enabled: record.RetentionEnabled, KeepDaily: record.KeepDaily, KeepWeekly: record.KeepWeekly,
+			KeepMonthly: record.KeepMonthly, KeepYearly: record.KeepYearly,
+		},
+		Check:     domain.BackupCheck{Enabled: record.CheckEnabled, SubsetPercent: record.CheckSubsetPercent},
 		UpdatedBy: record.UpdatedBy,
 	}
 	updated := record.UpdatedAt.UTC()
@@ -96,7 +105,13 @@ func (r *BackupRepository) SaveBackupConfig(ctx context.Context, config domain.B
 			SetExcludeCaches(config.Selection.ExcludeCaches).SetExcludeIfPresent(config.Selection.ExcludeIfPresent).
 			SetScheduleEnabled(config.Schedule.Enabled).SetScheduleFrequency(string(config.Schedule.Frequency)).
 			SetScheduleWeekday(int(config.Schedule.Weekday)).SetScheduleHour(config.Schedule.Hour).
-			SetScheduleMinute(config.Schedule.Minute).SetUpdatedAt(updated).SetUpdatedBy(config.UpdatedBy)
+			SetScheduleMinute(config.Schedule.Minute).SetUpdatedAt(updated).SetUpdatedBy(config.UpdatedBy).
+			SetRetentionEnabled(config.Retention.Enabled).SetKeepDaily(config.Retention.KeepDaily).
+			SetKeepWeekly(config.Retention.KeepWeekly).SetKeepMonthly(config.Retention.KeepMonthly).
+			SetKeepYearly(config.Retention.KeepYearly).SetCheckEnabled(config.Check.Enabled)
+		if config.Check.SubsetPercent > 0 {
+			update.SetCheckSubsetPercent(config.Check.SubsetPercent)
+		}
 		if config.Repository != nil {
 			update.SetRepositoryType(string(config.Repository.Type)).SetRepositoryLocation(config.Repository.Location)
 		} else {
@@ -146,6 +161,13 @@ func (r *BackupRepository) FinishBackupRun(ctx context.Context, run domain.Backu
 				SetDirsNew(stats.DirsNew).SetDirsChanged(stats.DirsChanged).SetDirsUnmodified(stats.DirsUnmodified).
 				SetDataAdded(stats.DataAdded).SetTotalFilesProcessed(stats.TotalFilesProcessed).
 				SetTotalBytesProcessed(stats.TotalBytesProcessed).SetDurationSeconds(stats.DurationSeconds)
+		}
+		if run.Details != nil {
+			details, err := json.Marshal(run.Details)
+			if err != nil {
+				return fmt.Errorf("encode run details: %w", err)
+			}
+			update.SetDetails(string(details))
 		}
 		if err := update.Exec(ctx); err != nil {
 			return fmt.Errorf("finish backup run: %w", err)
@@ -221,7 +243,11 @@ func (r *BackupRepository) LatestBackupRuns(ctx context.Context) (ports.BackupLa
 	if latest.LastSuccess, err = first(backups().Where(entrun.State(string(domain.BackupSucceeded)))); err != nil {
 		return latest, err
 	}
-	latest.LastScheduled, err = first(backups().Where(entrun.OriginIn(string(domain.BackupScheduled), string(domain.BackupCatchUp))))
+	if latest.LastScheduled, err = first(backups().Where(entrun.OriginIn(string(domain.BackupScheduled), string(domain.BackupCatchUp)))); err != nil {
+		return latest, err
+	}
+	latest.LastCheck, err = first(r.client.BackupRun.Query().Where(
+		entrun.Operation(string(domain.BackupOpCheck)), entrun.State(string(domain.BackupSucceeded))))
 	return latest, err
 }
 
@@ -285,6 +311,12 @@ func toBackupRun(record *ent.BackupRun) domain.BackupRun {
 	if record.Failure != nil {
 		run.Failure = domain.BackupFailure(*record.Failure)
 	}
+	if record.Details != nil {
+		var details domain.BackupRunDetails
+		if json.Unmarshal([]byte(*record.Details), &details) == nil {
+			run.Details = &details
+		}
+	}
 	if record.TotalFilesProcessed != nil {
 		value := func(v *int64) int64 {
 			if v == nil {
@@ -304,4 +336,29 @@ func toBackupRun(record *ent.BackupRun) domain.BackupRun {
 		}
 	}
 	return run
+}
+
+// BackupAlertStatus gives what the backup alert rule watches; known is
+// false while no repository is initialized.
+func (r *BackupRepository) BackupAlertStatus(ctx context.Context) (domain.BackupAlertStatus, bool, error) {
+	config, err := r.BackupConfig(ctx)
+	if err != nil {
+		return domain.BackupAlertStatus{}, false, err
+	}
+	if config.Repository == nil || config.InitializedAt == nil {
+		return domain.BackupAlertStatus{}, false, nil
+	}
+	latest, err := r.LatestBackupRuns(ctx)
+	if err != nil {
+		return domain.BackupAlertStatus{}, false, err
+	}
+	status := domain.BackupAlertStatus{Reference: *config.InitializedAt}
+	if latest.LastSuccess != nil {
+		status.Reference = latest.LastSuccess.StartedAt
+		if latest.LastSuccess.FinishedAt != nil {
+			status.Reference = *latest.LastSuccess.FinishedAt
+		}
+	}
+	status.LastRunFailed = latest.LastBackup != nil && latest.LastBackup.State == domain.BackupFailed
+	return status, true, nil
 }

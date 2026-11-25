@@ -95,7 +95,12 @@ type JournalFilter struct {
 	From     *time.Time
 	To       *time.Time
 	Search   string
+	// Identifier keeps the entries of one syslog identifier (CRON). It is
+	// set by the Manager only, never from a request.
+	Identifier string
 }
+
+var journalIdentifierPattern = regexp.MustCompile(`^[A-Za-z0-9._-]{1,64}$`)
 
 // Validate checks every value; an empty source means all.
 func (f JournalFilter) Validate() (JournalFilter, error) {
@@ -110,6 +115,7 @@ func (f JournalFilter) Validate() (JournalFilter, error) {
 		// The Docker source is a unit filter itself.
 		f.Unit != "" && f.Source == JournalSourceDocker,
 		f.BootID != "" && !journalBootPattern.MatchString(f.BootID),
+		f.Identifier != "" && !journalIdentifierPattern.MatchString(f.Identifier),
 		f.From != nil && f.To != nil && !f.From.Before(*f.To),
 		len(f.Search) > maxJournalSearchBytes:
 		return JournalFilter{}, ErrInvalidJournalFilter

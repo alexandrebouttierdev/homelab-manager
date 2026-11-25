@@ -31,7 +31,9 @@ type alertRuleParamsDTO struct {
 	// VulnSeverity and FixableOnly: vulnerabilities rule.
 	VulnSeverity string `json:"vulnSeverity,omitempty"`
 	FixableOnly  bool   `json:"fixableOnly,omitempty"`
-	ForSeconds   int    `json:"forSeconds"`
+	// MaxAgeHours: backup rule.
+	MaxAgeHours int `json:"maxAgeHours,omitempty"`
+	ForSeconds  int `json:"forSeconds"`
 }
 
 type alertRuleDTO struct {
@@ -107,7 +109,7 @@ func toAlertRuleDTO(rule domain.AlertRule) alertRuleDTO {
 	params := alertRuleParamsDTO{
 		Metric: p.Metric, Labels: p.Labels, Operator: string(p.Operator), Threshold: p.Threshold,
 		States: p.States, UnitPattern: p.UnitPattern, Collector: p.Collector, ForSeconds: p.ForSeconds,
-		VulnSeverity: string(p.VulnSeverity), FixableOnly: p.FixableOnly,
+		VulnSeverity: string(p.VulnSeverity), FixableOnly: p.FixableOnly, MaxAgeHours: p.MaxAgeHours,
 	}
 	if p.ContainerID != nil {
 		id := p.ContainerID.String()
@@ -149,7 +151,7 @@ func alertRuleInput(request alertRuleRequest) (domain.AlertRule, bool) {
 	params := domain.AlertRuleParams{
 		Metric: p.Metric, Labels: p.Labels, Operator: domain.AlertOperator(p.Operator), Threshold: p.Threshold,
 		States: p.States, UnitPattern: p.UnitPattern, Collector: p.Collector, ForSeconds: p.ForSeconds,
-		VulnSeverity: domain.VulnSeverity(p.VulnSeverity), FixableOnly: p.FixableOnly,
+		VulnSeverity: domain.VulnSeverity(p.VulnSeverity), FixableOnly: p.FixableOnly, MaxAgeHours: p.MaxAgeHours,
 	}
 	if p.ContainerID != nil {
 		id, err := uuid.Parse(*p.ContainerID)

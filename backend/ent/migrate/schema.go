@@ -8,6 +8,24 @@ import (
 )
 
 var (
+	// APITokensColumns holds the columns for the "api_tokens" table.
+	APITokensColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "user_id", Type: field.TypeUUID},
+		{Name: "name", Type: field.TypeString},
+		{Name: "token_hash", Type: field.TypeString, Unique: true},
+		{Name: "prefix", Type: field.TypeString},
+		{Name: "scopes", Type: field.TypeJSON},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "expires_at", Type: field.TypeTime},
+		{Name: "last_used_at", Type: field.TypeTime, Nullable: true},
+	}
+	// APITokensTable holds the schema information for the "api_tokens" table.
+	APITokensTable = &schema.Table{
+		Name:       "api_tokens",
+		Columns:    APITokensColumns,
+		PrimaryKey: []*schema.Column{APITokensColumns[0]},
+	}
 	// AlertsColumns holds the columns for the "alerts" table.
 	AlertsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -119,6 +137,13 @@ var (
 		{Name: "schedule_weekday", Type: field.TypeInt, Default: 0},
 		{Name: "schedule_hour", Type: field.TypeInt, Default: 3},
 		{Name: "schedule_minute", Type: field.TypeInt, Default: 0},
+		{Name: "retention_enabled", Type: field.TypeBool, Default: false},
+		{Name: "keep_daily", Type: field.TypeInt, Default: 7},
+		{Name: "keep_weekly", Type: field.TypeInt, Default: 4},
+		{Name: "keep_monthly", Type: field.TypeInt, Default: 6},
+		{Name: "keep_yearly", Type: field.TypeInt, Default: 0},
+		{Name: "check_enabled", Type: field.TypeBool, Default: true},
+		{Name: "check_subset_percent", Type: field.TypeInt, Default: 5},
 		{Name: "updated_at", Type: field.TypeTime},
 		{Name: "updated_by", Type: field.TypeString, Default: ""},
 	}
@@ -149,6 +174,7 @@ var (
 		{Name: "total_files_processed", Type: field.TypeInt64, Nullable: true},
 		{Name: "total_bytes_processed", Type: field.TypeInt64, Nullable: true},
 		{Name: "duration_seconds", Type: field.TypeFloat64, Nullable: true},
+		{Name: "details", Type: field.TypeString, Nullable: true, Size: 2147483647},
 		{Name: "started_at", Type: field.TypeTime},
 		{Name: "finished_at", Type: field.TypeTime, Nullable: true},
 	}
@@ -476,8 +502,25 @@ var (
 		Columns:    VulnerabilityScansColumns,
 		PrimaryKey: []*schema.Column{VulnerabilityScansColumns[0]},
 	}
+	// WebauthnCredentialsColumns holds the columns for the "webauthn_credentials" table.
+	WebauthnCredentialsColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeUUID},
+		{Name: "user_id", Type: field.TypeUUID},
+		{Name: "name", Type: field.TypeString},
+		{Name: "credential_id", Type: field.TypeBytes, Unique: true},
+		{Name: "data", Type: field.TypeBytes},
+		{Name: "created_at", Type: field.TypeTime},
+		{Name: "last_used_at", Type: field.TypeTime, Nullable: true},
+	}
+	// WebauthnCredentialsTable holds the schema information for the "webauthn_credentials" table.
+	WebauthnCredentialsTable = &schema.Table{
+		Name:       "webauthn_credentials",
+		Columns:    WebauthnCredentialsColumns,
+		PrimaryKey: []*schema.Column{WebauthnCredentialsColumns[0]},
+	}
 	// Tables holds all the tables in the schema.
 	Tables = []*schema.Table{
+		APITokensTable,
 		AlertsTable,
 		AlertRulesTable,
 		AlertSilencesTable,
@@ -501,6 +544,7 @@ var (
 		UsersTable,
 		VulnerabilityFindingsTable,
 		VulnerabilityScansTable,
+		WebauthnCredentialsTable,
 	}
 )
 

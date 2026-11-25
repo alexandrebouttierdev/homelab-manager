@@ -8,6 +8,7 @@ import (
 
 	"homelab-manager/backend/ent/auditlog"
 	"homelab-manager/backend/internal/domain"
+	"homelab-manager/backend/internal/ports"
 
 	"github.com/google/uuid"
 )
@@ -92,7 +93,7 @@ func TestBackupRunsAndSnapshots(t *testing.T) {
 		if op == domain.BackupOpInit && state == domain.BackupSucceeded {
 			initialized = &finished
 		}
-		if err := repository.FinishBackupRun(ctx, run, nil, initialized); err != nil {
+		if err := repository.FinishBackupRun(ctx, run, ports.BackupFinish{InitializedAt: initialized}); err != nil {
 			t.Fatal(err)
 		}
 		return run
@@ -143,7 +144,7 @@ func TestBackupRunsAndSnapshots(t *testing.T) {
 		t.Fatal(err)
 	}
 	last.State, last.FinishedAt = domain.BackupSucceeded, &finished
-	if err := repository.FinishBackupRun(ctx, last, snapshots, nil); err != nil {
+	if err := repository.FinishBackupRun(ctx, last, ports.BackupFinish{Snapshots: snapshots}); err != nil {
 		t.Fatal(err)
 	}
 	stored, err := repository.BackupSnapshots(ctx)
@@ -151,7 +152,7 @@ func TestBackupRunsAndSnapshots(t *testing.T) {
 		t.Fatalf("snapshots = %+v, %v", stored, err)
 	}
 	// A new listing replaces the previous one.
-	if err := repository.FinishBackupRun(ctx, last, snapshots[:1], nil); err != nil {
+	if err := repository.FinishBackupRun(ctx, last, ports.BackupFinish{Snapshots: snapshots[:1]}); err != nil {
 		t.Fatal(err)
 	}
 	if stored, _ := repository.BackupSnapshots(ctx); len(stored) != 1 {
@@ -192,7 +193,7 @@ func TestBackupAlertStatus(t *testing.T) {
 		}
 		end := at.Add(time.Minute)
 		run.State, run.FinishedAt = state, &end
-		if err := repository.FinishBackupRun(ctx, run, nil, nil); err != nil {
+		if err := repository.FinishBackupRun(ctx, run, ports.BackupFinish{}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -243,7 +244,7 @@ func TestBackupRunDetailsAndLastCheck(t *testing.T) {
 		}
 		end := at.Add(time.Minute)
 		run.State, run.FinishedAt, run.Details = tc.state, &end, tc.details
-		if err := repository.FinishBackupRun(ctx, run, nil, nil); err != nil {
+		if err := repository.FinishBackupRun(ctx, run, ports.BackupFinish{}); err != nil {
 			t.Fatal(err)
 		}
 	}
@@ -254,5 +255,83 @@ func TestBackupRunDetailsAndLastCheck(t *testing.T) {
 	runs, _ := repository.BackupRuns(ctx, domain.BackupRunFilter{Limit: 1})
 	if runs[0].Details == nil || runs[0].Details.FilesRestored != 3 || runs[0].Details.SnapshotID != "3a253ad8" {
 		t.Fatalf("restore details = %+v", runs[0].Details)
+	}
+}
+
+func TestBackupCopyRepositoryAndRuns(t *testing.T) {
+	ctx := context.Background()
+	database := openTestDatabase(t, ctx)
+	repository := NewBackupRepository(database.Client())
+	audit := domain.AuditEntry{Actor: "alice", TargetType: "backup_config", TargetID: "local", Action: "update_copy", Outcome: domain.AuditSuccess}
+	initialized := time.Date(2026, 11, 24, 10, 0, 0, 0, time.UTC)
+	config := domain.BackupConfig{
+		Repository: &domain.BackupRepository{Type: domain.RepositoryLocal, Location: "/srv/backup"}, InitializedAt: &initialized,
+		SealedCredentials: "sealed", Schedule: domain.DefaultBackupSchedule, Check: domain.DefaultBackupCheck,
+		Copy: &domain.BackupCopyTarget{
+			Repository:        domain.BackupRepository{Type: domain.RepositoryRest, Location: "https://nas.lan:8000/copy"},
+			SealedCredentials: "copy-sealed", AfterBackup: true,
+		},
+	}
+	if err := repository.SaveBackupConfig(ctx, config, audit); err != nil {
+		t.Fatal(err)
+	}
+	got, err := repository.BackupConfig(ctx)
+	if err != nil || got.Copy == nil || got.Copy.Repository != config.Copy.Repository || got.Copy.SealedCredentials != "copy-sealed" ||
+		!got.Copy.AfterBackup || got.Copy.InitializedAt != nil {
+		t.Fatalf("copy = %+v, %v", got.Copy, err)
+	}
+
+	// The diff and copy operations are accepted by the rebuilt table, and
+	// a successful copy marks the copy repository initialized.
+	started := time.Date(2026, 11, 25, 3, 0, 0, 0, time.UTC)
+	diff := domain.BackupRun{ID: uuid.New(), Operation: domain.BackupOpDiff, Origin: domain.BackupManual, RequestedBy: "alice", StartedAt: started}
+	copyRun := domain.BackupRun{ID: uuid.New(), Operation: domain.BackupOpCopy, Origin: domain.BackupScheduled, StartedAt: started.Add(time.Minute)}
+	for _, run := range []domain.BackupRun{diff, copyRun} {
+		if err := repository.StartBackupRun(ctx, run, nil); err != nil {
+			t.Fatalf("start %s: %v", run.Operation, err)
+		}
+	}
+	finished := started.Add(2 * time.Minute)
+	diff.State, diff.FinishedAt = domain.BackupSucceeded, &finished
+	diff.Details = &domain.BackupRunDetails{Diff: &domain.BackupDiff{
+		From: "3a253ad8", To: "9f2c11b0", ChangedFiles: 1, TotalChanges: 1,
+		Changes: []domain.BackupDiffChange{{Path: "/etc/hosts", Modifier: "M"}},
+	}}
+	copyRun.State, copyRun.FinishedAt = domain.BackupSucceeded, &finished
+	copyRun.Details = &domain.BackupRunDetails{Copy: &domain.BackupCopyResult{Repository: config.Copy.Repository, Initialized: true, SnapshotsCopied: 3, SnapshotsInTarget: 3}}
+	if err := repository.FinishBackupRun(ctx, diff, ports.BackupFinish{}); err != nil {
+		t.Fatal(err)
+	}
+	if err := repository.FinishBackupRun(ctx, copyRun, ports.BackupFinish{CopyInitializedAt: &finished}); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := repository.BackupConfig(ctx); got.Copy.InitializedAt == nil || !got.Copy.InitializedAt.Equal(finished) {
+		t.Fatalf("copy initialized = %+v", got.Copy)
+	}
+	stored, err := repository.BackupRun(ctx, diff.ID)
+	if err != nil || stored.Details.Diff == nil || stored.Details.Diff.Changes[0].Path != "/etc/hosts" {
+		t.Fatalf("diff run = %+v, %v", stored, err)
+	}
+	latest, err := repository.LatestBackupRuns(ctx)
+	if err != nil || latest.LastCopy == nil || latest.LastCopy.ID != copyRun.ID || latest.LastCopy.Details.Copy.SnapshotsCopied != 3 {
+		t.Fatalf("latest copy = %+v, %v", latest.LastCopy, err)
+	}
+
+	// Removing the copy repository clears it; a late copy outcome does not
+	// bring it back.
+	config.Copy = nil
+	if err := repository.SaveBackupConfig(ctx, config, audit); err != nil {
+		t.Fatal(err)
+	}
+	late := domain.BackupRun{ID: uuid.New(), Operation: domain.BackupOpCopy, Origin: domain.BackupManual, StartedAt: finished}
+	if err := repository.StartBackupRun(ctx, late, nil); err != nil {
+		t.Fatal(err)
+	}
+	late.State, late.FinishedAt = domain.BackupSucceeded, &finished
+	if err := repository.FinishBackupRun(ctx, late, ports.BackupFinish{CopyInitializedAt: &finished}); err != nil {
+		t.Fatal(err)
+	}
+	if got, _ := repository.BackupConfig(ctx); got.Copy != nil {
+		t.Fatalf("removed copy came back: %+v", got.Copy)
 	}
 }

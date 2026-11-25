@@ -58,7 +58,7 @@ func NewExecutor(config Config, units unitController) *Executor {
 	return &Executor{config: config, units: units, now: time.Now}
 }
 
-func (e *Executor) Execute(ctx context.Context, job ports.BackupJob, credentials domain.BackupCredentials) (domain.BackupResult, error) {
+func (e *Executor) Execute(ctx context.Context, job ports.BackupJob, credentials domain.BackupCredentials, copyCredentials *domain.BackupCredentials) (domain.BackupResult, error) {
 	op := job.Operation
 	// Some file systems keep modification times to the second.
 	started := e.now().UTC().Truncate(time.Second)
@@ -87,15 +87,37 @@ func (e *Executor) Execute(ctx context.Context, job ports.BackupJob, credentials
 			SnapshotID: job.Restore.SnapshotID, Include: orEmpty(job.Restore.Include), DryRun: job.Restore.DryRun,
 			Target: domain.RestoreTarget(job.RunID),
 		}
+	case domain.BackupOpDiff:
+		if job.Diff == nil {
+			return domain.BackupResult{}, &domain.BackupRunError{Failure: domain.BackupFailureJob, Err: errors.New("a diff needs its snapshots")}
+		}
+		file.Diff = &backupjob.Diff{From: job.Diff.From, To: job.Diff.To}
+	case domain.BackupOpCopy:
+		if job.Copy == nil || copyCredentials == nil {
+			return domain.BackupResult{}, &domain.BackupRunError{Failure: domain.BackupFailureJob, Err: errors.New("a copy needs its destination")}
+		}
+		file.Copy = &backupjob.Copy{RepositoryType: job.Copy.Type, Repository: job.Copy.Location, Init: job.CopyInit}
+		if r := job.CopyRetention; r != nil {
+			file.Copy.Retention = &backupjob.Retention{
+				KeepDaily: r.KeepDaily, KeepWeekly: r.KeepWeekly, KeepMonthly: r.KeepMonthly, KeepYearly: r.KeepYearly,
+			}
+		}
+	}
+	secrets := backupjob.Secrets{BackupCredentials: credentials}
+	if op == domain.BackupOpCopy {
+		secrets.Copy = copyCredentials
 	}
 	if err := file.Validate(); err != nil {
+		return domain.BackupResult{}, &domain.BackupRunError{Failure: domain.BackupFailureJob, Err: err}
+	}
+	if err := file.ValidateSecrets(secrets); err != nil {
 		return domain.BackupResult{}, &domain.BackupRunError{Failure: domain.BackupFailureJob, Err: err}
 	}
 	secretsPath := backupjob.SecretsPath(e.config.JobsDir, op)
 	if err := backupjob.WriteAtomic(backupjob.JobPath(e.config.JobsDir, op), file, jobMode); err != nil {
 		return domain.BackupResult{}, &domain.BackupRunError{Failure: domain.BackupFailureJob, Err: err}
 	}
-	if err := backupjob.WriteAtomic(secretsPath, credentials, jobMode); err != nil {
+	if err := backupjob.WriteAtomic(secretsPath, secrets, jobMode); err != nil {
 		return domain.BackupResult{}, &domain.BackupRunError{Failure: domain.BackupFailureJob, Err: err}
 	}
 	// The runner removes the secrets once read; they never outlive a run
@@ -104,7 +126,7 @@ func (e *Executor) Execute(ctx context.Context, job ports.BackupJob, credentials
 
 	timeout := e.config.BackupTimeout
 	switch op {
-	case domain.BackupOpInit, domain.BackupOpSnapshots, domain.BackupOpUnlock:
+	case domain.BackupOpInit, domain.BackupOpSnapshots, domain.BackupOpUnlock, domain.BackupOpDiff:
 		timeout = e.config.InitTimeout
 	}
 	runCtx, cancel := context.WithTimeout(ctx, timeout)

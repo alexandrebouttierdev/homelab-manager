@@ -34,6 +34,11 @@ func (BackupConfig) Fields() []ent.Field {
 		field.Int("keep_yearly").Default(0),
 		field.Bool("check_enabled").Default(true),
 		field.Int("check_subset_percent").Default(5),
+		field.String("copy_repository_type").Optional().Nillable(),
+		field.String("copy_repository_location").Optional().Nillable(),
+		field.Text("copy_sealed_credentials").Default("").Sensitive(),
+		field.Time("copy_initialized_at").Optional().Nillable(),
+		field.Bool("copy_after_backup").Default(false),
 		field.Time("updated_at"),
 		field.String("updated_by").Default(""),
 	}

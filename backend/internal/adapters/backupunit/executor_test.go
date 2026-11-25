@@ -5,6 +5,8 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"regexp"
+	"slices"
 	"testing"
 	"time"
 
@@ -24,7 +26,7 @@ type fakeUnits struct {
 	err      error
 	units    []string
 	sawJob   backupjob.Job
-	sawCreds domain.BackupCredentials
+	sawCreds backupjob.Secrets
 }
 
 func (f *fakeUnits) Act(ctx context.Context, name string, verb domain.UnitVerb) (domain.UnitStableState, error) {
@@ -83,7 +85,7 @@ func TestExecuteWritesTheJobStartsTheUnitAndReadsTheResult(t *testing.T) {
 		Snapshots: []backupjob.Snapshot{{ID: "abc", ShortID: "abc", Paths: []string{"/etc"}}},
 	}}
 	executor := newExecutor(t, units)
-	result, err := executor.Execute(context.Background(), job, domain.BackupCredentials{Password: "p"})
+	result, err := executor.Execute(context.Background(), job, domain.BackupCredentials{Password: "p"}, nil)
 	if err != nil || result.SnapshotID != "abc" || result.Stats.FilesNew != 2 || len(result.Snapshots) != 1 {
 		t.Fatalf("result = %+v, %v", result, err)
 	}
@@ -120,7 +122,7 @@ func TestExecuteReportsEachFailure(t *testing.T) {
 	for name, tc := range cases {
 		t.Run(name, func(t *testing.T) {
 			executor := newExecutor(t, tc.units)
-			_, err := executor.Execute(context.Background(), job, domain.BackupCredentials{Password: "p"})
+			_, err := executor.Execute(context.Background(), job, domain.BackupCredentials{Password: "p"}, nil)
 			if failureOf(err) != tc.want {
 				t.Fatalf("failure = %q (%v), want %q", failureOf(err), err, tc.want)
 			}
@@ -137,7 +139,7 @@ func TestExecuteRefusesAnInvalidJobBeforeWritingIt(t *testing.T) {
 	executor := newExecutor(t, units)
 	bad := job
 	bad.Selection.Sources = []string{"relative"}
-	if _, err := executor.Execute(context.Background(), bad, domain.BackupCredentials{Password: "p"}); failureOf(err) != domain.BackupFailureJob {
+	if _, err := executor.Execute(context.Background(), bad, domain.BackupCredentials{Password: "p"}, nil); failureOf(err) != domain.BackupFailureJob {
 		t.Fatalf("err = %v", err)
 	}
 	if len(units.units) != 0 {
@@ -164,7 +166,7 @@ func TestExecuteWritesTheJobOfEachOperation(t *testing.T) {
 			job.Operation = op
 			job.Repository = domain.BackupRepository{Type: domain.RepositoryLocal, Location: "/mnt/backup"}
 			job.Selection = domain.BackupSelection{Sources: []string{"/etc"}}
-			result, err := executor.Execute(context.Background(), job, domain.BackupCredentials{Password: "p"})
+			result, err := executor.Execute(context.Background(), job, domain.BackupCredentials{Password: "p"}, nil)
 			if err != nil || result.Details == nil {
 				t.Fatalf("result = %+v, %v", result, err)
 			}
@@ -182,5 +184,76 @@ func TestExecuteWritesTheJobOfEachOperation(t *testing.T) {
 				}
 			}
 		})
+	}
+}
+
+func TestExecuteWritesADiffAndACopy(t *testing.T) {
+	started := time.Date(2026, 11, 24, 3, 0, 1, 0, time.UTC)
+	diff := &domain.BackupDiff{From: "3a253ad8", To: "9f2c11b0", Changes: []domain.BackupDiffChange{{Path: "/etc/hosts", Modifier: "M"}}}
+	units := &fakeUnits{result: &backupjob.Result{
+		Version: 1, Operation: domain.BackupOpDiff, StartedAt: started, Success: true,
+		Details: &domain.BackupRunDetails{Diff: diff},
+	}}
+	executor := newExecutor(t, units)
+	diffJob := ports.BackupJob{
+		Operation: domain.BackupOpDiff, Repository: job.Repository,
+		Diff: &domain.BackupDiffRequest{From: "3a253ad8", To: "9f2c11b0"},
+	}
+	result, err := executor.Execute(context.Background(), diffJob, domain.BackupCredentials{Password: "p"}, nil)
+	if err != nil || result.Details == nil || result.Details.Diff.Changes[0].Path != "/etc/hosts" {
+		t.Fatalf("diff = %+v, %v", result, err)
+	}
+	if units.sawJob.Diff == nil || units.sawJob.Diff.From != "3a253ad8" || len(units.sawJob.Sources) != 0 || units.sawCreds.Copy != nil {
+		t.Fatalf("diff job = %+v", units.sawJob)
+	}
+
+	units.result = &backupjob.Result{
+		Version: 1, Operation: domain.BackupOpCopy, StartedAt: started, Success: true,
+		Details: &domain.BackupRunDetails{Copy: &domain.BackupCopyResult{SnapshotsCopied: 2}},
+	}
+	copyJob := ports.BackupJob{
+		Operation: domain.BackupOpCopy, Repository: job.Repository, CopyInit: true,
+		Copy:          &domain.BackupRepository{Type: domain.RepositoryRest, Location: "https://nas.lan:8000/copy"},
+		CopyRetention: &domain.BackupRetention{Enabled: true, KeepDaily: 7},
+	}
+	copyCredentials := &domain.BackupCredentials{Password: "copy-pass", Username: "u", Secret: "s"}
+	result, err = executor.Execute(context.Background(), copyJob, domain.BackupCredentials{Password: "p"}, copyCredentials)
+	if err != nil || result.Details.Copy.SnapshotsCopied != 2 {
+		t.Fatalf("copy = %+v, %v", result, err)
+	}
+	if c := units.sawJob.Copy; c == nil || !c.Init || c.Repository != "https://nas.lan:8000/copy" || c.Retention == nil || c.Retention.KeepDaily != 7 {
+		t.Fatalf("copy job = %+v", units.sawJob.Copy)
+	}
+	if units.sawCreds.Password != "p" || units.sawCreds.Copy == nil || units.sawCreds.Copy.Password != "copy-pass" {
+		t.Fatalf("copy secrets = %+v", units.sawCreds)
+	}
+	if _, err := executor.Execute(context.Background(), copyJob, domain.BackupCredentials{Password: "p"}, nil); failureOf(err) != domain.BackupFailureJob {
+		t.Fatalf("copy without its credentials = %v", err)
+	}
+	copyJob.Copy = &job.Repository
+	if _, err := executor.Execute(context.Background(), copyJob, domain.BackupCredentials{Password: "p"}, copyCredentials); failureOf(err) != domain.BackupFailureJob {
+		t.Fatalf("copy to the same repository = %v", err)
+	}
+}
+
+// The polkit rule shipped with the project allows exactly the operations
+// of the Manager.
+func TestThePolkitRuleListsEveryOperation(t *testing.T) {
+	rule, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "deployments", "polkit", "50-homelab-manager-backup.rules"))
+	if err != nil {
+		t.Fatal(err)
+	}
+	var listed []string
+	for _, match := range regexp.MustCompile(`"(homelab-backup@[a-z-]+\.service)"`).FindAllStringSubmatch(string(rule), -1) {
+		listed = append(listed, match[1])
+	}
+	var want []string
+	for _, op := range domain.BackupOperations {
+		want = append(want, op.BackupUnit())
+	}
+	slices.Sort(listed)
+	slices.Sort(want)
+	if !slices.Equal(listed, want) {
+		t.Fatalf("polkit rule lists %v, want %v", listed, want)
 	}
 }

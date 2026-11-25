@@ -1,4 +1,13 @@
-import { AlertTriangle, DatabaseBackup, History, Play, RefreshCw, RotateCcw, X } from 'lucide-react'
+import {
+  AlertTriangle,
+  DatabaseBackup,
+  GitCompare,
+  History,
+  Play,
+  RefreshCw,
+  RotateCcw,
+  X,
+} from 'lucide-react'
 import type { ReactNode } from 'react'
 import { Badge } from '../../components/ui/Badge'
 import { Button } from '../../components/ui/Button'
@@ -11,6 +20,8 @@ import { SegmentedTabs } from '../../components/ui/SegmentedTabs'
 import { formatBytes, formatCount, formatDateTime, formatRelativeTime } from '../../lib/format'
 import { FormField } from '../alerts/FormField'
 import { BackupConfigForm } from './BackupConfigForm'
+import { BackupCopyCard } from './BackupCopyCard'
+import { BackupDiffPanel } from './BackupDiffPanel'
 import type { BackupRestoreModel } from './useBackupRestore'
 import { useBackupsPage, type BackupsPageModel } from './useBackupsPage'
 
@@ -103,7 +114,12 @@ export function BackupsPage() {
       />
       {page.tab === 'runs' && <Runs page={page} />}
       {page.tab === 'snapshots' && <Snapshots page={page} />}
-      {page.tab === 'config' && <BackupConfigForm model={page.configForm} />}
+      {page.tab === 'config' && (
+        <div className="space-y-4">
+          <BackupConfigForm model={page.configForm} />
+          <BackupCopyCard model={page.copy} />
+        </div>
+      )}
     </div>
   )
 }
@@ -200,12 +216,42 @@ function Snapshots({ page }: { page: BackupsPageModel }) {
       />
     )
   const restore = page.restore
+  const diff = page.diff
   return (
     <div className="space-y-3">
       {restore.snapshot && <RestorePanel model={restore} />}
+      {diff.visible && (
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            size="sm"
+            icon={<GitCompare className="h-3.5 w-3.5" />}
+            disabled={!diff.canCompare}
+            loading={diff.pending}
+            onClick={diff.compare}
+          >
+            Comparer
+          </Button>
+          <p className="text-xs text-text-muted">
+            {diff.selectedCount === 2
+              ? 'Deux instantanés choisis.'
+              : 'Cochez deux instantanés pour voir ce qui a changé entre eux.'}
+          </p>
+          {diff.error && (
+            <p className="text-xs text-danger" role="alert">
+              {diff.error}
+            </p>
+          )}
+        </div>
+      )}
+      {diff.open && <BackupDiffPanel model={diff} />}
       <Table minWidthClassName="min-w-[760px]">
         <THead>
           <tr>
+            {diff.visible && (
+              <TH className="w-8">
+                <span className="sr-only">Comparer</span>
+              </TH>
+            )}
             <TH>Instantané</TH>
             <TH>Date</TH>
             <TH>Chemins</TH>
@@ -218,6 +264,16 @@ function Snapshots({ page }: { page: BackupsPageModel }) {
         <TBody>
           {rows.map((snapshot) => (
             <TR key={snapshot.id}>
+              {diff.visible && (
+                <TD>
+                  <input
+                    type="checkbox"
+                    aria-label={`Comparer ${snapshot.shortId}`}
+                    checked={diff.isSelected(snapshot)}
+                    onChange={() => diff.toggle(snapshot)}
+                  />
+                </TD>
+              )}
               <TD className="font-mono text-xs" title={snapshot.id}>
                 {snapshot.shortId}
               </TD>

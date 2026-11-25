@@ -291,6 +291,76 @@ func (_c *BackupConfigCreate) SetNillableCheckSubsetPercent(v *int) *BackupConfi
 	return _c
 }
 
+// SetCopyRepositoryType sets the "copy_repository_type" field.
+func (_c *BackupConfigCreate) SetCopyRepositoryType(v string) *BackupConfigCreate {
+	_c.mutation.SetCopyRepositoryType(v)
+	return _c
+}
+
+// SetNillableCopyRepositoryType sets the "copy_repository_type" field if the given value is not nil.
+func (_c *BackupConfigCreate) SetNillableCopyRepositoryType(v *string) *BackupConfigCreate {
+	if v != nil {
+		_c.SetCopyRepositoryType(*v)
+	}
+	return _c
+}
+
+// SetCopyRepositoryLocation sets the "copy_repository_location" field.
+func (_c *BackupConfigCreate) SetCopyRepositoryLocation(v string) *BackupConfigCreate {
+	_c.mutation.SetCopyRepositoryLocation(v)
+	return _c
+}
+
+// SetNillableCopyRepositoryLocation sets the "copy_repository_location" field if the given value is not nil.
+func (_c *BackupConfigCreate) SetNillableCopyRepositoryLocation(v *string) *BackupConfigCreate {
+	if v != nil {
+		_c.SetCopyRepositoryLocation(*v)
+	}
+	return _c
+}
+
+// SetCopySealedCredentials sets the "copy_sealed_credentials" field.
+func (_c *BackupConfigCreate) SetCopySealedCredentials(v string) *BackupConfigCreate {
+	_c.mutation.SetCopySealedCredentials(v)
+	return _c
+}
+
+// SetNillableCopySealedCredentials sets the "copy_sealed_credentials" field if the given value is not nil.
+func (_c *BackupConfigCreate) SetNillableCopySealedCredentials(v *string) *BackupConfigCreate {
+	if v != nil {
+		_c.SetCopySealedCredentials(*v)
+	}
+	return _c
+}
+
+// SetCopyInitializedAt sets the "copy_initialized_at" field.
+func (_c *BackupConfigCreate) SetCopyInitializedAt(v time.Time) *BackupConfigCreate {
+	_c.mutation.SetCopyInitializedAt(v)
+	return _c
+}
+
+// SetNillableCopyInitializedAt sets the "copy_initialized_at" field if the given value is not nil.
+func (_c *BackupConfigCreate) SetNillableCopyInitializedAt(v *time.Time) *BackupConfigCreate {
+	if v != nil {
+		_c.SetCopyInitializedAt(*v)
+	}
+	return _c
+}
+
+// SetCopyAfterBackup sets the "copy_after_backup" field.
+func (_c *BackupConfigCreate) SetCopyAfterBackup(v bool) *BackupConfigCreate {
+	_c.mutation.SetCopyAfterBackup(v)
+	return _c
+}
+
+// SetNillableCopyAfterBackup sets the "copy_after_backup" field if the given value is not nil.
+func (_c *BackupConfigCreate) SetNillableCopyAfterBackup(v *bool) *BackupConfigCreate {
+	if v != nil {
+		_c.SetCopyAfterBackup(*v)
+	}
+	return _c
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_c *BackupConfigCreate) SetUpdatedAt(v time.Time) *BackupConfigCreate {
 	_c.mutation.SetUpdatedAt(v)
@@ -420,6 +490,14 @@ func (_c *BackupConfigCreate) defaults() {
 		v := backupconfig.DefaultCheckSubsetPercent
 		_c.mutation.SetCheckSubsetPercent(v)
 	}
+	if _, ok := _c.mutation.CopySealedCredentials(); !ok {
+		v := backupconfig.DefaultCopySealedCredentials
+		_c.mutation.SetCopySealedCredentials(v)
+	}
+	if _, ok := _c.mutation.CopyAfterBackup(); !ok {
+		v := backupconfig.DefaultCopyAfterBackup
+		_c.mutation.SetCopyAfterBackup(v)
+	}
 	if _, ok := _c.mutation.UpdatedBy(); !ok {
 		v := backupconfig.DefaultUpdatedBy
 		_c.mutation.SetUpdatedBy(v)
@@ -490,6 +568,12 @@ func (_c *BackupConfigCreate) check() error {
 	}
 	if _, ok := _c.mutation.CheckSubsetPercent(); !ok {
 		return &ValidationError{Name: "check_subset_percent", err: errors.New(`ent: missing required field "BackupConfig.check_subset_percent"`)}
+	}
+	if _, ok := _c.mutation.CopySealedCredentials(); !ok {
+		return &ValidationError{Name: "copy_sealed_credentials", err: errors.New(`ent: missing required field "BackupConfig.copy_sealed_credentials"`)}
+	}
+	if _, ok := _c.mutation.CopyAfterBackup(); !ok {
+		return &ValidationError{Name: "copy_after_backup", err: errors.New(`ent: missing required field "BackupConfig.copy_after_backup"`)}
 	}
 	if _, ok := _c.mutation.UpdatedAt(); !ok {
 		return &ValidationError{Name: "updated_at", err: errors.New(`ent: missing required field "BackupConfig.updated_at"`)}
@@ -615,6 +699,26 @@ func (_c *BackupConfigCreate) createSpec() (*BackupConfig, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.CheckSubsetPercent(); ok {
 		_spec.SetField(backupconfig.FieldCheckSubsetPercent, field.TypeInt, value)
 		_node.CheckSubsetPercent = value
+	}
+	if value, ok := _c.mutation.CopyRepositoryType(); ok {
+		_spec.SetField(backupconfig.FieldCopyRepositoryType, field.TypeString, value)
+		_node.CopyRepositoryType = &value
+	}
+	if value, ok := _c.mutation.CopyRepositoryLocation(); ok {
+		_spec.SetField(backupconfig.FieldCopyRepositoryLocation, field.TypeString, value)
+		_node.CopyRepositoryLocation = &value
+	}
+	if value, ok := _c.mutation.CopySealedCredentials(); ok {
+		_spec.SetField(backupconfig.FieldCopySealedCredentials, field.TypeString, value)
+		_node.CopySealedCredentials = value
+	}
+	if value, ok := _c.mutation.CopyInitializedAt(); ok {
+		_spec.SetField(backupconfig.FieldCopyInitializedAt, field.TypeTime, value)
+		_node.CopyInitializedAt = &value
+	}
+	if value, ok := _c.mutation.CopyAfterBackup(); ok {
+		_spec.SetField(backupconfig.FieldCopyAfterBackup, field.TypeBool, value)
+		_node.CopyAfterBackup = value
 	}
 	if value, ok := _c.mutation.UpdatedAt(); ok {
 		_spec.SetField(backupconfig.FieldUpdatedAt, field.TypeTime, value)

@@ -6,7 +6,7 @@
 
 **Prérequis :** phase 1C (coffre de secrets), phase 4 (alertes), phase 5 et module V (démarrage d'une unité par D-Bus et polkit). restic : paquet Debian 13 `restic` 0.18.0.
 
-**Statut :** D-12 tranchée le 24 novembre 2026 (option A : le Manager planifie). Incréments 6A (règle d'alerte comprise) et 6B livrés ; restent diff, copies et SFTP.
+**Statut :** D-12 tranchée le 24 novembre 2026 (option A : le Manager planifie). Incréments 6A (règle d'alerte comprise), 6B et 6C livrés ; reste SFTP.
 
 ## Découpage
 
@@ -80,3 +80,23 @@ Le § 7.1 prévoit un timer `homelab-backup-schedule.timer` dont l'expression `O
 - Livré : opérations `forget-prune`, `check`, `restore`, `snapshots` (rattachement) et `unlock` dans le programme d'entrée, l'unité et la règle polkit ; rétention et vérification réglables (migration `012`), enchaînées après une sauvegarde planifiée réussie ; restauration simulée puis réelle en quarantaine ; rattachement d'un dépôt existant ; déverrouillage avec avertissement ; route `POST /api/v1/backups/operations` (administrateurs) ; carte « Maintenance », panneau de restauration.
 - Écarts : la vérification n'a pas son propre horaire, elle suit la sauvegarde planifiée au plus une fois par semaine ; le diff entre instantanés et les copies vers un autre dépôt ne sont pas livrés ; SFTP attend la décision sur la clé SSH de root.
 - Recette dans la VM : tout réussi avec restic 0.18 (rétention, vérification à 5 %, restauration simulée puis réelle d'un fichier dans la quarantaine, déverrouillage, rattachement avec mauvais puis bon mot de passe).
+
+## Décisions de conception (6C)
+
+| Sujet | Choix | Motif |
+|---|---|---|
+| Diff | Opération `diff` de l'unité, demandée par un administrateur avec deux identifiants d'instantanés ; `restic diff --json -- <de> <à>` ; chiffres complets, 1 000 premiers chemins (256 Kio au plus) gardés dans `details` ; 11 min au plus | § 7.4 ; bornes du § 2.2 |
+| Chemins du diff | Servis aux seuls administrateurs ; les autres rôles et les jetons d'API voient les chiffres | Un nom de fichier peut être sensible |
+| Copies | **Un** dépôt de copie, de même type qu'un dépôt principal (local, rest-server, S3), avec son propre mot de passe scellé sous ses propres données associées | § 7.2 ; un second dépôt suffit à la règle 3-2-1, plusieurs restent possibles plus tard |
+| Création | « Créer » génère le mot de passe, affiché une fois, et lance une copie qui crée d'abord le dépôt (`init --copy-chunker-params`) ; « Rattacher » prend le mot de passe d'un dépôt existant et le prouve par une première copie | Même parcours que le dépôt principal ; déduplication gardée |
+| Échec après la création | Rendu en avertissement : le dépôt créé reste rattaché et son mot de passe valable | Sinon le dépôt existerait sans que le Manager connaisse son mot de passe |
+| Planification | Après chaque sauvegarde planifiée réussie si `afterBackup`, avant la rétention et la vérification ; à la main par un administrateur | Pas de second horaire à régler |
+| Rétention de la copie | La politique du dépôt principal, quand elle est activée, s'applique au dépôt de copie après la copie | Sinon la copie grossit sans fin |
+| Identifiants | restic lit un seul jeu d'identifiants rest-server et S3 : ceux du rest-server vont dans l'adresse de chaque dépôt (`RESTIC_REPOSITORY`, `RESTIC_FROM_REPOSITORY`, par l'environnement, masqués par restic) ; deux dépôts S3 doivent partager leur clé, sinon refus ; le programme d'entrée remplace toute valeur secrète par `***` dans ses messages | Contraintes de restic 0.18 |
+
+## Bilan de l'incrément 6C (25 novembre 2026)
+
+- Livré : opérations `diff` et `copy` dans le programme d'entrée, l'exécuteur, l'unité et la règle polkit (un test vérifie que la règle livrée liste exactement les opérations du code) ; migration `015` (dépôt de copie, reconstruction de `backup_runs`) ; routes `PUT /api/v1/backups/copy`, `POST /api/v1/backups/copy/remove`, `/copy/init`, `/copy/connect`, opérations `diff` et `copy` de `POST /api/v1/backups/operations`, `lastCopy` dans la synthèse ; bouton « Comparer » et panneau de comparaison dans « Instantanés », carte « Dépôt de copie » dans « Configuration ».
+- Vérifié avec restic 0.18.0 dans la VM Debian 13 : diff entre deux sauvegardes réelles (fichier modifié et ajouté), création du dépôt de copie puis copie de deux instantanés, seconde copie sans doublon et rétention appliquée à la copie, mauvais mot de passe refusé sans le révéler ; copie entre deux rest-server HTTPS aux identifiants différents avec l'environnement exact du programme d'entrée, mauvais identifiant refusé (401) et masqué par restic.
+- Non vérifié : le parcours complet par l'interface dans la VM (unité root et règle polkit installées) ; une copie S3 réelle.
+- Reste : SFTP (gestion de la clé SSH de root à décider).

@@ -22,6 +22,19 @@ type BackupLatest struct {
 	LastScheduled *domain.BackupRun
 	// LastCheck is the newest successful check of the repository.
 	LastCheck *domain.BackupRun
+	// LastCopy is the newest copy to the copy repository, whatever its
+	// outcome.
+	LastCopy *domain.BackupRun
+}
+
+// BackupFinish is what a finished run changes besides itself.
+type BackupFinish struct {
+	// Snapshots replace the stored ones when not nil.
+	Snapshots []domain.BackupSnapshot
+	// InitializedAt marks the repository initialized when not nil.
+	InitializedAt *time.Time
+	// CopyInitializedAt marks the copy repository initialized when not nil.
+	CopyInitializedAt *time.Time
 }
 
 // BackupStore keeps the configuration, the runs and the snapshots of the
@@ -36,10 +49,9 @@ type BackupStore interface {
 	// StartBackupRun records a running run, with its audit entry when a
 	// user asked for it.
 	StartBackupRun(ctx context.Context, run domain.BackupRun, audit *domain.AuditEntry) error
-	// FinishBackupRun records the outcome in one transaction: the run, the
-	// snapshots when not nil (they replace the stored ones), and the
-	// initialisation date of the repository when not nil.
-	FinishBackupRun(ctx context.Context, run domain.BackupRun, snapshots []domain.BackupSnapshot, initializedAt *time.Time) error
+	// FinishBackupRun records the outcome and what it changes in one
+	// transaction.
+	FinishBackupRun(ctx context.Context, run domain.BackupRun, finish BackupFinish) error
 	// InterruptRunningBackupRuns fails the runs left running by a stop.
 	InterruptRunningBackupRuns(ctx context.Context, at time.Time) error
 	LatestBackupRuns(ctx context.Context) (BackupLatest, error)
@@ -66,11 +78,19 @@ type BackupJob struct {
 	CheckSubsetPercent int
 	// Restore: restore only.
 	Restore *domain.BackupRestore
+	// Diff: diff only.
+	Diff *domain.BackupDiffRequest
+	// Copy: copy only, the destination; CopyInit creates it first and
+	// CopyRetention, when not nil, applies to it after the copy.
+	Copy          *domain.BackupRepository
+	CopyInit      bool
+	CopyRetention *domain.BackupRetention
 }
 
 // BackupExecutor runs an operation in homelab-backup@.service and returns
 // its result. Its failures are *domain.BackupRunError; the context bounds
 // the run.
 type BackupExecutor interface {
-	Execute(ctx context.Context, job BackupJob, credentials domain.BackupCredentials) (domain.BackupResult, error)
+	// copyCredentials are those of the copy repository, for a copy only.
+	Execute(ctx context.Context, job BackupJob, credentials domain.BackupCredentials, copyCredentials *domain.BackupCredentials) (domain.BackupResult, error)
 }

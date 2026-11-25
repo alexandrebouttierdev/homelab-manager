@@ -62,6 +62,25 @@ type backupConfigDTO struct {
 	Check            backupCheckDTO       `json:"check"`
 	UpdatedAt        *time.Time           `json:"updatedAt"`
 	UpdatedBy        *string              `json:"updatedBy"`
+	Copy             *backupCopyDTO       `json:"copy"`
+}
+
+// backupCopyDTO is the copy repository, never a secret.
+type backupCopyDTO struct {
+	Repository    backupRepositoryDTO  `json:"repository"`
+	Initialized   bool                 `json:"initialized"`
+	InitializedAt *time.Time           `json:"initializedAt"`
+	Credentials   backupCredentialsDTO `json:"credentials"`
+	AfterBackup   bool                 `json:"afterBackup"`
+}
+
+// backupCopyRequest sets the copy repository. username and secret: absent
+// or null keeps them, "" removes them.
+type backupCopyRequest struct {
+	Repository  backupRepositoryDTO `json:"repository"`
+	Username    *string             `json:"username"`
+	Secret      *string             `json:"secret"`
+	AfterBackup bool                `json:"afterBackup"`
 }
 
 // backupConfigRequest replaces the configuration. username and secret:
@@ -128,7 +147,25 @@ type backupSummaryDTO struct {
 	LastRun     *backupRunDTO `json:"lastRun"`
 	LastSuccess *backupRunDTO `json:"lastSuccess"`
 	LastCheck   *backupRunDTO `json:"lastCheck"`
+	LastCopy    *backupRunDTO `json:"lastCopy"`
 	NextRunAt   *time.Time    `json:"nextRunAt"`
+}
+
+// withoutDiffPaths hides the changed paths of a diff from an account that
+// cannot manage the backups: the figures stay, the file names do not.
+func withoutDiffPaths(r *http.Request, run *backupRunDTO) *backupRunDTO {
+	if run == nil || run.Details == nil || run.Details.Diff == nil {
+		return run
+	}
+	if user, ok := sessionUser(r); ok && user.Role.Can(domain.PermManageBackups) {
+		return run
+	}
+	details, diff := *run.Details, *run.Details.Diff
+	diff.Changes = []domain.BackupDiffChange{}
+	details.Diff = &diff
+	hidden := *run
+	hidden.Details = &details
+	return &hidden
 }
 
 func toBackupRunDTO(run *domain.BackupRun) *backupRunDTO {
@@ -173,6 +210,13 @@ func toBackupConfigDTO(view usecase.BackupConfigView) backupConfigDTO {
 	if view.Repository != nil {
 		dto.Repository = &backupRepositoryDTO{Type: string(view.Repository.Type), Location: view.Repository.Location}
 	}
+	if copy := view.Copy; copy != nil {
+		dto.Copy = &backupCopyDTO{
+			Repository:  backupRepositoryDTO{Type: string(copy.Repository.Type), Location: copy.Repository.Location},
+			Initialized: copy.Initialized, InitializedAt: copy.InitializedAt, AfterBackup: copy.AfterBackup,
+			Credentials: backupCredentialsDTO{Password: copy.HasPassword, Username: copy.HasUsername, Secret: copy.HasSecret},
+		}
+	}
 	return dto
 }
 
@@ -215,6 +259,12 @@ func writeBackupError(w http.ResponseWriter, r *http.Request, err error) {
 		writeError(w, r, http.StatusConflict, "BACKUP_ALREADY_INITIALIZED", "The backup repository is already initialized.")
 	case errors.Is(err, domain.ErrBackupAlreadyRunning), errors.Is(err, domain.ErrBackupRepositoryInUse):
 		writeError(w, r, http.StatusConflict, "BACKUP_IN_PROGRESS", "A backup operation is already running.")
+	case errors.Is(err, domain.ErrBackupCopyNotConfigured):
+		writeError(w, r, http.StatusConflict, "BACKUP_COPY_NOT_CONFIGURED", "No copy repository is configured.")
+	case errors.Is(err, domain.ErrBackupCopyNotInitialized):
+		writeError(w, r, http.StatusConflict, "BACKUP_COPY_NOT_INITIALIZED", "The copy repository is not initialized.")
+	case errors.Is(err, domain.ErrBackupCopyAlreadyInitialized):
+		writeError(w, r, http.StatusConflict, "BACKUP_COPY_ALREADY_INITIALIZED", "The copy repository is already initialized.")
 	case errors.Is(err, domain.ErrBackupsNotReady):
 		writeError(w, r, http.StatusServiceUnavailable, "BACKUPS_UNAVAILABLE", "Backups are starting or stopping.")
 	case errors.Is(err, domain.ErrBackupSecretsMissing):
@@ -233,9 +283,9 @@ func backupSummaryHandler(backups *usecase.BackupUsecase) http.HandlerFunc {
 		}
 		writeJSON(w, http.StatusOK, backupSummaryDTO{
 			Configured: summary.Configured, Initialized: summary.Initialized,
-			Running: toBackupRunDTO(summary.Running), LastRun: toBackupRunDTO(summary.LastRun),
+			Running: withoutDiffPaths(r, toBackupRunDTO(summary.Running)), LastRun: toBackupRunDTO(summary.LastRun),
 			LastSuccess: toBackupRunDTO(summary.LastSuccess), LastCheck: toBackupRunDTO(summary.LastCheck),
-			NextRunAt: summary.NextRunAt,
+			LastCopy: toBackupRunDTO(summary.LastCopy), NextRunAt: summary.NextRunAt,
 		})
 	}
 }
@@ -360,7 +410,7 @@ func listBackupRunsHandler(backups *usecase.BackupUsecase) http.HandlerFunc {
 		}
 		response := make([]*backupRunDTO, 0, len(runs))
 		for i := range runs {
-			response = append(response, toBackupRunDTO(&runs[i]))
+			response = append(response, withoutDiffPaths(r, toBackupRunDTO(&runs[i])))
 		}
 		writeJSON(w, http.StatusOK, map[string]any{"runs": response})
 	}
@@ -378,7 +428,7 @@ func backupRunHandler(backups *usecase.BackupUsecase) http.HandlerFunc {
 			writeBackupError(w, r, err)
 			return
 		}
-		writeJSON(w, http.StatusOK, map[string]any{"run": toBackupRunDTO(&run)})
+		writeJSON(w, http.StatusOK, map[string]any{"run": withoutDiffPaths(r, toBackupRunDTO(&run))})
 	}
 }
 
@@ -407,6 +457,10 @@ type backupOperationRequest struct {
 		Include    []string `json:"include"`
 		DryRun     bool     `json:"dryRun"`
 	} `json:"restore"`
+	Diff *struct {
+		From string `json:"from"`
+		To   string `json:"to"`
+	} `json:"diff"`
 }
 
 func requestBackupOperationHandler(backups *usecase.BackupUsecase) http.HandlerFunc {
@@ -421,13 +475,16 @@ func requestBackupOperationHandler(backups *usecase.BackupUsecase) http.HandlerF
 			writeError(w, r, http.StatusUnauthorized, "SESSION_NOT_FOUND", "Authentication is required.")
 			return
 		}
-		var restore *domain.BackupRestore
+		var operation usecase.BackupOperationRequest
 		if request.Restore != nil {
-			restore = &domain.BackupRestore{
+			operation.Restore = &domain.BackupRestore{
 				SnapshotID: request.Restore.SnapshotID, Include: request.Restore.Include, DryRun: request.Restore.DryRun,
 			}
 		}
-		run, err := backups.RequestOperation(r.Context(), actor, domain.BackupOperation(request.Operation), restore, middleware.GetReqID(r.Context()))
+		if request.Diff != nil {
+			operation.Diff = &domain.BackupDiffRequest{From: request.Diff.From, To: request.Diff.To}
+		}
+		run, err := backups.RequestOperation(r.Context(), actor, domain.BackupOperation(request.Operation), operation, middleware.GetReqID(r.Context()))
 		if err != nil {
 			writeBackupError(w, r, err)
 			return
@@ -453,6 +510,88 @@ func connectBackupRepositoryHandler(backups *usecase.BackupUsecase) http.Handler
 			return
 		}
 		run, err := backups.ConnectRepository(r.Context(), actor, request.Password, middleware.GetReqID(r.Context()))
+		if err != nil {
+			writeBackupError(w, r, err)
+			return
+		}
+		writeJSON(w, http.StatusAccepted, map[string]any{"run": toBackupRunDTO(&run)})
+	}
+}
+
+func setBackupCopyHandler(backups *usecase.BackupUsecase) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var request backupCopyRequest
+		if err := decodeJSON(r, &request); err != nil {
+			writeError(w, r, http.StatusBadRequest, "VALIDATION_ERROR", "The copy repository is invalid.")
+			return
+		}
+		actor, ok := sessionUser(r)
+		if !ok {
+			writeError(w, r, http.StatusUnauthorized, "SESSION_NOT_FOUND", "Authentication is required.")
+			return
+		}
+		update := usecase.BackupCopyUpdate{
+			Repository: domain.BackupRepository{
+				Type: domain.BackupRepositoryType(request.Repository.Type), Location: request.Repository.Location,
+			},
+			Username: request.Username, Secret: request.Secret, AfterBackup: request.AfterBackup,
+		}
+		view, err := backups.SetCopy(r.Context(), actor, update, middleware.GetReqID(r.Context()))
+		if err != nil {
+			writeBackupError(w, r, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, toBackupConfigDTO(view))
+	}
+}
+
+func removeBackupCopyHandler(backups *usecase.BackupUsecase) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		actor, ok := sessionUser(r)
+		if !ok {
+			writeError(w, r, http.StatusUnauthorized, "SESSION_NOT_FOUND", "Authentication is required.")
+			return
+		}
+		view, err := backups.RemoveCopy(r.Context(), actor, middleware.GetReqID(r.Context()))
+		if err != nil {
+			writeBackupError(w, r, err)
+			return
+		}
+		writeJSON(w, http.StatusOK, toBackupConfigDTO(view))
+	}
+}
+
+func initBackupCopyHandler(backups *usecase.BackupUsecase) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		actor, ok := sessionUser(r)
+		if !ok {
+			writeError(w, r, http.StatusUnauthorized, "SESSION_NOT_FOUND", "Authentication is required.")
+			return
+		}
+		password, run, err := backups.InitCopy(r.Context(), actor, middleware.GetReqID(r.Context()))
+		if err != nil {
+			writeBackupError(w, r, err)
+			return
+		}
+		// The password is shown once: it is never served again.
+		w.Header().Set("Cache-Control", "no-store")
+		writeJSON(w, http.StatusAccepted, map[string]any{"password": password, "run": toBackupRunDTO(&run)})
+	}
+}
+
+func connectBackupCopyHandler(backups *usecase.BackupUsecase) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		var request backupConnectRequest
+		if err := decodeJSON(r, &request); err != nil {
+			writeError(w, r, http.StatusBadRequest, "VALIDATION_ERROR", "password is required.")
+			return
+		}
+		actor, ok := sessionUser(r)
+		if !ok {
+			writeError(w, r, http.StatusUnauthorized, "SESSION_NOT_FOUND", "Authentication is required.")
+			return
+		}
+		run, err := backups.ConnectCopy(r.Context(), actor, request.Password, middleware.GetReqID(r.Context()))
 		if err != nil {
 			writeBackupError(w, r, err)
 			return

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"fmt"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -263,7 +264,7 @@ func TestRunnerRefusesUnknownFieldsAndOperations(t *testing.T) {
 	if status, result, _ := f.run("backup"); status != 1 || !strings.Contains(result.Message, "unknown field") {
 		t.Fatalf("unknown field: status %d, %+v", status, result)
 	}
-	if status, _, _ := f.run("diff"); status != 2 {
+	if status, _, _ := f.run("mount"); status != 2 {
 		t.Fatalf("unknown operation = %d, want 2", status)
 	}
 	if status, result, _ := f.run("init"); status != 1 || result.Success {
@@ -305,6 +306,68 @@ func TestRunnerWithRealRestic(t *testing.T) {
 	if status != 0 || !result.Success || result.Summary == nil || result.Summary.TotalBytesProcessed != 5 || len(result.Snapshots) != 1 {
 		t.Fatalf("backup: %d %+v %s", status, result, stderr)
 	}
+	first := result.SnapshotID
+	if err := os.WriteFile(filepath.Join(source, "a.txt"), []byte("hello again"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(source, "c.txt"), []byte("new"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	f.job(backupjob.Job{
+		Version: 1, Operation: domain.BackupOpBackup, RepositoryType: domain.RepositoryLocal, Repository: repository,
+		Sources: []string{source}, Excludes: []string{"*.tmp"}, ExcludeIfPresent: ".nobackup",
+	}, credentials)
+	status, result, stderr = f.run("backup")
+	if status != 0 || result.SnapshotID == "" {
+		t.Fatalf("second backup: %d %+v %s", status, result, stderr)
+	}
+
+	diffJob := backupjob.Job{
+		Version: 1, Operation: domain.BackupOpDiff, RepositoryType: domain.RepositoryLocal, Repository: repository,
+		Sources: []string{}, Excludes: []string{}, Diff: &backupjob.Diff{From: first, To: result.SnapshotID},
+	}
+	f.job(diffJob, credentials)
+	status, result, stderr = f.run("diff")
+	if status != 0 || result.Details == nil || result.Details.Diff == nil {
+		t.Fatalf("diff: %d %+v %s", status, result, stderr)
+	}
+	changes := map[string]string{}
+	for _, change := range result.Details.Diff.Changes {
+		changes[strings.TrimPrefix(change.Path, source)] = change.Modifier
+	}
+	if changes["/a.txt"] != "M" || changes["/c.txt"] != "+" || result.Details.Diff.Added.Files != 1 {
+		t.Fatalf("diff = %+v (%v)", result.Details.Diff, changes)
+	}
+
+	copyRepository := filepath.Join(root, "copy")
+	copyJob := backupjob.Job{
+		Version: 1, Operation: domain.BackupOpCopy, RepositoryType: domain.RepositoryLocal, Repository: repository,
+		Sources: []string{}, Excludes: []string{},
+		Copy: &backupjob.Copy{RepositoryType: domain.RepositoryLocal, Repository: copyRepository, Init: true},
+	}
+	copySecrets := backupjob.Secrets{BackupCredentials: credentials, Copy: &domain.BackupCredentials{Password: "another-password"}}
+	f.job(copyJob, domain.BackupCredentials{})
+	f.secrets(domain.BackupOpCopy, copySecrets)
+	status, result, stderr = f.run("copy")
+	if status != 0 || result.Warning || result.Details.Copy.SnapshotsCopied != 2 || !result.Details.Copy.Initialized {
+		t.Fatalf("first copy: %d %+v %s", status, result.Details, stderr)
+	}
+	copyJob.Copy.Init, copyJob.Copy.Retention = false, &backupjob.Retention{KeepDaily: 1}
+	f.job(copyJob, domain.BackupCredentials{})
+	f.secrets(domain.BackupOpCopy, copySecrets)
+	status, result, stderr = f.run("copy")
+	// Both snapshots were made the same day: the retention keeps one.
+	if status != 0 || result.Details.Copy.SnapshotsCopied != 0 || result.Details.Copy.SnapshotsRemoved != 1 ||
+		result.Details.Copy.SnapshotsInTarget != 1 {
+		t.Fatalf("second copy: %d %+v %s", status, result.Details.Copy, stderr)
+	}
+	copySecrets.Copy.Password = "wrong-password"
+	f.job(copyJob, domain.BackupCredentials{})
+	f.secrets(domain.BackupOpCopy, copySecrets)
+	if status, result, _ := f.run("copy"); status != 1 || result.Message == "" || strings.Contains(result.Message, "wrong-password") {
+		t.Fatalf("copy with a wrong password: %d %+v", status, result)
+	}
+
 	f.job(backupjob.Job{
 		Version: 1, Operation: domain.BackupOpBackup, RepositoryType: domain.RepositoryLocal, Repository: repository,
 		Sources: []string{source},
@@ -422,5 +485,218 @@ func TestRestoreRefusesATargetOutsideTheQuarantine(t *testing.T) {
 				t.Fatal("restic ran")
 			}
 		})
+	}
+}
+
+func (f *fixture) secrets(op domain.BackupOperation, secrets backupjob.Secrets) {
+	f.t.Helper()
+	if err := backupjob.WriteAtomic(backupjob.SecretsPath(f.config.JobsDir, op), secrets, 0o600); err != nil {
+		f.t.Fatal(err)
+	}
+}
+
+const (
+	snapshotA = "3a253ad8aaaaaaaa"
+	snapshotB = "9f2c11b0bbbbbbbb"
+)
+
+func TestDiffKeepsTheFiguresAndTheFirstChanges(t *testing.T) {
+	f := newFixture(t)
+	var out strings.Builder
+	for i := 0; i < domain.MaxBackupDiffChanges+5; i++ {
+		fmt.Fprintf(&out, `{"message_type":"change","path":"/srv/file-%d","modifier":"+"}`+"\n", i)
+	}
+	out.WriteString(`{"message_type":"change","path":"/srv/odd","modifier":"X"}` + "\n")
+	out.WriteString(`{"message_type":"statistics","source_snapshot":"a","target_snapshot":"b","changed_files":2,` +
+		`"added":{"files":1005,"dirs":1,"others":0,"data_blobs":2,"tree_blobs":3,"bytes":4096},` +
+		`"removed":{"files":1,"dirs":0,"others":0,"data_blobs":1,"tree_blobs":1,"bytes":12}}` + "\n")
+	f.file("diff.out", out.String())
+	job := repositoryJob(domain.BackupOpDiff)
+	job.Diff = &backupjob.Diff{From: snapshotA, To: snapshotB}
+	f.job(job, domain.BackupCredentials{Password: "p"})
+
+	status, result, stderr := f.run("diff")
+	if status != 0 || !result.Success || result.Details == nil || result.Details.Diff == nil {
+		t.Fatalf("diff: %d %+v %s", status, result, stderr)
+	}
+	report := result.Details.Diff
+	if report.From != snapshotA || report.To != snapshotB || report.ChangedFiles != 2 ||
+		report.Added.Files != 1005 || report.Added.Bytes != 4096 || report.Removed.Files != 1 || report.Removed.Bytes != 12 {
+		t.Fatalf("figures = %+v", report)
+	}
+	if report.TotalChanges != domain.MaxBackupDiffChanges+5 || !report.Truncated || len(report.Changes) != domain.MaxBackupDiffChanges ||
+		report.Changes[0] != (domain.BackupDiffChange{Path: "/srv/file-0", Modifier: "+"}) {
+		t.Fatalf("changes: total %d, kept %d, truncated %v", report.TotalChanges, len(report.Changes), report.Truncated)
+	}
+	if got := strings.TrimSpace(f.read("args.diff")); got != "diff\n--json\n--\n"+snapshotA+"\n"+snapshotB {
+		t.Fatalf("args = %q", got)
+	}
+
+	f.file("diff.out", `{"message_type":"change","path":"/a","modifier":"M"}`+"\n")
+	f.job(job, domain.BackupCredentials{Password: "p"})
+	if status, result, _ := f.run("diff"); status != 1 || result.Success {
+		t.Fatalf("a diff without statistics must fail: %d %+v", status, result)
+	}
+	f.file("diff.out", "")
+	f.file("diff.err", `{"message_type":"exit_error","code":1,"message":"Fatal: no matching ID found for prefix \"3a253ad8aaaaaaaa\""}`+"\n")
+	f.file("diff.code", "1")
+	f.job(job, domain.BackupCredentials{Password: "p"})
+	if status, result, _ := f.run("diff"); status != 1 || !strings.Contains(result.Message, "no matching ID") {
+		t.Fatalf("unknown snapshot: %d %+v", status, result)
+	}
+}
+
+func TestDiffRefusesInvalidSnapshots(t *testing.T) {
+	for name, request := range map[string]backupjob.Diff{
+		"same":   {From: snapshotA, To: snapshotA},
+		"option": {From: "--help", To: snapshotB},
+		"short":  {From: "3a25", To: snapshotB},
+	} {
+		t.Run(name, func(t *testing.T) {
+			f := newFixture(t)
+			job := repositoryJob(domain.BackupOpDiff)
+			job.Diff = &request
+			f.job(job, domain.BackupCredentials{Password: "p"})
+			if status, _, _ := f.run("diff"); status != 1 {
+				t.Fatalf("status %d", status)
+			}
+			if _, err := os.Stat(filepath.Join(f.bin, "args.diff")); !os.IsNotExist(err) {
+				t.Fatal("restic ran")
+			}
+		})
+	}
+}
+
+func copyJob(init bool) backupjob.Job {
+	job := repositoryJob(domain.BackupOpCopy)
+	job.RepositoryType, job.Repository = domain.RepositoryRest, "https://backup.lan:8000/main"
+	job.Copy = &backupjob.Copy{RepositoryType: domain.RepositoryS3, Repository: "https://s3.example.com/bucket/copy", Init: init}
+	return job
+}
+
+var copySecrets = backupjob.Secrets{
+	BackupCredentials: domain.BackupCredentials{Password: "main-pass", Username: "rest-user", Secret: "rest-secret"},
+	Copy:              &domain.BackupCredentials{Password: "copy-pass", Username: "key-id", Secret: "key-secret"},
+}
+
+func TestCopyInitializesThenCopies(t *testing.T) {
+	f := newFixture(t)
+	f.file("snapshots.out", snapshotsJSON)
+	f.job(copyJob(true), domain.BackupCredentials{})
+	f.secrets(domain.BackupOpCopy, copySecrets)
+
+	status, result, stderr := f.run("copy")
+	if status != 0 || !result.Success || result.Details == nil || result.Details.Copy == nil {
+		t.Fatalf("copy: %d %+v %s", status, result, stderr)
+	}
+	report := result.Details.Copy
+	if !report.Initialized || report.SnapshotsCopied != 2 || report.SnapshotsInTarget != 2 ||
+		report.Repository.Location != "https://s3.example.com/bucket/copy" {
+		t.Fatalf("report = %+v", report)
+	}
+	if got := strings.TrimSpace(f.read("args.init")); got != "init\n--copy-chunker-params\n--json" {
+		t.Fatalf("init args = %q", got)
+	}
+	if got := strings.TrimSpace(f.read("args.copy")); got != "copy\n--tag\nhomelab-manager" {
+		t.Fatalf("copy args = %q", got)
+	}
+	env := f.read("env.copy")
+	for _, want := range []string{
+		"RESTIC_REPOSITORY=s3:https://s3.example.com/bucket/copy\n", "RESTIC_PASSWORD=copy-pass\n",
+		"RESTIC_FROM_REPOSITORY=rest:https://rest-user:rest-secret@backup.lan:8000/main\n", "RESTIC_FROM_PASSWORD=main-pass\n",
+		"AWS_ACCESS_KEY_ID=key-id\n", "AWS_SECRET_ACCESS_KEY=key-secret\n",
+	} {
+		if !strings.Contains(env, want) {
+			t.Fatalf("env misses %q:\n%s", want, env)
+		}
+	}
+	if strings.Contains(env, "RESTIC_REST_") {
+		t.Fatal("rest-server credentials go in the URL of their repository only")
+	}
+	if _, err := os.Stat(backupjob.SecretsPath(f.config.JobsDir, domain.BackupOpCopy)); !os.IsNotExist(err) {
+		t.Fatal("the secrets file must be removed")
+	}
+}
+
+func TestCopyAppliesTheRetentionAndHidesTheSecrets(t *testing.T) {
+	f := newFixture(t)
+	f.file("snapshots.out", snapshotsJSON)
+	f.file("forget.out", `[{"remove":[{"id":"b"}]}]`+"\n")
+	job := copyJob(false)
+	job.Copy.Retention = &backupjob.Retention{KeepDaily: 3}
+	f.job(job, domain.BackupCredentials{})
+	f.secrets(domain.BackupOpCopy, copySecrets)
+	status, result, _ := f.run("copy")
+	if status != 0 || result.Details.Copy.SnapshotsCopied != 0 || result.Details.Copy.SnapshotsRemoved != 1 ||
+		result.Details.Copy.SnapshotsInTarget != 1 {
+		t.Fatalf("copy: %d %+v", status, result.Details.Copy)
+	}
+	if _, err := os.Stat(filepath.Join(f.bin, "args.init")); !os.IsNotExist(err) {
+		t.Fatal("init ran on a connected repository")
+	}
+	if got := strings.TrimSpace(f.read("args.forget")); got != "forget\n--json\n--tag\nhomelab-manager\n--keep-daily\n3\n--prune" {
+		t.Fatalf("forget args = %q", got)
+	}
+
+	f.file("copy.err", "Fatal: wrong password copy-pass or key-secret\n")
+	f.file("copy.code", "12")
+	f.job(job, domain.BackupCredentials{})
+	f.secrets(domain.BackupOpCopy, copySecrets)
+	status, result, stderr := f.run("copy")
+	if status != 1 || strings.Contains(result.Message, "copy-pass") || strings.Contains(result.Message, "key-secret") ||
+		!strings.Contains(result.Message, "wrong password ***") || strings.Contains(stderr, "copy-pass") {
+		t.Fatalf("failed copy: %d %q %q", status, result.Message, stderr)
+	}
+}
+
+func TestCopyRefusesInvalidSecrets(t *testing.T) {
+	cases := map[string]func(*backupjob.Job, *backupjob.Secrets){
+		"no copy credentials": func(_ *backupjob.Job, s *backupjob.Secrets) { s.Copy = nil },
+		"two S3 keys": func(j *backupjob.Job, s *backupjob.Secrets) {
+			j.RepositoryType, j.Repository = domain.RepositoryS3, "https://s3.example.com/bucket/main"
+			s.BackupCredentials = domain.BackupCredentials{Password: "p", Username: "other", Secret: "other-secret"}
+		},
+		"same repository": func(j *backupjob.Job, _ *backupjob.Secrets) {
+			j.Copy.RepositoryType, j.Copy.Repository = j.RepositoryType, j.Repository
+		},
+		"copy credentials elsewhere": func(j *backupjob.Job, _ *backupjob.Secrets) {
+			*j = repositoryJob(domain.BackupOpCheck)
+			j.Operation = domain.BackupOpCopy
+		},
+	}
+	for name, change := range cases {
+		t.Run(name, func(t *testing.T) {
+			f := newFixture(t)
+			job, secrets := copyJob(false), copySecrets
+			copied := *copySecrets.Copy
+			secrets.Copy = &copied
+			change(&job, &secrets)
+			f.job(job, domain.BackupCredentials{})
+			f.secrets(domain.BackupOpCopy, secrets)
+			if status, _, _ := f.run("copy"); status != 1 {
+				t.Fatalf("status %d", status)
+			}
+			if _, err := os.Stat(filepath.Join(f.bin, "args.copy")); !os.IsNotExist(err) {
+				t.Fatal("restic ran")
+			}
+		})
+	}
+}
+
+func TestCopyFailingAfterTheInitialisationIsAWarning(t *testing.T) {
+	f := newFixture(t)
+	f.file("copy.err", "Fatal: connection reset\n")
+	f.file("copy.code", "1")
+	f.job(copyJob(true), domain.BackupCredentials{})
+	f.secrets(domain.BackupOpCopy, copySecrets)
+	status, result, _ := f.run("copy")
+	if status != 0 || !result.Success || !result.Warning || !result.Details.Copy.Initialized ||
+		result.Message != "the copy failed: Fatal: connection reset" {
+		t.Fatalf("copy: %d %+v", status, result)
+	}
+	f.job(copyJob(false), domain.BackupCredentials{})
+	f.secrets(domain.BackupOpCopy, copySecrets)
+	if status, result, _ := f.run("copy"); status != 1 || result.Success {
+		t.Fatalf("a failed copy to a connected repository fails: %d %+v", status, result)
 	}
 }

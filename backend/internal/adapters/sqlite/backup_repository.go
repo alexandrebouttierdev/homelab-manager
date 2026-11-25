@@ -66,6 +66,15 @@ func (r *BackupRepository) BackupConfig(ctx context.Context) (domain.BackupConfi
 			Type: domain.BackupRepositoryType(*record.RepositoryType), Location: *record.RepositoryLocation,
 		}
 	}
+	if record.CopyRepositoryType != nil && record.CopyRepositoryLocation != nil {
+		config.Copy = &domain.BackupCopyTarget{
+			Repository: domain.BackupRepository{
+				Type: domain.BackupRepositoryType(*record.CopyRepositoryType), Location: *record.CopyRepositoryLocation,
+			},
+			SealedCredentials: record.CopySealedCredentials, InitializedAt: utcPointer(record.CopyInitializedAt),
+			AfterBackup: record.CopyAfterBackup,
+		}
+	}
 	return config, nil
 }
 
@@ -122,6 +131,18 @@ func (r *BackupRepository) SaveBackupConfig(ctx context.Context, config domain.B
 		} else {
 			update.ClearInitializedAt()
 		}
+		if copy := config.Copy; copy != nil {
+			update.SetCopyRepositoryType(string(copy.Repository.Type)).SetCopyRepositoryLocation(copy.Repository.Location).
+				SetCopySealedCredentials(copy.SealedCredentials).SetCopyAfterBackup(copy.AfterBackup)
+			if copy.InitializedAt != nil {
+				update.SetCopyInitializedAt(copy.InitializedAt.UTC())
+			} else {
+				update.ClearCopyInitializedAt()
+			}
+		} else {
+			update.ClearCopyRepositoryType().ClearCopyRepositoryLocation().SetCopySealedCredentials("").
+				ClearCopyInitializedAt().SetCopyAfterBackup(false)
+		}
 		if err := update.Exec(ctx); err != nil {
 			return fmt.Errorf("save backup configuration: %w", err)
 		}
@@ -146,7 +167,8 @@ func (r *BackupRepository) StartBackupRun(ctx context.Context, run domain.Backup
 	})
 }
 
-func (r *BackupRepository) FinishBackupRun(ctx context.Context, run domain.BackupRun, snapshots []domain.BackupSnapshot, initializedAt *time.Time) error {
+func (r *BackupRepository) FinishBackupRun(ctx context.Context, run domain.BackupRun, finish ports.BackupFinish) error {
+	snapshots, initializedAt := finish.Snapshots, finish.InitializedAt
 	return withTx(ctx, r.client, func(tx *ent.Tx) error {
 		update := tx.BackupRun.UpdateOneID(run.ID).SetState(string(run.State)).SetMessage(run.Message).
 			SetWarning(run.Warning).SetSnapshotID(run.SnapshotID)
@@ -176,6 +198,15 @@ func (r *BackupRepository) FinishBackupRun(ctx context.Context, run domain.Backu
 			if _, err := tx.BackupConfig.Update().Where(entconfig.SingletonKey(settingsSingletonKey)).
 				SetInitializedAt(initializedAt.UTC()).Save(ctx); err != nil {
 				return fmt.Errorf("mark the repository initialized: %w", err)
+			}
+		}
+		if finish.CopyInitializedAt != nil {
+			// The copy repository may have been removed meanwhile: only a
+			// configured one is marked.
+			if _, err := tx.BackupConfig.Update().
+				Where(entconfig.SingletonKey(settingsSingletonKey), entconfig.CopyRepositoryLocationNotNil()).
+				SetCopyInitializedAt(finish.CopyInitializedAt.UTC()).Save(ctx); err != nil {
+				return fmt.Errorf("mark the copy repository initialized: %w", err)
 			}
 		}
 		if snapshots == nil {
@@ -246,8 +277,11 @@ func (r *BackupRepository) LatestBackupRuns(ctx context.Context) (ports.BackupLa
 	if latest.LastScheduled, err = first(backups().Where(entrun.OriginIn(string(domain.BackupScheduled), string(domain.BackupCatchUp)))); err != nil {
 		return latest, err
 	}
-	latest.LastCheck, err = first(r.client.BackupRun.Query().Where(
-		entrun.Operation(string(domain.BackupOpCheck)), entrun.State(string(domain.BackupSucceeded))))
+	if latest.LastCheck, err = first(r.client.BackupRun.Query().Where(
+		entrun.Operation(string(domain.BackupOpCheck)), entrun.State(string(domain.BackupSucceeded)))); err != nil {
+		return latest, err
+	}
+	latest.LastCopy, err = first(r.client.BackupRun.Query().Where(entrun.Operation(string(domain.BackupOpCopy))))
 	return latest, err
 }
 

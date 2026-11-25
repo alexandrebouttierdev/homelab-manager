@@ -14,6 +14,7 @@ import (
 	"errors"
 	"fmt"
 	"io"
+	"net/url"
 	"os"
 	"os/exec"
 	"path/filepath"
@@ -72,15 +73,19 @@ func Run(ctx context.Context, config Config, operation string, stderr io.Writer)
 		return 2
 	}
 	result := backupjob.Result{Version: domain.BackupJobVersion, Operation: op, StartedAt: config.Now().UTC()}
-	err := execute(ctx, config, op, &result)
+	var secrets []string
+	err := execute(ctx, config, op, &result, &secrets)
 	result.FinishedAt = config.Now().UTC()
 	if err != nil {
 		result.Success = false
 		if result.Message == "" {
 			result.Message = domain.TruncateBackupMessage(err.Error())
 		}
-		fmt.Fprintf(stderr, "%s failed: %v\n", op, err)
+		fmt.Fprintf(stderr, "%s failed: %v\n", op, scrub(err.Error(), secrets))
 	}
+	// restic hides the passwords it prints; the runner makes sure none
+	// reaches the Manager.
+	result.Message = scrub(result.Message, secrets)
 	if writeErr := backupjob.WriteAtomic(backupjob.ResultPath(config.RunsDir, op), result, resultMode); writeErr != nil {
 		fmt.Fprintf(stderr, "write the result: %v\n", writeErr)
 		return 2
@@ -91,7 +96,7 @@ func Run(ctx context.Context, config Config, operation string, stderr io.Writer)
 	return 0
 }
 
-func execute(ctx context.Context, config Config, op domain.BackupOperation, result *backupjob.Result) error {
+func execute(ctx context.Context, config Config, op domain.BackupOperation, result *backupjob.Result, secrets *[]string) error {
 	var job backupjob.Job
 	if err := backupjob.ReadStrict(backupjob.JobPath(config.JobsDir, op), backupjob.MaxJobBytes, &job); err != nil {
 		return fmt.Errorf("read the job: %w", err)
@@ -102,11 +107,15 @@ func execute(ctx context.Context, config Config, op domain.BackupOperation, resu
 	if err := job.Validate(); err != nil {
 		return fmt.Errorf("invalid job: %w", err)
 	}
-	credentials, err := readSecrets(config, op, job.RepositoryType)
+	credentials, err := readSecrets(config, op, job)
 	if err != nil {
 		return err
 	}
-	env := resticEnv(config, job, credentials)
+	*secrets = credentials.Values()
+	if op == domain.BackupOpCopy {
+		return copySnapshots(ctx, config, job, credentials, result)
+	}
+	env := resticEnv(config, job, credentials.BackupCredentials)
 	switch op {
 	case domain.BackupOpInit:
 		output, err := runCaptured(ctx, config, env, []string{"init", "--json"})
@@ -159,6 +168,8 @@ func execute(ctx context.Context, config Config, op domain.BackupOperation, resu
 		return forgetPrune(ctx, config, env, job, result)
 	case domain.BackupOpRestore:
 		return restore(ctx, config, env, job, result)
+	case domain.BackupOpDiff:
+		return diff(ctx, config, env, job, result)
 	}
 	return fmt.Errorf("operation %q is not supported", op)
 }
@@ -243,20 +254,30 @@ func restore(ctx context.Context, config Config, env []string, job backupjob.Job
 
 // readSecrets reads then removes the one-use secrets file: it never stays
 // on disk after the run.
-func readSecrets(config Config, op domain.BackupOperation, kind domain.BackupRepositoryType) (domain.BackupCredentials, error) {
+func readSecrets(config Config, op domain.BackupOperation, job backupjob.Job) (backupjob.Secrets, error) {
 	path := backupjob.SecretsPath(config.JobsDir, op)
-	var credentials domain.BackupCredentials
-	readErr := backupjob.ReadStrict(path, backupjob.MaxSecretsBytes, &credentials)
+	var secrets backupjob.Secrets
+	readErr := backupjob.ReadStrict(path, backupjob.MaxSecretsBytes, &secrets)
 	if err := os.Remove(path); err != nil && !errors.Is(err, os.ErrNotExist) {
-		return domain.BackupCredentials{}, fmt.Errorf("remove the secrets file: %w", err)
+		return backupjob.Secrets{}, fmt.Errorf("remove the secrets file: %w", err)
 	}
 	if readErr != nil {
-		return domain.BackupCredentials{}, fmt.Errorf("read the secrets: %w", readErr)
+		return backupjob.Secrets{}, fmt.Errorf("read the secrets: %w", readErr)
 	}
-	if err := domain.ValidateBackupCredentials(kind, credentials); err != nil {
-		return domain.BackupCredentials{}, fmt.Errorf("invalid secrets: %w", err)
+	if err := job.ValidateSecrets(secrets); err != nil {
+		return backupjob.Secrets{}, fmt.Errorf("invalid secrets: %w", err)
 	}
-	return credentials, nil
+	return secrets, nil
+}
+
+// scrub replaces every secret found in a message.
+func scrub(message string, secrets []string) string {
+	for _, secret := range secrets {
+		if len(secret) >= 4 {
+			message = strings.ReplaceAll(message, secret, "***")
+		}
+	}
+	return message
 }
 
 // resticEnv is the whole environment of restic: nothing is inherited.
@@ -557,4 +578,236 @@ func (b *boundedBuffer) Write(p []byte) (int, error) {
 		return len(p), nil
 	}
 	return b.Buffer.Write(p)
+}
+
+// diff compares two snapshots: every change is counted, the first ones
+// are kept with their path, within domain.MaxBackupDiffChanges and
+// domain.MaxBackupDiffBytes.
+func diff(ctx context.Context, config Config, env []string, job backupjob.Job, result *backupjob.Result) error {
+	request := job.Diff
+	report := &domain.BackupDiff{From: request.From, To: request.To, Changes: []domain.BackupDiffChange{}}
+	result.Details = &domain.BackupRunDetails{Diff: report}
+	cmd := exec.CommandContext(ctx, config.Restic, "diff", "--json", "--", request.From, request.To)
+	cmd.Env = env
+	stderr := &boundedBuffer{limit: maxStderrBytes}
+	cmd.Stderr = stderr
+	stdout, err := cmd.StdoutPipe()
+	if err != nil {
+		return fmt.Errorf("start restic: %w", err)
+	}
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("start restic: %w", err)
+	}
+	output := resticOutput{}
+	statistics, scanErr := readDiffStream(stdout, &output, report)
+	waitErr := cmd.Wait()
+	output.absorbAll(stderr.Bytes())
+	if waitErr != nil {
+		result.Message = output.message()
+		return waitErr
+	}
+	if err := errors.Join(scanErr, errorIf(!statistics, "restic gave no statistics")); err != nil {
+		return err
+	}
+	result.Success = true
+	return nil
+}
+
+// diffMessage is a line of restic diff --json: a change or the statistics.
+type diffMessage struct {
+	MessageType  string `json:"message_type"`
+	Path         string `json:"path"`
+	Modifier     string `json:"modifier"`
+	ChangedFiles int64  `json:"changed_files"`
+	Added        struct {
+		Files  int64 `json:"files"`
+		Dirs   int64 `json:"dirs"`
+		Others int64 `json:"others"`
+		Bytes  int64 `json:"bytes"`
+	} `json:"added"`
+	Removed struct {
+		Files  int64 `json:"files"`
+		Dirs   int64 `json:"dirs"`
+		Others int64 `json:"others"`
+		Bytes  int64 `json:"bytes"`
+	} `json:"removed"`
+}
+
+// diffModifiers are the modifiers restic prints.
+var diffModifiers = map[string]bool{"+": true, "-": true, "M": true, "U": true, "T": true, "?": true}
+
+func readDiffStream(stdout io.Reader, output *resticOutput, report *domain.BackupDiff) (bool, error) {
+	scanner := bufio.NewScanner(stdout)
+	scanner.Buffer(make([]byte, 64<<10), maxLineBytes)
+	statistics, kept := false, 0
+	for scanner.Scan() {
+		line := scanner.Bytes()
+		if output.absorb(line) == nil {
+			continue
+		}
+		var message diffMessage
+		if json.Unmarshal(bytes.TrimSpace(line), &message) != nil {
+			continue
+		}
+		switch message.MessageType {
+		case "change":
+			if !diffModifiers[message.Modifier] || message.Path == "" {
+				continue
+			}
+			report.TotalChanges++
+			path := strings.ToValidUTF8(message.Path, "�")
+			if len(report.Changes) >= domain.MaxBackupDiffChanges || kept+len(path) > domain.MaxBackupDiffBytes {
+				report.Truncated = true
+				continue
+			}
+			kept += len(path)
+			report.Changes = append(report.Changes, domain.BackupDiffChange{Path: path, Modifier: message.Modifier})
+		case "statistics":
+			statistics = true
+			report.ChangedFiles = message.ChangedFiles
+			report.Added = domain.BackupDiffCounts{
+				Files: message.Added.Files, Dirs: message.Added.Dirs, Others: message.Added.Others, Bytes: message.Added.Bytes,
+			}
+			report.Removed = domain.BackupDiffCounts{
+				Files: message.Removed.Files, Dirs: message.Removed.Dirs, Others: message.Removed.Others, Bytes: message.Removed.Bytes,
+			}
+		}
+	}
+	if err := scanner.Err(); err != nil {
+		_, _ = io.Copy(io.Discard, stdout)
+		return statistics, fmt.Errorf("read restic output: %w", err)
+	}
+	return statistics, nil
+}
+
+// copySnapshots copies the snapshots of the Manager from the repository of
+// the job to the copy repository: restic opens the destination as its
+// repository and the source as its "from" repository. It initializes the
+// destination first when asked, with the chunker parameters of the source
+// to keep the deduplication, and applies the retention policy after the
+// copy when one is given.
+func copySnapshots(ctx context.Context, config Config, job backupjob.Job, secrets backupjob.Secrets, result *backupjob.Result) error {
+	destination := job.Copy
+	report := &domain.BackupCopyResult{Repository: destination.BackupRepository()}
+	result.Details = &domain.BackupRunDetails{Copy: report}
+	env, err := copyEnv(config, job, secrets)
+	if err != nil {
+		return err
+	}
+	before := 0
+	if destination.Init {
+		output, err := runCaptured(ctx, config, env, []string{"init", "--copy-chunker-params", "--json"})
+		if err != nil {
+			result.Message = output.message()
+			return err
+		}
+		report.Initialized = true
+	} else if before, err = countSnapshots(ctx, config, env); err != nil {
+		result.Message = domain.TruncateBackupMessage(err.Error())
+		return err
+	}
+	// Once the repository is created, a later failure is a warning: the
+	// Manager keeps its password, and the next copy resumes.
+	partial := func(step string, err error, message string) error {
+		if message == "" {
+			message = err.Error()
+		}
+		result.Message = domain.TruncateBackupMessage(step + ": " + message)
+		if !report.Initialized {
+			return err
+		}
+		result.Success, result.Warning = true, true
+		return nil
+	}
+	output, err := runCaptured(ctx, config, env, []string{"copy", "--tag", domain.BackupTag})
+	if err != nil {
+		return partial("the copy failed", err, output.message())
+	}
+	after, err := countSnapshots(ctx, config, env)
+	if err != nil {
+		return partial("the copy succeeded, its snapshots could not be counted", err, "")
+	}
+	report.SnapshotsCopied, report.SnapshotsInTarget = max(after-before, 0), after
+	result.Success = true
+	if r := destination.Retention; r != nil {
+		retention := job
+		retention.Retention = r
+		forget := backupjob.Result{}
+		if err := forgetPrune(ctx, config, env, retention, &forget); err != nil {
+			// The copy is done: its retention failing is a warning.
+			result.Warning = true
+			result.Message = domain.TruncateBackupMessage("the copy succeeded, its retention failed: " + forget.Message)
+			return nil
+		}
+		report.SnapshotsRemoved = forget.Details.SnapshotsRemoved
+		report.SnapshotsInTarget = max(after-report.SnapshotsRemoved, 0)
+	}
+	return nil
+}
+
+// copyEnv is the environment of a copy. restic reads a single set of
+// rest-server and S3 credentials for both repositories: the rest-server
+// credentials go into each repository URL, which restic hides in its
+// messages, and both S3 repositories must share their key.
+func copyEnv(config Config, job backupjob.Job, secrets backupjob.Secrets) ([]string, error) {
+	source, destination := job.BackupRepository(), job.Copy.BackupRepository()
+	env := []string{
+		"PATH=" + config.Path,
+		"HOME=" + config.CacheDir,
+		"TMPDIR=" + config.TempDir,
+		"RESTIC_CACHE_DIR=" + config.CacheDir,
+		"RESTIC_REPOSITORY=" + withRestCredentials(destination, *secrets.Copy),
+		"RESTIC_PASSWORD=" + secrets.Copy.Password,
+		"RESTIC_FROM_REPOSITORY=" + withRestCredentials(source, secrets.BackupCredentials),
+		"RESTIC_FROM_PASSWORD=" + secrets.Password,
+		"RESTIC_PROGRESS_FPS=0.1",
+	}
+	var s3 *domain.BackupCredentials
+	for _, side := range []struct {
+		repository  domain.BackupRepository
+		credentials domain.BackupCredentials
+	}{{source, secrets.BackupCredentials}, {destination, *secrets.Copy}} {
+		if side.repository.Type != domain.RepositoryS3 {
+			continue
+		}
+		if s3 != nil && (s3.Username != side.credentials.Username || s3.Secret != side.credentials.Secret) {
+			return nil, errors.New("restic copies between two S3 repositories with the same access key only")
+		}
+		credentials := side.credentials
+		s3 = &credentials
+	}
+	if s3 != nil {
+		env = append(env, "AWS_ACCESS_KEY_ID="+s3.Username, "AWS_SECRET_ACCESS_KEY="+s3.Secret)
+	}
+	return env, nil
+}
+
+// withRestCredentials puts the rest-server credentials into the URL of a
+// rest repository; other repositories are named as usual.
+func withRestCredentials(repository domain.BackupRepository, credentials domain.BackupCredentials) string {
+	if repository.Type != domain.RepositoryRest || credentials.Username == "" {
+		return repository.ResticRepository()
+	}
+	parsed, err := url.Parse(repository.Location)
+	if err != nil {
+		return repository.ResticRepository()
+	}
+	parsed.User = url.UserPassword(credentials.Username, credentials.Secret)
+	return "rest:" + parsed.String()
+}
+
+// countSnapshots counts the snapshots of the Manager in the repository.
+func countSnapshots(ctx context.Context, config Config, env []string) (int, error) {
+	output, err := runCaptured(ctx, config, env, []string{"snapshots", "--json", "--tag", domain.BackupTag})
+	if err != nil {
+		if message := output.message(); message != "" {
+			return 0, errors.New(message)
+		}
+		return 0, err
+	}
+	var listed []json.RawMessage
+	if err := json.Unmarshal(bytes.TrimSpace(output.stdout), &listed); err != nil {
+		return 0, fmt.Errorf("decode the snapshots: %w", err)
+	}
+	return len(listed), nil
 }

@@ -65,7 +65,7 @@ Les températures sont opportunistes : une source absente ou inaccessible produi
 
 Un service de découverte interroge périodiquement la liste complète des conteneurs, arrêtés compris, et compare les identifiants/états avec l'état connu. Les nouveaux objets, suppressions, redémarrages et changements d'état sont persistés comme événements. Les statistiques par conteneur proviennent de Docker Engine API (`stats` non-streaming), indépendamment des pages affichées.
 
-Le port applicatif expose seulement les besoins nécessaires, notamment `ListContainers` et `ContainerStats`. L'adaptateur encode les appels API Docker et traduit les réponses vers des types métier ; aucun type du SDK Docker ne traverse les ports/usecases. Les changements d'état sont identifiés par réconciliation périodique, pas par un flux d'événements.
+Le port applicatif expose seulement les besoins nécessaires, notamment `ListContainers`, `ContainerStats` et `Inventory` (images, volumes et réseaux, avec le nombre de conteneurs qui les utilisent). L'adaptateur encode les appels API Docker et traduit les réponses vers des types métier ; aucun type du SDK Docker ne traverse les ports/usecases. Les changements d'état sont identifiés par réconciliation périodique, pas par un flux d'événements.
 
 Un proxy local en liste blanche est la frontière de sécurité. Il n'expose que les appels GET de liste, inspection et statistiques ; il refuse toute autre route, méthode, tunnel ou changement de daemon. Le processus Manager n'accède pas directement au socket rootful. Voir [SECURITY.md](./SECURITY.md).
 
@@ -73,7 +73,7 @@ En cas d'indisponibilité du démon, conserver le dernier inventaire connu comme
 
 ## 6. Planification, persistance et ressources
 
-- Les cycles système, découverte Docker, stats Docker et rétention (horaire) ont des fréquences indépendantes et bornées, chacun dans une goroutine détenue par `MonitoringUsecase.Run`, arrêtée par annulation de contexte avant la fermeture de la base.
+- Les cycles système, découverte Docker, stats Docker, inventaire Docker (chaque minute, gardé en mémoire) et rétention (horaire) ont des fréquences indépendantes et bornées, chacun dans une goroutine détenue par `MonitoringUsecase.Run`, arrêtée par annulation de contexte avant la fermeture de la base.
 - La collecte démarre au lancement du Manager, non à la première requête.
 - Une panne ponctuelle d'un sous-système n'empêche pas l'autre collecteur de fonctionner.
 - Les insertions de métriques sont groupées ; les requêtes historiques ont des bornes temporelles et un plafond de résultats ; les vues courantes lisent le dernier cycle complet.

@@ -1,5 +1,6 @@
 import { Database, HardDrive } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { UnusedDockerCard } from '../../components/UnusedDockerCard'
 import { Badge } from '../../components/ui/Badge'
 import { CardFooter } from '../../components/ui/Card'
 import { Table, TBody, TD, TH, THead, TR } from '../../components/ui/DataTable'
@@ -11,7 +12,7 @@ import { SearchField } from '../../components/ui/SearchField'
 import { useVolumesPage } from './useVolumesPage'
 
 export function VolumesPage() {
-  const { search, setSearch, containers, mounts, filtered, bindMounts, namedVolumes } =
+  const { search, setSearch, unused, containers, mounts, filtered, bindMounts, namedVolumes } =
     useVolumesPage()
 
   return (
@@ -20,7 +21,7 @@ export function VolumesPage() {
         title="Volumes & montages"
         breadcrumb={[{ label: 'Docker' }, { label: 'Volumes' }]}
         badge={<Badge tone="neutral">{mounts.length} montage(s)</Badge>}
-        description="Montages déclarés par les conteneurs observés. Le Manager n'expose ni création, ni suppression, ni inspection des volumes Docker."
+        description="Montages déclarés par les conteneurs observés, puis volumes nommés qu'aucun conteneur, même arrêté, ne monte. Le Manager n'expose ni création, ni suppression des volumes Docker."
       />
 
       <div className="grid gap-3 sm:grid-cols-3">
@@ -139,6 +140,11 @@ export function VolumesPage() {
           </CardFooter>
         </>
       )}
+      <UnusedDockerCard
+        title="Volumes nommés inutilisés"
+        emptyLabel="Tous les volumes nommés sont montés par au moins un conteneur."
+        section={unused}
+      />
     </div>
   )
 }

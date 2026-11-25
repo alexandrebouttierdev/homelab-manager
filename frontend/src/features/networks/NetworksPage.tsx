@@ -1,5 +1,6 @@
 import { Cable, Network } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { UnusedDockerCard } from '../../components/UnusedDockerCard'
 import { Badge } from '../../components/ui/Badge'
 import { CardFooter } from '../../components/ui/Card'
 import { Table, TBody, TD, TH, THead, TR } from '../../components/ui/DataTable'
@@ -14,6 +15,7 @@ import { useNetworksPage } from './useNetworksPage'
 
 export function NetworksPage() {
   const {
+    unused,
     search,
     setSearch,
     isLoading,
@@ -31,7 +33,7 @@ export function NetworksPage() {
         title="Réseaux Docker"
         breadcrumb={[{ label: 'Docker' }, { label: 'Réseaux' }]}
         badge={<Badge tone="neutral">{networks.length} réseau(x)</Badge>}
-        description="Réseaux auxquels les conteneurs observés sont attachés. La configuration du démon et les réseaux sans conteneur ne sont pas exposés."
+        description="Réseaux auxquels les conteneurs observés sont attachés, puis réseaux créés sans aucun conteneur (bridge, host et none, propres à Docker, exclus). La configuration du démon n'est pas exposée."
       />
 
       <div className="grid gap-3 sm:grid-cols-3">
@@ -161,6 +163,11 @@ export function NetworksPage() {
           </CardFooter>
         </>
       )}
+      <UnusedDockerCard
+        title="Réseaux inutilisés"
+        emptyLabel="Tous les réseaux créés sont reliés à au moins un conteneur."
+        section={unused}
+      />
     </div>
   )
 }

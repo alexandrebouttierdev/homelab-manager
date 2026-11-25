@@ -140,6 +140,7 @@ func NewRouter(logger *zap.Logger, services Services, sessionSecure bool, webRoo
 					active.Get("/containers/{containerID}/metrics/{metricName}", metricHistoryHandler(monitoring, true))
 					active.Get("/containers/{containerID}/events", listEventsHandler(monitoring, true))
 					active.Get("/events", listEventsHandler(monitoring, false))
+					active.Get("/docker/inventory", dockerInventoryHandler(monitoring))
 					active.Get("/settings", settingsHandler(monitoring))
 					active.With(requirePermission(deny, domain.PermManageSettings)).Put("/settings/retention", updateRetentionHandler(monitoring))
 					active.With(requireVulnerabilities(vulnerabilities), requirePermission(deny, domain.PermManageSettings)).

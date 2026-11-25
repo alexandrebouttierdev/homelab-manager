@@ -41,7 +41,7 @@ Chaque incrément, quel qu'il soit :
 | **7** | Tâches planifiées en lecture (Cron et timers) — **livré** | 2, 3 | — | S |
 | **8** | WebAuthn (passkeys, FIDO2) et jetons d'API en lecture — **livré** (8A, 8B) | 1C, HTTPS | `013_api_tokens.sql`, `014_webauthn_credentials.sql` | L |
 | **V** | Vulnérabilités des paquets (Grype) : scans automatiques et manuels, onglet de la page Machine, synthèse du tableau de bord, historique | 4 | `009_vulnerabilities.sql` | L |
-| *Option* | Dettes v2.1 : pagination par curseur (**livrée** le 25 novembre 2026), inventaire complet images/volumes/réseaux | Décision Q-4 | — | M |
+| *Option* | Dettes v2.1 : pagination par curseur et inventaire complet images/volumes/réseaux — **livré** le 25 novembre 2026 | Décision Q-4 | — | M |
 
 Le coffre de secrets (§ 2.5 de la spécification) est avancé en **1C** et non en phase 4 : les secrets TOTP doivent être chiffrés (§ 3.6), ce qui en fait le premier consommateur.
 
@@ -177,7 +177,7 @@ Questions nouvelles relevées en préparant ce plan, à trancher avant l'incrém
 | Q-2 | Le compte `admin` créé avec le mot de passe par défaut `admin` doit-il être forcé à changer de mot de passe ? | **Tranchée (oui)** le 23 novembre 2026 : changement imposé à la création, et au démarrage si le compte accepte encore `admin` ; livrée après 1B. | — |
 | Q-3 | Les refus d'autorisation (`403 FORBIDDEN`) et les refus métier (`LAST_ADMIN`) sont-ils audités ? | Oui, avec `outcome = denied`, à partir de 1B (port `AuditRecorder`). En 1A, ils sont journalisés par zap avec le `request_id`. | 1B |
 | Q-5 | Faut-il une procédure dans l'interface pour retirer le second facteur d'un compte qui a perdu son appareil et ses codes de secours ? | Non pour l'instant : un administrateur supprime et recrée le compte ; pour le dernier administrateur, procédure SQLite documentée dans le README (non auditée). À réexaminer avec WebAuthn. | 8 |
-| Q-4 | Lever les limites v2.1 (pagination par curseur, images/volumes/réseaux inutilisés) ? La seconde exige d'ajouter au proxy des routes GET `images/json`, `volumes`, `networks`. | **En partie tranchée** le 25 novembre 2026, le propriétaire ayant laissé le choix à l'agent : pagination par curseur des conteneurs et des événements livrée (API_CONTRACTS.md § 9), sans nouveau droit. L'inventaire complet des images, volumes et réseaux, qui élargit le proxy Docker, attend l'accord du propriétaire. | Option |
+| Q-4 | Lever les limites v2.1 (pagination par curseur, images/volumes/réseaux inutilisés) ? La seconde exige d'ajouter au proxy des routes GET `images/json`, `volumes`, `networks`. | **Tranchée** le 25 novembre 2026 par l'agent, le propriétaire lui ayant laissé le choix : pagination par curseur des conteneurs et des événements (API_CONTRACTS.md § 9), puis inventaire des images, volumes et réseaux (§ 6.3) avec trois listes `GET` sans paramètre ajoutées au proxy, options des pilotes filtrées ; lecture seule, aucune suppression. | Option |
 | Q-6 | Règle par défaut « température > seuil du capteur » : les seuils des capteurs ne sont pas collectés | Seuil fixe de 85 °C, modifiable ; collecter les seuils serait une évolution à part | 4A |
 | Q-7 | Un silence masque-t-il l'alerte dans l'interface ? | **Retenu (4B)** : non, alerte listée « sous silence », seules les notifications sont suspendues | — |
 | Q-8 | Vérification réelle de Telegram, Discord, Gotify, ntfy et SMTP | Tests contre des serveurs simulés ; webhook signé vérifié en conditions réelles ; les autres restent à vérifier par le propriétaire avec ses jetons (bilan 4B) | Propriétaire |

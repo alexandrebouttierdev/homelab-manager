@@ -11,6 +11,7 @@ Le Backend démarre en arrière-plan des collecteurs locaux indépendants : syst
 | Collecte système | `system_collect_interval_seconds` | 5–300 s | 10 s |
 | Statistiques Docker | `docker_collect_interval_seconds` | 5–300 s | 15 s |
 | Découverte Docker (inventaire + événements) | `docker_discovery_interval_seconds` | 10–600 s | 30 s |
+| Images, volumes et réseaux Docker (en mémoire) | fixe | — | 60 s |
 | Rétention | `metrics_retention_days`, puis interface | 1–365 jours | 7 jours |
 | Purge | fixe | — | au démarrage puis toutes les heures |
 | Services systemd (inventaire + événements) | fixe | — | 30 s, 25 s au plus par cycle |

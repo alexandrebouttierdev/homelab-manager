@@ -414,7 +414,7 @@ La première release est `v2.3.0`, alignée sur la [spécification produit](docs
 - **Non implémenté, à spécifier** : connexion par passkey seule (sans mot de passe) ; les passkeys servent de second facteur. Voir [docs/SPEC_ADMINISTRATION.md](docs/SPEC_ADMINISTRATION.md) et la [feuille de route](docs/superpowers/plans/2026-11-23-feuille-de-route-v3.md).
 - Historiques bruts ou agrégés, 2 000 points au plus par requête ; l'interface choisit le pas selon la période.
 - À l'intervalle par défaut (10 s), la base croît d'environ 300 Mo par jour jusqu'à la rétention : ≈ 2 Go pour 7 jours.
-- Conteneurs et événements paginés par curseur, autres listes bornées ; images, volumes et réseaux Docker déduits des conteneurs.
+- Conteneurs et événements paginés par curseur, autres listes bornées ; images, volumes et réseaux Docker inutilisés listés en lecture seule, relus chaque minute.
 - SQLite n'accepte qu'un écrivain à la fois : le Manager sérialise ses accès sur une connexion unique, ce qui convient à une seule machine.
 - Les rafraîchissements automatiques d'un onglet ouvert comptent comme une activité de session ; le journal d'audit n'est pas purgé.
 - Le passage de PostgreSQL à SQLite n'a pas migré les données : une ancienne installation PostgreSQL repart d'une base vide.

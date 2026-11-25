@@ -1,7 +1,9 @@
 import { loadState } from '../../hooks/loadState'
 import { useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
+import { getDockerInventory } from '../../lib/api/docker'
 import { listContainers } from '../../lib/api/monitoring'
+import { unreadableSection, unusedVolumes } from '../../lib/dockerInventory'
 import { mountField } from '../../lib/containers'
 import { useRefreshInterval } from '../../lib/refresh'
 
@@ -23,6 +25,14 @@ export function useVolumesPage() {
     queryFn: () => listContainers(false),
     refetchInterval: refreshInterval || false,
   })
+  const inventory = useQuery({
+    queryKey: ['docker', 'inventory'],
+    queryFn: getDockerInventory,
+    refetchInterval: refreshInterval || false,
+  })
+  const unused = inventory.isError
+    ? unreadableSection(inventory.error)
+    : unusedVolumes(inventory.data)
 
   const mounts = useMemo(() => {
     const grouped = new Map<string, MountGroup>()
@@ -66,6 +76,7 @@ export function useVolumesPage() {
   return {
     search,
     setSearch,
+    unused,
     containers: loadState(containers),
     mounts,
     filtered,

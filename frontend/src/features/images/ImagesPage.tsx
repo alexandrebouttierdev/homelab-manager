@@ -1,5 +1,6 @@
 import { ExternalLink, Images as ImagesIcon } from 'lucide-react'
 import { Link } from 'react-router-dom'
+import { UnusedDockerCard } from '../../components/UnusedDockerCard'
 import { Badge } from '../../components/ui/Badge'
 import { CardFooter } from '../../components/ui/Card'
 import { Table, TBody, TD, TH, THead, TR } from '../../components/ui/DataTable'
@@ -14,6 +15,7 @@ export function ImagesPage() {
   const {
     search,
     setSearch,
+    unused,
     isLoading,
     error,
     retry,
@@ -29,7 +31,7 @@ export function ImagesPage() {
         title="Images Docker"
         breadcrumb={[{ label: 'Docker' }, { label: 'Images' }]}
         badge={<Badge tone="neutral">{images.length} image(s)</Badge>}
-        description="Images dérivées de l'inventaire des conteneurs observés. Les images non utilisées ne sont pas visibles via l'API Docker en lecture seule du Manager."
+        description="Images utilisées par les conteneurs observés, puis images qu'aucun conteneur, même arrêté, n'utilise. Lecture seule : le Manager ne supprime rien."
       />
 
       <div className="grid gap-3 sm:grid-cols-3">
@@ -169,6 +171,11 @@ export function ImagesPage() {
           </CardFooter>
         </>
       )}
+      <UnusedDockerCard
+        title="Images inutilisées"
+        emptyLabel="Toutes les images servent à au moins un conteneur."
+        section={unused}
+      />
     </div>
   )
 }

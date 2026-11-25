@@ -14,6 +14,8 @@ type SystemCollector interface {
 type DockerSource interface {
 	ListContainers(context.Context) ([]domain.Container, error)
 	ContainerStats(context.Context, string) ([]domain.MetricSample, error)
+	// Inventory reads the images, volumes and networks of the Docker host.
+	Inventory(context.Context) (domain.DockerInventory, error)
 }
 
 type MonitoringRepository interface {

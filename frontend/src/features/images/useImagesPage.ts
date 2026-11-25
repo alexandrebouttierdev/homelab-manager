@@ -1,6 +1,8 @@
 import { useQuery } from '@tanstack/react-query'
 import { useMemo, useState } from 'react'
+import { getDockerInventory } from '../../lib/api/docker'
 import { listContainers } from '../../lib/api/monitoring'
+import { unreadableSection, unusedImages } from '../../lib/dockerInventory'
 import { imageTag, isRunning } from '../../lib/containers'
 import { useRefreshInterval } from '../../lib/refresh'
 
@@ -23,6 +25,14 @@ export function useImagesPage() {
     queryFn: () => listContainers(false),
     refetchInterval: refreshInterval || false,
   })
+  const inventory = useQuery({
+    queryKey: ['docker', 'inventory'],
+    queryFn: getDockerInventory,
+    refetchInterval: refreshInterval || false,
+  })
+  const unused = inventory.isError
+    ? unreadableSection(inventory.error)
+    : unusedImages(inventory.data)
 
   const images = useMemo(() => {
     const grouped = new Map<string, ImageGroup>()
@@ -53,6 +63,7 @@ export function useImagesPage() {
   return {
     search,
     setSearch,
+    unused,
     isLoading: containers.isLoading,
     error: containers.error,
     retry: () => void containers.refetch(),

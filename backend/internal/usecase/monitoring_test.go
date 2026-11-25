@@ -29,6 +29,10 @@ func (unavailableDocker) ContainerStats(context.Context, string) ([]domain.Metri
 	return nil, errors.New("Docker unavailable")
 }
 
+func (unavailableDocker) Inventory(context.Context) (domain.DockerInventory, error) {
+	return domain.DockerInventory{}, errors.New("Docker unavailable")
+}
+
 type testMonitoringRepository struct{}
 
 func (testMonitoringRepository) SaveHost(context.Context, domain.HostInfo) error { return nil }
@@ -134,6 +138,9 @@ func TestStatusReportsStaleAfterThreeMissedCycles(t *testing.T) {
 type statsDocker struct{ recordedAt time.Time }
 
 func (statsDocker) ListContainers(context.Context) ([]domain.Container, error) { return nil, nil }
+func (statsDocker) Inventory(context.Context) (domain.DockerInventory, error) {
+	return domain.DockerInventory{}, nil
+}
 func (d statsDocker) ContainerStats(context.Context, string) ([]domain.MetricSample, error) {
 	return []domain.MetricSample{{Name: "cpu.percent", Value: 1, Unit: "percent", RecordedAt: d.recordedAt}}, nil
 }

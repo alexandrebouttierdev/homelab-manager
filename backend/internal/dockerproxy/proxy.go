@@ -108,6 +108,12 @@ func allowedPath(requestURL *url.URL) bool {
 		query := requestURL.Query()
 		return len(query) == 1 && len(query["all"]) == 1 && query.Get("all") == "1"
 	}
+	// The inventory of images, volumes and networks, without parameters:
+	// no filter, no inspection of one item.
+	switch requestURL.Path {
+	case dockerAPIVersion + "/images/json", dockerAPIVersion + "/volumes", dockerAPIVersion + "/networks":
+		return requestURL.RawQuery == ""
+	}
 	parts := strings.Split(strings.TrimPrefix(requestURL.Path, dockerAPIVersion+"/containers/"), "/")
 	if len(parts) != 2 || !containerIDPattern.MatchString(parts[0]) {
 		return false
@@ -148,7 +154,9 @@ func removeSecrets(value any) {
 	case map[string]any:
 		for key, item := range typed {
 			switch strings.ToLower(key) {
-			case "env", "labels":
+			// Driver options of volumes and networks may hold credentials
+			// (a CIFS password, for instance); the Manager never reads them.
+			case "env", "labels", "options", "driveropts":
 				delete(typed, key)
 			default:
 				removeSecrets(item)

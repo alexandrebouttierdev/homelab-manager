@@ -26,6 +26,7 @@ var tokenScopes = []struct {
 	{"/api/v1/dashboard", domain.ScopeMetricsRead},
 	{"/api/v1/host", domain.ScopeMetricsRead},
 	{"/api/v1/containers", domain.ScopeContainersRead},
+	{"/api/v1/docker", domain.ScopeContainersRead},
 	{"/api/v1/events", domain.ScopeEventsRead},
 	{"/api/v1/system/units", domain.ScopeServicesRead},
 	{"/api/v1/backups/summary", domain.ScopeBackupsRead},

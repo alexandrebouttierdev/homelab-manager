@@ -52,6 +52,7 @@ Ce document est le contrat exact de l'API implémentée. Toute différence entre
 | `GET /api/v1/containers/{containerID}/metrics/{metricName}` | oui | Historique brut ou agrégé (§ 5.3) |
 | `GET /api/v1/containers/{containerID}/events` | oui | Événements du conteneur (§ 6.2) |
 | `GET /api/v1/events` | oui | Tous les événements (§ 6.2) |
+| `GET /api/v1/docker/inventory` | oui | Images, volumes et réseaux Docker (§ 6.3) |
 | `GET /api/v1/settings` | oui | Paramètres effectifs (§ 4.4) |
 | `PUT /api/v1/settings/retention` | admin | Modifie la rétention (§ 4.4) |
 | `GET /api/v1/users` | admin | Comptes (§ 3.1) |
@@ -227,7 +228,7 @@ TOTP (RFC 6238 : HMAC-SHA-1, 6 chiffres, 30 s, ±1 période, un code n'est accep
 
 Jetons en lecture seule pour les scripts (SPEC_ADMINISTRATION.md § 3.5, phase 8A). Chaque compte gère ses jetons ; un administrateur liste et révoque ceux de tous.
 
-- **Usage** : en-tête `Authorization: Bearer hlm_<43 caractères>` sur une route `GET` (ou `HEAD`) de ses portées ; aucun cookie, aucun contrôle d'origine. Portées : `metrics:read` (`/api/v1/dashboard`, `/api/v1/host…`), `containers:read` (`/api/v1/containers…`), `events:read` (`/api/v1/events`), `services:read` (`/api/v1/system/units…`, en lecture), `backups:read` (`/api/v1/backups/summary`, `/runs…`, `/snapshots`). Toute autre route ou méthode : `403 TOKEN_SCOPE_DENIED`. Jeton inconnu, révoqué, expiré, ou compte désactivé ou supprimé : `401 TOKEN_INVALID`. L'usage n'est pas audité ; `lastUsedAt` est écrit au plus une fois par minute.
+- **Usage** : en-tête `Authorization: Bearer hlm_<43 caractères>` sur une route `GET` (ou `HEAD`) de ses portées ; aucun cookie, aucun contrôle d'origine. Portées : `metrics:read` (`/api/v1/dashboard`, `/api/v1/host…`), `containers:read` (`/api/v1/containers…`, `/api/v1/docker…`), `events:read` (`/api/v1/events`), `services:read` (`/api/v1/system/units…`, en lecture), `backups:read` (`/api/v1/backups/summary`, `/runs…`, `/snapshots`). Toute autre route ou méthode : `403 TOKEN_SCOPE_DENIED`. Jeton inconnu, révoqué, expiré, ou compte désactivé ou supprimé : `401 TOKEN_INVALID`. L'usage n'est pas audité ; `lastUsedAt` est écrit au plus une fois par minute.
 - `POST /api/v1/auth/tokens` avec `{ "name": "Home Assistant", "scopes": ["metrics:read"], "expiresInDays": 90 }` → `201 { "token": "hlm_…", "apiToken": Jeton }`, en-tête `Cache-Control: no-store` : le jeton n'est plus jamais renvoyé, seul son SHA-256 est stocké. `name` 1 à 100 caractères, au moins une portée, sans doublon, `expiresInDays` 1 à 365 (90 si absent ; sans expiration impossible). Plus de 20 jetons pour le compte : `409 TOO_MANY_TOKENS`. Audité (`api_token` / UUID / `create`).
 - `GET /api/v1/auth/tokens` → `{ "tokens": [Jeton], "scopes": [...] }`, les plus récents d'abord ; `?scope=all` (admin) : ceux de tous les comptes, sinon `403 FORBIDDEN` (audité). Jeton : `{ "id", "name", "prefix" (12 premiers caractères), "scopes", "username", "createdAt", "expiresAt", "lastUsedAt" }`.
 - `DELETE /api/v1/auth/tokens/{tokenID}` → `204` ; jeton d'un autre compte pour un non-administrateur, ou inconnu : `404 NOT_FOUND`. Audité (`api_token` / UUID / `revoke`).
@@ -941,6 +942,28 @@ Types émis par la collecte des services système (§ 4.7), sans `containerId` (
 Une unité en échec n'est signalée qu'une fois, même après un redémarrage du Manager ou la purge de l'événement (table `failed_units`) ; une unité qui redémarre (`activating`) reste en échec jusqu'à son retour à `active` ; une unité disparue de l'inventaire est oubliée sans événement.
 
 `severity` accepte `info`, `warning`, `error`, `critical` ; `critical` n'est pas émis actuellement. Aucun événement d'hôte ou de collecteur n'est persisté.
+
+### 6.3 Images, volumes et réseaux
+
+`GET /api/v1/docker/inventory` (tous les rôles ; jeton : `containers:read`), sans paramètre (sinon `400 VALIDATION_ERROR`) → `200` :
+
+```json
+{
+  "images": [{ "id": "sha256:…", "tags": ["nginx:stable"], "createdAt": "2026-11-20T10:00:00Z", "sizeBytes": 187000000, "containers": 2 }],
+  "volumes": [{ "name": "web-data", "driver": "local", "scope": "local", "createdAt": "2026-11-20T09:00:00Z", "containers": 1 }],
+  "networks": [{ "id": "…", "name": "front", "driver": "bridge", "scope": "local", "internal": false, "predefined": false, "subnets": ["172.20.0.0/16"], "containers": 2 }],
+  "truncated": false,
+  "observedAt": "2026-11-25T09:00:00Z",
+  "status": "ok",
+  "lastSuccessAt": "2026-11-25T09:00:00Z"
+}
+```
+
+- Lu par la collecte chaque minute, indépendamment des requêtes (`GET /v1.41/containers/json?all=1`, `images/json`, `volumes`, `networks` par le proxy), et gardé en mémoire seulement : la route ne contacte pas Docker. Avant la première lecture réussie, `status` vaut `starting`, `observedAt` `null` et les listes sont vides.
+- `containers` compte les conteneurs, en marche ou arrêtés, qui utilisent l'élément : image par son identifiant, volume nommé monté, réseau rattaché. Un élément à `0` est inutilisé ; `predefined` marque `bridge`, `host` et `none`, créés par Docker lui-même.
+- `tags` exclut `<none>:<none>` (image sans tag : liste vide) ; `sizeBytes` est la taille de l'image avec ses couches partagées. `createdAt` d'un volume vaut `null` si Docker ne la donne pas.
+- Tri : images par premier tag (sans tag en dernier) puis identifiant, volumes et réseaux par nom. Au plus 1 000 images, 1 000 volumes et 200 réseaux ; au-delà, `truncated` vaut `true`.
+- `status` : `starting`, `ok`, `stale` (dernière lecture de plus de 3 minutes) ou `unavailable` (dernière lecture en échec ; la liste précédente est gardée avec son `observedAt`). Les options des pilotes de volumes et de réseaux, les labels et les points de montage ne sont jamais renvoyés.
 
 ## 7. Versionnement
 

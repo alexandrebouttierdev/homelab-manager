@@ -37,6 +37,10 @@ type MonitoringUsecase struct {
 	systemStatus   domain.CollectorStatus
 	dockerStatus   domain.CollectorStatus
 	databaseStatus domain.CollectorStatus
+	// inventory is the last images, volumes and networks read from Docker,
+	// kept in memory only; nil until the first successful cycle.
+	inventory       *domain.DockerInventory
+	inventoryStatus domain.CollectorStatus
 	// userRetentionDays overrides config.Retention when > 0.
 	userRetentionDays int
 }
@@ -66,6 +70,9 @@ const (
 	// only removes about an hour of expired samples.
 	retentionInterval = time.Hour
 	purgeBatchSize    = 1000
+	// dockerInventoryInterval: images, volumes and networks change rarely
+	// and their listing costs more than the containers one.
+	dockerInventoryInterval = time.Minute
 )
 
 // Collector status values exposed by the API.
@@ -79,11 +86,12 @@ const (
 func NewMonitoringUsecase(system ports.SystemCollector, docker ports.DockerSource, repository ports.MonitoringRepository, config MonitoringConfig, logger *zap.Logger) *MonitoringUsecase {
 	return &MonitoringUsecase{
 		system: system, docker: docker, repo: repository, config: config, logger: logger,
-		now:            time.Now,
-		purgeNow:       make(chan struct{}, 1),
-		systemStatus:   domain.CollectorStatus{Status: StatusStarting},
-		dockerStatus:   domain.CollectorStatus{Status: StatusStarting},
-		databaseStatus: domain.CollectorStatus{Status: StatusStarting},
+		now:             time.Now,
+		purgeNow:        make(chan struct{}, 1),
+		systemStatus:    domain.CollectorStatus{Status: StatusStarting},
+		dockerStatus:    domain.CollectorStatus{Status: StatusStarting},
+		databaseStatus:  domain.CollectorStatus{Status: StatusStarting},
+		inventoryStatus: domain.CollectorStatus{Status: StatusStarting},
 	}
 }
 
@@ -96,10 +104,11 @@ func (u *MonitoringUsecase) WithSettings(settings ports.SettingsRepository) *Mon
 func (u *MonitoringUsecase) Run(ctx context.Context) {
 	u.loadRetention(ctx)
 	var workers sync.WaitGroup
-	workers.Add(4)
+	workers.Add(5)
 	go u.runPeriodic(ctx, &workers, u.config.SystemInterval, "system", u.collectSystem, nil)
 	go u.runPeriodic(ctx, &workers, u.config.DockerScanInterval, "docker discovery", u.discoverContainers, nil)
 	go u.runPeriodic(ctx, &workers, u.config.DockerStatsInterval, "docker stats", u.collectContainerMetrics, nil)
+	go u.runPeriodic(ctx, &workers, dockerInventoryInterval, "docker inventory", u.collectInventory, nil)
 	go u.runPeriodic(ctx, &workers, retentionInterval, "metrics retention", u.purgeMetrics, u.purgeNow)
 	<-ctx.Done()
 	workers.Wait()
@@ -222,6 +231,35 @@ func (u *MonitoringUsecase) discoverContainers(ctx context.Context) error {
 	u.setDatabaseStatus(StatusOK, &now)
 	u.setDockerStatus(StatusOK, &now)
 	return nil
+}
+
+// collectInventory reads the images, volumes and networks of Docker. On a
+// failure the previous inventory is kept and reported as unavailable.
+func (u *MonitoringUsecase) collectInventory(ctx context.Context) error {
+	inventory, err := u.docker.Inventory(ctx)
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	if err != nil {
+		u.inventoryStatus = domain.CollectorStatus{Status: StatusUnavailable, LastSuccessAt: u.inventoryStatus.LastSuccessAt}
+		return err
+	}
+	now := u.now().UTC()
+	u.inventory = &inventory
+	u.inventoryStatus = domain.CollectorStatus{Status: StatusOK, LastSuccessAt: &now}
+	return nil
+}
+
+// DockerInventory returns the last inventory of images, volumes and
+// networks (nil before the first successful cycle) and its status.
+func (u *MonitoringUsecase) DockerInventory() (*domain.DockerInventory, domain.CollectorStatus) {
+	u.mu.RLock()
+	defer u.mu.RUnlock()
+	status := u.inventoryStatus
+	if status.Status == StatusOK && status.LastSuccessAt != nil &&
+		u.now().Sub(*status.LastSuccessAt) > staleAfterCycles*dockerInventoryInterval {
+		status.Status = StatusStale
+	}
+	return u.inventory, status
 }
 
 func (u *MonitoringUsecase) collectContainerMetrics(ctx context.Context) error {

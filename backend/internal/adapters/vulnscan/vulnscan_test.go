@@ -247,6 +247,9 @@ type fakeSystemd struct {
 	active   string
 	result   string
 	unitName string
+	// unloaded: GetUnit answers NoSuchUnit, as systemd does once it has
+	// unloaded a static unit that ended inactive.
+	unloaded bool
 }
 
 func (f *fakeSystemd) StartUnit(name, mode string) (dbus.ObjectPath, *dbus.Error) {
@@ -276,6 +279,9 @@ func (f *fakeSystemd) GetUnit(name string) (dbus.ObjectPath, *dbus.Error) {
 	f.mu.Lock()
 	f.calls = append(f.calls, "GetUnit "+name)
 	f.mu.Unlock()
+	if f.unloaded {
+		return "", dbus.NewError("org.freedesktop.systemd1.NoSuchUnit", []any{"unit not loaded"})
+	}
 	return "/org/freedesktop/systemd1/unit/homelab_2dvulnscan_2eservice", nil
 }
 
@@ -333,6 +339,17 @@ func TestUnitStarterWaitsForTheStartJob(t *testing.T) {
 	defer fake.mu.Unlock()
 	if len(fake.calls) != 2 || fake.calls[0] != "StartUnit homelab-vulnscan.service replace" || fake.calls[1] != "GetUnit homelab-vulnscan.service" {
 		t.Fatalf("calls = %v, want StartUnit then GetUnit only", fake.calls)
+	}
+}
+
+// A static Type=oneshot unit that ends inactive is unloaded by systemd as
+// soon as its job is gone: GetUnit then answers NoSuchUnit. Seen on Debian
+// 13 with Grype 0.121.3, where every scan was reported "not installed"
+// although Grype had written its result.
+func TestUnitStarterAcceptsAUnitUnloadedAfterItsRun(t *testing.T) {
+	fake := &fakeSystemd{unitName: DefaultUnit, jobLife: 10 * time.Millisecond, unloaded: true}
+	if err := runUnit(t, fake, DefaultUnit, 5*time.Second); err != nil {
+		t.Fatalf("Run() = %v, want nil: the unit ran and was unloaded", err)
 	}
 }
 

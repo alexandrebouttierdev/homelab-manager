@@ -110,6 +110,15 @@ func (s *UnitStarter) Run(ctx context.Context, unit string) error {
 func (s *UnitStarter) outcome(ctx context.Context, conn *dbus.Conn, unit string) error {
 	var path dbus.ObjectPath
 	if err := conn.Object(busName, managerPath).CallWithContext(ctx, managerInterface+".GetUnit", 0, unit).Store(&path); err != nil {
+		var dbusErr dbus.Error
+		if errors.As(err, &dbusErr) && dbusErr.Name == "org.freedesktop.systemd1.NoSuchUnit" {
+			// StartUnit found the unit, so it exists: systemd unloads a
+			// static unit that ended inactive as soon as its job is gone,
+			// while a failed unit stays loaded. The result file, written
+			// after the old one was removed, is still checked by the
+			// scanner.
+			return nil
+		}
 		return classifyCall(err)
 	}
 	object := conn.Object(busName, path)

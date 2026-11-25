@@ -35,7 +35,7 @@ export function VulnerabilitiesCard() {
           <p className="text-xs text-success">Aucune vulnérabilité connue dans les paquets.</p>
         )}
         {card.status?.failure && (
-          <p className="text-[11px] text-danger" role="alert">
+          <p className="text-xs text-danger" role="alert">
             Dernière analyse en échec ({card.status.failure}).
           </p>
         )}
@@ -43,8 +43,8 @@ export function VulnerabilitiesCard() {
           <div className="grid grid-cols-4 gap-2">
             {card.counts.map((count) => (
               <div key={count.severity} className="rounded-md border border-line/70 px-2 py-1.5">
-                <p className="font-mono text-[10px] uppercase text-text-muted">{count.label}</p>
-                <p className="font-mono text-lg font-semibold text-text-primary">
+                <p className="text-xs text-text-muted">{count.label}</p>
+                <p className="text-lg font-semibold tracking-[-0.02em] text-text-primary">
                   {formatCount(count.value)}
                 </p>
               </div>
@@ -61,14 +61,14 @@ export function VulnerabilitiesCard() {
                 </span>
                 <span className="flex shrink-0 items-center gap-2">
                   <Badge tone={finding.severity.tone}>{finding.severity.label}</Badge>
-                  <span className="text-[11px] text-text-muted">{finding.found}</span>
+                  <span className="text-xs text-text-muted">{finding.found}</span>
                 </span>
               </li>
             ))}
           </ul>
         )}
       </CardBody>
-      <CardFooter className="flex justify-end font-mono text-[10px] text-text-muted">
+      <CardFooter className="flex justify-end text-xs text-text-muted">
         <Link
           to={card.link}
           className="inline-flex items-center gap-1 text-text-secondary hover:text-text-primary"

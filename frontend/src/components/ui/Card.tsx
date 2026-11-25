@@ -2,7 +2,7 @@ import type { HTMLAttributes, ReactNode } from 'react'
 import { cn } from '../../lib/cn'
 
 export function Card({ className, ...props }: HTMLAttributes<HTMLElement>) {
-  return <section className={cn('rounded-lg border border-line bg-card', className)} {...props} />
+  return <section className={cn('rounded-xl border border-line bg-card', className)} {...props} />
 }
 
 type CardHeaderProps = {
@@ -17,25 +17,21 @@ export function CardHeader({ title, subtitle, icon, actions, className }: CardHe
   return (
     <div
       className={cn(
-        'flex flex-wrap items-center justify-between gap-3 border-b border-line/70 px-4 py-3',
+        'flex flex-wrap items-center justify-between gap-3 border-b border-line px-5 pb-3 pt-4',
         className,
       )}
     >
       <div className="flex min-w-0 items-center gap-2.5">
         {icon && (
-          <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-md border border-line bg-elevated text-text-secondary">
+          <span className="flex shrink-0 items-center justify-center text-text-muted [&>svg]:h-4 [&>svg]:w-4">
             {icon}
           </span>
         )}
         <div className="min-w-0">
-          <h2 className="truncate text-sm font-semibold tracking-tight text-text-primary">
+          <h2 className="truncate text-[15px] font-semibold tracking-[-0.01em] text-text-primary">
             {title}
           </h2>
-          {subtitle && (
-            <p className="mt-0.5 truncate font-mono text-[10px] uppercase tracking-wider text-text-muted">
-              {subtitle}
-            </p>
-          )}
+          {subtitle && <p className="mt-0.5 truncate text-[13px] text-text-muted">{subtitle}</p>}
         </div>
       </div>
       {actions && <div className="flex shrink-0 items-center gap-2">{actions}</div>}
@@ -44,9 +40,9 @@ export function CardHeader({ title, subtitle, icon, actions, className }: CardHe
 }
 
 export function CardBody({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('p-4', className)} {...props} />
+  return <div className={cn('p-5', className)} {...props} />
 }
 
 export function CardFooter({ className, ...props }: HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn('border-t border-line/70 px-4 py-2.5', className)} {...props} />
+  return <div className={cn('border-t border-line px-5 py-3', className)} {...props} />
 }

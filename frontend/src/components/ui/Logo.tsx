@@ -1,4 +1,3 @@
-import { Server } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { cn } from '../../lib/cn'
 
@@ -15,17 +14,35 @@ export function Logo({ compact = false, to = '/', className }: LogoProps) {
       className={cn('group flex items-center gap-2.5', className)}
       aria-label="Homelab Manager — accueil"
     >
-      <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-md border border-line bg-elevated text-accent transition-colors group-hover:border-accent/40">
-        <Server className="h-4 w-4" aria-hidden="true" />
-      </span>
+      <svg
+        viewBox="0 0 32 32"
+        fill="none"
+        className="h-[30px] w-[30px] shrink-0"
+        aria-hidden="true"
+      >
+        <rect
+          x="1"
+          y="1"
+          width="30"
+          height="30"
+          rx="8"
+          className="fill-elevated stroke-line-strong transition-colors group-hover:stroke-text-muted"
+        />
+        <g
+          className="stroke-text-primary"
+          strokeWidth="1.8"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+        >
+          <rect x="8" y="8.5" width="16" height="6.5" rx="1.5" />
+          <rect x="8" y="17" width="16" height="6.5" rx="1.5" />
+        </g>
+        <circle cx="11.5" cy="11.75" r="1.3" className="fill-success" />
+        <circle cx="11.5" cy="20.25" r="1.3" className="fill-success" />
+      </svg>
       {!compact && (
-        <span className="min-w-0 leading-tight">
-          <span className="block truncate text-sm font-semibold tracking-tight text-text-primary">
-            Homelab Manager
-          </span>
-          <span className="block font-mono text-[10px] uppercase tracking-wider text-text-muted">
-            Supervision locale
-          </span>
+        <span className="min-w-0 truncate text-sm font-semibold tracking-[-0.01em] text-text-primary">
+          Homelab Manager
         </span>
       )}
     </Link>

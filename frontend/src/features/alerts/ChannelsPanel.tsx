@@ -110,8 +110,8 @@ export function ChannelsPanel() {
               <TR key={row.id}>
                 <TD>
                   <p className="text-text-primary">{row.name}</p>
-                  <p className="text-[11px] text-text-muted">{row.type}</p>
-                  <p className="text-[11px] text-text-muted">{row.routing}</p>
+                  <p className="text-xs text-text-muted">{row.type}</p>
+                  <p className="text-xs text-text-muted">{row.routing}</p>
                 </TD>
                 <TD className="break-all text-xs">{row.destination}</TD>
                 <TD className="text-xs">
@@ -123,10 +123,8 @@ export function ChannelsPanel() {
                 </TD>
                 <TD className="text-xs">
                   <Badge tone={row.status.tone}>{row.status.label}</Badge>
-                  <p className="mt-1 text-[11px] text-text-muted">Réussi : {row.lastSent}</p>
-                  {row.lastError && (
-                    <p className="text-[11px] text-danger">Échec : {row.lastError}</p>
-                  )}
+                  <p className="mt-1 text-xs text-text-muted">Réussi : {row.lastSent}</p>
+                  {row.lastError && <p className="text-xs text-danger">Échec : {row.lastError}</p>}
                 </TD>
                 <TD>
                   <Button
@@ -332,7 +330,7 @@ function ChannelForm({ page }: { page: ChannelsPanelModel }) {
                 />
               </FormField>
               {field.defined && !field.required && (
-                <label className="mt-1 flex items-center gap-1.5 text-[11px] text-text-secondary">
+                <label className="mt-1 flex items-center gap-1.5 text-xs text-text-secondary">
                   <input type="checkbox" value={field.name} {...register('removeSecrets')} />
                   Supprimer ce secret
                 </label>

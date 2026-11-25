@@ -141,9 +141,7 @@ export function MaintenanceTab() {
               </p>
             )}
           </CardBody>
-          <CardFooter className="font-mono text-[10px] text-text-muted">
-            Unité : {task.unit}
-          </CardFooter>
+          <CardFooter className="text-xs text-text-muted">Unité : {task.unit}</CardFooter>
         </Card>
       ))}
     </div>

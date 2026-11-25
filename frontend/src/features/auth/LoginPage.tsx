@@ -37,13 +37,10 @@ export function LoginPage() {
 
   return (
     <main className="relative flex min-h-screen flex-col overflow-hidden bg-background">
-      <div className="pointer-events-none absolute inset-0 grid-backdrop opacity-30 [mask-image:radial-gradient(ellipse_at_center,black,transparent_72%)]" />
-      <div className="pointer-events-none absolute left-1/2 top-0 h-[420px] w-[720px] -translate-x-1/2 rounded-full bg-accent/10 blur-[120px]" />
-
       <header className="relative z-10 flex h-14 items-center justify-between border-b border-line/70 bg-background/70 px-4 backdrop-blur-sm sm:px-6">
         <Logo />
         <div className="flex items-center gap-2">
-          <span className="hidden items-center gap-1.5 rounded-md border border-line bg-card px-2 py-1 font-mono text-[10px] uppercase tracking-wider text-text-secondary sm:flex">
+          <span className="hidden items-center gap-1.5 rounded-md border border-line bg-card px-2 py-1 text-xs text-text-secondary sm:flex">
             <StatusDot tone="success" pulse label="Manager local disponible" />
             Manager local
           </span>
@@ -60,22 +57,20 @@ export function LoginPage() {
 
       <div className="relative z-10 flex flex-1 items-center justify-center px-4 py-10">
         <section
-          className="w-full max-w-md rounded-xl border border-line bg-card/95 p-6 shadow-2xl shadow-black/20 backdrop-blur-sm sm:p-8"
+          className="w-full max-w-md rounded-xl border border-line bg-card p-6 shadow-sm sm:p-8"
           aria-labelledby="login-title"
         >
           <div className="flex flex-col items-center text-center">
-            <span className="flex h-11 w-11 items-center justify-center rounded-lg border border-line bg-elevated text-accent">
+            <span className="flex h-11 w-11 items-center justify-center rounded-lg border border-line bg-elevated text-text-primary">
               <Server className="h-5 w-5" aria-hidden="true" />
             </span>
             <h1
               id="login-title"
-              className="mt-3 text-xl font-semibold tracking-tight text-text-primary"
+              className="mt-3 text-[26px] font-semibold tracking-[-0.025em] text-text-primary"
             >
               Connexion
             </h1>
-            <p className="mt-1 font-mono text-[11px] uppercase tracking-wider text-text-muted">
-              Homelab Manager · supervision locale
-            </p>
+            <p className="mt-1 text-xs text-text-muted">Homelab Manager · supervision locale</p>
           </div>
 
           {secondFactor ? (
@@ -85,7 +80,7 @@ export function LoginPage() {
               <div>
                 <label
                   htmlFor="username"
-                  className="mb-1.5 block font-mono text-[10px] font-medium uppercase tracking-wider text-text-secondary"
+                  className="mb-1.5 block text-xs font-medium text-text-secondary"
                 >
                   Nom d'utilisateur
                 </label>
@@ -108,7 +103,7 @@ export function LoginPage() {
               <div>
                 <label
                   htmlFor="password"
-                  className="mb-1.5 block font-mono text-[10px] font-medium uppercase tracking-wider text-text-secondary"
+                  className="mb-1.5 block text-xs font-medium text-text-secondary"
                 >
                   Mot de passe
                 </label>
@@ -168,7 +163,7 @@ export function LoginPage() {
               <button
                 type="submit"
                 disabled={isPending}
-                className="flex h-10 w-full items-center justify-center gap-2 rounded-md bg-accent px-4 text-sm font-medium text-on-accent transition-colors hover:bg-accent/90 disabled:cursor-wait disabled:opacity-60"
+                className="flex h-10 w-full items-center justify-center gap-2 rounded-md bg-accent px-4 text-sm font-semibold text-on-accent transition-colors hover:bg-accent/85 disabled:cursor-wait disabled:opacity-60"
               >
                 {isPending ? (
                   <span
@@ -198,20 +193,20 @@ export function LoginPage() {
 
           <div className="mt-6 flex items-start gap-2 rounded-md border border-line/70 bg-surface/60 px-3 py-2.5">
             <ShieldCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-success" aria-hidden="true" />
-            <p className="text-[11px] leading-relaxed text-text-muted">
+            <p className="text-xs leading-relaxed text-text-muted">
               Authentification locale. La session est protégée par un cookie HTTP-only et aucune
               donnée ne quitte cet hôte.
             </p>
           </div>
 
-          <div className="mt-5 flex items-center justify-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-text-muted">
+          <div className="mt-5 flex items-center justify-center gap-1.5 text-xs text-text-muted">
             <KeyRound className="h-3 w-3" aria-hidden="true" />
             Accès administrateur local
           </div>
         </section>
       </div>
 
-      <footer className="relative z-10 flex flex-col items-center justify-between gap-2 border-t border-line/60 bg-background/60 px-4 py-3 font-mono text-[10px] uppercase tracking-wider text-text-muted sm:flex-row sm:px-6">
+      <footer className="relative z-10 flex flex-col items-center justify-between gap-2 border-t border-line/60 bg-background/60 px-4 py-3 text-xs text-text-muted sm:flex-row sm:px-6">
         <span>Homelab Manager · supervision mono-hôte</span>
         <span className="flex items-center gap-2">
           <span>

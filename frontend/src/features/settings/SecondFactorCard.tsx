@@ -7,11 +7,11 @@ import { LoadingState } from '../../components/ui/LoadingState'
 import { QrCode } from '../../components/ui/QrCode'
 import type { SecondFactorModel } from './useSecondFactor'
 
-const labelClass = 'mb-1.5 block font-mono text-[10px] uppercase tracking-wider text-text-secondary'
+const labelClass = 'mb-1.5 block text-xs text-text-secondary'
 const inputClass =
   'h-9 w-full rounded-md border border-line bg-surface px-3 text-sm text-text-primary outline-none focus:border-accent sm:w-64'
 
-const sectionTitleClass = 'font-mono text-[10px] uppercase tracking-wider text-text-secondary'
+const sectionTitleClass = 'text-xs text-text-secondary'
 
 const actionLabels = {
   enroll: 'Continuer',
@@ -107,7 +107,7 @@ export function SecondFactorCard({ model }: { model: SecondFactorModel }) {
                     <li key={key.id} className="flex items-center justify-between gap-3 px-3 py-2">
                       <div className="min-w-0">
                         <p className="truncate text-sm text-text-primary">{key.name}</p>
-                        <p className="text-[11px] text-text-muted">
+                        <p className="text-xs text-text-muted">
                           Ajoutée le {createdAt} · dernière utilisation : {lastUsedAt}
                         </p>
                       </div>
@@ -181,7 +181,7 @@ export function SecondFactorCard({ model }: { model: SecondFactorModel }) {
                 {...model.registerKey('name')}
               />
               {model.keyErrors.name && (
-                <p className="mt-1 text-[11px] text-danger" role="alert">
+                <p className="mt-1 text-xs text-danger" role="alert">
                   {model.keyErrors.name.message}
                 </p>
               )}
@@ -198,7 +198,7 @@ export function SecondFactorCard({ model }: { model: SecondFactorModel }) {
                 {...model.registerKey('password')}
               />
               {model.keyErrors.password && (
-                <p className="mt-1 text-[11px] text-danger" role="alert">
+                <p className="mt-1 text-xs text-danger" role="alert">
                   {model.keyErrors.password.message}
                 </p>
               )}
@@ -234,7 +234,7 @@ export function SecondFactorCard({ model }: { model: SecondFactorModel }) {
                 {...model.registerPassword('password')}
               />
               {model.passwordErrors.password && (
-                <p className="mt-1 text-[11px] text-danger" role="alert">
+                <p className="mt-1 text-xs text-danger" role="alert">
                   {model.passwordErrors.password.message}
                 </p>
               )}
@@ -288,7 +288,7 @@ export function SecondFactorCard({ model }: { model: SecondFactorModel }) {
                 {...model.registerCode('code')}
               />
               {model.codeErrors.code && (
-                <p className="mt-1 text-[11px] text-danger" role="alert">
+                <p className="mt-1 text-xs text-danger" role="alert">
                   {model.codeErrors.code.message}
                 </p>
               )}

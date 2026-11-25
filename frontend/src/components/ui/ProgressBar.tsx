@@ -29,10 +29,7 @@ export function ProgressBar({ value, tone = 'accent', className, label }: Progre
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={value == null ? undefined : Math.round(clamped)}
-      className={cn(
-        'h-1.5 w-full overflow-hidden rounded-full border border-line/50 bg-elevated',
-        className,
-      )}
+      className={cn('h-1 w-full overflow-hidden rounded-full bg-line', className)}
     >
       <div
         className={cn('h-full rounded-full transition-[width] duration-500', tones[tone])}

@@ -38,7 +38,7 @@ export function RetentionForm({ settings }: { settings: MonitoringSettings }) {
             <div>
               <label
                 htmlFor="metricsRetentionDays"
-                className="mb-1.5 block font-mono text-[10px] uppercase tracking-wider text-text-secondary"
+                className="mb-1.5 block text-xs text-text-secondary"
               >
                 Conserver pendant (jours)
               </label>
@@ -91,7 +91,7 @@ export function RetentionForm({ settings }: { settings: MonitoringSettings }) {
           </fieldset>
         </form>
       </CardBody>
-      <CardFooter className="font-mono text-[10px] text-text-muted">
+      <CardFooter className="text-xs text-text-muted">
         Valeur par défaut du service : {settings.metricsRetentionDefaultDays} jours. Réduire la
         rétention supprime définitivement l'historique plus ancien.
       </CardFooter>

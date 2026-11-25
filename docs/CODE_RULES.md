@@ -143,6 +143,8 @@ Les pages et composants (`.tsx` de `src/app`, `src/components`, `src/features`) 
 ### 4.5 Interface
 
 - Couleurs et espacements par les jetons Tailwind du thème (`text-text-primary`, `bg-card`, `border-line`…), jamais de couleur codée en dur.
+- Typographie : Instrument Sans pour l'interface et les chiffres (chiffres tabulaires), IBM Plex Mono réservée aux identifiants techniques (hôte, conteneur, image, chemin, adresse). Polices hébergées par l'application (`@fontsource`), la CSP interdisant tout chargement externe. Libellés en casse normale, jamais en capitales espacées ; texte de 12 px minimum.
+- Palette neutre graphite : l'accent est le texte principal (bouton primaire clair sur fond sombre, et l'inverse) ; les teintes sont réservées aux séries de graphiques (`cpu`, `ram`, `net`) et aux états (`success`, `warning`, `danger`, `info`). Pas de dégradé, de halo ni d'ombre portée hors des fenêtres superposées.
 - Accessibilité : chaque champ a un `label` associé ; messages d'erreur en `role="alert"`, confirmations en `role="status"` ; boutons d'icône avec `aria-label`.
 - Thèmes clair et sombre et affichage mobile vérifiés pour toute nouvelle page.
 

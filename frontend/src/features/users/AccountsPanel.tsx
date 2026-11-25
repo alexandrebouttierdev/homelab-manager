@@ -116,7 +116,7 @@ export function AccountsPanel() {
               <TR key={row.id}>
                 <TD className="font-mono text-text-primary">
                   {row.username}
-                  {row.isSelf && <span className="ml-2 text-[10px] text-text-muted">(vous)</span>}
+                  {row.isSelf && <span className="ml-2 text-xs text-text-muted">(vous)</span>}
                 </TD>
                 <TD>{row.displayName}</TD>
                 <TD>
@@ -138,7 +138,7 @@ export function AccountsPanel() {
                     {row.statusLabel}
                   </Badge>
                 </TD>
-                <TD className="font-mono text-[11px]">{row.lastLogin}</TD>
+                <TD className="text-xs">{row.lastLogin}</TD>
                 <TD>
                   <div className="flex justify-end gap-2">
                     <Button
@@ -261,15 +261,12 @@ function Field({
 }) {
   return (
     <div>
-      <label
-        htmlFor={id}
-        className="mb-1.5 block font-mono text-[10px] uppercase tracking-wider text-text-secondary"
-      >
+      <label htmlFor={id} className="mb-1.5 block text-xs text-text-secondary">
         {label}
       </label>
       {children}
       {error && (
-        <p className="mt-1 text-[11px] text-danger" role="alert">
+        <p className="mt-1 text-xs text-danger" role="alert">
           {error}
         </p>
       )}

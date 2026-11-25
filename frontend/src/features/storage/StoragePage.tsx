@@ -126,7 +126,7 @@ export function StoragePage() {
                         <TD className="font-mono text-xs">{formatBytes(entry.available)}</TD>
                         <TD>
                           <div className="min-w-[160px] space-y-1">
-                            <div className="flex items-center justify-between gap-2 font-mono text-[10px]">
+                            <div className="flex items-center justify-between gap-2 text-xs">
                               <span className="text-text-secondary">
                                 {formatPercent(entry.percent)}
                               </span>
@@ -160,7 +160,7 @@ export function StoragePage() {
                   </TBody>
                 </Table>
               </CardBody>
-              <CardFooter className="flex flex-wrap items-center justify-between gap-2 font-mono text-[10px] text-text-muted">
+              <CardFooter className="flex flex-wrap items-center justify-between gap-2 text-xs text-text-muted">
                 <span>Espace disponible calculé à partir des blocs réellement disponibles.</span>
                 <span>Les systèmes non lisibles sont omis.</span>
               </CardFooter>
@@ -179,7 +179,7 @@ export function StoragePage() {
                       aria-label="Choisir un point de montage"
                       value={mountpoint}
                       onChange={(event) => setSelectedMountpoint(event.target.value)}
-                      className="h-8 max-w-[190px] font-mono text-[11px]"
+                      className="h-8 max-w-[190px] text-xs"
                     >
                       {filesystems.entries.map((entry) => (
                         <option key={entry.mountpoint} value={entry.mountpoint}>
@@ -211,7 +211,7 @@ export function StoragePage() {
                   />
                 )}
               </CardBody>
-              <CardFooter className="font-mono text-[10px] text-text-muted">
+              <CardFooter className="text-xs text-text-muted">
                 {historySeries.length} échantillon(s) · résolution brute
               </CardFooter>
             </Card>
@@ -233,12 +233,12 @@ export function StoragePage() {
                   >
                     <div className="flex items-center justify-between gap-2">
                       <span className="font-mono text-xs text-text-primary">{disk.device}</span>
-                      <span className="font-mono text-[10px] text-text-muted">
+                      <span className="text-xs text-text-muted">
                         {formatMetricValue(disk.readIops, 'iops')} R ·{' '}
                         {formatMetricValue(disk.writeIops, 'iops')} W
                       </span>
                     </div>
-                    <div className="mt-1.5 grid grid-cols-2 gap-2 font-mono text-[10px] text-text-muted">
+                    <div className="mt-1.5 grid grid-cols-2 gap-2 text-xs text-text-muted">
                       <span>Lu {formatBytes(disk.readBytes)}</span>
                       <span>Écrit {formatBytes(disk.writeBytes)}</span>
                       <span>Latence R {formatMetricValue(disk.readLatency, 'milliseconds')}</span>
@@ -258,8 +258,8 @@ export function StoragePage() {
 function Summary({ label, value, tone }: { label: string; value: string; tone: string }) {
   return (
     <div className="rounded-lg border border-line bg-card p-4">
-      <p className="font-mono text-[11px] uppercase tracking-wider text-text-muted">{label}</p>
-      <p className={`mt-1 font-mono text-2xl font-semibold tracking-tight ${tone}`}>{value}</p>
+      <p className="text-xs text-text-muted">{label}</p>
+      <p className={`mt-1 text-[28px] font-semibold tracking-[-0.03em] ${tone}`}>{value}</p>
     </div>
   )
 }

@@ -51,7 +51,7 @@ export function SilenceForm({ model }: { model: SilenceFormModel }) {
             <Button size="sm" onClick={model.close}>
               Annuler
             </Button>
-            <span className="text-[11px] text-text-muted">
+            <span className="text-xs text-text-muted">
               Les alertes restent ouvertes et visibles ; seules leurs notifications sont suspendues.
             </span>
           </div>

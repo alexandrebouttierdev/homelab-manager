@@ -62,7 +62,7 @@ export function ApiTokensCard() {
                 <TR key={row.id}>
                   <TD>
                     <p className="text-text-primary">{row.name}</p>
-                    <p className="font-mono text-[10px] text-text-muted">{row.prefix}…</p>
+                    <p className="font-mono text-xs text-text-muted">{row.prefix}…</p>
                   </TD>
                   <TD className="text-xs">{row.scopes}</TD>
                   <TD>
@@ -124,9 +124,7 @@ function TokenForm({ model }: { model: ApiTokensModel }) {
         </FormField>
       </div>
       <fieldset className="min-w-0">
-        <legend className="mb-1.5 font-mono text-[10px] uppercase tracking-wider text-text-secondary">
-          Portées en lecture
-        </legend>
+        <legend className="mb-1.5 text-xs text-text-secondary">Portées en lecture</legend>
         <div className="flex flex-wrap gap-x-4 gap-y-1.5">
           {model.readScopes.map((option) => (
             <label
@@ -140,9 +138,7 @@ function TokenForm({ model }: { model: ApiTokensModel }) {
         </div>
         {model.actionScopes.length > 0 && (
           <>
-            <p className="mb-1.5 mt-3 font-mono text-[10px] uppercase tracking-wider text-text-secondary">
-              Portées d'action
-            </p>
+            <p className="mb-1.5 mt-3 text-xs text-text-secondary">Portées d'action</p>
             <div className="flex flex-wrap gap-x-4 gap-y-1.5">
               {model.actionScopes.map((option) => (
                 <label
@@ -154,14 +150,14 @@ function TokenForm({ model }: { model: ApiTokensModel }) {
                 </label>
               ))}
             </div>
-            <p className="mt-1 text-[11px] text-text-muted">
+            <p className="mt-1 text-xs text-text-muted">
               Un jeton d'action démarre, arrête ou redémarre ce que votre rôle permet ; chaque usage
               est inscrit au journal d'audit. Ne le confiez qu'à un outil de confiance.
             </p>
           </>
         )}
         {model.errors.scopes && (
-          <p className="mt-1 text-[11px] text-danger">{model.errors.scopes.message}</p>
+          <p className="mt-1 text-xs text-danger">{model.errors.scopes.message}</p>
         )}
       </fieldset>
       {model.createError && (

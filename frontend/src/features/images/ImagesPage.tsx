@@ -36,24 +36,22 @@ export function ImagesPage() {
 
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="rounded-lg border border-line bg-card p-4">
-          <p className="font-mono text-[11px] uppercase tracking-wider text-text-muted">
-            Images distinctes
+          <p className="text-xs text-text-muted">Images distinctes</p>
+          <p className="mt-1 text-[28px] font-semibold tracking-[-0.03em] text-text-primary">
+            {images.length}
           </p>
-          <p className="mt-1 font-mono text-2xl font-semibold text-text-primary">{images.length}</p>
         </div>
         <div className="rounded-lg border border-line bg-card p-4">
-          <p className="font-mono text-[11px] uppercase tracking-wider text-text-muted">
-            Conteneurs associés
-          </p>
-          <p className="mt-1 font-mono text-2xl font-semibold text-text-primary">
+          <p className="text-xs text-text-muted">Conteneurs associés</p>
+          <p className="mt-1 text-[28px] font-semibold tracking-[-0.03em] text-text-primary">
             {containerCount}
           </p>
         </div>
         <div className="rounded-lg border border-line bg-card p-4">
-          <p className="font-mono text-[11px] uppercase tracking-wider text-text-muted">
-            Images actives
+          <p className="text-xs text-text-muted">Images actives</p>
+          <p className="mt-1 text-[28px] font-semibold tracking-[-0.03em] text-success">
+            {activeImageCount}
           </p>
-          <p className="mt-1 font-mono text-2xl font-semibold text-success">{activeImageCount}</p>
         </div>
       </div>
 
@@ -122,13 +120,13 @@ export function ImagesPage() {
                           <Link
                             key={container.id}
                             to={`/containers/${encodeURIComponent(container.id)}`}
-                            className="rounded-sm border border-line px-1.5 py-0.5 font-mono text-[10px] text-text-secondary transition-colors hover:border-accent/40 hover:text-accent"
+                            className="rounded-sm border border-line px-1.5 py-0.5 text-xs text-text-secondary transition-colors hover:border-accent/40 hover:text-accent"
                           >
                             {container.name}
                           </Link>
                         ))}
                         {image.containers.length > 3 && (
-                          <span className="font-mono text-[10px] text-text-muted">
+                          <span className="text-xs text-text-muted">
                             +{image.containers.length - 3}
                           </span>
                         )}
@@ -154,7 +152,7 @@ export function ImagesPage() {
                     <TD>
                       <Link
                         to={`/containers?image=${encodeURIComponent(image.image)}`}
-                        className="inline-flex h-7 items-center gap-1.5 rounded-md border border-line px-2 font-mono text-[10px] text-text-secondary transition-colors hover:bg-elevated hover:text-text-primary"
+                        className="inline-flex h-7 items-center gap-1.5 rounded-md border border-line px-2 text-xs text-text-secondary transition-colors hover:bg-elevated hover:text-text-primary"
                       >
                         <ExternalLink className="h-3 w-3" />
                         Conteneurs
@@ -165,7 +163,7 @@ export function ImagesPage() {
               })}
             </TBody>
           </Table>
-          <CardFooter className="flex items-center justify-between gap-2 rounded-lg border border-line bg-card font-mono text-[10px] text-text-muted">
+          <CardFooter className="flex items-center justify-between gap-2 rounded-lg border border-line bg-card text-xs text-text-muted">
             <span>{filtered.length} image(s) affichée(s)</span>
             <span>Inventaire dérivé · lecture seule</span>
           </CardFooter>

@@ -23,7 +23,7 @@ import { cn } from '../../lib/cn'
 import { formatBytes, formatCount } from '../../lib/format'
 import { useJournalPage, type JournalPageModel } from './useJournalPage'
 
-const labelClass = 'mb-1.5 block font-mono text-[10px] uppercase tracking-wider text-text-secondary'
+const labelClass = 'mb-1.5 block text-xs text-text-secondary'
 const inputClass =
   'h-9 w-full rounded-md border border-line bg-surface px-3 text-sm text-text-primary outline-none focus:border-accent/60'
 const linkClass =
@@ -122,7 +122,7 @@ function SummaryCard({ page }: { page: JournalPageModel }) {
             <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4">
               {summary.totals.map((total) => (
                 <div key={total.label} className="rounded-md border border-line/70 px-3 py-2">
-                  <dt className="truncate text-[11px] text-text-muted">{total.label}</dt>
+                  <dt className="truncate text-xs text-text-muted">{total.label}</dt>
                   <dd className="font-mono text-sm text-text-primary">
                     {formatCount(total.total)}
                   </dd>
@@ -254,7 +254,7 @@ function Filters({ page }: { page: JournalPageModel }) {
               {...page.register('q')}
             />
             {page.errors.q && (
-              <p className="mt-1 text-[11px] text-danger" role="alert">
+              <p className="mt-1 text-xs text-danger" role="alert">
                 {page.errors.q.message}
               </p>
             )}
@@ -283,7 +283,7 @@ function Filters({ page }: { page: JournalPageModel }) {
                   {...page.register('to')}
                 />
                 {page.errors.to && (
-                  <p className="mt-1 text-[11px] text-danger" role="alert">
+                  <p className="mt-1 text-xs text-danger" role="alert">
                     {page.errors.to.message}
                   </p>
                 )}
@@ -461,12 +461,12 @@ function Inspector({ page }: { page: JournalPageModel }) {
                   key={field.name}
                   className="grid grid-cols-[minmax(0,9rem)_minmax(0,1fr)] gap-2"
                 >
-                  <dt className="truncate font-mono text-[11px] text-text-muted" title={field.name}>
+                  <dt className="truncate text-xs text-text-muted" title={field.name}>
                     {field.name}
                   </dt>
                   <dd
                     className={cn(
-                      'whitespace-pre-wrap break-words font-mono text-[11px]',
+                      'whitespace-pre-wrap break-words text-xs',
                       field.masked ? 'italic text-warning' : 'text-text-primary',
                     )}
                   >
@@ -477,7 +477,7 @@ function Inspector({ page }: { page: JournalPageModel }) {
             </dl>
             <details>
               <summary className="cursor-pointer text-xs text-text-secondary">JSON brut</summary>
-              <pre className="mt-2 max-h-64 overflow-auto rounded-md border border-line/70 bg-surface p-2 text-[11px] text-text-primary">
+              <pre className="mt-2 max-h-64 overflow-auto rounded-md border border-line/70 bg-surface p-2 text-xs text-text-primary">
                 {inspector.json}
               </pre>
             </details>

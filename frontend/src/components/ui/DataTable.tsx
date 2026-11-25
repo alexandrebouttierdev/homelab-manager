@@ -37,10 +37,7 @@ export function TH({ className, children, ...props }: ThHTMLAttributes<HTMLTable
   return (
     <th
       scope="col"
-      className={cn(
-        'whitespace-nowrap px-4 py-2.5 font-mono text-[10px] font-medium uppercase tracking-wider text-text-muted',
-        className,
-      )}
+      className={cn('whitespace-nowrap px-4 py-2.5 text-xs font-medium text-text-muted', className)}
       {...props}
     >
       {children}

@@ -59,9 +59,9 @@ const activityItems: NavItem[] = [
 
 function navLinkClass({ isActive }: { isActive: boolean }) {
   return cn(
-    'group flex items-center gap-2.5 rounded-md px-2.5 py-2 text-[13px] transition-colors',
+    'flex h-8 items-center gap-2.5 rounded-md px-2.5 text-[13.5px] transition-colors',
     isActive
-      ? 'bg-elevated text-text-primary shadow-sm'
+      ? 'bg-elevated font-medium text-text-primary'
       : 'text-text-secondary hover:bg-elevated/60 hover:text-text-primary',
   )
 }
@@ -77,9 +77,7 @@ function NavSection({
 }) {
   return (
     <div>
-      <p className="mb-1.5 px-2.5 font-mono text-[10px] font-medium uppercase tracking-wider text-text-muted">
-        {title}
-      </p>
+      <p className="mb-1.5 px-2.5 text-xs text-text-muted">{title}</p>
       <div className="space-y-0.5">
         {items.map((item) => (
           <NavLink
@@ -89,10 +87,7 @@ function NavSection({
             className={navLinkClass}
             onClick={onNavigate}
           >
-            <item.icon
-              className="h-4 w-4 shrink-0 text-text-muted group-hover:text-text-secondary"
-              aria-hidden="true"
-            />
+            <item.icon className="h-4 w-4 shrink-0" aria-hidden="true" />
             <span className="truncate">{item.label}</span>
           </NavLink>
         ))}
@@ -122,12 +117,12 @@ export function AppSidebar({ open, onClose }: AppSidebarProps) {
       />
       <aside
         className={cn(
-          'fixed inset-y-0 left-0 z-50 flex w-64 flex-col border-r border-line bg-surface transition-transform duration-200 lg:translate-x-0',
+          'fixed inset-y-0 left-0 z-50 flex w-60 flex-col border-r border-line bg-surface transition-transform duration-200 lg:translate-x-0',
           open ? 'translate-x-0' : '-translate-x-full',
         )}
         aria-label="Navigation principale"
       >
-        <div className="flex h-14 items-center justify-between border-b border-line px-4">
+        <div className="flex h-14 items-center justify-between px-4">
           <Logo />
           <button
             type="button"
@@ -139,10 +134,10 @@ export function AppSidebar({ open, onClose }: AppSidebarProps) {
           </button>
         </div>
 
-        <nav className="flex-1 space-y-5 overflow-y-auto px-3 py-4">
+        <nav className="flex-1 space-y-5 overflow-y-auto px-3 pb-4 pt-2">
           <div>
             <NavLink to="/" end className={navLinkClass} onClick={onClose}>
-              <LayoutDashboard className="h-4 w-4 shrink-0 text-text-muted" aria-hidden="true" />
+              <LayoutDashboard className="h-4 w-4 shrink-0" aria-hidden="true" />
               <span>Vue d'ensemble</span>
             </NavLink>
           </div>
@@ -152,44 +147,38 @@ export function AppSidebar({ open, onClose }: AppSidebarProps) {
           <NavSection title="Activité" items={activityItems} onNavigate={onClose} />
 
           <div>
-            <p className="mb-1.5 px-2.5 font-mono text-[10px] font-medium uppercase tracking-wider text-text-muted">
-              Paramètres
-            </p>
+            <p className="mb-1.5 px-2.5 text-xs text-text-muted">Paramètres</p>
             <NavLink to="/settings" className={navLinkClass} onClick={onClose}>
-              <Settings className="h-4 w-4 shrink-0 text-text-muted" aria-hidden="true" />
+              <Settings className="h-4 w-4 shrink-0" aria-hidden="true" />
               <span>Configuration</span>
             </NavLink>
             {canManageUsers && (
               <NavLink to="/users" className={navLinkClass} onClick={onClose}>
-                <Users className="h-4 w-4 shrink-0 text-text-muted" aria-hidden="true" />
+                <Users className="h-4 w-4 shrink-0" aria-hidden="true" />
                 <span>Utilisateurs & accès</span>
               </NavLink>
             )}
           </div>
         </nav>
 
-        <div className="border-t border-line px-4 py-3">
-          <div className="flex items-center gap-2">
+        <div className="space-y-2.5 border-t border-line px-5 py-4">
+          <div className="flex items-center gap-2.5">
             <StatusDot
               tone={online ? 'success' : 'warning'}
-              pulse={online}
               label={online ? 'Collecte système active' : 'Collecte système dégradée'}
             />
-            <span className="font-mono text-[10px] uppercase tracking-wider text-text-secondary">
-              {online ? 'Collecte active' : 'Collecte locale'}
-            </span>
+            <div className="min-w-0">
+              <p className="truncate font-mono text-[13px] text-text-primary">
+                {host?.hostname ?? 'Homelab local'}
+              </p>
+              <p className="truncate text-xs text-text-muted">
+                {host ? osLabel : 'Connexion au Manager…'}
+              </p>
+            </div>
           </div>
-          <p className="mt-2 truncate text-xs font-medium text-text-primary">
-            {host?.hostname ?? 'Homelab local'}
-          </p>
-          <p className="mt-0.5 truncate font-mono text-[10px] text-text-muted">
-            {host ? osLabel : 'Connexion au Manager…'}
-          </p>
-          <p className="mt-1 font-mono text-[10px] text-text-muted">
-            Uptime {host ? formatUptime(host.uptimeSeconds) : '—'}
-          </p>
-          <p className="mt-2 font-mono text-[10px] uppercase tracking-wider text-text-muted/70">
-            Version {APP_VERSION}
+          <p className="text-xs text-text-muted">
+            {online ? 'Collecte active' : 'Collecte locale'} · uptime{' '}
+            {host ? formatUptime(host.uptimeSeconds) : '—'} · v{APP_VERSION}
           </p>
         </div>
       </aside>

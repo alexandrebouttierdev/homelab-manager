@@ -1,16 +1,4 @@
-import {
-  Bell,
-  Clock3,
-  LogOut,
-  Menu,
-  Moon,
-  Power,
-  RefreshCw,
-  Server,
-  Sun,
-  Terminal,
-  UserRound,
-} from 'lucide-react'
+import { Bell, LogOut, Menu, Moon, Power, RefreshCw, Sun, UserRound } from 'lucide-react'
 import { Link } from 'react-router-dom'
 import { useHost } from '../../hooks/useHost'
 import { useSession, useSignOut } from '../../hooks/useSession'
@@ -34,7 +22,7 @@ export function TopBar({ onOpenMenu }: TopBarProps) {
 
   return (
     <>
-      <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-b border-line bg-background/85 px-3 backdrop-blur-md sm:px-4 lg:px-6">
+      <header className="sticky top-0 z-30 flex h-14 items-center justify-between gap-3 border-b border-line bg-background/90 px-3 backdrop-blur-md sm:px-4 lg:px-8">
         <div className="flex min-w-0 items-center gap-2.5">
           <button
             type="button"
@@ -45,28 +33,29 @@ export function TopBar({ onOpenMenu }: TopBarProps) {
             <Menu className="h-5 w-5" />
           </button>
 
-          <div className="hidden items-center gap-2 rounded-md border border-line bg-card px-2.5 py-1.5 sm:flex">
-            <Server className="h-3.5 w-3.5 text-text-muted" aria-hidden="true" />
-            <span className="max-w-[160px] truncate font-mono text-[11px] text-text-secondary">
-              {hostInfo?.hostname ?? 'hôte local'}
-            </span>
+          <div className="hidden min-w-0 items-center gap-2.5 sm:flex">
             <StatusDot
               tone={hostOnline ? 'success' : 'warning'}
               label={hostOnline ? 'Hôte en ligne' : 'Collecte dégradée'}
             />
+            <span className="max-w-[160px] truncate font-mono text-[13px] text-text-primary">
+              {hostInfo?.hostname ?? 'hôte local'}
+            </span>
           </div>
 
-          <div className="hidden items-center gap-1.5 font-mono text-[11px] text-text-muted xl:flex">
-            <Terminal className="h-3.5 w-3.5" aria-hidden="true" />
+          <div className="hidden min-w-0 items-center gap-2 text-[13px] text-text-muted xl:flex">
+            <span className="text-line-strong" aria-hidden="true">
+              /
+            </span>
             <span className="max-w-[180px] truncate">{hostInfo ? osLabel : 'Linux'}</span>
-            <span className="text-line-strong">•</span>
+            <span aria-hidden="true">·</span>
             <span className="max-w-[160px] truncate">
               {hostInfo?.kernelVersion || 'noyau indisponible'}
             </span>
           </div>
 
-          <div className="hidden items-center gap-1.5 font-mono text-[11px] text-text-muted md:flex">
-            <Clock3 className="h-3.5 w-3.5" aria-hidden="true" />
+          <div className="hidden items-center gap-2 text-[13px] text-text-muted md:flex">
+            <span aria-hidden="true">·</span>
             <span>Up {hostInfo ? formatUptime(hostInfo.uptimeSeconds) : '—'}</span>
           </div>
         </div>
@@ -78,7 +67,7 @@ export function TopBar({ onOpenMenu }: TopBarProps) {
               aria-label="Fréquence de rafraîchissement"
               value={interval}
               onChange={(event) => setInterval(Number(event.target.value))}
-              className="h-8 w-[92px] font-mono text-[11px]"
+              className="h-8 w-[100px]"
             >
               {refreshChoices.map((choice) => (
                 <option key={choice.value} value={choice.value}>
@@ -90,7 +79,7 @@ export function TopBar({ onOpenMenu }: TopBarProps) {
 
           <Link
             to="/events"
-            className="relative rounded-md border border-line bg-card p-1.5 text-text-secondary transition-colors hover:bg-elevated hover:text-text-primary"
+            className="relative inline-flex h-8 w-8 items-center justify-center rounded-md text-text-secondary transition-colors hover:bg-elevated hover:text-text-primary"
             aria-label="Consulter les événements"
             title="Événements"
           >
@@ -100,7 +89,7 @@ export function TopBar({ onOpenMenu }: TopBarProps) {
           <button
             type="button"
             onClick={toggleTheme}
-            className="rounded-md border border-line bg-card p-1.5 text-text-secondary transition-colors hover:bg-elevated hover:text-text-primary"
+            className="inline-flex h-8 w-8 items-center justify-center rounded-md text-text-secondary transition-colors hover:bg-elevated hover:text-text-primary"
             aria-label={theme === 'dark' ? 'Activer le thème clair' : 'Activer le thème sombre'}
             title={theme === 'dark' ? 'Thème clair' : 'Thème sombre'}
           >
@@ -112,7 +101,7 @@ export function TopBar({ onOpenMenu }: TopBarProps) {
             onClick={signOut.signOut}
             disabled={signOut.isPending}
             className={cn(
-              'rounded-md border border-line bg-card p-1.5 text-text-secondary transition-colors hover:bg-danger/10 hover:text-danger',
+              'inline-flex h-8 w-8 items-center justify-center rounded-md text-text-secondary transition-colors hover:bg-danger/10 hover:text-danger',
               signOut.isPending && 'cursor-wait opacity-50',
             )}
             aria-label="Se déconnecter"
@@ -123,13 +112,13 @@ export function TopBar({ onOpenMenu }: TopBarProps) {
 
           <Link
             to="/settings"
-            className="ml-0.5 hidden items-center gap-1.5 rounded-md border border-line bg-card px-2.5 py-1.5 text-xs text-text-secondary transition-colors hover:bg-elevated hover:text-text-primary sm:flex"
+            className="ml-1 hidden h-8 items-center gap-2 rounded-md pl-1 pr-2.5 text-[13px] text-text-secondary transition-colors hover:bg-elevated hover:text-text-primary sm:flex"
             title="Compte et paramètres"
           >
-            <UserRound className="h-3.5 w-3.5" aria-hidden="true" />
-            <span className="max-w-[110px] truncate font-mono text-[11px]">
-              {session.user?.username ?? 'admin'}
+            <span className="flex h-6 w-6 items-center justify-center rounded-full bg-elevated text-text-primary">
+              <UserRound className="h-3.5 w-3.5" aria-hidden="true" />
             </span>
+            <span className="max-w-[110px] truncate">{session.user?.username ?? 'admin'}</span>
           </Link>
         </div>
       </header>

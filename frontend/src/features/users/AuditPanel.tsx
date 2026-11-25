@@ -7,7 +7,7 @@ import { LoadingState } from '../../components/ui/LoadingState'
 import { Select } from '../../components/ui/Select'
 import { useAuditPanel } from './useAuditPanel'
 
-const labelClass = 'mb-1.5 block font-mono text-[10px] uppercase tracking-wider text-text-secondary'
+const labelClass = 'mb-1.5 block text-xs text-text-secondary'
 const linkClass =
   'inline-flex h-9 items-center gap-2 rounded-md border border-line bg-card px-3.5 text-sm text-text-secondary hover:bg-elevated hover:text-text-primary'
 
@@ -95,10 +95,10 @@ export function AuditPanel() {
           <TBody>
             {audit.rows.map((row) => (
               <TR key={row.id}>
-                <TD className="whitespace-nowrap font-mono text-[11px]">{row.createdAt}</TD>
+                <TD className="whitespace-nowrap text-xs">{row.createdAt}</TD>
                 <TD className="font-mono text-text-primary">{row.actor}</TD>
                 <TD className="font-mono">{row.action}</TD>
-                <TD className="max-w-[280px] truncate font-mono text-[11px]" title={row.target}>
+                <TD className="max-w-[280px] truncate text-xs" title={row.target}>
                   {row.target}
                 </TD>
                 <TD>
@@ -106,7 +106,7 @@ export function AuditPanel() {
                     {row.outcomeLabel}
                   </Badge>
                 </TD>
-                <TD className="font-mono text-[11px] text-text-muted">{row.requestId}</TD>
+                <TD className="text-xs text-text-muted">{row.requestId}</TD>
               </TR>
             ))}
           </TBody>

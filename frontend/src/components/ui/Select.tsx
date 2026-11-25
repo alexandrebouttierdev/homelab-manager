@@ -11,7 +11,7 @@ export function Select({ className, containerClassName, children, ...props }: Se
     <div className={cn('relative inline-flex items-center', containerClassName)}>
       <select
         className={cn(
-          'h-9 w-full appearance-none rounded-md border border-line bg-card py-0 pl-3 pr-8 text-sm text-text-primary outline-none transition-colors hover:border-line-strong focus:border-accent/60',
+          'h-9 w-full appearance-none rounded-lg border border-line bg-card py-0 pl-3 pr-8 text-[13px] text-text-primary outline-none transition-colors hover:border-line-strong focus:border-text-muted',
           className,
         )}
         {...props}

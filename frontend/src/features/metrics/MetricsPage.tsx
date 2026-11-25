@@ -91,7 +91,7 @@ export function MetricsPage() {
           </Select>
         )}
 
-        <span className="font-mono text-[10px] text-text-muted">{definition.name}</span>
+        <span className="font-mono text-xs text-text-muted">{definition.name}</span>
 
         <div className="ml-auto">
           <SegmentedTabs
@@ -162,7 +162,7 @@ export function MetricsPage() {
                 label={`Historique de ${definition.label}`}
               />
             </CardBody>
-            <CardFooter className="flex flex-wrap items-center justify-between gap-2 font-mono text-[10px] text-text-muted">
+            <CardFooter className="flex flex-wrap items-center justify-between gap-2 text-xs text-text-muted">
               <span>{samples.length} point(s) · résolution brute</span>
               <span>Les valeurs manquantes ne sont pas interpolées.</span>
             </CardFooter>
@@ -193,7 +193,7 @@ export function MetricsPage() {
                         <TD className="font-mono text-xs text-text-primary">
                           {formatMetricValue(sample.value, sample.unit)}
                         </TD>
-                        <TD className="font-mono text-[10px] text-text-muted">
+                        <TD className="font-mono text-xs text-text-muted">
                           {labelsText(sample.labels)}
                         </TD>
                       </TR>
@@ -211,11 +211,9 @@ export function MetricsPage() {
 function Stat({ label, value, hint }: { label: string; value: string; hint: string }) {
   return (
     <div className="rounded-lg border border-line bg-card p-4">
-      <p className="font-mono text-[11px] uppercase tracking-wider text-text-muted">{label}</p>
-      <p className="mt-1 font-mono text-xl font-semibold tracking-tight text-text-primary">
-        {value}
-      </p>
-      <p className="mt-1 font-mono text-[10px] text-text-muted">{hint}</p>
+      <p className="text-xs text-text-muted">{label}</p>
+      <p className="mt-1 text-xl font-semibold tracking-[-0.02em] text-text-primary">{value}</p>
+      <p className="mt-1 text-xs text-text-muted">{hint}</p>
     </div>
   )
 }

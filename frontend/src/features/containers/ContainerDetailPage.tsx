@@ -225,7 +225,7 @@ export function ContainerDetailPage() {
                 />
               )}
             </CardBody>
-            <CardFooter className="flex flex-wrap items-center justify-between gap-2 font-mono text-[10px] text-text-muted">
+            <CardFooter className="flex flex-wrap items-center justify-between gap-2 text-xs text-text-muted">
               <span>
                 {cpuSeries.length} point(s) CPU · {memorySeries.length} point(s) mémoire
               </span>
@@ -276,9 +276,7 @@ export function ContainerDetailPage() {
               <CardHeader title="Réseaux & ports" icon={<Network className="h-3.5 w-3.5" />} />
               <CardBody className="space-y-4">
                 <div>
-                  <p className="mb-2 font-mono text-[10px] uppercase tracking-wider text-text-muted">
-                    Réseaux attachés
-                  </p>
+                  <p className="mb-2 text-xs text-text-muted">Réseaux attachés</p>
                   {data.networks.length === 0 ? (
                     <p className="text-sm text-text-muted">Aucun réseau rapporté.</p>
                   ) : (
@@ -292,9 +290,7 @@ export function ContainerDetailPage() {
                   )}
                 </div>
                 <div>
-                  <p className="mb-2 font-mono text-[10px] uppercase tracking-wider text-text-muted">
-                    Ports publiés
-                  </p>
+                  <p className="mb-2 text-xs text-text-muted">Ports publiés</p>
                   {ports.length === 0 ? (
                     <p className="text-sm text-text-muted">Aucun port publié.</p>
                   ) : (
@@ -361,7 +357,7 @@ export function ContainerDetailPage() {
               actions={
                 <Link
                   to="/events"
-                  className="text-[11px] text-text-secondary transition-colors hover:text-text-primary"
+                  className="text-xs text-text-secondary transition-colors hover:text-text-primary"
                 >
                   Journal global
                 </Link>
@@ -394,10 +390,10 @@ export function ContainerDetailPage() {
                         {eventSeverityLabel(event.severity)}
                       </Badge>
                     </div>
-                    <p className="mt-0.5 text-[11px] text-text-muted">{event.message}</p>
+                    <p className="mt-0.5 text-xs text-text-muted">{event.message}</p>
                   </div>
                   <span
-                    className="shrink-0 font-mono text-[10px] text-text-muted"
+                    className="shrink-0 text-xs text-text-muted"
                     title={formatDateTime(event.occurredAt)}
                   >
                     {formatRelativeTime(event.occurredAt)}
@@ -409,7 +405,7 @@ export function ContainerDetailPage() {
 
           <ContainerLogsCard model={logs} />
 
-          <p className="flex items-center gap-2 font-mono text-[10px] text-text-muted">
+          <p className="flex items-center gap-2 text-xs text-text-muted">
             <StatusDot tone={containerStateTone(data.state)} />
             Conteneur observé par le Manager · ni exec, ni suppression, ni nettoyage depuis
             l'interface.
@@ -423,7 +419,7 @@ export function ContainerDetailPage() {
 function DetailItem({ label, value }: { label: string; value: ReactNode }) {
   return (
     <div className="min-w-0 rounded-md border border-line/70 bg-surface/50 px-3 py-2">
-      <dt className="font-mono text-[10px] uppercase tracking-wider text-text-muted">{label}</dt>
+      <dt className="text-xs text-text-muted">{label}</dt>
       <dd className="mt-1 truncate text-xs text-text-primary">{value}</dd>
     </div>
   )

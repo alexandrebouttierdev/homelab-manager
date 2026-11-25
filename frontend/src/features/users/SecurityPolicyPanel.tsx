@@ -5,7 +5,7 @@ import { ErrorState } from '../../components/ui/ErrorState'
 import { LoadingState } from '../../components/ui/LoadingState'
 import { useSecurityPolicyPanel } from './useSecurityPolicyPanel'
 
-const labelClass = 'mb-1.5 block font-mono text-[10px] uppercase tracking-wider text-text-secondary'
+const labelClass = 'mb-1.5 block text-xs text-text-secondary'
 const inputClass =
   'w-full rounded-md border border-line bg-surface px-3 text-sm text-text-primary outline-none focus:border-accent'
 
@@ -41,7 +41,7 @@ export function SecurityPolicyPanel() {
                 {...policy.register('idleTimeoutMinutes', { valueAsNumber: true })}
               />
               {policy.errors.idleTimeoutMinutes && (
-                <p className="mt-1 text-[11px] text-danger" role="alert">
+                <p className="mt-1 text-xs text-danger" role="alert">
                   {policy.errors.idleTimeoutMinutes.message}
                 </p>
               )}
@@ -59,7 +59,7 @@ export function SecurityPolicyPanel() {
                 {...policy.register('networks')}
               />
               {policy.errors.networks && (
-                <p className="mt-1 text-[11px] text-danger" role="alert">
+                <p className="mt-1 text-xs text-danger" role="alert">
                   {policy.errors.networks.message}
                 </p>
               )}

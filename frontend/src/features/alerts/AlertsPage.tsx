@@ -103,8 +103,8 @@ function AlertsPanel() {
 function Counter({ label, value, tone }: { label: string; value: string; tone: string }) {
   return (
     <div className="rounded-lg border border-line bg-card p-4">
-      <p className="font-mono text-[11px] uppercase tracking-wider text-text-muted">{label}</p>
-      <p className={cn('mt-1 font-mono text-2xl font-semibold tracking-tight', tone)}>{value}</p>
+      <p className="text-xs text-text-muted">{label}</p>
+      <p className={cn('mt-1 text-[28px] font-semibold tracking-[-0.03em]', tone)}>{value}</p>
     </div>
   )
 }
@@ -155,7 +155,7 @@ function OpenAlerts({ page }: { page: AlertsPageModel }) {
             <TD>
               <Badge tone={row.state.tone}>{row.state.label}</Badge>
               {row.acknowledgedBy && (
-                <span className="ml-2 text-[11px] text-text-muted">par {row.acknowledgedBy}</span>
+                <span className="ml-2 text-xs text-text-muted">par {row.acknowledgedBy}</span>
               )}
               {row.silenced && (
                 <Badge tone="neutral" className="ml-2">
@@ -258,7 +258,7 @@ function Target({ row }: { row: AlertRow }) {
     <div className="space-y-0.5">
       <p className="text-text-primary">{row.target}</p>
       {row.link && (
-        <Link to={row.link.to} className="text-[11px] text-accent hover:underline">
+        <Link to={row.link.to} className="text-xs text-accent hover:underline">
           {row.link.label}
         </Link>
       )}

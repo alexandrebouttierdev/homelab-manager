@@ -198,12 +198,12 @@ export function EventsPage() {
                   <TD>
                     <EventTargetLink event={event} />
                   </TD>
-                  <TD className="font-mono text-[10px]">{formatRelativeTime(event.occurredAt)}</TD>
+                  <TD className="text-xs">{formatRelativeTime(event.occurredAt)}</TD>
                 </TR>
               ))}
             </TBody>
           </Table>
-          <CardFooter className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line bg-card font-mono text-[10px] text-text-muted">
+          <CardFooter className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line bg-card text-xs text-text-muted">
             <span>
               {filtered.length} sur {all.length} événement(s)
             </span>
@@ -234,8 +234,8 @@ function Summary({
   return (
     <div className="flex items-start justify-between gap-3 rounded-lg border border-line bg-card p-4">
       <div>
-        <p className="font-mono text-[11px] uppercase tracking-wider text-text-muted">{label}</p>
-        <p className={`mt-1 font-mono text-2xl font-semibold tracking-tight ${tone}`}>{value}</p>
+        <p className="text-xs text-text-muted">{label}</p>
+        <p className={`mt-1 text-[28px] font-semibold tracking-[-0.03em] ${tone}`}>{value}</p>
       </div>
       <span className="flex h-7 w-7 items-center justify-center rounded-md border border-line bg-elevated text-text-muted">
         {icon}
@@ -246,12 +246,9 @@ function Summary({
 
 function EventTargetLink({ event }: { event: MonitorEvent }) {
   const target = eventTarget(event)
-  if (!target) return <span className="font-mono text-[10px] text-text-muted">—</span>
+  if (!target) return <span className="text-xs text-text-muted">—</span>
   return (
-    <Link
-      to={target.to}
-      className="font-mono text-[10px] text-accent transition-colors hover:underline"
-    >
+    <Link to={target.to} className="text-xs text-accent transition-colors hover:underline">
       {target.label}
     </Link>
   )

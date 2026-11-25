@@ -130,7 +130,7 @@ export function NetworkPage() {
                       <TR key={entry.name}>
                         <TD className="font-mono text-xs text-text-primary">{entry.name}</TD>
                         <TD>
-                          <div className="space-y-0.5 font-mono text-[10px] text-text-secondary">
+                          <div className="space-y-0.5 font-mono text-xs text-text-secondary">
                             {entry.addresses.length === 0 && (
                               <span className="text-text-muted">—</span>
                             )}
@@ -141,11 +141,11 @@ export function NetworkPage() {
                             ))}
                           </div>
                         </TD>
-                        <TD className="font-mono text-[10px]">{entry.mac || '—'}</TD>
+                        <TD className="font-mono text-xs">{entry.mac || '—'}</TD>
                         <TD className="font-mono text-xs">{formatBytes(entry.rx)}</TD>
                         <TD className="font-mono text-xs">{formatBytes(entry.tx)}</TD>
                         <TD>
-                          <div className="space-y-1 font-mono text-[10px]">
+                          <div className="space-y-1 text-xs">
                             <span className="flex items-center gap-1 text-text-secondary">
                               <ArrowDownRight className="h-3 w-3 text-net" />{' '}
                               {formatRate(entry.rxRate)}
@@ -174,7 +174,7 @@ export function NetworkPage() {
                   </TBody>
                 </Table>
               </CardBody>
-              <CardFooter className="flex flex-wrap items-center justify-between gap-2 font-mono text-[10px] text-text-muted">
+              <CardFooter className="flex flex-wrap items-center justify-between gap-2 text-xs text-text-muted">
                 <span>Compteurs cumulés depuis le démarrage de la machine.</span>
                 <span>Loopback exclu de la vue synthétique.</span>
               </CardFooter>
@@ -192,7 +192,7 @@ export function NetworkPage() {
                     aria-label="Choisir une interface réseau"
                     value={iface}
                     onChange={(event) => setSelectedInterface(event.target.value)}
-                    className="h-8 max-w-[170px] font-mono text-[11px]"
+                    className="h-8 max-w-[170px] text-xs"
                   >
                     {interfaces.map((entry) => (
                       <option key={entry.name} value={entry.name}>
@@ -221,7 +221,7 @@ export function NetworkPage() {
                 <Chart option={chartOption} height={300} label="Historique des débits réseau" />
               )}
             </CardBody>
-            <CardFooter className="flex flex-wrap items-center justify-between gap-2 font-mono text-[10px] text-text-muted">
+            <CardFooter className="flex flex-wrap items-center justify-between gap-2 text-xs text-text-muted">
               <span>
                 {rxSeries.length} point(s) RX · {txSeries.length} point(s) TX
               </span>
@@ -247,9 +247,9 @@ function Summary({
 }) {
   return (
     <div className="rounded-lg border border-line bg-card p-4">
-      <p className="font-mono text-[11px] uppercase tracking-wider text-text-muted">{label}</p>
-      <p className={`mt-1 font-mono text-2xl font-semibold tracking-tight ${tone}`}>{value}</p>
-      <p className="mt-1 font-mono text-[10px] text-text-muted">{hint}</p>
+      <p className="text-xs text-text-muted">{label}</p>
+      <p className={`mt-1 text-[28px] font-semibold tracking-[-0.03em] ${tone}`}>{value}</p>
+      <p className="mt-1 text-xs text-text-muted">{hint}</p>
     </div>
   )
 }

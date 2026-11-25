@@ -119,13 +119,13 @@ function CronTab({ page }: { page: CronPageModel }) {
                   <p className="text-text-primary">
                     {entry.valid ? entry.description : 'Expression invalide'}
                   </p>
-                  <p className="font-mono text-[10px] text-text-muted">
+                  <p className="text-xs text-text-muted">
                     {entry.expression} · {entry.source}:{entry.line}
                   </p>
-                  {entry.error && <p className="text-[11px] text-danger">{entry.error}</p>}
+                  {entry.error && <p className="text-xs text-danger">{entry.error}</p>}
                 </TD>
                 <TD className="font-mono text-xs">{entry.user}</TD>
-                <TD className="max-w-[360px] break-all font-mono text-[11px]">{entry.command}</TD>
+                <TD className="max-w-[360px] break-all text-xs">{entry.command}</TD>
                 <TD
                   className="whitespace-nowrap text-xs"
                   title={entry.nextRuns.map((run) => formatDateTime(run)).join('\n')}
@@ -140,7 +140,7 @@ function CronTab({ page }: { page: CronPageModel }) {
           </TBody>
         </Table>
       )}
-      <p className="font-mono text-[10px] text-text-muted">
+      <p className="text-xs text-text-muted">
         Heures dans le fuseau de la machine ({page.timeZone}). Cron ne journalise pas le code de
         sortie de ses tâches.
       </p>
@@ -156,7 +156,7 @@ function CronTab({ page }: { page: CronPageModel }) {
                     Prochain passage : {formatDateTime(directory.nextRun)}
                   </p>
                 )}
-                <p className="font-mono text-[11px] text-text-primary">
+                <p className="text-xs text-text-primary">
                   {directory.scripts.length > 0 ? directory.scripts.join(', ') : 'Aucun script'}
                 </p>
               </CardBody>
@@ -201,7 +201,7 @@ function TimersTab({ page }: { page: CronPageModel }) {
           <TR key={timer.name}>
             <TD className="max-w-[260px]">
               <p className="truncate font-mono text-xs text-text-primary">{timer.name}</p>
-              <p className="truncate text-[11px] text-text-muted">{timer.description || '—'}</p>
+              <p className="truncate text-xs text-text-muted">{timer.description || '—'}</p>
             </TD>
             <TD>
               <Badge tone={unitStateTone(timer.activeState)} dot>
@@ -210,7 +210,7 @@ function TimersTab({ page }: { page: CronPageModel }) {
             </TD>
             <TD className="whitespace-nowrap text-xs">{formatDateTime(timer.nextElapse)}</TD>
             <TD className="whitespace-nowrap text-xs">{formatRelativeTime(timer.lastTrigger)}</TD>
-            <TD className="font-mono text-[11px]">{timer.service ?? '—'}</TD>
+            <TD className="text-xs">{timer.service ?? '—'}</TD>
             <TD>
               <Badge tone={timer.result.tone}>{timer.result.label}</Badge>
             </TD>
@@ -266,7 +266,7 @@ function InspectorTab({ page }: { page: CronPageModel }) {
                 ))}
               </ol>
             )}
-            <p className="text-[11px] text-text-muted">
+            <p className="text-xs text-text-muted">
               Heures dans le fuseau de la machine ({page.timeZone}).
             </p>
           </div>

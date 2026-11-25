@@ -50,7 +50,7 @@ export function ContainerActionPanel({ model }: { model: ContainerActionModel })
         </div>
       )}
       {model.disabledNotice && (
-        <p className="text-[11px] text-text-muted">
+        <p className="text-xs text-text-muted">
           Actions désactivées dans la configuration du Manager (<code>docker_actions_enabled</code>)
           ; le proxy Docker doit aussi les autoriser.
         </p>
@@ -198,7 +198,7 @@ export function ContainerLogsCard({ model }: { model: ContainerLogsModel }) {
             {model.lines.length > 0 && (
               <ol
                 aria-label="Lignes du journal"
-                className="max-h-[28rem] overflow-auto rounded-md border border-line bg-surface p-2 font-mono text-[11px] leading-relaxed"
+                className="max-h-[28rem] overflow-auto rounded-md border border-line bg-surface p-2 text-xs leading-relaxed"
               >
                 {model.lines.map((line, index) => (
                   <li key={index} className="flex gap-2 whitespace-pre-wrap break-all">
@@ -225,7 +225,7 @@ export function ContainerLogsCard({ model }: { model: ContainerLogsModel }) {
         )}
       </CardBody>
       {!model.removed && (
-        <CardFooter className="flex flex-wrap items-center justify-between gap-2 font-mono text-[10px] text-text-muted">
+        <CardFooter className="flex flex-wrap items-center justify-between gap-2 text-xs text-text-muted">
           <span>
             {model.lines.length} / {model.total} ligne(s) affichée(s)
             {model.follow && ' · relu toutes les 5 s'}

@@ -13,7 +13,7 @@ export function LoadingState({
 }: LoadingStateProps) {
   return (
     <div className={cn('space-y-3', className)} role="status" aria-live="polite">
-      <p className="font-mono text-[11px] uppercase tracking-wider text-text-muted">{label}</p>
+      <p className="text-xs text-text-muted">{label}</p>
       {Array.from({ length: rows }, (_, index) => (
         <div
           key={index}
@@ -27,10 +27,7 @@ export function LoadingState({
 
 export function InlineLoader({ label = 'Chargement…' }: { label?: string }) {
   return (
-    <span
-      className="inline-flex items-center gap-2 font-mono text-[11px] text-text-muted"
-      role="status"
-    >
+    <span className="inline-flex items-center gap-2 text-xs text-text-muted" role="status">
       <span
         className="h-3 w-3 animate-spin rounded-full border border-line border-t-accent"
         aria-hidden="true"

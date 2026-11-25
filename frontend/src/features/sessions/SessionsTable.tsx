@@ -39,10 +39,10 @@ export function SessionsTable({ rows, showUser, onRevoke, revoking }: SessionsTa
                 </Badge>
               )}
             </TD>
-            <TD className="font-mono text-[11px]">{row.ipAddress}</TD>
+            <TD className="text-xs">{row.ipAddress}</TD>
             <TD>{row.authMethod}</TD>
             <TD>{row.lastSeen}</TD>
-            <TD className="font-mono text-[11px]">{row.createdAt}</TD>
+            <TD className="text-xs">{row.createdAt}</TD>
             <TD className="text-right">
               <Button
                 size="sm"

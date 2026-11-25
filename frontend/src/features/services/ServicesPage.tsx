@@ -130,8 +130,8 @@ function Notice({ children }: { children: ReactNode }) {
 function Counter({ label, value, tone }: { label: string; value: number; tone: string }) {
   return (
     <div className="rounded-lg border border-line bg-card p-4">
-      <p className="font-mono text-[11px] uppercase tracking-wider text-text-muted">{label}</p>
-      <p className={cn('mt-1 font-mono text-2xl font-semibold tracking-tight', tone)}>
+      <p className="text-xs text-text-muted">{label}</p>
+      <p className={cn('mt-1 text-[28px] font-semibold tracking-[-0.03em]', tone)}>
         {formatCount(value)}
       </p>
     </div>
@@ -218,7 +218,7 @@ function Units({ page }: { page: ServicesPageModel }) {
                   <span className="block truncate font-mono text-xs text-accent hover:underline">
                     {unit.name}
                   </span>
-                  <span className="block truncate text-[11px] text-text-muted">
+                  <span className="block truncate text-xs text-text-muted">
                     {unit.description || '—'}
                   </span>
                 </button>
@@ -228,9 +228,7 @@ function Units({ page }: { page: ServicesPageModel }) {
                 <Badge tone={unitStateTone(unit.activeState)} dot>
                   {unitStateLabel(unit.activeState)}
                 </Badge>
-                <span className="ml-1.5 font-mono text-[10px] text-text-muted">
-                  {unit.subState}
-                </span>
+                <span className="ml-1.5 text-xs text-text-muted">{unit.subState}</span>
               </TD>
               <TD className="whitespace-nowrap text-xs">
                 {unitFileStateLabel(unit.unitFileState)}
@@ -242,14 +240,14 @@ function Units({ page }: { page: ServicesPageModel }) {
               <TD className="whitespace-nowrap font-mono text-xs">
                 {formatCpuTime(unit.cpuNanoseconds)}
               </TD>
-              <TD className="whitespace-nowrap font-mono text-[10px]">
+              <TD className="whitespace-nowrap text-xs">
                 {formatRelativeTime(unit.stateChangedAt)}
               </TD>
             </TR>
           ))}
         </TBody>
       </Table>
-      <p className="font-mono text-[10px] text-text-muted">
+      <p className="text-xs text-text-muted">
         {page.units.length} sur {page.inventory.total} unité(s) · en échec d&apos;abord · collecte
         du {formatDateTime(page.inventory.collectedAt)}
       </p>
@@ -260,7 +258,7 @@ function Units({ page }: { page: ServicesPageModel }) {
 function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <div className="grid grid-cols-[120px_minmax(0,1fr)] gap-2 py-1">
-      <dt className="text-[11px] text-text-muted">{label}</dt>
+      <dt className="text-xs text-text-muted">{label}</dt>
       <dd className="min-w-0 break-words font-mono text-xs text-text-primary">{children}</dd>
     </div>
   )
@@ -271,7 +269,7 @@ function NameList({ names }: { names: string[] }) {
   return (
     <ul className="flex flex-wrap gap-1">
       {names.map((name) => (
-        <li key={name} className="rounded border border-line/70 px-1.5 py-0.5 text-[10px]">
+        <li key={name} className="rounded border border-line/70 px-1.5 py-0.5 text-xs">
           {name}
         </li>
       ))}
@@ -355,7 +353,7 @@ function Detail({ page }: { page: ServicesPageModel }) {
                     : data.definition.execStart.map((line) => (
                         <pre
                           key={line}
-                          className="whitespace-pre-wrap break-all rounded bg-surface px-2 py-1 text-[11px]"
+                          className="whitespace-pre-wrap break-all rounded bg-surface px-2 py-1 text-xs"
                         >
                           {line}
                         </pre>
@@ -394,7 +392,7 @@ function Detail({ page }: { page: ServicesPageModel }) {
                 </p>
               )}
               {detail.journal.length > 0 && (
-                <ol className="max-h-80 space-y-0.5 overflow-y-auto rounded bg-surface p-2 font-mono text-[10px] leading-relaxed">
+                <ol className="max-h-80 space-y-0.5 overflow-y-auto rounded bg-surface p-2 text-xs leading-relaxed">
                   {detail.journal.map((entry) => (
                     <li key={entry.cursor} className="break-words">
                       <span className="text-text-muted">{formatJournalTime(entry.time)}</span>{' '}

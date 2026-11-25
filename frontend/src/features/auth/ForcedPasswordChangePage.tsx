@@ -104,15 +104,12 @@ function Field({
 }) {
   return (
     <div>
-      <label
-        htmlFor={id}
-        className="mb-1.5 block font-mono text-[10px] uppercase tracking-wider text-text-secondary"
-      >
+      <label htmlFor={id} className="mb-1.5 block text-xs text-text-secondary">
         {label}
       </label>
       {children}
       {error && (
-        <p className="mt-1 text-[11px] text-danger" role="alert">
+        <p className="mt-1 text-xs text-danger" role="alert">
           {error}
         </p>
       )}

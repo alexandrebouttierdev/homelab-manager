@@ -116,7 +116,7 @@ export function useDashboard() {
         itemWidth: 8,
         itemHeight: 8,
         icon: 'roundRect',
-        textStyle: { color: chartTheme.text, fontSize: 10, fontFamily: 'JetBrains Mono' },
+        textStyle: { color: chartTheme.text, fontSize: 10, fontFamily: 'Instrument Sans Variable' },
       },
       grid: { left: 42, right: 8, top: 30, bottom: 24 },
       xAxis: timeAxis(chartTheme),

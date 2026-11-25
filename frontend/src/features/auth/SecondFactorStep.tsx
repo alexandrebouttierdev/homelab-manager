@@ -37,7 +37,7 @@ export function SecondFactorStep({ step }: SecondFactorStepProps) {
         <div>
           <label
             htmlFor="secondFactorCode"
-            className="mb-1.5 block font-mono text-[10px] font-medium uppercase tracking-wider text-text-secondary"
+            className="mb-1.5 block text-xs font-medium text-text-secondary"
           >
             {totp ? "Code de l'application" : 'Code de secours'}
           </label>

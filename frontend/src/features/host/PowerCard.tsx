@@ -44,10 +44,7 @@ export function PowerCard({ hostname }: { hostname: string }) {
           <form className="space-y-3" onSubmit={power.onConfirm} noValidate>
             <p className="text-xs text-text-secondary">{power.selected.warning}</p>
             <div>
-              <label
-                htmlFor="confirmHostname"
-                className="mb-1.5 block font-mono text-[10px] uppercase tracking-wider text-text-secondary"
-              >
+              <label htmlFor="confirmHostname" className="mb-1.5 block text-xs text-text-secondary">
                 Saisissez « {power.hostname} » pour confirmer
               </label>
               <input
@@ -57,7 +54,7 @@ export function PowerCard({ hostname }: { hostname: string }) {
                 {...power.register('confirmHostname')}
               />
               {power.errors.confirmHostname && (
-                <p className="mt-1 text-[11px] text-danger" role="alert">
+                <p className="mt-1 text-xs text-danger" role="alert">
                   {power.errors.confirmHostname.message}
                 </p>
               )}

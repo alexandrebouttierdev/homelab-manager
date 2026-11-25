@@ -21,15 +21,12 @@ export function FormField({
 }) {
   return (
     <div className={className}>
-      <label
-        htmlFor={id}
-        className="mb-1.5 block font-mono text-[10px] uppercase tracking-wider text-text-secondary"
-      >
+      <label htmlFor={id} className="mb-1.5 block text-xs text-text-secondary">
         {label}
       </label>
       {children}
-      {hint && !error && <p className="mt-1 text-[11px] text-text-muted">{hint}</p>}
-      {error && <p className="mt-1 text-[11px] text-danger">{error}</p>}
+      {hint && !error && <p className="mt-1 text-xs text-text-muted">{hint}</p>}
+      {error && <p className="mt-1 text-xs text-danger">{error}</p>}
     </div>
   )
 }

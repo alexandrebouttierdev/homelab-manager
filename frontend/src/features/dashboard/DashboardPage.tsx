@@ -85,26 +85,28 @@ export function DashboardPage() {
   } = useDashboard()
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       <PageHeader
         title="Vue d'ensemble"
         breadcrumb={[{ label: 'Homelab Manager' }, { label: "Vue d'ensemble" }]}
         badge={
-          <span className="inline-flex items-center gap-2 rounded-md border border-line bg-card px-2.5 py-1 font-mono text-[10px] uppercase tracking-wider text-text-secondary">
-            <StatusDot tone={overallTone} pulse={overallTone === 'success'} />
+          <span className="inline-flex items-center gap-2 text-[13px] text-text-secondary">
+            <StatusDot tone={overallTone} />
             {overallLabel}
           </span>
         }
         description={
           dashboard ? (
             <>
-              <span className="font-mono text-text-primary">
+              <span className="font-mono text-[13px] text-text-primary">
                 {dashboard.host.hostname || 'hôte local'}
               </span>
               {' · '}
               {`${dashboard.host.os.distribution || 'Linux'} ${dashboard.host.os.version || ''}`.trim()}
               {' · noyau '}
-              <span className="font-mono">{dashboard.host.kernelVersion || 'indisponible'}</span>
+              <span className="font-mono text-[13px]">
+                {dashboard.host.kernelVersion || 'indisponible'}
+              </span>
               {' · '}
               {lastCollection
                 ? `dernière collecte ${formatRelativeTime(lastCollection)}`
@@ -126,7 +128,7 @@ export function DashboardPage() {
             </Button>
             <Link
               to="/host"
-              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-line bg-card px-2.5 text-xs font-medium text-text-secondary transition-colors hover:bg-elevated hover:text-text-primary"
+              className="inline-flex h-8 items-center gap-1.5 rounded-md border border-line-strong bg-card px-3 text-[13px] font-medium text-text-primary transition-colors hover:bg-elevated"
             >
               <Server className="h-3.5 w-3.5" />
               Machine
@@ -146,14 +148,18 @@ export function DashboardPage() {
 
       {!isLoading && !error && (
         <>
-          <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          <section
+            aria-label="Mesures instantanées"
+            className="grid gap-px overflow-hidden rounded-xl border border-line bg-line sm:grid-cols-2 xl:grid-cols-4"
+          >
             <MetricCard
+              variant="plain"
               label="Processeur (CPU)"
               title={cores ? `${Math.round(cores)} cœurs logiques` : 'Processeur'}
               value={formatPercent(cpu?.value)}
               badge={<Badge tone="info">{cores ? `${Math.round(cores)} cœurs` : 'CPU'}</Badge>}
               aside={
-                <div className="font-mono text-[10px] text-text-muted">
+                <div className="text-xs text-text-muted">
                   <span className="block">Charge 1/5/15</span>
                   <span className="text-text-secondary">
                     {load1 != null ? load1.toFixed(2) : '—'} ·{' '}
@@ -167,13 +173,12 @@ export function DashboardPage() {
               {cpuValues.length > 1 ? (
                 <Sparkline values={cpuValues} tone="cpu" />
               ) : (
-                <p className="font-mono text-[10px] text-text-muted">
-                  Historique en cours de constitution.
-                </p>
+                <p className="text-xs text-text-muted">Historique en cours de constitution.</p>
               )}
             </MetricCard>
 
             <MetricCard
+              variant="plain"
               label="Mémoire vive (RAM)"
               title={memoryTotal ? `${formatBytes(memoryTotal)} installés` : 'Mémoire'}
               value={formatBytes(memoryUsed)}
@@ -186,12 +191,13 @@ export function DashboardPage() {
               hint={`Cache ${formatBytes(memoryCached)} · Disponible ${formatBytes(memoryAvailable)}`}
             >
               <ProgressBar value={memoryPercent} tone="ram" label="Utilisation mémoire" />
-              <p className="font-mono text-[10px] text-text-muted">
+              <p className="text-xs text-text-muted">
                 Swap {formatBytes(swapUsed)} / {formatBytes(swapTotal)}
               </p>
             </MetricCard>
 
             <MetricCard
+              variant="plain"
               label="Stockage système & média"
               title={
                 filesystems.volumes > 0
@@ -214,7 +220,7 @@ export function DashboardPage() {
               <div className="space-y-2">
                 {filesystems.entries.slice(0, 2).map((entry) => (
                   <div key={entry.mountpoint} className="space-y-1">
-                    <div className="flex items-center justify-between gap-2 font-mono text-[10px] text-text-muted">
+                    <div className="flex items-center justify-between gap-2 text-xs text-text-muted">
                       <span className="truncate">{entry.mountpoint}</span>
                       <span>{formatPercent(entry.percent)}</span>
                     </div>
@@ -222,12 +228,13 @@ export function DashboardPage() {
                   </div>
                 ))}
                 {filesystems.entries.length === 0 && (
-                  <p className="font-mono text-[10px] text-text-muted">Donnée indisponible.</p>
+                  <p className="text-xs text-text-muted">Donnée indisponible.</p>
                 )}
               </div>
             </MetricCard>
 
             <MetricCard
+              variant="plain"
               label="Trafic réseau"
               title={primaryInterface?.name ?? 'Interfaces'}
               value={
@@ -239,7 +246,7 @@ export function DashboardPage() {
               badge={<Badge tone="neutral">{primaryInterface?.name ?? 'Réseau'}</Badge>}
               aside={
                 primaryInterface ? (
-                  <div className="font-mono text-[10px] text-text-muted">
+                  <div className="text-xs text-text-muted">
                     <span className="block">TX</span>
                     <span className="text-text-secondary">
                       {primaryInterface.txRate != null
@@ -255,7 +262,7 @@ export function DashboardPage() {
                   : 'Aucune interface mesurée'
               }
             >
-              <div className="flex items-center justify-between font-mono text-[10px] text-text-muted">
+              <div className="flex items-center justify-between text-xs text-text-muted">
                 <span className="flex items-center gap-1">
                   <ArrowDownRight className="h-3 w-3 text-net" />{' '}
                   {formatRate(primaryInterface?.rxRate)}
@@ -266,9 +273,9 @@ export function DashboardPage() {
                 </span>
               </div>
             </MetricCard>
-          </div>
+          </section>
 
-          <div className="grid items-start gap-4 xl:grid-cols-3">
+          <div className="grid items-start gap-5 xl:grid-cols-3">
             <Card className="xl:col-span-2">
               <CardHeader
                 title="Charge CPU et mémoire"
@@ -283,7 +290,7 @@ export function DashboardPage() {
               <CardBody>
                 <Chart option={chartOption} height={272} label="Historique CPU et mémoire" />
               </CardBody>
-              <CardFooter className="flex flex-wrap items-center justify-between gap-2 font-mono text-[10px] text-text-muted">
+              <CardFooter className="flex flex-wrap items-center justify-between gap-2 text-xs text-text-muted">
                 <span>
                   CPU {formatPercent(cpu?.value)} · RAM {formatPercent(memoryPercent)}
                 </span>
@@ -299,7 +306,7 @@ export function DashboardPage() {
                 actions={
                   <Link
                     to="/network"
-                    className="text-[11px] text-text-secondary transition-colors hover:text-text-primary"
+                    className="text-xs text-text-secondary transition-colors hover:text-text-primary"
                   >
                     Détails
                   </Link>
@@ -318,9 +325,7 @@ export function DashboardPage() {
                       <span className="font-mono text-xs text-text-primary">{iface.name}</span>
                       <span
                         className={
-                          iface.errors > 0
-                            ? 'font-mono text-[10px] text-warning'
-                            : 'font-mono text-[10px] text-text-muted'
+                          iface.errors > 0 ? 'text-xs text-warning' : 'text-xs text-text-muted'
                         }
                         title="Compteurs cumulés depuis le démarrage de la machine"
                       >
@@ -328,7 +333,7 @@ export function DashboardPage() {
                         perte(s)
                       </span>
                     </div>
-                    <div className="mt-2 grid grid-cols-2 gap-2 font-mono text-[10px]">
+                    <div className="mt-2 grid grid-cols-2 gap-2 text-xs">
                       <span className="flex items-center gap-1 text-text-secondary">
                         <ArrowDownRight className="h-3 w-3 text-net" /> {formatRate(iface.rxRate)}
                       </span>
@@ -342,7 +347,7 @@ export function DashboardPage() {
             </Card>
           </div>
 
-          <div className="grid items-start gap-4 xl:grid-cols-3">
+          <div className="grid items-start gap-5 xl:grid-cols-3">
             <Card className="xl:col-span-2">
               <CardHeader
                 title="Services Docker"
@@ -362,7 +367,7 @@ export function DashboardPage() {
                     </Badge>
                     <Link
                       to="/containers"
-                      className="ml-1 inline-flex items-center gap-1 text-[11px] text-text-secondary transition-colors hover:text-text-primary"
+                      className="ml-1 inline-flex items-center gap-1 text-xs text-text-secondary transition-colors hover:text-text-primary"
                     >
                       Voir tout <ChevronRight className="h-3 w-3" />
                     </Link>
@@ -402,10 +407,10 @@ export function DashboardPage() {
                               {containerStateLabel(container.state)}
                             </Badge>
                           </div>
-                          <p className="mt-1.5 truncate font-mono text-[10px] text-text-muted">
+                          <p className="mt-1.5 truncate text-xs text-text-muted">
                             {tag.repository}
                           </p>
-                          <div className="mt-2 flex items-center justify-between font-mono text-[10px] text-text-muted">
+                          <div className="mt-2 flex items-center justify-between text-xs text-text-muted">
                             <span>
                               {isRunning(container.state)
                                 ? formatUptime(container.uptimeSeconds)
@@ -419,7 +424,7 @@ export function DashboardPage() {
                   </div>
                 )}
               </CardBody>
-              <CardFooter className="flex flex-wrap items-center justify-between gap-2 font-mono text-[10px] text-text-muted">
+              <CardFooter className="flex flex-wrap items-center justify-between gap-2 text-xs text-text-muted">
                 <span>Lecture seule · aucune action Docker n'est exposée.</span>
                 <Link
                   to="/events"
@@ -454,7 +459,7 @@ export function DashboardPage() {
                       <p className="text-xs font-medium text-text-primary">
                         Aucune anomalie détectée
                       </p>
-                      <p className="mt-0.5 text-[11px] text-text-muted">
+                      <p className="mt-0.5 text-xs text-text-muted">
                         Les collecteurs répondent et aucun conteneur n'est en erreur.
                       </p>
                     </div>
@@ -476,9 +481,7 @@ export function DashboardPage() {
                     />
                     <div className="min-w-0">
                       <p className="truncate text-xs font-medium text-text-primary">{item.title}</p>
-                      <p className="mt-0.5 line-clamp-2 text-[11px] text-text-muted">
-                        {item.detail}
-                      </p>
+                      <p className="mt-0.5 line-clamp-2 text-xs text-text-muted">{item.detail}</p>
                     </div>
                   </Link>
                 ))}
@@ -486,7 +489,7 @@ export function DashboardPage() {
               <CardFooter>
                 <Link
                   to="/events"
-                  className="inline-flex items-center gap-1 text-[11px] text-text-secondary transition-colors hover:text-text-primary"
+                  className="inline-flex items-center gap-1 text-xs text-text-secondary transition-colors hover:text-text-primary"
                 >
                   Consulter le journal <ChevronRight className="h-3 w-3" />
                 </Link>
@@ -494,7 +497,7 @@ export function DashboardPage() {
             </Card>
           </div>
 
-          <div className="grid items-start gap-4 xl:grid-cols-3">
+          <div className="grid items-start gap-5 xl:grid-cols-3">
             <Card className="xl:col-span-2">
               <CardHeader
                 title="Journal d'activité récent"
@@ -503,7 +506,7 @@ export function DashboardPage() {
                 actions={
                   <Link
                     to="/events"
-                    className="text-[11px] text-text-secondary transition-colors hover:text-text-primary"
+                    className="text-xs text-text-secondary transition-colors hover:text-text-primary"
                   >
                     Tout voir
                   </Link>
@@ -533,11 +536,9 @@ export function DashboardPage() {
                           {eventSeverityLabel(event.severity)}
                         </Badge>
                       </div>
-                      <p className="mt-0.5 line-clamp-2 text-[11px] text-text-muted">
-                        {event.message}
-                      </p>
+                      <p className="mt-0.5 line-clamp-2 text-xs text-text-muted">{event.message}</p>
                     </div>
-                    <div className="shrink-0 text-right font-mono text-[10px] text-text-muted">
+                    <div className="shrink-0 text-right text-xs text-text-muted">
                       <span className="block">{formatRelativeTime(event.occurredAt)}</span>
                       {event.containerId && (
                         <Link
@@ -561,7 +562,7 @@ export function DashboardPage() {
                 actions={
                   <Link
                     to="/settings"
-                    className="text-[11px] text-text-secondary transition-colors hover:text-text-primary"
+                    className="text-xs text-text-secondary transition-colors hover:text-text-primary"
                   >
                     Configurer
                   </Link>
@@ -579,19 +580,17 @@ export function DashboardPage() {
                   lastSuccessAt={dashboard?.collectors.docker.lastSuccessAt}
                 />
                 <div className="rounded-md border border-line/70 bg-surface/50 px-3 py-2.5">
-                  <p className="font-mono text-[10px] uppercase tracking-wider text-text-muted">
-                    Hôte
-                  </p>
+                  <p className="text-xs text-text-muted">Hôte</p>
                   <p className="mt-1 text-xs text-text-primary">
                     {dashboard?.host.hostname || '—'}
                   </p>
-                  <p className="mt-0.5 font-mono text-[10px] text-text-muted">
+                  <p className="mt-0.5 text-xs text-text-muted">
                     Uptime {formatUptime(dashboard?.host.uptimeSeconds)} · noyau{' '}
                     {dashboard?.host.kernelVersion || '—'}
                   </p>
                 </div>
               </CardBody>
-              <CardFooter className="font-mono text-[10px] text-text-muted">
+              <CardFooter className="text-xs text-text-muted">
                 {lastCollection
                   ? `Dernière collecte ${formatRelativeTime(lastCollection)}`
                   : 'Aucune collecte réussie'}
@@ -599,11 +598,11 @@ export function DashboardPage() {
             </Card>
           </div>
 
-          <div className="grid items-start gap-4 xl:grid-cols-3">
+          <div className="grid items-start gap-5 xl:grid-cols-3">
             <VulnerabilitiesCard />
           </div>
 
-          <p className="flex flex-wrap items-center gap-2 font-mono text-[10px] text-text-muted">
+          <p className="flex flex-wrap items-center gap-2 text-xs text-text-muted">
             <Database className="h-3 w-3" aria-hidden="true" />
             Données collectées localement et conservées dans SQLite.
             <span className="text-line-strong">•</span>

@@ -141,9 +141,9 @@ function Notice({ children }: { children: ReactNode }) {
 function Fact({ label, value, detail }: { label: string; value: string; detail: string }) {
   return (
     <div className="min-w-0 rounded-lg border border-line bg-card p-4">
-      <p className="font-mono text-[11px] uppercase tracking-wider text-text-muted">{label}</p>
+      <p className="text-xs text-text-muted">{label}</p>
       <p className="mt-1 truncate text-sm font-semibold text-text-primary">{value}</p>
-      <p className="mt-0.5 truncate text-[11px] text-text-muted" title={detail}>
+      <p className="mt-0.5 truncate text-xs text-text-muted" title={detail}>
         {detail}
       </p>
     </div>
@@ -178,9 +178,7 @@ function Runs({ page }: { page: BackupsPageModel }) {
           <TR key={row.id}>
             <TD>
               <p className="text-text-primary">{row.label}</p>
-              {row.requestedBy && (
-                <p className="text-[11px] text-text-muted">par {row.requestedBy}</p>
-              )}
+              {row.requestedBy && <p className="text-xs text-text-muted">par {row.requestedBy}</p>}
             </TD>
             <TD>
               <Badge tone={row.state.tone} dot>
@@ -193,9 +191,7 @@ function Runs({ page }: { page: BackupsPageModel }) {
             <TD className="whitespace-nowrap text-xs">{row.duration}</TD>
             <TD className="max-w-[420px] break-words text-xs">
               {row.result && <p>{row.result}</p>}
-              {row.snapshot && (
-                <p className="font-mono text-[10px] text-text-muted">instantané {row.snapshot}</p>
-              )}
+              {row.snapshot && <p className="text-xs text-text-muted">instantané {row.snapshot}</p>}
               {row.problem && <p className="text-danger">{row.problem}</p>}
               {row.archiveUrl && (
                 <a className="text-accent underline" href={row.archiveUrl} download>
@@ -285,10 +281,7 @@ function Snapshots({ page }: { page: BackupsPageModel }) {
                 {snapshot.shortId}
               </TD>
               <TD className="whitespace-nowrap text-xs">{formatDateTime(snapshot.time)}</TD>
-              <TD
-                className="max-w-[320px] truncate font-mono text-[11px]"
-                title={snapshot.paths.join(', ')}
-              >
+              <TD className="max-w-[320px] truncate text-xs" title={snapshot.paths.join(', ')}>
                 {snapshot.paths.join(', ')}
               </TD>
               <TD className="font-mono text-xs">{formatCount(snapshot.totalFiles)}</TD>

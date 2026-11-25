@@ -23,10 +23,7 @@ export function BackupSSHKeyCard({ model }: { model: BackupSSHKeyModel }) {
         </p>
         {model.key ? (
           <div className="space-y-2">
-            <label
-              htmlFor="backup-ssh-public-key"
-              className="block font-mono text-[10px] uppercase tracking-wider text-text-secondary"
-            >
+            <label htmlFor="backup-ssh-public-key" className="block text-xs text-text-secondary">
               Clé publique
             </label>
             <textarea
@@ -37,7 +34,7 @@ export function BackupSSHKeyCard({ model }: { model: BackupSSHKeyModel }) {
               onFocus={(event) => event.currentTarget.select()}
               className="min-h-[56px] w-full rounded-md border border-line bg-surface px-3 py-2 font-mono text-xs text-text-primary outline-none"
             />
-            <p className="text-[11px] text-text-muted">
+            <p className="text-xs text-text-muted">
               Empreinte {model.key.fingerprint} · créée le {formatDateTime(model.key.createdAt)}
             </p>
           </div>

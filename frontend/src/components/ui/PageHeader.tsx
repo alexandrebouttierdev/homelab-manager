@@ -31,7 +31,7 @@ export function PageHeader({
         {breadcrumb && breadcrumb.length > 0 && (
           <nav
             aria-label="Fil d'Ariane"
-            className="mb-1 flex flex-wrap items-center gap-1 font-mono text-[10px] uppercase tracking-wider text-text-muted"
+            className="mb-2 flex flex-wrap items-center gap-1 text-[13px] text-text-muted"
           >
             {breadcrumb.map((item, index) => (
               <span key={`${item.label}-${index}`} className="inline-flex items-center gap-1">
@@ -50,11 +50,13 @@ export function PageHeader({
           </nav>
         )}
         <div className="flex flex-wrap items-center gap-2.5">
-          <h1 className="text-2xl font-semibold tracking-tight text-text-primary">{title}</h1>
+          <h1 className="text-[28px] font-semibold leading-tight tracking-[-0.025em] text-text-primary">
+            {title}
+          </h1>
           {badge}
         </div>
         {description && (
-          <p className="mt-1 max-w-3xl text-sm leading-relaxed text-text-secondary">
+          <p className="mt-1.5 max-w-3xl text-[13.5px] leading-relaxed text-text-muted">
             {description}
           </p>
         )}

@@ -38,26 +38,22 @@ export function NetworksPage() {
 
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="rounded-lg border border-line bg-card p-4">
-          <p className="font-mono text-[11px] uppercase tracking-wider text-text-muted">
-            Réseaux distincts
-          </p>
-          <p className="mt-1 font-mono text-2xl font-semibold text-text-primary">
+          <p className="text-xs text-text-muted">Réseaux distincts</p>
+          <p className="mt-1 text-[28px] font-semibold tracking-[-0.03em] text-text-primary">
             {networks.length}
           </p>
         </div>
         <div className="rounded-lg border border-line bg-card p-4">
-          <p className="font-mono text-[11px] uppercase tracking-wider text-text-muted">
-            Conteneurs attachés
-          </p>
-          <p className="mt-1 font-mono text-2xl font-semibold text-accent">
+          <p className="text-xs text-text-muted">Conteneurs attachés</p>
+          <p className="mt-1 text-[28px] font-semibold tracking-[-0.03em] text-accent">
             {attachedContainerCount}
           </p>
         </div>
         <div className="rounded-lg border border-line bg-card p-4">
-          <p className="font-mono text-[11px] uppercase tracking-wider text-text-muted">
-            Réseaux actifs
+          <p className="text-xs text-text-muted">Réseaux actifs</p>
+          <p className="mt-1 text-[28px] font-semibold tracking-[-0.03em] text-success">
+            {activeNetworkCount}
           </p>
-          <p className="mt-1 font-mono text-2xl font-semibold text-success">{activeNetworkCount}</p>
         </div>
       </div>
 
@@ -128,7 +124,7 @@ export function NetworksPage() {
                         <Link
                           key={container.id}
                           to={`/containers/${encodeURIComponent(container.id)}`}
-                          className="inline-flex items-center gap-1 rounded-sm border border-line px-1.5 py-0.5 font-mono text-[10px] text-text-secondary transition-colors hover:border-accent/40 hover:text-accent"
+                          className="inline-flex items-center gap-1 rounded-sm border border-line px-1.5 py-0.5 text-xs text-text-secondary transition-colors hover:border-accent/40 hover:text-accent"
                         >
                           <StatusDot
                             tone={containerStateTone(container.state)}
@@ -138,7 +134,7 @@ export function NetworksPage() {
                         </Link>
                       ))}
                       {network.containers.length > 5 && (
-                        <span className="font-mono text-[10px] text-text-muted">
+                        <span className="text-xs text-text-muted">
                           +{network.containers.length - 5}
                         </span>
                       )}
@@ -157,7 +153,7 @@ export function NetworksPage() {
               ))}
             </TBody>
           </Table>
-          <CardFooter className="flex items-center justify-between gap-2 rounded-lg border border-line bg-card font-mono text-[10px] text-text-muted">
+          <CardFooter className="flex items-center justify-between gap-2 rounded-lg border border-line bg-card text-xs text-text-muted">
             <span>{filtered.length} réseau(x) affiché(s)</span>
             <span>Attachements issus de l'inventaire Docker · lecture seule</span>
           </CardFooter>

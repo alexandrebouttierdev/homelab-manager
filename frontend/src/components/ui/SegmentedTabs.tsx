@@ -26,7 +26,7 @@ export function SegmentedTabs<T extends string | number>({
       role="group"
       aria-label={ariaLabel}
       className={cn(
-        'inline-flex flex-wrap items-center gap-1 rounded-lg border border-line bg-card p-1',
+        'inline-flex flex-wrap items-center gap-0.5 rounded-lg border border-line bg-surface p-0.5',
         className,
       )}
     >
@@ -39,20 +39,15 @@ export function SegmentedTabs<T extends string | number>({
             aria-pressed={active}
             onClick={() => onChange(option.value)}
             className={cn(
-              'inline-flex items-center gap-2 rounded-md px-3 py-1.5 text-xs font-medium transition-colors',
+              'inline-flex h-7 items-center gap-2 rounded-md px-3 text-[13px] transition-colors',
               active
-                ? 'bg-elevated text-text-primary shadow-sm'
-                : 'text-text-secondary hover:bg-elevated/60 hover:text-text-primary',
+                ? 'bg-elevated font-medium text-text-primary'
+                : 'text-text-muted hover:text-text-primary',
             )}
           >
             {option.label}
             {option.count != null && (
-              <span
-                className={cn(
-                  'rounded-sm px-1 font-mono text-[10px]',
-                  active ? 'bg-accent/15 text-accent' : 'bg-elevated text-text-muted',
-                )}
-              >
+              <span className={cn('text-xs', active ? 'text-text-secondary' : 'text-text-muted')}>
                 {option.count}
               </span>
             )}

@@ -26,22 +26,22 @@ export function VolumesPage() {
 
       <div className="grid gap-3 sm:grid-cols-3">
         <div className="rounded-lg border border-line bg-card p-4">
-          <p className="font-mono text-[11px] uppercase tracking-wider text-text-muted">
-            Montages distincts
+          <p className="text-xs text-text-muted">Montages distincts</p>
+          <p className="mt-1 text-[28px] font-semibold tracking-[-0.03em] text-text-primary">
+            {mounts.length}
           </p>
-          <p className="mt-1 font-mono text-2xl font-semibold text-text-primary">{mounts.length}</p>
         </div>
         <div className="rounded-lg border border-line bg-card p-4">
-          <p className="font-mono text-[11px] uppercase tracking-wider text-text-muted">
-            Volumes nommés
+          <p className="text-xs text-text-muted">Volumes nommés</p>
+          <p className="mt-1 text-[28px] font-semibold tracking-[-0.03em] text-accent">
+            {namedVolumes}
           </p>
-          <p className="mt-1 font-mono text-2xl font-semibold text-accent">{namedVolumes}</p>
         </div>
         <div className="rounded-lg border border-line bg-card p-4">
-          <p className="font-mono text-[11px] uppercase tracking-wider text-text-muted">
-            Montages bind
+          <p className="text-xs text-text-muted">Montages bind</p>
+          <p className="mt-1 text-[28px] font-semibold tracking-[-0.03em] text-success">
+            {bindMounts}
           </p>
-          <p className="mt-1 font-mono text-2xl font-semibold text-success">{bindMounts}</p>
         </div>
       </div>
 
@@ -118,13 +118,13 @@ export function VolumesPage() {
                         <Link
                           key={container.id}
                           to={`/containers/${encodeURIComponent(container.id)}`}
-                          className="rounded-sm border border-line px-1.5 py-0.5 font-mono text-[10px] text-text-secondary transition-colors hover:border-accent/40 hover:text-accent"
+                          className="rounded-sm border border-line px-1.5 py-0.5 text-xs text-text-secondary transition-colors hover:border-accent/40 hover:text-accent"
                         >
                           {container.name}
                         </Link>
                       ))}
                       {mount.containers.length > 4 && (
-                        <span className="font-mono text-[10px] text-text-muted">
+                        <span className="text-xs text-text-muted">
                           +{mount.containers.length - 4}
                         </span>
                       )}
@@ -134,7 +134,7 @@ export function VolumesPage() {
               ))}
             </TBody>
           </Table>
-          <CardFooter className="flex items-center justify-between gap-2 rounded-lg border border-line bg-card font-mono text-[10px] text-text-muted">
+          <CardFooter className="flex items-center justify-between gap-2 rounded-lg border border-line bg-card text-xs text-text-muted">
             <span>{filtered.length} montage(s) affiché(s)</span>
             <span>Données issues de l'inventaire Docker · lecture seule</span>
           </CardFooter>

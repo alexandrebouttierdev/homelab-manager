@@ -82,7 +82,7 @@ export function useNetworkPage() {
         itemWidth: 8,
         itemHeight: 8,
         icon: 'roundRect',
-        textStyle: { color: chartTheme.text, fontSize: 10, fontFamily: 'JetBrains Mono' },
+        textStyle: { color: chartTheme.text, fontSize: 10, fontFamily: 'Instrument Sans Variable' },
       },
       grid: { left: 54, right: 10, top: 30, bottom: 28 },
       xAxis: timeAxis(chartTheme),

@@ -215,7 +215,7 @@ export function HostPage() {
                       />
                     </dl>
                   </CardBody>
-                  <CardFooter className="flex flex-wrap items-center justify-between gap-2 font-mono text-[10px] text-text-muted">
+                  <CardFooter className="flex flex-wrap items-center justify-between gap-2 text-xs text-text-muted">
                     <span className="flex items-center gap-1.5">
                       <Clock3 className="h-3 w-3" /> Uptime calculé depuis l'heure de démarrage.
                     </span>
@@ -245,7 +245,7 @@ export function HostPage() {
                       status={dockerStatus?.status}
                       lastSuccessAt={dockerStatus?.lastSuccessAt}
                     />
-                    <div className="rounded-md border border-line/70 bg-surface/50 px-3 py-2.5 font-mono text-[10px] text-text-muted">
+                    <div className="rounded-md border border-line/70 bg-surface/50 px-3 py-2.5 text-xs text-text-muted">
                       <p>
                         Intervalle système : {settingsInfo?.systemCollectIntervalSeconds ?? '—'} s
                       </p>
@@ -257,7 +257,7 @@ export function HostPage() {
                   <CardFooter>
                     <Link
                       to="/settings"
-                      className="text-[11px] text-text-secondary transition-colors hover:text-text-primary"
+                      className="text-xs text-text-secondary transition-colors hover:text-text-primary"
                     >
                       Voir la configuration effective
                     </Link>
@@ -274,7 +274,7 @@ export function HostPage() {
                     actions={
                       <Link
                         to="/storage"
-                        className="text-[11px] text-text-secondary transition-colors hover:text-text-primary"
+                        className="text-xs text-text-secondary transition-colors hover:text-text-primary"
                       >
                         Détails
                       </Link>
@@ -286,7 +286,7 @@ export function HostPage() {
                     )}
                     {filesystems.entries.slice(0, 5).map((entry) => (
                       <div key={entry.mountpoint} className="space-y-1.5">
-                        <div className="flex items-center justify-between gap-2 font-mono text-[11px]">
+                        <div className="flex items-center justify-between gap-2 text-xs">
                           <span className="truncate text-text-primary">{entry.mountpoint}</span>
                           <span className="text-text-muted">
                             {formatBytes(entry.used)} / {formatBytes(entry.total)}
@@ -372,22 +372,18 @@ export function HostPage() {
                             <TD className="font-mono text-xs text-text-primary">
                               {metricLabel(sample.name)}
                             </TD>
-                            <TD className="font-mono text-[10px] text-text-muted">
-                              {metricLabels(sample)}
-                            </TD>
+                            <TD className="text-xs text-text-muted">{metricLabels(sample)}</TD>
                             <TD className="font-mono text-xs">
                               {formatMetricValue(sample.value, sample.unit)}
                             </TD>
-                            <TD className="font-mono text-[10px]">
-                              {formatDateTime(sample.recordedAt)}
-                            </TD>
+                            <TD className="text-xs">{formatDateTime(sample.recordedAt)}</TD>
                           </TR>
                         ))}
                       </TBody>
                     </Table>
                   )}
                 </CardBody>
-                <CardFooter className="flex flex-wrap items-center justify-between gap-2 font-mono text-[10px] text-text-muted">
+                <CardFooter className="flex flex-wrap items-center justify-between gap-2 text-xs text-text-muted">
                   <span className="flex items-center gap-1.5">
                     <Cpu className="h-3 w-3" /> {metrics.length} séries distinctes
                   </span>
@@ -406,7 +402,7 @@ export function HostPage() {
 function Info({ label, value, mono = false }: { label: string; value: string; mono?: boolean }) {
   return (
     <div className="min-w-0 rounded-md border border-line/70 bg-surface/50 px-3 py-2">
-      <dt className="font-mono text-[10px] uppercase tracking-wider text-text-muted">{label}</dt>
+      <dt className="text-xs text-text-muted">{label}</dt>
       <dd
         className={`mt-1 truncate text-xs text-text-primary ${mono ? 'font-mono' : ''}`}
         title={value}

@@ -20,12 +20,13 @@
   --color-ram: var(--app-ram);
   --color-net: var(--app-net);
 
-  --font-sans: 'Geist', 'Inter', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
-  --font-mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --font-sans:
+    'Instrument Sans Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
 
   --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 8px;
+  --radius-md: 7px;
+  --radius-lg: 10px;
   --radius-xl: 12px;
 
   --text-2xs: 10px;
@@ -33,46 +34,46 @@
 }
 
 :root {
-  --app-background: #111315;
-  --app-surface: #17191c;
-  --app-card: #1b1e22;
-  --app-elevated: #22262b;
-  --app-line: #30343a;
-  --app-line-strong: #3d424a;
-  --app-text-primary: #e8eaed;
-  --app-text-secondary: #9299a3;
-  --app-text-muted: #686f79;
-  --app-accent: #8b9cfb;
-  --app-on-accent: #111315;
-  --app-success: #45b881;
-  --app-warning: #e5a93c;
-  --app-danger: #f87171;
-  --app-info: #6d9fe8;
-  --app-cpu: #6d9fe8;
-  --app-ram: #a78bfa;
-  --app-net: #45b881;
+  --app-background: #0e0e0d;
+  --app-surface: #121211;
+  --app-card: #141413;
+  --app-elevated: #1d1d1b;
+  --app-line: #262624;
+  --app-line-strong: #34342f;
+  --app-text-primary: #edede6;
+  --app-text-secondary: #b4b4ab;
+  --app-text-muted: #8c8c84;
+  --app-accent: #edede6;
+  --app-on-accent: #0e0e0d;
+  --app-success: #52c48d;
+  --app-warning: #e8b85a;
+  --app-danger: #f26b5e;
+  --app-info: #78a9ff;
+  --app-cpu: #78a9ff;
+  --app-ram: #f2a65a;
+  --app-net: #7cc4c0;
   color-scheme: dark;
 }
 
 [data-theme='light'] {
-  --app-background: #f3f4f6;
-  --app-surface: #ffffff;
+  --app-background: #f6f6f3;
+  --app-surface: #fbfbf9;
   --app-card: #ffffff;
-  --app-elevated: #eef0f4;
-  --app-line: #dde1e7;
-  --app-line-strong: #c8ced8;
-  --app-text-primary: #14181f;
-  --app-text-secondary: #4b5563;
-  --app-text-muted: #6b7280;
-  --app-accent: #4f5fd7;
+  --app-elevated: #efefeb;
+  --app-line: #e4e4de;
+  --app-line-strong: #d2d2ca;
+  --app-text-primary: #171715;
+  --app-text-secondary: #4a4a44;
+  --app-text-muted: #6b6b64;
+  --app-accent: #171715;
   --app-on-accent: #ffffff;
-  --app-success: #15803d;
-  --app-warning: #a16207;
-  --app-danger: #dc2626;
-  --app-info: #2563eb;
-  --app-cpu: #2563eb;
-  --app-ram: #7c3aed;
-  --app-net: #059669;
+  --app-success: #1e7f4f;
+  --app-warning: #9a6500;
+  --app-danger: #c8372d;
+  --app-info: #2458c6;
+  --app-cpu: #2458c6;
+  --app-ram: #c2610f;
+  --app-net: #0f766e;
   color-scheme: light;
 }
 
@@ -88,6 +89,9 @@
     background-color: var(--app-background);
     color: var(--app-text-primary);
     font-family: var(--font-sans);
+    font-size: 14px;
+    line-height: 1.45;
+    font-variant-numeric: tabular-nums;
     -webkit-font-smoothing: antialiased;
     text-rendering: optimizeLegibility;
   }
@@ -120,21 +124,6 @@
   ::-webkit-scrollbar-track {
     background-color: transparent;
   }
-}
-
-@utility grid-backdrop {
-  background-image:
-    linear-gradient(
-      to right,
-      color-mix(in srgb, var(--app-line) 55%, transparent) 1px,
-      transparent 1px
-    ),
-    linear-gradient(
-      to bottom,
-      color-mix(in srgb, var(--app-line) 55%, transparent) 1px,
-      transparent 1px
-    );
-  background-size: 40px 40px;
 }
 
 @utility text-balance {

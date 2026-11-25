@@ -62,7 +62,7 @@ export function SilencesPanel() {
                 <TD className="break-all text-text-primary">{row.subject}</TD>
                 <TD>
                   <p className="text-text-primary">{row.reason}</p>
-                  <p className="text-[11px] text-text-muted">par {row.createdBy}</p>
+                  <p className="text-xs text-text-muted">par {row.createdBy}</p>
                 </TD>
                 <TD className="whitespace-nowrap text-xs">{row.period}</TD>
                 <TD>

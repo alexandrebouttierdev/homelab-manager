@@ -24,19 +24,19 @@ function ContainerUsage({ containerId, enabled }: { containerId: string; enabled
   const usage = useContainerUsage(containerId, enabled)
   if (usage.state !== 'ok') {
     const label = { disabled: '—', loading: '…', error: 'indisponible' }[usage.state]
-    return <span className="font-mono text-[10px] text-text-muted">{label}</span>
+    return <span className="text-xs text-text-muted">{label}</span>
   }
   return (
     <div className="min-w-[150px] space-y-1.5">
       <div className="space-y-1">
-        <div className="flex items-baseline justify-between gap-2 font-mono text-[10px]">
+        <div className="flex items-baseline justify-between gap-2 text-xs">
           <span className="text-text-muted">CPU</span>
           <span className="text-text-primary">{formatPercent(usage.cpu)}</span>
         </div>
         <ProgressBar value={usage.cpu} tone="cpu" label="Utilisation CPU du conteneur" />
       </div>
       <div className="space-y-1">
-        <div className="flex items-baseline justify-between gap-2 font-mono text-[10px]">
+        <div className="flex items-baseline justify-between gap-2 text-xs">
           <span className="text-text-muted">RAM {formatPercent(usage.memoryPercent)}</span>
           <span className="text-text-primary">
             {formatBytes(usage.memory)}
@@ -210,7 +210,7 @@ export function ContainersPage() {
                           >
                             {container.name || 'Sans nom'}
                           </Link>
-                          <span className="mt-0.5 block font-mono text-[10px] text-text-muted">
+                          <span className="mt-0.5 block text-xs text-text-muted">
                             {shortId(container.dockerId)}
                             {container.removedAt && ' · supprimé'}
                           </span>
@@ -233,7 +233,7 @@ export function ContainersPage() {
                         {containerStateLabel(container.state)}
                       </Badge>
                       <p
-                        className="mt-1 max-w-[220px] truncate font-mono text-[10px] text-text-muted"
+                        className="mt-1 max-w-[220px] truncate text-xs text-text-muted"
                         title={container.status}
                       >
                         {container.status || '—'}
@@ -249,11 +249,9 @@ export function ContainersPage() {
                     </TD>
                     <TD>
                       {ports.length === 0 ? (
-                        <span className="font-mono text-[10px] text-text-muted">
-                          Aucun port publié
-                        </span>
+                        <span className="text-xs text-text-muted">Aucun port publié</span>
                       ) : (
-                        <div className="space-y-1 font-mono text-[10px] text-text-secondary">
+                        <div className="space-y-1 text-xs text-text-secondary">
                           {ports.slice(0, 2).map((port) => (
                             <span key={port} className="block whitespace-nowrap">
                               {port}
@@ -267,7 +265,7 @@ export function ContainersPage() {
                     </TD>
                     <TD>
                       {container.networks.length === 0 ? (
-                        <span className="font-mono text-[10px] text-text-muted">—</span>
+                        <span className="text-xs text-text-muted">—</span>
                       ) : (
                         <div className="flex max-w-[180px] flex-wrap gap-1">
                           {container.networks.slice(0, 3).map((network) => (
@@ -299,7 +297,7 @@ export function ContainersPage() {
             </TBody>
           </Table>
 
-          <CardFooter className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line bg-card font-mono text-[10px] text-text-muted">
+          <CardFooter className="flex flex-wrap items-center justify-between gap-2 rounded-lg border border-line bg-card text-xs text-text-muted">
             <span>
               {rows.length} sur {counts.all} conteneur(s) affiché(s)
               {counts.all > maxUsageRows

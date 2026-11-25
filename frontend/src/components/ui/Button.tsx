@@ -6,15 +6,14 @@ type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger'
 type ButtonSize = 'sm' | 'md'
 
 const variants: Record<ButtonVariant, string> = {
-  primary: 'border border-transparent bg-accent text-on-accent hover:bg-accent/90',
-  secondary:
-    'border border-line bg-card text-text-secondary hover:bg-elevated hover:text-text-primary',
+  primary: 'border border-transparent bg-accent font-semibold text-on-accent hover:bg-accent/85',
+  secondary: 'border border-line-strong bg-card text-text-primary hover:bg-elevated',
   ghost: 'border border-transparent text-text-secondary hover:bg-elevated hover:text-text-primary',
-  danger: 'border border-danger/30 bg-danger/10 text-danger hover:bg-danger/20',
+  danger: 'border border-transparent bg-danger/12 text-danger hover:bg-danger/20',
 }
 
 const sizes: Record<ButtonSize, string> = {
-  sm: 'h-8 gap-1.5 px-2.5 text-xs',
+  sm: 'h-8 gap-1.5 px-3 text-[13px]',
   md: 'h-9 gap-2 px-3.5 text-sm',
 }
 

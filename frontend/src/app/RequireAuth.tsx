@@ -10,10 +10,7 @@ export function RequireAuth({ children }: { children: ReactNode }) {
     return (
       <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-background">
         <Logo />
-        <span
-          className="inline-flex items-center gap-2 font-mono text-[11px] uppercase tracking-wider text-text-muted"
-          role="status"
-        >
+        <span className="inline-flex items-center gap-2 text-xs text-text-muted" role="status">
           <span
             className="h-3 w-3 animate-spin rounded-full border border-line border-t-accent"
             aria-hidden="true"

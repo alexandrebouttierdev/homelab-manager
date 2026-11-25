@@ -19,8 +19,8 @@ export function CollectorRow({
         <StatusDot tone={tone} pulse={status === 'ok'} />
         <span className="text-xs font-medium text-text-primary">{name}</span>
       </div>
-      <div className="text-right font-mono text-[10px] text-text-muted">
-        <span className="block uppercase tracking-wider">
+      <div className="text-right text-xs text-text-muted">
+        <span className="block text-text-secondary">
           {status ? collectorStatusLabel(status) : 'Inconnu'}
         </span>
         <span>

@@ -77,7 +77,7 @@ export function SystemPreferencesCard() {
               </FormField>
             </div>
             {model.localeLocked && (
-              <p className="text-[11px] text-text-muted">
+              <p className="text-xs text-text-muted">
                 La distribution interdit de changer la langue par systemd-localed (Debian) :
                 utilisez <code>sudo dpkg-reconfigure locales</code> sur la machine.
               </p>
@@ -93,9 +93,7 @@ export function SystemPreferencesCard() {
                     <li key={change.label}>
                       <span className="font-medium text-text-primary">{change.label}</span> :{' '}
                       <code>{change.from || '—'}</code> → <code>{change.to}</code>
-                      <span className="block text-[11px] text-text-muted">
-                        {change.consequence}.
-                      </span>
+                      <span className="block text-xs text-text-muted">{change.consequence}.</span>
                     </li>
                   ))}
                 </ul>
@@ -132,7 +130,7 @@ export function SystemPreferencesCard() {
           </form>
         )}
       </CardBody>
-      <CardFooter className="font-mono text-[10px] text-text-muted">
+      <CardFooter className="text-xs text-text-muted">
         {model.disabledNotice
           ? 'Modification désactivée dans la configuration du Manager (system_preferences_enabled) ; la règle polkit 50-homelab-manager-system.rules doit aussi être installée.'
           : model.editable

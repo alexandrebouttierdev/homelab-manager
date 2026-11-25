@@ -84,7 +84,7 @@ export function AlertRulesPanel() {
               <TR key={row.id}>
                 <TD>
                   <p className="text-text-primary">{row.name}</p>
-                  <p className="text-[11px] text-text-muted">
+                  <p className="text-xs text-text-muted">
                     {row.type}
                     {row.isDefault && ' · par défaut'}
                   </p>
@@ -238,9 +238,7 @@ function RuleForm({ page }: { page: AlertRulesPanelModel }) {
 
           {type === 'container_state' && (
             <fieldset className="sm:col-span-2 xl:col-span-3">
-              <legend className="mb-1.5 font-mono text-[10px] uppercase tracking-wider text-text-secondary">
-                États déclencheurs
-              </legend>
+              <legend className="mb-1.5 text-xs text-text-secondary">États déclencheurs</legend>
               <div className="flex flex-wrap gap-3">
                 {options.states.map((option) => (
                   <label key={option.value} className="flex items-center gap-1.5 text-sm">
@@ -250,7 +248,7 @@ function RuleForm({ page }: { page: AlertRulesPanelModel }) {
                 ))}
               </div>
               {errors.states?.message && (
-                <p className="mt-1 text-[11px] text-danger">{errors.states.message}</p>
+                <p className="mt-1 text-xs text-danger">{errors.states.message}</p>
               )}
             </fieldset>
           )}
@@ -339,7 +337,7 @@ function RuleForm({ page }: { page: AlertRulesPanelModel }) {
               Annuler
             </Button>
             {!page.isNew && (
-              <span className="text-[11px] text-text-muted">
+              <span className="text-xs text-text-muted">
                 Modifier la condition résout les alertes ouvertes de la règle ; elles se
                 redéclenchent si la nouvelle condition est vraie.
               </span>

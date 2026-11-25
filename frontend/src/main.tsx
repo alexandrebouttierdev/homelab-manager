@@ -6,6 +6,9 @@ import { router } from './app/router'
 import { ApiError, isUnauthenticated } from './lib/api/client'
 import { RefreshProvider } from './lib/refresh'
 import { ThemeProvider } from './lib/theme'
+import '@fontsource-variable/instrument-sans'
+import '@fontsource/ibm-plex-mono/latin-400.css'
+import '@fontsource/ibm-plex-mono/latin-500.css'
 import './styles.css'
 
 // A revoked or expired session (password change, 12 h expiry, logout in

@@ -92,7 +92,7 @@ export function SettingsPage() {
                   />
                 </div>
               </CardBody>
-              <CardFooter className="font-mono text-[10px] text-text-muted">
+              <CardFooter className="text-xs text-text-muted">
                 Les fréquences de collecte sont définies dans la configuration du service et
                 nécessitent un redémarrage. La rétention se règle ci-dessous, sans redémarrage.
               </CardFooter>
@@ -119,7 +119,7 @@ export function SettingsPage() {
                   status={settings.collectors.docker.status}
                   lastSuccessAt={settings.collectors.docker.lastSuccessAt}
                 />
-                <div className="rounded-md border border-line/70 bg-surface/50 px-3 py-2.5 font-mono text-[10px] text-text-muted">
+                <div className="rounded-md border border-line/70 bg-surface/50 px-3 py-2.5 text-xs text-text-muted">
                   <p>Le Manager supervise uniquement cette machine.</p>
                   <p className="mt-1">Aucun agent distant n'est requis.</p>
                 </div>
@@ -152,7 +152,7 @@ export function SettingsPage() {
                   />
                 </div>
               </CardBody>
-              <CardFooter className="font-mono text-[10px] text-text-muted">
+              <CardFooter className="text-xs text-text-muted">
                 Le choix est mémorisé dans ce navigateur.
               </CardFooter>
             </Card>
@@ -173,7 +173,7 @@ export function SettingsPage() {
                       <p className="text-xs font-medium text-text-primary">
                         {session.user?.displayName ?? 'compte'}
                       </p>
-                      <p className="font-mono text-[10px] text-text-muted">
+                      <p className="text-xs text-text-muted">
                         {session.roleLabel ?? 'Session authentifiée'}
                       </p>
                     </div>
@@ -225,7 +225,7 @@ export function SettingsPage() {
                 <div className="sm:col-span-2">
                   <label
                     htmlFor="currentPassword"
-                    className="mb-1.5 block font-mono text-[10px] uppercase tracking-wider text-text-secondary"
+                    className="mb-1.5 block text-xs text-text-secondary"
                   >
                     Mot de passe actuel
                   </label>
@@ -243,10 +243,7 @@ export function SettingsPage() {
                   )}
                 </div>
                 <div>
-                  <label
-                    htmlFor="newPassword"
-                    className="mb-1.5 block font-mono text-[10px] uppercase tracking-wider text-text-secondary"
-                  >
+                  <label htmlFor="newPassword" className="mb-1.5 block text-xs text-text-secondary">
                     Nouveau mot de passe
                   </label>
                   <input
@@ -265,7 +262,7 @@ export function SettingsPage() {
                 <div>
                   <label
                     htmlFor="confirmPassword"
-                    className="mb-1.5 block font-mono text-[10px] uppercase tracking-wider text-text-secondary"
+                    className="mb-1.5 block text-xs text-text-secondary"
                   >
                     Confirmer le mot de passe
                   </label>
@@ -304,7 +301,7 @@ export function SettingsPage() {
                 </div>
               </form>
             </CardBody>
-            <CardFooter className="font-mono text-[10px] text-text-muted">
+            <CardFooter className="text-xs text-text-muted">
               Le mot de passe est haché avec Argon2id côté serveur et n'est jamais journalisé.
             </CardFooter>
           </Card>
@@ -334,7 +331,7 @@ export function SettingsPage() {
             dans la navigation.
           </p>
         </CardBody>
-        <CardFooter className="flex flex-wrap items-center justify-between gap-2 font-mono text-[10px] text-text-muted">
+        <CardFooter className="flex flex-wrap items-center justify-between gap-2 text-xs text-text-muted">
           <span>Version {APP_VERSION}</span>
           <span>Supervision locale uniquement</span>
         </CardFooter>
@@ -354,11 +351,11 @@ function SettingCard({
 }) {
   return (
     <div className="rounded-md border border-line/70 bg-surface/50 p-3">
-      <div className="flex items-center gap-1.5 font-mono text-[10px] uppercase tracking-wider text-text-muted">
+      <div className="flex items-center gap-1.5 text-xs text-text-muted">
         {icon}
         {label}
       </div>
-      <p className="mt-1.5 font-mono text-lg font-semibold text-text-primary">{value}</p>
+      <p className="mt-1.5 text-lg font-semibold tracking-[-0.02em] text-text-primary">{value}</p>
     </div>
   )
 }
@@ -392,8 +389,8 @@ function ThemeChoice({
         className={cn(
           'flex h-10 w-10 shrink-0 items-center justify-center rounded-md border',
           theme === 'dark'
-            ? 'border-line-strong bg-[#111315] text-[#8b9cfb]'
-            : 'border-[#dde1e7] bg-[#f3f4f6] text-[#4f5fd7]',
+            ? 'border-line-strong bg-[#0e0e0d] text-[#edede6]'
+            : 'border-[#e4e4de] bg-[#f6f6f3] text-[#171715]',
         )}
       >
         {theme === 'dark' ? <Moon className="h-4 w-4" /> : <Sun className="h-4 w-4" />}
@@ -403,7 +400,7 @@ function ThemeChoice({
           {label}
           {selected && <Badge tone="accent">Actif</Badge>}
         </span>
-        <span className="mt-0.5 block text-[11px] text-text-muted">{description}</span>
+        <span className="mt-0.5 block text-xs text-text-muted">{description}</span>
       </span>
     </button>
   )

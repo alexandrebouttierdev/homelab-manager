@@ -31,7 +31,7 @@ export function ScanIntervalForm() {
               <div>
                 <label
                   htmlFor="scanIntervalHours"
-                  className="mb-1.5 block font-mono text-[10px] uppercase tracking-wider text-text-secondary"
+                  className="mb-1.5 block text-xs text-text-secondary"
                 >
                   Analyser toutes les (heures)
                 </label>
@@ -81,7 +81,7 @@ export function ScanIntervalForm() {
           </form>
         )}
       </CardBody>
-      <CardFooter className="font-mono text-[10px] text-text-muted">
+      <CardFooter className="text-xs text-text-muted">
         De 6 heures à 7 jours. Valeur par défaut du service : {form.defaultInterval ?? '—'}.
       </CardFooter>
     </Card>

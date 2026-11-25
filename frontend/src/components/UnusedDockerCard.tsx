@@ -35,7 +35,7 @@ export function UnusedDockerCard({ title, emptyLabel, section }: UnusedDockerCar
               <span className="min-w-0 break-all font-mono text-xs text-text-primary">
                 {item.name}
               </span>
-              <span className="font-mono text-[10px] text-text-muted">
+              <span className="text-xs text-text-muted">
                 {item.detail}
                 {item.createdAt ? ` · créé le ${formatDateTime(item.createdAt)}` : ''}
               </span>

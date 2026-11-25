@@ -97,7 +97,7 @@ export function BackupDiffPanel({ model }: { model: BackupDiffModel }) {
                     <TD className="w-32">
                       <Badge tone={row.info.tone}>{row.info.label}</Badge>
                     </TD>
-                    <TD className="break-all font-mono text-[11px]">{row.path}</TD>
+                    <TD className="break-all text-xs">{row.path}</TD>
                   </TR>
                 ))}
               </TBody>

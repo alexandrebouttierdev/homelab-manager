@@ -14,7 +14,7 @@ Lire `README.md` et tous les fichiers de `docs/` avant toute modification struct
 | `docs/SECURITY.md` | Exigences de sécurité |
 | `docs/TESTING.md` | Stratégie et couverture des tests |
 | `docs/CODE_RULES.md` | **Règles d'écriture du code** : Go, React/TypeScript, dépendances et audits de sécurité, sécurité du code, Git |
-| `docs/SPEC_ADMINISTRATION.md` | Modules d'administration v3 (spécifiés, non implémentés) |
+| `docs/SPEC_ADMINISTRATION.md` | Modules d'administration v3 (livrés) |
 
 ## Périmètre
 

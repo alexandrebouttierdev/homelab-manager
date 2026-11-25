@@ -158,6 +158,20 @@ describe('remediation', () => {
     expect(upgradeCommand('deb', [])).toBeNull()
   })
 
+  it('bounds the package name length and rejects colons', () => {
+    expect(upgradeCommand('deb', ['a'.repeat(128)])).not.toBeNull()
+    expect(upgradeCommand('deb', ['a'.repeat(129)])).toBeNull()
+    expect(upgradeCommand('deb', ['libc6:amd64'])).toBeNull()
+  })
+
+  it('follows the kernel naming rules of each package manager', () => {
+    expect(isKernelPackage('rpm', 'kernel-modules')).toBe(true)
+    expect(isKernelPackage('rpm', 'kernelshark')).toBe(false)
+    expect(isKernelPackage('apk', 'linux-rpi4')).toBe(true)
+    expect(isKernelPackage('apk', 'linux')).toBe(false)
+    expect(isKernelPackage('deb', 'linux-headers-amd64')).toBe(false)
+  })
+
   it('recognises kernel packages', () => {
     expect(isKernelPackage('deb', 'linux-image-6.12.0-amd64')).toBe(true)
     expect(isKernelPackage('deb', 'linux-libc-dev')).toBe(false)

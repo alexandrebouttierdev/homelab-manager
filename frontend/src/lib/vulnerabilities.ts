@@ -224,18 +224,18 @@ const packageManagers: Record<string, PackageManager> = {
     label: 'Alpine (apk)',
     upgrade: (packages) => `sudo apk update && sudo apk upgrade ${packages.join(' ')}`,
     fullUpgrade: 'sudo apk update && sudo apk upgrade',
-    isKernel: (name) => /^linux-[a-z]+$/.test(name) && name !== 'linux-headers',
+    isKernel: (name) => name.startsWith('linux-'),
   },
   rpm: {
     label: 'Fedora / RHEL (dnf)',
     upgrade: (packages) => `sudo dnf upgrade --refresh ${packages.join(' ')}`,
     fullUpgrade: 'sudo dnf upgrade --refresh',
-    isKernel: (name) => name === 'kernel' || name.startsWith('kernel-core'),
+    isKernel: (name) => name === 'kernel' || name.startsWith('kernel-'),
   },
 }
 
 /** Package names accepted in a command: nothing the shell could interpret. */
-const packageNamePattern = /^[A-Za-z0-9][A-Za-z0-9+._:-]*$/
+const packageNamePattern = /^[A-Za-z0-9][A-Za-z0-9+._-]{0,127}$/
 
 function managerFor(packageType: string): PackageManager | null {
   return Object.hasOwn(packageManagers, packageType) ? (packageManagers[packageType] ?? null) : null

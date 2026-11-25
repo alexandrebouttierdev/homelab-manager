@@ -67,11 +67,13 @@ Audits (docs/CODE_RULES.md § 6) : `npm audit` et `npm audit --omit=dev`, OSV-Sc
 
 | Identifiant | Paquet | Gravité | Atteignable | Mesure | Réexamen |
 |---|---|---|---|---|---|
-| GO-2026-5932 | `golang.org/x/crypto` v0.58.0 (`openpgp`) | Paquet non maintenu, dangereux par conception | **Non** : seul `golang.org/x/crypto/argon2` est importé ; `govulncheck` ne le compte pas, OSV-Scanner ne le signale pas | Corrigé en v0.59.0 (publiée le 11 novembre 2026), admissible le 25 novembre 2026 (règle des deux semaines) | 25 novembre 2026 |
+| — | — | — | — | Aucune vulnérabilité en attente de correction | — |
 
 Premier audit complet, 24 novembre 2026 : GO-2026-6859 (`net/http` de Go 1.26.10, plantage d'un serveur HTTP/1, atteignable) corrigé en passant à Go 1.26.11 ; GHSA-x527-x647-q7gg (critique selon OSV) et 22 autres avis de `golang.org/x/crypto` v0.0.0-20220517005047-85d78b3ac167, non atteignables (seul `argon2` est utilisé), corrigés en passant à v0.58.0.
 
-Dernier audit, 24 novembre 2026 (`scripts/audit.sh`, Go 1.26.11) : `npm audit` et `npm audit --omit=dev`, OSV-Scanner 2.7.1 et `govulncheck` réussis ; il reste l'avis non atteignable du tableau. Le workflow « Audit » le relance à chaque push, chaque pull request et chaque lundi, et la release l'exige.
+GO-2026-5932 (`golang.org/x/crypto` v0.58.0, paquet `openpgp` non maintenu, non atteignable : seul `argon2` est importé) corrigé le 25 novembre 2026 en passant à v0.59.0, publiée le 11 novembre, dès qu'elle a respecté la règle des deux semaines.
+
+Dernier audit, 25 novembre 2026 (`scripts/audit.sh`) : `npm audit` et `npm audit --omit=dev`, OSV-Scanner et `govulncheck` réussis, aucun avis en attente. Le workflow « Audit » le relance à chaque push, chaque pull request et chaque lundi, et la release l'exige.
 
 ## Système et déploiement
 

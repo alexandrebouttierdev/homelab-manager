@@ -191,7 +191,9 @@ func TestContainerActionsAreRateLimitedAndNeedTheAudit(t *testing.T) {
 		t.Fatalf("an unaudited action left a trace: %v", docker.calls)
 	}
 
-	audit.err = nil
+	// A fresh usecase on a fixed clock: the refused request above counts in
+	// the rate of its user.
+	containers, web, _ = newContainerFixture(t, true, docker, &syncAudit{})
 	containers.now = func() time.Time { return time.Date(2026, 11, 25, 10, 0, 0, 0, time.UTC) }
 	for range domain.ContainerActionsPerMinute {
 		if _, err := containers.Request(context.Background(), unitOperator, web.ID.String(), domain.ContainerStart, "req"); err != nil {

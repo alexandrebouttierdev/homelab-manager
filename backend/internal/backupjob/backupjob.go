@@ -42,6 +42,8 @@ type Job struct {
 	Excludes         []string `json:"excludes"`
 	ExcludeCaches    bool     `json:"excludeCaches"`
 	ExcludeIfPresent string   `json:"excludeIfPresent"`
+	// SQLiteDatabases: backup only, copied before restic runs (D-3).
+	SQLiteDatabases []string `json:"sqliteDatabases"`
 	// Retention: forget-prune only.
 	Retention *Retention `json:"retention,omitempty"`
 	// CheckSubsetPercent: check only.
@@ -115,12 +117,16 @@ func (j Job) Validate() error {
 	}
 	selection := domain.BackupSelection{
 		Sources: j.Sources, Excludes: j.Excludes, ExcludeCaches: j.ExcludeCaches, ExcludeIfPresent: j.ExcludeIfPresent,
+		SQLiteDatabases: j.SQLiteDatabases,
 	}
 	if err := domain.ValidateBackupSelection(selection); err != nil {
 		return err
 	}
 	if j.Operation == domain.BackupOpBackup && len(j.Sources) == 0 {
 		return errors.New("a backup needs at least one source")
+	}
+	if j.Operation != domain.BackupOpBackup && len(j.SQLiteDatabases) > 0 {
+		return errors.New("SQLite databases belong to backup only")
 	}
 	if (j.Retention != nil) != (j.Operation == domain.BackupOpForgetPrune) {
 		return errors.New("a retention policy belongs to forget-prune only")

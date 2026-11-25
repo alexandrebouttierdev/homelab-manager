@@ -67,9 +67,11 @@ func (e *Executor) Execute(ctx context.Context, job ports.BackupJob, given ports
 		RepositoryType: job.Repository.Type, Repository: job.Repository.Location, HostKey: job.Repository.HostKey,
 		Sources: orEmpty(job.Selection.Sources), Excludes: orEmpty(job.Selection.Excludes),
 		ExcludeCaches: job.Selection.ExcludeCaches, ExcludeIfPresent: job.Selection.ExcludeIfPresent,
+		SQLiteDatabases: orEmpty(job.Selection.SQLiteDatabases),
 	}
 	if op != domain.BackupOpBackup {
 		file.Sources, file.Excludes, file.ExcludeCaches, file.ExcludeIfPresent = []string{}, []string{}, false, ""
+		file.SQLiteDatabases = []string{}
 	}
 	switch op {
 	case domain.BackupOpForgetPrune:

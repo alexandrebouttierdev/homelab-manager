@@ -183,6 +183,18 @@ func (_u *BackupConfigUpdate) SetNillableExcludeIfPresent(v *string) *BackupConf
 	return _u
 }
 
+// SetSqliteDatabases sets the "sqlite_databases" field.
+func (_u *BackupConfigUpdate) SetSqliteDatabases(v []string) *BackupConfigUpdate {
+	_u.mutation.SetSqliteDatabases(v)
+	return _u
+}
+
+// AppendSqliteDatabases appends value to the "sqlite_databases" field.
+func (_u *BackupConfigUpdate) AppendSqliteDatabases(v []string) *BackupConfigUpdate {
+	_u.mutation.AppendSqliteDatabases(v)
+	return _u
+}
+
 // SetScheduleEnabled sets the "schedule_enabled" field.
 func (_u *BackupConfigUpdate) SetScheduleEnabled(v bool) *BackupConfigUpdate {
 	_u.mutation.SetScheduleEnabled(v)
@@ -688,6 +700,14 @@ func (_u *BackupConfigUpdate) sqlSave(ctx context.Context) (_node int, err error
 	if value, ok := _u.mutation.ExcludeIfPresent(); ok {
 		_spec.SetField(backupconfig.FieldExcludeIfPresent, field.TypeString, value)
 	}
+	if value, ok := _u.mutation.SqliteDatabases(); ok {
+		_spec.SetField(backupconfig.FieldSqliteDatabases, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedSqliteDatabases(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, backupconfig.FieldSqliteDatabases, value)
+		})
+	}
 	if value, ok := _u.mutation.ScheduleEnabled(); ok {
 		_spec.SetField(backupconfig.FieldScheduleEnabled, field.TypeBool, value)
 	}
@@ -964,6 +984,18 @@ func (_u *BackupConfigUpdateOne) SetNillableExcludeIfPresent(v *string) *BackupC
 	if v != nil {
 		_u.SetExcludeIfPresent(*v)
 	}
+	return _u
+}
+
+// SetSqliteDatabases sets the "sqlite_databases" field.
+func (_u *BackupConfigUpdateOne) SetSqliteDatabases(v []string) *BackupConfigUpdateOne {
+	_u.mutation.SetSqliteDatabases(v)
+	return _u
+}
+
+// AppendSqliteDatabases appends value to the "sqlite_databases" field.
+func (_u *BackupConfigUpdateOne) AppendSqliteDatabases(v []string) *BackupConfigUpdateOne {
+	_u.mutation.AppendSqliteDatabases(v)
 	return _u
 }
 
@@ -1501,6 +1533,14 @@ func (_u *BackupConfigUpdateOne) sqlSave(ctx context.Context) (_node *BackupConf
 	}
 	if value, ok := _u.mutation.ExcludeIfPresent(); ok {
 		_spec.SetField(backupconfig.FieldExcludeIfPresent, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.SqliteDatabases(); ok {
+		_spec.SetField(backupconfig.FieldSqliteDatabases, field.TypeJSON, value)
+	}
+	if value, ok := _u.mutation.AppendedSqliteDatabases(); ok {
+		_spec.AddModifier(func(u *sql.UpdateBuilder) {
+			sqljson.Append(u, backupconfig.FieldSqliteDatabases, value)
+		})
 	}
 	if value, ok := _u.mutation.ScheduleEnabled(); ok {
 		_spec.SetField(backupconfig.FieldScheduleEnabled, field.TypeBool, value)

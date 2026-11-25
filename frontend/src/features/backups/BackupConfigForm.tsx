@@ -127,6 +127,20 @@ export function BackupConfigForm({ model }: { model: BackupConfigFormModel }) {
                   {...model.register('excludeIfPresent')}
                 />
               </FormField>
+              <FormField
+                id="backup-sqlite"
+                label="Bases SQLite à copier avant la sauvegarde"
+                error={model.errors.sqliteDatabases?.message}
+                hint="Un chemin absolu par ligne, 20 au plus. Chaque base est copiée de façon cohérente (VACUUM INTO) pendant que l'application tourne, puis sauvegardée sous /var/lib/homelab-backup/dumps ; une copie impossible donne un avertissement."
+              >
+                <textarea
+                  id="backup-sqlite"
+                  rows={3}
+                  className={textareaClass}
+                  placeholder="/var/lib/docker/volumes/vaultwarden/_data/db.sqlite3"
+                  {...model.register('sqliteDatabases')}
+                />
+              </FormField>
             </CardBody>
           </Card>
 

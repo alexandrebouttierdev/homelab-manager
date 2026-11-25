@@ -25,6 +25,7 @@ export const backupConfigSchema = z
     sources: z.string(),
     excludes: z.string(),
     excludeCaches: z.boolean(),
+    sqliteDatabases: z.string(),
     excludeIfPresent: z
       .string()
       .trim()
@@ -60,6 +61,26 @@ export const backupConfigSchema = z
       })
     if (new Set(sources).size !== sources.length)
       context.addIssue({ code: 'custom', path: ['sources'], message: 'Une source est en double' })
+    const databases = lines(values.sqliteDatabases)
+    if (databases.length > 20)
+      context.addIssue({
+        code: 'custom',
+        path: ['sqliteDatabases'],
+        message: 'Au plus 20 bases',
+      })
+    const invalidDatabase = databases.find((database) => !absolutePath.test(database))
+    if (invalidDatabase)
+      context.addIssue({
+        code: 'custom',
+        path: ['sqliteDatabases'],
+        message: `« ${invalidDatabase} » n'est pas un chemin absolu propre`,
+      })
+    if (new Set(databases).size !== databases.length)
+      context.addIssue({
+        code: 'custom',
+        path: ['sqliteDatabases'],
+        message: 'Une base est en double',
+      })
     const excludes = lines(values.excludes)
     if (excludes.length > 500)
       context.addIssue({ code: 'custom', path: ['excludes'], message: 'Au plus 500 motifs' })

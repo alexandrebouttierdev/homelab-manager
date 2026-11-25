@@ -98,6 +98,9 @@ type BackupConfigUpdate struct {
 	// Retention and Check: nil keeps the stored ones.
 	Retention *domain.BackupRetention
 	Check     *domain.BackupCheck
+	// SQLiteDatabases replaces the databases of Selection; nil keeps the
+	// stored ones (D-3).
+	SQLiteDatabases *[]string
 }
 
 // BackupUsecase configures and runs the backups (SPEC_ADMINISTRATION.md
@@ -329,6 +332,10 @@ func (u *BackupUsecase) UpdateConfig(ctx context.Context, actor domain.User, upd
 			return BackupConfigView{}, err
 		}
 		update.Repository = &repository
+	}
+	update.Selection.SQLiteDatabases = config.Selection.SQLiteDatabases
+	if update.SQLiteDatabases != nil {
+		update.Selection.SQLiteDatabases = *update.SQLiteDatabases
 	}
 	if err := domain.ValidateBackupSelection(update.Selection); err != nil {
 		return BackupConfigView{}, err

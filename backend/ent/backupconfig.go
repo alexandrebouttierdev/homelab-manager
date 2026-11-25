@@ -39,6 +39,8 @@ type BackupConfig struct {
 	ExcludeCaches bool `json:"exclude_caches,omitempty"`
 	// ExcludeIfPresent holds the value of the "exclude_if_present" field.
 	ExcludeIfPresent string `json:"exclude_if_present,omitempty"`
+	// SqliteDatabases holds the value of the "sqlite_databases" field.
+	SqliteDatabases []string `json:"sqlite_databases,omitempty"`
 	// ScheduleEnabled holds the value of the "schedule_enabled" field.
 	ScheduleEnabled bool `json:"schedule_enabled,omitempty"`
 	// ScheduleFrequency holds the value of the "schedule_frequency" field.
@@ -93,7 +95,7 @@ func (*BackupConfig) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case backupconfig.FieldSources, backupconfig.FieldExcludes:
+		case backupconfig.FieldSources, backupconfig.FieldExcludes, backupconfig.FieldSqliteDatabases:
 			values[i] = new([]byte)
 		case backupconfig.FieldExcludeCaches, backupconfig.FieldScheduleEnabled, backupconfig.FieldRetentionEnabled, backupconfig.FieldCheckEnabled, backupconfig.FieldCopyAfterBackup:
 			values[i] = new(sql.NullBool)
@@ -192,6 +194,14 @@ func (_m *BackupConfig) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field exclude_if_present", values[i])
 			} else if value.Valid {
 				_m.ExcludeIfPresent = value.String
+			}
+		case backupconfig.FieldSqliteDatabases:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field sqlite_databases", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.SqliteDatabases); err != nil {
+					return fmt.Errorf("unmarshal field sqlite_databases: %w", err)
+				}
 			}
 		case backupconfig.FieldScheduleEnabled:
 			if value, ok := values[i].(*sql.NullBool); !ok {
@@ -405,6 +415,9 @@ func (_m *BackupConfig) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("exclude_if_present=")
 	builder.WriteString(_m.ExcludeIfPresent)
+	builder.WriteString(", ")
+	builder.WriteString("sqlite_databases=")
+	builder.WriteString(fmt.Sprintf("%v", _m.SqliteDatabases))
 	builder.WriteString(", ")
 	builder.WriteString("schedule_enabled=")
 	builder.WriteString(fmt.Sprintf("%v", _m.ScheduleEnabled))

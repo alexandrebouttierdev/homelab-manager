@@ -19,11 +19,14 @@ import (
 
 // Bounds of the backups module (SPEC_ADMINISTRATION.md § 7).
 const (
-	MaxBackupSources        = 50
-	MaxBackupExcludes       = 500
-	maxBackupPathBytes      = 4096
-	maxBackupLocationBytes  = 2048
-	maxBackupCredentialSize = 1024
+	MaxBackupSources = 50
+	// MaxBackupSQLiteDatabases bounds the SQLite files exported before a
+	// backup (decision D-3).
+	MaxBackupSQLiteDatabases = 20
+	MaxBackupExcludes        = 500
+	maxBackupPathBytes       = 4096
+	maxBackupLocationBytes   = 2048
+	maxBackupCredentialSize  = 1024
 	// MaxBackupHostKeyBytes bounds the pinned host key of an SFTP server.
 	MaxBackupHostKeyBytes = 8 << 10
 	// BackupPasswordBytes is the entropy of a generated repository password.
@@ -287,6 +290,9 @@ type BackupSelection struct {
 	// ExcludeIfPresent skips the directories holding a file of this name;
 	// "" disables it.
 	ExcludeIfPresent string
+	// SQLiteDatabases are SQLite files copied consistently (VACUUM INTO)
+	// before each backup and backed up below BackupDumpRoot (D-3).
+	SQLiteDatabases []string
 }
 
 // ValidateBackupSelection checks the sources and the exclusions (§ 7.3).
@@ -315,7 +321,30 @@ func ValidateBackupSelection(selection BackupSelection) error {
 	if selection.ExcludeIfPresent != "" && !backupExcludeMarkerPattern.MatchString(selection.ExcludeIfPresent) {
 		return invalidBackup("excludeIfPresent", "must be a file name of letters, digits, '.', '_' or '-'")
 	}
+	if len(selection.SQLiteDatabases) > MaxBackupSQLiteDatabases {
+		return invalidBackup("sqliteDatabases", "at most %d databases", MaxBackupSQLiteDatabases)
+	}
+	databases := make(map[string]struct{}, len(selection.SQLiteDatabases))
+	for _, database := range selection.SQLiteDatabases {
+		if err := validateAbsolutePath(database); err != nil {
+			return invalidBackup("sqliteDatabases", "%q %s", database, err.Error())
+		}
+		if database == BackupDumpRoot || strings.HasPrefix(database, BackupDumpRoot+"/") {
+			return invalidBackup("sqliteDatabases", "%q is a copy made by the Manager", database)
+		}
+		if _, ok := databases[database]; ok {
+			return invalidBackup("sqliteDatabases", "%q is listed twice", database)
+		}
+		databases[database] = struct{}{}
+	}
 	return nil
+}
+
+// BackupDumpPath is where the copy of a SQLite database is written: its
+// own path below BackupDumpRoot, so that a restore puts it back in plain
+// sight.
+func BackupDumpPath(root, database string) string {
+	return filepath.Join(root, database)
 }
 
 // validateAbsolutePath accepts a clean absolute path: no "..", no "//",
@@ -489,7 +518,11 @@ const (
 	BackupCheckEvery = 7 * 24 * time.Hour
 	// BackupRestoreRoot holds the quarantine directories of the restores,
 	// one per run (deployments/tmpfiles/homelab-backup.conf).
-	BackupRestoreRoot  = "/var/lib/homelab-backup/restore"
+	BackupRestoreRoot = "/var/lib/homelab-backup/restore"
+	// BackupDumpRoot holds the consistent copies of the SQLite databases
+	// made before a backup (D-3), at the path of each database below it,
+	// and backed up with the sources (deployments/tmpfiles/homelab-backup.conf).
+	BackupDumpRoot     = "/var/lib/homelab-backup/dumps"
 	MaxRestoreIncludes = 50
 )
 

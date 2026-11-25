@@ -5028,6 +5028,8 @@ type BackupConfigMutation struct {
 	appendexcludes           []string
 	exclude_caches           *bool
 	exclude_if_present       *string
+	sqlite_databases         *[]string
+	appendsqlite_databases   []string
 	schedule_enabled         *bool
 	schedule_frequency       *string
 	schedule_weekday         *int
@@ -5596,6 +5598,57 @@ func (m *BackupConfigMutation) OldExcludeIfPresent(ctx context.Context) (v strin
 // ResetExcludeIfPresent resets all changes to the "exclude_if_present" field.
 func (m *BackupConfigMutation) ResetExcludeIfPresent() {
 	m.exclude_if_present = nil
+}
+
+// SetSqliteDatabases sets the "sqlite_databases" field.
+func (m *BackupConfigMutation) SetSqliteDatabases(s []string) {
+	m.sqlite_databases = &s
+	m.appendsqlite_databases = nil
+}
+
+// SqliteDatabases returns the value of the "sqlite_databases" field in the mutation.
+func (m *BackupConfigMutation) SqliteDatabases() (r []string, exists bool) {
+	v := m.sqlite_databases
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldSqliteDatabases returns the old "sqlite_databases" field's value of the BackupConfig entity.
+// If the BackupConfig object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *BackupConfigMutation) OldSqliteDatabases(ctx context.Context) (v []string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldSqliteDatabases is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldSqliteDatabases requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldSqliteDatabases: %w", err)
+	}
+	return oldValue.SqliteDatabases, nil
+}
+
+// AppendSqliteDatabases adds s to the "sqlite_databases" field.
+func (m *BackupConfigMutation) AppendSqliteDatabases(s []string) {
+	m.appendsqlite_databases = append(m.appendsqlite_databases, s...)
+}
+
+// AppendedSqliteDatabases returns the list of values that were appended to the "sqlite_databases" field in this mutation.
+func (m *BackupConfigMutation) AppendedSqliteDatabases() ([]string, bool) {
+	if len(m.appendsqlite_databases) == 0 {
+		return nil, false
+	}
+	return m.appendsqlite_databases, true
+}
+
+// ResetSqliteDatabases resets all changes to the "sqlite_databases" field.
+func (m *BackupConfigMutation) ResetSqliteDatabases() {
+	m.sqlite_databases = nil
+	m.appendsqlite_databases = nil
 }
 
 // SetScheduleEnabled sets the "schedule_enabled" field.
@@ -6672,7 +6725,7 @@ func (m *BackupConfigMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *BackupConfigMutation) Fields() []string {
-	fields := make([]string, 0, 33)
+	fields := make([]string, 0, 34)
 	if m.singleton_key != nil {
 		fields = append(fields, backupconfig.FieldSingletonKey)
 	}
@@ -6702,6 +6755,9 @@ func (m *BackupConfigMutation) Fields() []string {
 	}
 	if m.exclude_if_present != nil {
 		fields = append(fields, backupconfig.FieldExcludeIfPresent)
+	}
+	if m.sqlite_databases != nil {
+		fields = append(fields, backupconfig.FieldSqliteDatabases)
 	}
 	if m.schedule_enabled != nil {
 		fields = append(fields, backupconfig.FieldScheduleEnabled)
@@ -6800,6 +6856,8 @@ func (m *BackupConfigMutation) Field(name string) (ent.Value, bool) {
 		return m.ExcludeCaches()
 	case backupconfig.FieldExcludeIfPresent:
 		return m.ExcludeIfPresent()
+	case backupconfig.FieldSqliteDatabases:
+		return m.SqliteDatabases()
 	case backupconfig.FieldScheduleEnabled:
 		return m.ScheduleEnabled()
 	case backupconfig.FieldScheduleFrequency:
@@ -6875,6 +6933,8 @@ func (m *BackupConfigMutation) OldField(ctx context.Context, name string) (ent.V
 		return m.OldExcludeCaches(ctx)
 	case backupconfig.FieldExcludeIfPresent:
 		return m.OldExcludeIfPresent(ctx)
+	case backupconfig.FieldSqliteDatabases:
+		return m.OldSqliteDatabases(ctx)
 	case backupconfig.FieldScheduleEnabled:
 		return m.OldScheduleEnabled(ctx)
 	case backupconfig.FieldScheduleFrequency:
@@ -6999,6 +7059,13 @@ func (m *BackupConfigMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetExcludeIfPresent(v)
+		return nil
+	case backupconfig.FieldSqliteDatabases:
+		v, ok := value.([]string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetSqliteDatabases(v)
 		return nil
 	case backupconfig.FieldScheduleEnabled:
 		v, ok := value.(bool)
@@ -7383,6 +7450,9 @@ func (m *BackupConfigMutation) ResetField(name string) error {
 		return nil
 	case backupconfig.FieldExcludeIfPresent:
 		m.ResetExcludeIfPresent()
+		return nil
+	case backupconfig.FieldSqliteDatabases:
+		m.ResetSqliteDatabases()
 		return nil
 	case backupconfig.FieldScheduleEnabled:
 		m.ResetScheduleEnabled()

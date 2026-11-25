@@ -11,6 +11,7 @@ const valid: BackupConfigValues = {
   excludes: '*.tmp\n**/node_modules',
   excludeCaches: true,
   excludeIfPresent: '.nobackup',
+  sqliteDatabases: '',
   scheduleEnabled: true,
   frequency: 'daily',
   weekday: 0,
@@ -45,6 +46,9 @@ describe('backupConfigSchema', () => {
     expect(errors({ sources: '/etc\n/etc' })).toContain('sources')
     expect(errors({ excludes: '#comment' })).toContain('excludes')
     expect(errors({ excludeIfPresent: 'a/b' })).toContain('excludeIfPresent')
+    expect(errors({ sqliteDatabases: '/srv/app.db\n/var/lib/app/db.sqlite3' })).toEqual([])
+    expect(errors({ sqliteDatabases: 'app.db' })).toContain('sqliteDatabases')
+    expect(errors({ sqliteDatabases: '/srv/app.db\n/srv/app.db' })).toContain('sqliteDatabases')
     expect(errors({ time: '25:00' })).toContain('time')
   })
 

@@ -32,6 +32,8 @@ const (
 	FieldExcludeCaches = "exclude_caches"
 	// FieldExcludeIfPresent holds the string denoting the exclude_if_present field in the database.
 	FieldExcludeIfPresent = "exclude_if_present"
+	// FieldSqliteDatabases holds the string denoting the sqlite_databases field in the database.
+	FieldSqliteDatabases = "sqlite_databases"
 	// FieldScheduleEnabled holds the string denoting the schedule_enabled field in the database.
 	FieldScheduleEnabled = "schedule_enabled"
 	// FieldScheduleFrequency holds the string denoting the schedule_frequency field in the database.
@@ -95,6 +97,7 @@ var Columns = []string{
 	FieldExcludes,
 	FieldExcludeCaches,
 	FieldExcludeIfPresent,
+	FieldSqliteDatabases,
 	FieldScheduleEnabled,
 	FieldScheduleFrequency,
 	FieldScheduleWeekday,
@@ -141,6 +144,8 @@ var (
 	DefaultExcludeCaches bool
 	// DefaultExcludeIfPresent holds the default value on creation for the "exclude_if_present" field.
 	DefaultExcludeIfPresent string
+	// DefaultSqliteDatabases holds the default value on creation for the "sqlite_databases" field.
+	DefaultSqliteDatabases []string
 	// DefaultScheduleEnabled holds the default value on creation for the "schedule_enabled" field.
 	DefaultScheduleEnabled bool
 	// DefaultScheduleFrequency holds the default value on creation for the "schedule_frequency" field.

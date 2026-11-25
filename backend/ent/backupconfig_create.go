@@ -137,6 +137,12 @@ func (_c *BackupConfigCreate) SetNillableExcludeIfPresent(v *string) *BackupConf
 	return _c
 }
 
+// SetSqliteDatabases sets the "sqlite_databases" field.
+func (_c *BackupConfigCreate) SetSqliteDatabases(v []string) *BackupConfigCreate {
+	_c.mutation.SetSqliteDatabases(v)
+	return _c
+}
+
 // SetScheduleEnabled sets the "schedule_enabled" field.
 func (_c *BackupConfigCreate) SetScheduleEnabled(v bool) *BackupConfigCreate {
 	_c.mutation.SetScheduleEnabled(v)
@@ -516,6 +522,10 @@ func (_c *BackupConfigCreate) defaults() {
 		v := backupconfig.DefaultExcludeIfPresent
 		_c.mutation.SetExcludeIfPresent(v)
 	}
+	if _, ok := _c.mutation.SqliteDatabases(); !ok {
+		v := backupconfig.DefaultSqliteDatabases
+		_c.mutation.SetSqliteDatabases(v)
+	}
 	if _, ok := _c.mutation.ScheduleEnabled(); !ok {
 		v := backupconfig.DefaultScheduleEnabled
 		_c.mutation.SetScheduleEnabled(v)
@@ -621,6 +631,9 @@ func (_c *BackupConfigCreate) check() error {
 	}
 	if _, ok := _c.mutation.ExcludeIfPresent(); !ok {
 		return &ValidationError{Name: "exclude_if_present", err: errors.New(`ent: missing required field "BackupConfig.exclude_if_present"`)}
+	}
+	if _, ok := _c.mutation.SqliteDatabases(); !ok {
+		return &ValidationError{Name: "sqlite_databases", err: errors.New(`ent: missing required field "BackupConfig.sqlite_databases"`)}
 	}
 	if _, ok := _c.mutation.ScheduleEnabled(); !ok {
 		return &ValidationError{Name: "schedule_enabled", err: errors.New(`ent: missing required field "BackupConfig.schedule_enabled"`)}
@@ -753,6 +766,10 @@ func (_c *BackupConfigCreate) createSpec() (*BackupConfig, *sqlgraph.CreateSpec)
 	if value, ok := _c.mutation.ExcludeIfPresent(); ok {
 		_spec.SetField(backupconfig.FieldExcludeIfPresent, field.TypeString, value)
 		_node.ExcludeIfPresent = value
+	}
+	if value, ok := _c.mutation.SqliteDatabases(); ok {
+		_spec.SetField(backupconfig.FieldSqliteDatabases, field.TypeJSON, value)
+		_node.SqliteDatabases = value
 	}
 	if value, ok := _c.mutation.ScheduleEnabled(); ok {
 		_spec.SetField(backupconfig.FieldScheduleEnabled, field.TypeBool, value)

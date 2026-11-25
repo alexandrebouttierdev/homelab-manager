@@ -53,7 +53,10 @@ type Config struct {
 	// RestoreRoot holds the quarantine directories; the job names
 	// domain.BackupRestoreRoot, mapped here (tests use a temporary one).
 	RestoreRoot string
-	Now         func() time.Time
+	// DumpRoot holds the copies of the SQLite databases (D-3); the job
+	// never names it, tests use a temporary one.
+	DumpRoot string
+	Now      func() time.Time
 	// globalArgs precede the command of every restic run: the SSH options
 	// of an SFTP repository.
 	globalArgs []string
@@ -63,7 +66,8 @@ func Defaults() Config {
 	return Config{
 		JobsDir: "/var/lib/homelab-backup/jobs", RunsDir: "/var/lib/homelab-backup/runs",
 		CacheDir: "/var/cache/homelab-backup", TempDir: os.TempDir(), Restic: "/usr/bin/restic",
-		Path: "/usr/sbin:/usr/bin:/sbin:/bin", RestoreRoot: domain.BackupRestoreRoot, Now: time.Now,
+		Path: "/usr/sbin:/usr/bin:/sbin:/bin", RestoreRoot: domain.BackupRestoreRoot, DumpRoot: domain.BackupDumpRoot,
+		Now: time.Now,
 	}
 }
 
@@ -136,7 +140,28 @@ func execute(ctx context.Context, config Config, op domain.BackupOperation, resu
 		result.Success = true
 		return nil
 	case domain.BackupOpBackup:
-		if err := backup(ctx, config, env, job, result); err != nil {
+		var dumpFailures []string
+		if len(job.SQLiteDatabases) > 0 {
+			made, failures := dumpSQLite(ctx, config.DumpRoot, job.SQLiteDatabases)
+			dumpFailures = failures
+			// The copies are in the snapshot; none stays on the disk.
+			defer func() { _ = clearDumps(config.DumpRoot) }()
+			if made {
+				job.Sources = append(job.Sources, config.DumpRoot)
+			}
+		}
+		err := backup(ctx, config, env, job, result)
+		if len(dumpFailures) > 0 && result.Success {
+			// The snapshot exists without some databases: a warning, like
+			// files restic could not read.
+			result.Warning = true
+			message := "SQLite copy failed for " + strings.Join(dumpFailures, "; ")
+			if result.Message != "" {
+				message += "; " + result.Message
+			}
+			result.Message = domain.TruncateBackupMessage(message)
+		}
+		if err != nil {
 			return err
 		}
 		snapshots, err := listSnapshots(ctx, config, env)

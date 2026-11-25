@@ -278,6 +278,7 @@ export function configToValues(config: BackupConfig): BackupConfigValues {
     excludes: config.excludes.join('\n'),
     excludeCaches: config.excludeCaches,
     excludeIfPresent: config.excludeIfPresent,
+    sqliteDatabases: (config.sqliteDatabases ?? []).join('\n'),
     scheduleEnabled: config.schedule.enabled,
     frequency: config.schedule.frequency,
     weekday: config.schedule.weekday,
@@ -307,6 +308,7 @@ export function valuesToInput(values: BackupConfigValues): BackupConfigInput {
     excludes: splitLines(values.excludes),
     excludeCaches: values.excludeCaches,
     excludeIfPresent: values.excludeIfPresent.trim(),
+    sqliteDatabases: splitLines(values.sqliteDatabases),
     schedule: {
       enabled: values.scheduleEnabled,
       frequency: values.frequency,

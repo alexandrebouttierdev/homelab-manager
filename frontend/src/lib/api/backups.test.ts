@@ -31,6 +31,7 @@ describe('backups API', () => {
       excludes: [],
       excludeCaches: true,
       excludeIfPresent: '',
+      sqliteDatabases: [],
       schedule: { enabled: false, frequency: 'daily' as const, weekday: 0, time: '03:00' },
       retention: { enabled: false, keepDaily: 7, keepWeekly: 4, keepMonthly: 6, keepYearly: 0 },
       check: { enabled: true, subsetPercent: 5 },

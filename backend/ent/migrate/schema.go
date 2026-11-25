@@ -133,6 +133,7 @@ var (
 		{Name: "excludes", Type: field.TypeJSON},
 		{Name: "exclude_caches", Type: field.TypeBool, Default: true},
 		{Name: "exclude_if_present", Type: field.TypeString, Default: ""},
+		{Name: "sqlite_databases", Type: field.TypeJSON},
 		{Name: "schedule_enabled", Type: field.TypeBool, Default: false},
 		{Name: "schedule_frequency", Type: field.TypeString, Default: "daily"},
 		{Name: "schedule_weekday", Type: field.TypeInt, Default: 0},

@@ -111,6 +111,7 @@ const config: BackupConfig = {
   excludes: [],
   excludeCaches: true,
   excludeIfPresent: '',
+  sqliteDatabases: [],
   schedule: { enabled: true, frequency: 'daily', weekday: 0, time: '03:00' },
   retention: { enabled: false, keepDaily: 7, keepWeekly: 4, keepMonthly: 6, keepYearly: 0 },
   check: { enabled: true, subsetPercent: 5 },

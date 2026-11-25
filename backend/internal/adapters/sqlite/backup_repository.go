@@ -47,6 +47,7 @@ func (r *BackupRepository) BackupConfig(ctx context.Context) (domain.BackupConfi
 		Selection: domain.BackupSelection{
 			Sources: record.Sources, Excludes: record.Excludes,
 			ExcludeCaches: record.ExcludeCaches, ExcludeIfPresent: record.ExcludeIfPresent,
+			SQLiteDatabases: record.SqliteDatabases,
 		},
 		Schedule: domain.BackupSchedule{
 			Enabled: record.ScheduleEnabled, Frequency: domain.BackupFrequency(record.ScheduleFrequency),
@@ -105,6 +106,10 @@ func (r *BackupRepository) SaveBackupConfig(ctx context.Context, config domain.B
 	if excludes == nil {
 		excludes = []string{}
 	}
+	databases := config.Selection.SQLiteDatabases
+	if databases == nil {
+		databases = []string{}
+	}
 	return withTx(ctx, r.client, func(tx *ent.Tx) error {
 		id, err := tx.BackupConfig.Query().Where(entconfig.SingletonKey(settingsSingletonKey)).OnlyID(ctx)
 		if ent.IsNotFound(err) {
@@ -117,7 +122,7 @@ func (r *BackupRepository) SaveBackupConfig(ctx context.Context, config domain.B
 		}
 		update := tx.BackupConfig.UpdateOneID(id).
 			SetSealedCredentials(config.SealedCredentials).
-			SetSources(sources).SetExcludes(excludes).
+			SetSources(sources).SetExcludes(excludes).SetSqliteDatabases(databases).
 			SetExcludeCaches(config.Selection.ExcludeCaches).SetExcludeIfPresent(config.Selection.ExcludeIfPresent).
 			SetScheduleEnabled(config.Schedule.Enabled).SetScheduleFrequency(string(config.Schedule.Frequency)).
 			SetScheduleWeekday(int(config.Schedule.Weekday)).SetScheduleHour(config.Schedule.Hour).

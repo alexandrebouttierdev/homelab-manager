@@ -360,3 +360,28 @@ func TestBackupSFTPRoutes(t *testing.T) {
 		t.Fatalf("viewer config = %s", body)
 	}
 }
+
+// TestBackupSQLiteDatabasesRoute covers decision D-3: the list is stored,
+// served, kept when a request leaves it out, and validated.
+func TestBackupSQLiteDatabasesRoute(t *testing.T) {
+	resetLoginRateLimit(t)
+	router := newBackupsRouter(t)
+	admin := signIn(t, router, "admin", "admin-password-1")
+	withDatabases := strings.Replace(backupConfigBody, `"excludes":["*.tmp"],`, `"excludes":["*.tmp"],"sqliteDatabases":["/srv/app/data.db"],`, 1)
+	response := call(router, http.MethodPut, "/api/v1/backups/config", withDatabases, admin)
+	if response.Code != http.StatusOK || !strings.Contains(response.Body.String(), `"sqliteDatabases":["/srv/app/data.db"]`) {
+		t.Fatalf("config = %d %s", response.Code, response.Body)
+	}
+	response = call(router, http.MethodPut, "/api/v1/backups/config", backupConfigBody, admin)
+	if !strings.Contains(response.Body.String(), `"sqliteDatabases":["/srv/app/data.db"]`) {
+		t.Fatalf("an absent list was not kept: %s", response.Body)
+	}
+	cleared := strings.Replace(backupConfigBody, `"excludes":["*.tmp"],`, `"excludes":["*.tmp"],"sqliteDatabases":[],`, 1)
+	if response := call(router, http.MethodPut, "/api/v1/backups/config", cleared, admin); !strings.Contains(response.Body.String(), `"sqliteDatabases":[]`) {
+		t.Fatalf("cleared = %s", response.Body)
+	}
+	invalid := strings.Replace(backupConfigBody, `"excludes":["*.tmp"],`, `"excludes":["*.tmp"],"sqliteDatabases":["data.db"],`, 1)
+	if response := call(router, http.MethodPut, "/api/v1/backups/config", invalid, admin); response.Code != http.StatusBadRequest {
+		t.Fatalf("relative path = %d", response.Code)
+	}
+}

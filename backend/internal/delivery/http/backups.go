@@ -78,6 +78,7 @@ type backupConfigDTO struct {
 	Excludes         []string             `json:"excludes"`
 	ExcludeCaches    bool                 `json:"excludeCaches"`
 	ExcludeIfPresent string               `json:"excludeIfPresent"`
+	SQLiteDatabases  []string             `json:"sqliteDatabases"`
 	Schedule         backupScheduleDTO    `json:"schedule"`
 	Retention        backupRetentionDTO   `json:"retention"`
 	Check            backupCheckDTO       `json:"check"`
@@ -115,7 +116,9 @@ type backupConfigRequest struct {
 	Excludes         []string             `json:"excludes"`
 	ExcludeCaches    bool                 `json:"excludeCaches"`
 	ExcludeIfPresent string               `json:"excludeIfPresent"`
-	Schedule         backupScheduleDTO    `json:"schedule"`
+	// SQLiteDatabases: absent keeps the stored ones.
+	SQLiteDatabases *[]string         `json:"sqliteDatabases"`
+	Schedule        backupScheduleDTO `json:"schedule"`
 	// Retention and Check: absent keeps the stored ones.
 	Retention *backupRetentionDTO `json:"retention"`
 	Check     *backupCheckDTO     `json:"check"`
@@ -218,6 +221,7 @@ func toBackupConfigDTO(view usecase.BackupConfigView) backupConfigDTO {
 		SecretsAvailable: view.SecretsEnabled,
 		Sources:          orEmpty(view.Selection.Sources), Excludes: orEmpty(view.Selection.Excludes),
 		ExcludeCaches: view.Selection.ExcludeCaches, ExcludeIfPresent: view.Selection.ExcludeIfPresent,
+		SQLiteDatabases: orEmpty(view.Selection.SQLiteDatabases),
 		Schedule: backupScheduleDTO{
 			Enabled: view.Schedule.Enabled, Frequency: string(view.Schedule.Frequency), Weekday: int(view.Schedule.Weekday),
 			Time: fmt.Sprintf("%02d:%02d", view.Schedule.Hour, view.Schedule.Minute),
@@ -347,7 +351,7 @@ func updateBackupConfigHandler(backups *usecase.BackupUsecase) http.HandlerFunc 
 			return
 		}
 		update := usecase.BackupConfigUpdate{
-			Username: request.Username, Secret: request.Secret,
+			Username: request.Username, Secret: request.Secret, SQLiteDatabases: request.SQLiteDatabases,
 			Selection: domain.BackupSelection{
 				Sources: request.Sources, Excludes: request.Excludes,
 				ExcludeCaches: request.ExcludeCaches, ExcludeIfPresent: request.ExcludeIfPresent,

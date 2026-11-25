@@ -115,6 +115,8 @@ export type BackupConfig = {
   excludes: string[]
   excludeCaches: boolean
   excludeIfPresent: string
+  /** SQLite files copied consistently before each backup (D-3). */
+  sqliteDatabases: string[]
   schedule: BackupSchedule
   retention: BackupRetention
   check: BackupCheck
@@ -152,6 +154,7 @@ export type BackupConfigInput = {
   excludes: string[]
   excludeCaches: boolean
   excludeIfPresent: string
+  sqliteDatabases: string[]
   schedule: BackupSchedule
   retention: BackupRetention
   check: BackupCheck

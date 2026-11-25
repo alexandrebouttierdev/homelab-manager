@@ -23,6 +23,7 @@ func (BackupConfig) Fields() []ent.Field {
 		field.JSON("excludes", []string{}),
 		field.Bool("exclude_caches").Default(true),
 		field.String("exclude_if_present").Default(""),
+		field.JSON("sqlite_databases", []string{}).Default([]string{}),
 		field.Bool("schedule_enabled").Default(false),
 		field.String("schedule_frequency").Default("daily"),
 		field.Int("schedule_weekday").Default(0),

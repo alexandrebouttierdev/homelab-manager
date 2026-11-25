@@ -684,6 +684,7 @@ Sauvegardes chiffrées par restic (SPEC_ADMINISTRATION.md § 7, incréments 6A, 
   "secretsAvailable": true,
   "sources": ["/etc", "/var/lib/docker/volumes"], "excludes": ["*.tmp", "**/node_modules"],
   "excludeCaches": true, "excludeIfPresent": ".nobackup",
+  "sqliteDatabases": ["/var/lib/docker/volumes/vaultwarden/_data/db.sqlite3"],
   "schedule": { "enabled": true, "frequency": "weekly", "weekday": 0, "time": "03:00" },
   "retention": { "enabled": true, "keepDaily": 7, "keepWeekly": 4, "keepMonthly": 6, "keepYearly": 0 },
   "check": { "enabled": true, "subsetPercent": 5 },
@@ -724,7 +725,8 @@ Un dépôt SFTP (6D) :
 
 `PUT /api/v1/backups/config` (`admin`) remplace la configuration : mêmes champs, sans `initialized`, `credentials`, `secretsAvailable` ni `updated*`, plus `username` et `secret` (absents ou `null` : conservés ; `""` : supprimés) ; `retention` et `check` absents : conservés. Réponse : la configuration. Audité (`backup_config` / `local` / `update`) dans la même transaction.
 
-- Validation : sources absolues, propres (sans `..`, `//` ni `/` final), 50 au plus, sans doublon ; motifs d'exclusion d'une ligne, 500 au plus, 4 Kio chacun, syntaxe glob valide, sans `#` initial ; `excludeIfPresent` vide ou nom de fichier (`[A-Za-z0-9._-]`) ; champs inconnus refusés. Sinon `400 VALIDATION_ERROR`, le message nommant le champ.
+- Validation : sources absolues, propres (sans `..`, `//` ni `/` final), 50 au plus, sans doublon ; motifs d'exclusion d'une ligne, 500 au plus, 4 Kio chacun, syntaxe glob valide, sans `#` initial ; `excludeIfPresent` vide ou nom de fichier (`[A-Za-z0-9._-]`) ; `sqliteDatabases` (décision D-3) : 20 chemins absolus propres au plus, sans doublon ni chemin sous `/var/lib/homelab-backup/dumps`, absent de la requête : liste gardée ; champs inconnus refusés. Sinon `400 VALIDATION_ERROR`, le message nommant le champ.
+- **Copies SQLite** (décision D-3) : avant chaque sauvegarde, `homelab-backup-runner` copie chaque base de `sqliteDatabases` par `VACUUM INTO`, base ouverte en lecture seule (une transaction de lecture : copie cohérente même pendant les écritures de l'application, en mode WAL ou non), vérifie la copie (`PRAGMA quick_check`) et l'ajoute aux sources sous `/var/lib/homelab-backup/dumps/<chemin de la base>` ; les copies sont effacées après la sauvegarde. Un fichier absent, un lien symbolique, un fichier qui n'est pas une base SQLite ou une copie impossible n'arrêtent pas la sauvegarde : elle se termine en avertissement (`warning`), le message nommant chaque base.
 - Changer de dépôt remet `initialized` à `false` et efface le mot de passe : le nouveau dépôt doit être initialisé. Refusé pendant une opération : `409 BACKUP_IN_PROGRESS`. Modifier une clé sans clé du coffre : `503 SECRETS_UNAVAILABLE`. Un dépôt SFTP avant la génération de la clé SSH du Manager : `409 BACKUP_SSH_KEY_MISSING`.
 
 `POST /api/v1/backups/ssh-key` (`admin`, sans corps) → `200` la configuration, avec `sshKey`. Génère une nouvelle clé Ed25519 et remplace la précédente, qui ne sert plus : les sauvegardes SFTP échouent tant que la nouvelle clé publique n'est pas installée sur les serveurs. Audité (`backup_config` / `local` / `generate_ssh_key`). Sans clé du coffre : `503 SECRETS_UNAVAILABLE`.

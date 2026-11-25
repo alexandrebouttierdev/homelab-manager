@@ -400,3 +400,27 @@ func TestValidateBackupRestore(t *testing.T) {
 		t.Fatal(RestoreTarget(id))
 	}
 }
+
+func TestBackupSQLiteDatabases(t *testing.T) {
+	valid := BackupSelection{Sources: []string{"/srv"}, SQLiteDatabases: []string{"/srv/app/data.db", "/var/lib/docker/volumes/vault/_data/db.sqlite3"}}
+	if err := ValidateBackupSelection(valid); err != nil {
+		t.Fatal(err)
+	}
+	for _, databases := range [][]string{
+		{"relative.db"}, {"/srv/../etc/shadow"}, {"/srv/app.db", "/srv/app.db"}, {BackupDumpRoot + "/srv/app.db"}, {"/srv/app/"},
+	} {
+		if err := ValidateBackupSelection(BackupSelection{SQLiteDatabases: databases}); err == nil {
+			t.Errorf("%q accepted", databases)
+		}
+	}
+	many := make([]string, MaxBackupSQLiteDatabases+1)
+	for i := range many {
+		many[i] = "/srv/app" + string(rune('a'+i)) + ".db"
+	}
+	if err := ValidateBackupSelection(BackupSelection{SQLiteDatabases: many}); err == nil {
+		t.Fatal("too many databases accepted")
+	}
+	if got := BackupDumpPath("/dumps", "/srv/app/data.db"); got != "/dumps/srv/app/data.db" {
+		t.Fatalf("dump path = %s", got)
+	}
+}

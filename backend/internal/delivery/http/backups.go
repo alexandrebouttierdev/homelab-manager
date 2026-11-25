@@ -3,7 +3,9 @@ package httpdelivery
 import (
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
+	"os"
 	"strconv"
 	"time"
 
@@ -281,6 +283,10 @@ func writeBackupError(w http.ResponseWriter, r *http.Request, err error) {
 		writeError(w, r, http.StatusBadRequest, "VALIDATION_ERROR", "limit must be 1 to 200.")
 	case errors.Is(err, domain.ErrBackupRunNotFound):
 		writeError(w, r, http.StatusNotFound, "NOT_FOUND", "The backup run does not exist.")
+	case errors.Is(err, domain.ErrBackupSimulationRequired):
+		writeError(w, r, http.StatusConflict, "BACKUP_SIMULATION_REQUIRED", "Simulate the same in-place restore first, within 30 minutes.")
+	case errors.Is(err, domain.ErrBackupArchiveUnavailable):
+		writeError(w, r, http.StatusGone, "BACKUP_ARCHIVE_UNAVAILABLE", "The archive is not available: it expired, was replaced or the run did not succeed.")
 	case errors.Is(err, domain.ErrBackupNotConfigured):
 		writeError(w, r, http.StatusConflict, "BACKUP_NOT_CONFIGURED", "No backup repository is configured.")
 	case errors.Is(err, domain.ErrBackupNotInitialized):
@@ -492,6 +498,10 @@ type backupOperationRequest struct {
 		From string `json:"from"`
 		To   string `json:"to"`
 	} `json:"diff"`
+	Dump *struct {
+		SnapshotID string `json:"snapshotId"`
+		Path       string `json:"path"`
+	} `json:"dump"`
 }
 
 func requestBackupOperationHandler(backups *usecase.BackupUsecase) http.HandlerFunc {
@@ -514,6 +524,9 @@ func requestBackupOperationHandler(backups *usecase.BackupUsecase) http.HandlerF
 		}
 		if request.Diff != nil {
 			operation.Diff = &domain.BackupDiffRequest{From: request.Diff.From, To: request.Diff.To}
+		}
+		if request.Dump != nil {
+			operation.Dump = &domain.BackupDumpRequest{SnapshotID: request.Dump.SnapshotID, Path: request.Dump.Path}
 		}
 		run, err := backups.RequestOperation(r.Context(), actor, domain.BackupOperation(request.Operation), operation, middleware.GetReqID(r.Context()))
 		if err != nil {
@@ -646,3 +659,43 @@ func connectBackupCopyHandler(backups *usecase.BackupUsecase) http.HandlerFunc {
 		writeJSON(w, http.StatusAccepted, map[string]any{"run": toBackupRunDTO(&run)})
 	}
 }
+
+// backupArchiveHandler serves the archive of a dump run (decision D-2),
+// read from the archives directory the runner writes to.
+func backupArchiveHandler(backups *usecase.BackupUsecase) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		id, err := uuid.Parse(chi.URLParam(r, "runID"))
+		if err != nil {
+			writeError(w, r, http.StatusBadRequest, "VALIDATION_ERROR", "runID must be a UUID.")
+			return
+		}
+		path, run, err := backups.Archive(r.Context(), id)
+		if err != nil {
+			writeBackupError(w, r, err)
+			return
+		}
+		file, err := os.Open(path)
+		if err != nil {
+			writeBackupError(w, r, domain.ErrBackupArchiveUnavailable)
+			return
+		}
+		defer func() { _ = file.Close() }()
+		info, err := file.Stat()
+		if err != nil || !info.Mode().IsRegular() {
+			writeBackupError(w, r, domain.ErrBackupArchiveUnavailable)
+			return
+		}
+		// A large archive outlasts the write timeout of the server.
+		_ = http.NewResponseController(w).SetWriteDeadline(time.Now().Add(archiveWriteTimeout))
+		name := "sauvegarde-" + run.FinishedAt.UTC().Format("2006-01-02-150405") + ".tar.gz"
+		w.Header().Set("Content-Type", "application/gzip")
+		w.Header().Set("Content-Disposition", `attachment; filename="`+name+`"`)
+		w.Header().Set("Content-Length", strconv.FormatInt(info.Size(), 10))
+		w.Header().Set("Cache-Control", "no-store")
+		w.WriteHeader(http.StatusOK)
+		_, _ = io.Copy(w, file)
+	}
+}
+
+// archiveWriteTimeout bounds the download of one archive.
+const archiveWriteTimeout = 2 * time.Hour

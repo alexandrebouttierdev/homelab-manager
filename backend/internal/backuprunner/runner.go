@@ -56,7 +56,11 @@ type Config struct {
 	// DumpRoot holds the copies of the SQLite databases (D-3); the job
 	// never names it, tests use a temporary one.
 	DumpRoot string
-	Now      func() time.Time
+	// InPlaceRoot is / for an in-place restore; tests use a temporary one.
+	InPlaceRoot string
+	// ArchiveRoot holds the archive of the last dump run.
+	ArchiveRoot string
+	Now         func() time.Time
 	// globalArgs precede the command of every restic run: the SSH options
 	// of an SFTP repository.
 	globalArgs []string
@@ -67,7 +71,7 @@ func Defaults() Config {
 		JobsDir: "/var/lib/homelab-backup/jobs", RunsDir: "/var/lib/homelab-backup/runs",
 		CacheDir: "/var/cache/homelab-backup", TempDir: os.TempDir(), Restic: "/usr/bin/restic",
 		Path: "/usr/sbin:/usr/bin:/sbin:/bin", RestoreRoot: domain.BackupRestoreRoot, DumpRoot: domain.BackupDumpRoot,
-		Now: time.Now,
+		InPlaceRoot: "/", ArchiveRoot: domain.BackupArchiveRoot, Now: time.Now,
 	}
 }
 
@@ -203,6 +207,10 @@ func execute(ctx context.Context, config Config, op domain.BackupOperation, resu
 		return forgetPrune(ctx, config, env, job, result)
 	case domain.BackupOpRestore:
 		return restore(ctx, config, env, job, result)
+	case domain.BackupOpRestoreInPlace:
+		return restoreInPlace(ctx, config, env, job, result)
+	case domain.BackupOpDump:
+		return dumpArchive(ctx, config, env, job, result)
 	case domain.BackupOpDiff:
 		return diff(ctx, config, env, job, result)
 	}

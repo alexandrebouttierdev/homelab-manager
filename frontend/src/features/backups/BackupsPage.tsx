@@ -18,7 +18,7 @@ import { LoadingState } from '../../components/ui/LoadingState'
 import { PageHeader } from '../../components/ui/PageHeader'
 import { SegmentedTabs } from '../../components/ui/SegmentedTabs'
 import { formatBytes, formatCount, formatDateTime, formatRelativeTime } from '../../lib/format'
-import { FormField } from '../alerts/FormField'
+import { FormField, inputClass } from '../alerts/FormField'
 import { BackupConfigForm } from './BackupConfigForm'
 import { BackupCopyCard } from './BackupCopyCard'
 import { BackupSSHKeyCard } from './BackupSSHKeyCard'
@@ -197,6 +197,11 @@ function Runs({ page }: { page: BackupsPageModel }) {
                 <p className="font-mono text-[10px] text-text-muted">instantané {row.snapshot}</p>
               )}
               {row.problem && <p className="text-danger">{row.problem}</p>}
+              {row.archiveUrl && (
+                <a className="text-accent underline" href={row.archiveUrl} download>
+                  Télécharger l&apos;archive
+                </a>
+              )}
             </TD>
           </TR>
         ))}
@@ -311,6 +316,7 @@ function Snapshots({ page }: { page: BackupsPageModel }) {
 function RestorePanel({ model }: { model: BackupRestoreModel }) {
   const snapshot = model.snapshot
   if (!snapshot) return null
+  const inPlace = model.destination === 'in-place'
   return (
     <div
       className="space-y-3 rounded-lg border border-line bg-card p-4"
@@ -324,10 +330,9 @@ function RestorePanel({ model }: { model: BackupRestoreModel }) {
             {formatDateTime(snapshot.time)}
           </p>
           <p className="mt-1 text-xs text-text-secondary">
-            Les fichiers sont restaurés dans un répertoire de quarantaine,
-            /var/lib/homelab-backup/restore/…, accessible à root seulement : rien n&apos;est écrit à
-            leur emplacement d&apos;origine. Copiez ensuite ce qui vous sert. Simulez d&apos;abord
-            pour connaître le volume.
+            {inPlace
+              ? "Les fichiers de l'instantané remplacent ceux d'aujourd'hui à leur emplacement d'origine ; les fichiers identiques ne sont pas touchés et rien n'est supprimé. Avant, une sauvegarde de sécurité garde l'état actuel de ces chemins. /etc, /usr, /boot et les données du Manager ne se restaurent jamais en place."
+              : "Les fichiers sont restaurés dans un répertoire de quarantaine, /var/lib/homelab-backup/restore/…, accessible à root seulement : rien n'est écrit à leur emplacement d'origine. Copiez ensuite ce qui vous sert. Simulez d'abord pour connaître le volume."}
           </p>
         </div>
         <button
@@ -339,9 +344,22 @@ function RestorePanel({ model }: { model: BackupRestoreModel }) {
           <X className="h-4 w-4" />
         </button>
       </div>
+      <SegmentedTabs
+        options={[
+          { value: 'quarantine', label: 'Dans la quarantaine' },
+          { value: 'in-place', label: "À l'emplacement d'origine" },
+        ]}
+        value={model.destination}
+        onChange={model.setDestination}
+        ariaLabel="Destination de la restauration"
+      />
       <FormField
         id="restore-include"
-        label="Chemins à restaurer (un par ligne ; vide pour tout l'instantané)"
+        label={
+          inPlace
+            ? 'Chemins à remettre en place (un par ligne, obligatoire)'
+            : "Chemins à restaurer (un par ligne ; vide pour tout l'instantané)"
+        }
         error={model.includeError ?? undefined}
       >
         <textarea
@@ -351,6 +369,25 @@ function RestorePanel({ model }: { model: BackupRestoreModel }) {
           onChange={(event) => model.setInclude(event.target.value)}
         />
       </FormField>
+      {model.simulation && (
+        <p className="text-xs text-text-secondary" role="status">
+          {model.simulation.running
+            ? 'Simulation en cours…'
+            : model.simulation.current
+              ? model.simulation.result
+              : 'Les chemins ont changé depuis la simulation : simulez de nouveau.'}
+        </p>
+      )}
+      {inPlace && (
+        <label className="flex items-start gap-2 text-xs text-text-secondary">
+          <input
+            type="checkbox"
+            checked={model.acknowledged}
+            onChange={(event) => model.setAcknowledged(event.target.checked)}
+          />
+          Je remplace les fichiers actuels de ces chemins par ceux de l&apos;instantané.
+        </label>
+      )}
       <div className="flex flex-wrap gap-2">
         <Button
           size="sm"
@@ -362,12 +399,12 @@ function RestorePanel({ model }: { model: BackupRestoreModel }) {
         </Button>
         <Button
           size="sm"
-          variant="primary"
+          variant={inPlace ? 'danger' : 'primary'}
           loading={model.pending === 'restore'}
-          disabled={model.pending !== null || model.includeError !== null}
+          disabled={model.pending !== null || model.includeError !== null || !model.canRestore}
           onClick={model.restore}
         >
-          Restaurer dans la quarantaine
+          {inPlace ? "Restaurer à l'emplacement d'origine" : 'Restaurer dans la quarantaine'}
         </Button>
       </div>
       {model.started && (
@@ -380,6 +417,45 @@ function RestorePanel({ model }: { model: BackupRestoreModel }) {
           {model.error}
         </p>
       )}
+      <div className="space-y-2 border-t border-line pt-3">
+        <FormField
+          id="archive-path"
+          label="Télécharger une archive .tar.gz d'un chemin de l'instantané"
+          error={model.archiveError ?? undefined}
+          hint="4 Gio au plus ; l'archive reste disponible 24 heures, jusqu'à la suivante."
+        >
+          <input
+            id="archive-path"
+            className={inputClass}
+            placeholder="/srv/app"
+            value={model.archivePath}
+            onChange={(event) => model.setArchivePath(event.target.value)}
+          />
+        </FormField>
+        <Button
+          size="sm"
+          loading={model.archivePending}
+          disabled={
+            model.archivePending || model.archivePath.trim() === '' || model.archiveError !== null
+          }
+          onClick={model.prepareArchive}
+        >
+          Préparer l&apos;archive
+        </Button>
+        {model.archive?.url && (
+          <p className="text-xs text-text-secondary" role="status">
+            {model.archive.description} —{' '}
+            <a className="text-accent underline" href={model.archive.url} download>
+              Télécharger
+            </a>
+          </p>
+        )}
+        {model.archiveFailure && (
+          <p className="text-xs text-danger" role="alert">
+            {model.archiveFailure}
+          </p>
+        )}
+      </div>
     </div>
   )
 }

@@ -13,9 +13,12 @@ export type BackupOperation =
   | 'unlock'
   | 'diff'
   | 'copy'
+  | 'restore-in-place'
+  | 'dump'
 
 /** Operations an administrator starts (POST /api/v1/backups/operations). */
-export type AdminBackupOperation = 'forget-prune' | 'check' | 'unlock' | 'restore' | 'diff' | 'copy'
+export type AdminBackupOperation =
+  'forget-prune' | 'check' | 'unlock' | 'restore' | 'restore-in-place' | 'dump' | 'diff' | 'copy'
 
 /** restic's modifiers: added, removed, content modified, metadata updated, type changed, bitrot. */
 export type BackupDiffModifier = '+' | '-' | 'M' | 'U' | 'T' | '?'
@@ -58,6 +61,12 @@ export type BackupRunDetails = {
   snapshotId?: string
   target?: string
   dryRun?: boolean
+  /** Restore to the original location (D-2) and the backup made before it. */
+  inPlace?: boolean
+  safetySnapshotId?: string
+  /** Archive of a dump run: the path archived and its size. */
+  archivePath?: string
+  archiveBytes?: number
   totalFiles?: number
   filesRestored?: number
   totalBytes?: number
@@ -251,7 +260,11 @@ export async function listBackupSnapshots() {
 
 export async function requestBackupOperation(
   operation: AdminBackupOperation,
-  options: { restore?: BackupRestore; diff?: { from: string; to: string } } = {},
+  options: {
+    restore?: BackupRestore
+    diff?: { from: string; to: string }
+    dump?: { snapshotId: string; path: string }
+  } = {},
 ) {
   const response = await requestJSON<{ run: BackupRun }>('/api/v1/backups/operations', {
     method: 'POST',

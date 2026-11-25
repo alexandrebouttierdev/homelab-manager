@@ -1,7 +1,9 @@
 import { describe, expect, it } from 'vitest'
 import type { BackupConfig, BackupRun, BackupSummary } from './api/backups'
 import {
+  archiveUrl,
   backupHealth,
+  inPlaceIssue,
   configToValues,
   copyToValues,
   copyValuesToInput,
@@ -290,5 +292,40 @@ describe('backups', () => {
       username: '',
       secret: '',
     })
+  })
+})
+
+describe('in-place restores and archives', () => {
+  it('refuses the protected trees', () => {
+    expect(inPlaceIssue([])).toMatch(/jamais tout/)
+    expect(inPlaceIssue(['/'])).toMatch(/machine entière/)
+    expect(inPlaceIssue(['/etc/nginx'])).toMatch(/\/etc/)
+    expect(inPlaceIssue(['/var'])).toMatch(/homelab/)
+    expect(inPlaceIssue(['/srv/app', '/var/lib/docker/volumes/web'])).toBeNull()
+  })
+
+  it('serves an archive for 24 hours', () => {
+    const run = {
+      id: 'r',
+      operation: 'dump',
+      origin: 'manual',
+      requestedBy: 'admin',
+      state: 'succeeded',
+      failure: null,
+      message: null,
+      warning: false,
+      snapshotId: null,
+      stats: null,
+      details: { archivePath: '/srv', archiveBytes: 1024 },
+      startedAt: '2026-11-25T10:00:00Z',
+      finishedAt: '2026-11-25T10:01:00Z',
+    } as BackupRun
+    expect(archiveUrl(run, new Date('2026-11-25T12:00:00Z'))).toBe('/api/v1/backups/runs/r/archive')
+    expect(archiveUrl(run, new Date('2026-11-26T11:00:00Z'))).toBeNull()
+    expect(archiveUrl({ ...run, state: 'failed' }, new Date('2026-11-25T12:00:00Z'))).toBeNull()
+    expect(describeDetails(run)).toBe('Archive de /srv (1 Ko)')
+    expect(
+      runLabel({ ...run, operation: 'restore-in-place', details: { dryRun: true, inPlace: true } }),
+    ).toBe("Restauration à l'emplacement d'origine simulée")
   })
 })

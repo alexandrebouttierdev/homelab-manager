@@ -126,6 +126,11 @@ type BackupUsecase struct {
 	accepting bool
 	// requests holds one run already recorded and claimed.
 	requests chan pendingBackup
+	// simulations holds when each in-place restore was last simulated
+	// with success (domain.InPlaceKey); a real one needs a recent one.
+	simulations map[string]time.Time
+	// archiveRoot is where the runner writes the archives.
+	archiveRoot string
 }
 
 type pendingBackup struct {
@@ -137,6 +142,9 @@ type pendingBackup struct {
 type operationInput struct {
 	restore *domain.BackupRestore
 	diff    *domain.BackupDiffRequest
+	dump    *domain.BackupDumpRequest
+	// inPlace: the restore is restore-in-place.
+	inPlace bool
 	// copyInit creates the copy repository before the copy.
 	copyInit bool
 }
@@ -569,6 +577,25 @@ func (u *BackupUsecase) RequestOperation(ctx context.Context, actor domain.User,
 			return domain.BackupRun{}, err
 		}
 		input.restore = request.Restore
+	case domain.BackupOpRestoreInPlace:
+		if request.Restore == nil {
+			return domain.BackupRun{}, invalidOperation("a restore needs a snapshot")
+		}
+		if err := domain.ValidateInPlaceRestore(*request.Restore); err != nil {
+			return domain.BackupRun{}, err
+		}
+		if !request.Restore.DryRun && !u.simulated(*request.Restore) {
+			return domain.BackupRun{}, domain.ErrBackupSimulationRequired
+		}
+		input.restore, input.inPlace = request.Restore, true
+	case domain.BackupOpDump:
+		if request.Dump == nil {
+			return domain.BackupRun{}, invalidOperation("an archive needs a snapshot and a path")
+		}
+		if err := domain.ValidateBackupDump(*request.Dump); err != nil {
+			return domain.BackupRun{}, err
+		}
+		input.dump = request.Dump
 	case domain.BackupOpDiff:
 		if request.Diff == nil {
 			return domain.BackupRun{}, invalidOperation("a diff needs two snapshots")
@@ -578,7 +605,7 @@ func (u *BackupUsecase) RequestOperation(ctx context.Context, actor domain.User,
 		}
 		input.diff = request.Diff
 	default:
-		return domain.BackupRun{}, invalidOperation("operation must be forget-prune, check, unlock, restore, diff or copy")
+		return domain.BackupRun{}, invalidOperation("operation must be forget-prune, check, unlock, restore, restore-in-place, dump, diff or copy")
 	}
 	if err := u.claim(); err != nil {
 		return domain.BackupRun{}, err
@@ -610,10 +637,67 @@ func (u *BackupUsecase) RequestOperation(ctx context.Context, actor domain.User,
 	return u.enqueueWithID(ctx, id, op, domain.BackupManual, actor.Username, &audit, input)
 }
 
-// BackupOperationRequest holds what a restore or a diff needs.
+// BackupOperationRequest holds what a restore, an archive or a diff needs.
 type BackupOperationRequest struct {
 	Restore *domain.BackupRestore
 	Diff    *domain.BackupDiffRequest
+	Dump    *domain.BackupDumpRequest
+}
+
+// simulated reports a successful simulation of the same in-place restore
+// within domain.InPlaceSimulationValidity, and uses it up.
+func (u *BackupUsecase) simulated(restore domain.BackupRestore) bool {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	key := domain.InPlaceKey(restore)
+	at, ok := u.simulations[key]
+	if !ok || u.now().Sub(at) > domain.InPlaceSimulationValidity {
+		return false
+	}
+	delete(u.simulations, key)
+	return true
+}
+
+func (u *BackupUsecase) recordSimulation(restore domain.BackupRestore) {
+	u.mu.Lock()
+	defer u.mu.Unlock()
+	if u.simulations == nil {
+		u.simulations = map[string]time.Time{}
+	}
+	now := u.now()
+	for key, at := range u.simulations {
+		if now.Sub(at) > domain.InPlaceSimulationValidity {
+			delete(u.simulations, key)
+		}
+	}
+	u.simulations[domain.InPlaceKey(restore)] = now
+}
+
+// Archive returns the archive of a successful dump run, while it is kept
+// (domain.BackupArchiveRetention) and still the last one written. Callers
+// must hold domain.PermManageBackups.
+func (u *BackupUsecase) Archive(ctx context.Context, id uuid.UUID) (string, domain.BackupRun, error) {
+	run, err := u.store.BackupRun(ctx, id)
+	if err != nil {
+		return "", domain.BackupRun{}, err
+	}
+	if run.Operation != domain.BackupOpDump || run.State != domain.BackupSucceeded || run.FinishedAt == nil {
+		return "", run, domain.ErrBackupArchiveUnavailable
+	}
+	if u.now().Sub(*run.FinishedAt) > domain.BackupArchiveRetention {
+		return "", run, domain.ErrBackupArchiveUnavailable
+	}
+	root := u.archiveRoot
+	if root == "" {
+		root = domain.BackupArchiveRoot
+	}
+	return domain.BackupArchivePath(root, run.ID), run, nil
+}
+
+// WithArchiveRoot sets the directory of the archives (tests).
+func (u *BackupUsecase) WithArchiveRoot(root string) *BackupUsecase {
+	u.archiveRoot = root
+	return u
 }
 
 func invalidOperation(message string) error {
@@ -692,8 +776,12 @@ func (u *BackupUsecase) enqueueWithID(ctx context.Context, id uuid.UUID, op doma
 // the quarantine directory of a restore, the snapshots of a diff.
 func (i operationInput) initialDetails(runID uuid.UUID) *domain.BackupRunDetails {
 	switch {
+	case i.restore != nil && i.inPlace:
+		return &domain.BackupRunDetails{SnapshotID: i.restore.SnapshotID, Target: "/", DryRun: i.restore.DryRun, InPlace: true}
 	case i.restore != nil:
 		return &domain.BackupRunDetails{SnapshotID: i.restore.SnapshotID, Target: domain.RestoreTarget(runID), DryRun: i.restore.DryRun}
+	case i.dump != nil:
+		return &domain.BackupRunDetails{SnapshotID: i.dump.SnapshotID, ArchivePath: i.dump.Path}
 	case i.diff != nil:
 		return &domain.BackupRunDetails{Diff: &domain.BackupDiff{From: i.diff.From, To: i.diff.To, Changes: []domain.BackupDiffChange{}}}
 	}
@@ -824,6 +912,9 @@ func (u *BackupUsecase) execute(ctx context.Context, run domain.BackupRun, input
 		if result.Details != nil {
 			run.Details = result.Details
 		}
+		if run.Operation == domain.BackupOpRestoreInPlace && input.restore != nil && input.restore.DryRun {
+			u.recordSimulation(*input.restore)
+		}
 		// init creates the repository; snapshots connects an existing one.
 		if run.Operation == domain.BackupOpInit || run.Operation == domain.BackupOpSnapshots {
 			finish.InitializedAt = &finished
@@ -859,7 +950,7 @@ func (u *BackupUsecase) runOperation(ctx context.Context, run domain.BackupRun, 
 	job := ports.BackupJob{
 		RunID: run.ID, Operation: run.Operation, Repository: *config.Repository, Selection: config.Selection,
 		Retention: config.Retention, CheckSubsetPercent: config.Check.SubsetPercent, Restore: input.restore,
-		Diff: input.diff,
+		Diff: input.diff, Dump: input.dump,
 	}
 	secrets := ports.BackupSecrets{Credentials: credentials}
 	if config.UsesSFTP(run.Operation) {

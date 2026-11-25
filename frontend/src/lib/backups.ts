@@ -121,11 +121,15 @@ const operationLabels: Record<Exclude<BackupRun['operation'], 'backup'>, string>
   unlock: 'Déverrouillage',
   diff: "Comparaison d'instantanés",
   copy: 'Copie vers le dépôt de copie',
+  'restore-in-place': "Restauration à l'emplacement d'origine",
+  dump: 'Archive à télécharger',
 }
 
 export function runLabel(run: BackupRun): string {
   if (run.operation === 'backup') return `Sauvegarde ${originLabels[run.origin].toLowerCase()}`
   if (run.operation === 'restore' && run.details?.dryRun) return 'Restauration simulée'
+  if (run.operation === 'restore-in-place' && run.details?.dryRun)
+    return "Restauration à l'emplacement d'origine simulée"
   const label = operationLabels[run.operation]
   const scheduled =
     run.origin !== 'manual' &&
@@ -142,6 +146,19 @@ export function describeDetails(run: BackupRun): string | null {
       return d.dryRun
         ? `Simulation : ${formatCount(d.totalFiles ?? 0)} fichier(s), ${formatBytes(d.totalBytes ?? 0)}`
         : `${formatCount(d.filesRestored ?? 0)} fichier(s) restauré(s) dans ${d.target ?? '—'}`
+    case 'restore-in-place':
+      if (d.dryRun)
+        return `Simulation : ${formatCount(d.filesRestored ?? 0)} fichier(s) à remplacer sur ${formatCount(d.totalFiles ?? 0)}, ${formatBytes(d.bytesRestored ?? 0)}`
+      return [
+        `${formatCount(d.filesRestored ?? 0)} fichier(s) remplacé(s) à leur emplacement d'origine`,
+        d.safetySnapshotId
+          ? `état précédent sauvegardé dans l'instantané ${d.safetySnapshotId.slice(0, 8)}`
+          : null,
+      ]
+        .filter(Boolean)
+        .join(' · ')
+    case 'dump':
+      return `Archive de ${d.archivePath ?? '—'} (${formatBytes(d.archiveBytes ?? 0)})`
     case 'forget-prune':
       return `${formatCount(d.snapshotsRemoved ?? 0)} instantané(s) supprimé(s)`
     case 'check':
@@ -324,4 +341,59 @@ export function valuesToInput(values: BackupConfigValues): BackupConfigInput {
     },
     check: { enabled: values.checkEnabled, subsetPercent: values.checkSubsetPercent },
   }
+}
+
+/** How long an archive stays downloadable (API_CONTRACTS.md § 4.10). */
+export const archiveRetentionMs = 24 * 60 * 60 * 1000
+
+/** The download address of a dump run, while its archive is kept. */
+export function archiveUrl(run: BackupRun, now: Date): string | null {
+  if (run.operation !== 'dump' || run.state !== 'succeeded' || !run.finishedAt) return null
+  if (now.getTime() - new Date(run.finishedAt).getTime() > archiveRetentionMs) return null
+  return `/api/v1/backups/runs/${encodeURIComponent(run.id)}/archive`
+}
+
+/**
+ * Trees an in-place restore never writes to (mirror of the server, which
+ * decides): the system, the virtual file systems and the state of the
+ * Manager and of its backups.
+ */
+const inPlaceProtected = [
+  '/bin',
+  '/boot',
+  '/dev',
+  '/efi',
+  '/etc',
+  '/lib',
+  '/lib32',
+  '/lib64',
+  '/libx32',
+  '/proc',
+  '/run',
+  '/sbin',
+  '/sys',
+  '/tmp',
+  '/usr',
+  '/var/cache/homelab-backup',
+  '/var/lib/homelab-backup',
+  '/var/lib/homelab-manager',
+  '/var/lib/homelab-vulnscan',
+]
+
+/** Why paths cannot be restored in place, or null. */
+export function inPlaceIssue(paths: string[]): string | null {
+  if (paths.length === 0)
+    return "Nommez les chemins à remettre en place : jamais tout l'instantané."
+  for (const path of paths) {
+    if (path === '/') return 'La machine entière ne se restaure pas en place.'
+    const touched = inPlaceProtected.find(
+      (protectedPath) =>
+        path === protectedPath ||
+        path.startsWith(`${protectedPath}/`) ||
+        protectedPath.startsWith(`${path}/`),
+    )
+    if (touched)
+      return `« ${path} » touche ${touched}, jamais restauré en place : passez par la quarantaine.`
+  }
+  return null
 }

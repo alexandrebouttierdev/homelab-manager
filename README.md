@@ -404,7 +404,16 @@ Puis, dans l'onglet « Configuration » (administrateurs) : choisir le dépôt, 
 
 **Rétention et vérification** : dans « Configuration », la rétention (par défaut 7 quotidiens, 4 hebdomadaires, 6 mensuels, désactivée) supprime les instantanés au-delà de la politique après chaque sauvegarde planifiée réussie ; la vérification relit 5 % des données au plus une fois par semaine. Les deux se lancent aussi à la main depuis la carte « Maintenance », avec « Forcer le déverrouillage » pour un dépôt resté verrouillé par une opération interrompue (à éviter si un autre programme utilise le dépôt).
 
-**Restauration** : dans « Instantanés », un administrateur choisit un instantané et, au besoin, des chemins, simule puis restaure. Les fichiers arrivent dans `/var/lib/homelab-backup/restore/<identifiant>/`, accessible à root seulement, jamais à leur emplacement d'origine : les recopier ensuite à la main (`sudo cp -a …`) et supprimer le répertoire. **Rattacher un dépôt existant** (réinstallation, autre machine) : enregistrer son emplacement puis saisir son mot de passe dans la carte « Initialiser le dépôt ».
+**Restauration à l'emplacement d'origine et archive** (optionnelles, décision D-2) : dans le panneau de restauration, « À l'emplacement d'origine » remet des chemins nommés en place, après une simulation réussie des mêmes chemins et une case de confirmation ; l'état actuel de ces chemins est d'abord sauvegardé (instantané `before-restore`, pour revenir en arrière), seuls les fichiers différents sont remplacés et rien n'est supprimé ; `/etc`, `/usr`, `/boot` et les données du Manager se restaurent toujours par la quarantaine. Installer le complément d'unité :
+
+```bash
+sudo install -D -o root -g root -m 0644 "deployments/systemd/homelab-backup@restore-in-place.service.d/50-in-place.conf" "/etc/systemd/system/homelab-backup@restore-in-place.service.d/50-in-place.conf"
+sudo systemctl daemon-reload
+```
+
+« Préparer l'archive » produit un `.tar.gz` d'un chemin de l'instantané (4 Gio au plus), téléchargeable par un administrateur pendant 24 heures, depuis le panneau ou l'historique ; l'archive n'est pas chiffrée. Mettre aussi à jour `deployments/tmpfiles/homelab-backup.conf` (répertoire `archives`), l'unité `homelab-backup@.service` et la règle polkit des sauvegardes.
+
+**Restauration** : dans « Instantanés », un administrateur choisit un instantané et, au besoin, des chemins, simule puis restaure. Les fichiers arrivent dans `/var/lib/homelab-backup/restore/<identifiant>/`, accessible à root seulement, sans toucher à leur emplacement d'origine : les recopier ensuite à la main (`sudo cp -a …`) et supprimer le répertoire. **Rattacher un dépôt existant** (réinstallation, autre machine) : enregistrer son emplacement puis saisir son mot de passe dans la carte « Initialiser le dépôt ».
 
 **Comparer deux instantanés** : dans « Instantanés », un administrateur coche deux instantanés puis « Comparer » ; `restic diff` liste ce qui a été ajouté, supprimé ou modifié du plus ancien au plus récent (les 1 000 premiers chemins, filtrables ; les autres rôles n'en voient que les chiffres).
 

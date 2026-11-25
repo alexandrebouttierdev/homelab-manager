@@ -89,6 +89,20 @@ func (e *Executor) Execute(ctx context.Context, job ports.BackupJob, given ports
 			SnapshotID: job.Restore.SnapshotID, Include: orEmpty(job.Restore.Include), DryRun: job.Restore.DryRun,
 			Target: domain.RestoreTarget(job.RunID),
 		}
+	case domain.BackupOpRestoreInPlace:
+		if job.Restore == nil {
+			return domain.BackupResult{}, &domain.BackupRunError{Failure: domain.BackupFailureJob, Err: errors.New("a restore needs its request")}
+		}
+		file.Restore = &backupjob.Restore{
+			SnapshotID: job.Restore.SnapshotID, Include: orEmpty(job.Restore.Include), DryRun: job.Restore.DryRun, Target: "/",
+		}
+	case domain.BackupOpDump:
+		if job.Dump == nil {
+			return domain.BackupResult{}, &domain.BackupRunError{Failure: domain.BackupFailureJob, Err: errors.New("an archive needs its path")}
+		}
+		file.Dump = &backupjob.Dump{
+			SnapshotID: job.Dump.SnapshotID, Path: job.Dump.Path, Target: domain.BackupArchivePath(domain.BackupArchiveRoot, job.RunID),
+		}
 	case domain.BackupOpDiff:
 		if job.Diff == nil {
 			return domain.BackupResult{}, &domain.BackupRunError{Failure: domain.BackupFailureJob, Err: errors.New("a diff needs its snapshots")}

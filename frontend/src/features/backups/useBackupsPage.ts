@@ -14,6 +14,7 @@ import {
 import {
   backupHealth,
   describeSchedule,
+  archiveUrl,
   describeDetails,
   describeStats,
   formatDuration,
@@ -144,6 +145,7 @@ export function useBackupsPage() {
         problem: runFailureText(run),
         requestedBy: run.requestedBy,
         snapshot: run.snapshotId ? run.snapshotId.slice(0, 8) : null,
+        archiveUrl: canManage ? archiveUrl(run, new Date()) : null,
       })),
     },
     snapshots: { state: loadState(snapshotsQuery), rows: snapshotsQuery.data ?? [] },

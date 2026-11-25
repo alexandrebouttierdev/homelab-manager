@@ -266,6 +266,7 @@ func NewRouter(logger *zap.Logger, services Services, sessionSecure bool, webRoo
 						backup.Get("/runs", listBackupRunsHandler(backups))
 						backup.With(requirePermission(deny, domain.PermRunBackups)).Post("/runs", requestBackupHandler(backups))
 						backup.Get("/runs/{runID}", backupRunHandler(backups))
+						backup.With(requirePermission(deny, domain.PermManageBackups)).Get("/runs/{runID}/archive", backupArchiveHandler(backups))
 						backup.Get("/snapshots", listBackupSnapshotsHandler(backups))
 					})
 					active.Route("/auth/tokens", func(apiTokens chi.Router) {

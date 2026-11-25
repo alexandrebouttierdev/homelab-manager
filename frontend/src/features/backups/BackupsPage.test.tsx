@@ -259,6 +259,120 @@ describe('BackupsPage', () => {
     await waitFor(() => expect(requestBackupOperation).toHaveBeenLastCalledWith('unlock'))
   })
 
+  it('restores in place only after a simulation of the same paths and an acknowledgement', async () => {
+    session.role = 'admin'
+    vi.mocked(listBackupSnapshots).mockResolvedValue([
+      {
+        id: 'abcdef0123456789',
+        shortId: 'abcdef01',
+        time: '2026-11-24T03:00:02Z',
+        hostname: 'homelab',
+        paths: ['/srv'],
+        tags: ['homelab-manager'],
+        totalFiles: 14,
+        totalBytes: 65536,
+        dataAdded: 2048,
+      },
+    ])
+    const simulation = {
+      ...success,
+      id: 'sim',
+      operation: 'restore-in-place' as const,
+      details: {
+        dryRun: true,
+        inPlace: true,
+        target: '/',
+        totalFiles: 4,
+        filesRestored: 2,
+        bytesRestored: 10,
+      },
+    }
+    vi.mocked(requestBackupOperation).mockResolvedValue({ ...simulation, state: 'running' })
+    vi.mocked(getBackupRun).mockResolvedValue(simulation)
+    const user = userEvent.setup()
+    renderPage()
+    await user.click(await screen.findByRole('button', { name: 'Instantanés' }))
+    await user.click(await screen.findByRole('button', { name: /Restaurer…/ }))
+    await user.click(screen.getByRole('button', { name: "À l'emplacement d'origine" }))
+    const restore = screen.getByRole('button', { name: "Restaurer à l'emplacement d'origine" })
+    expect(screen.getByText(/jamais tout l'instantané/)).toBeInTheDocument()
+    await user.type(screen.getByLabelText(/Chemins à remettre en place/), '/etc/nginx')
+    expect(screen.getByText(/passez par la quarantaine/)).toBeInTheDocument()
+    await user.clear(screen.getByLabelText(/Chemins à remettre en place/))
+    await user.type(screen.getByLabelText(/Chemins à remettre en place/), '/srv/app')
+    expect(restore).toBeDisabled()
+    await user.click(screen.getByRole('button', { name: 'Simuler' }))
+    await waitFor(() =>
+      expect(requestBackupOperation).toHaveBeenCalledWith('restore-in-place', {
+        restore: { snapshotId: 'abcdef0123456789', include: ['/srv/app'], dryRun: true },
+      }),
+    )
+    expect(await screen.findByText(/2 fichier\(s\) à remplacer sur 4/)).toBeInTheDocument()
+    expect(restore).toBeDisabled()
+    await user.click(screen.getByLabelText(/Je remplace les fichiers actuels/))
+    expect(restore).toBeEnabled()
+    vi.mocked(requestBackupOperation).mockResolvedValue({
+      ...simulation,
+      id: 'real',
+      state: 'running',
+      details: { inPlace: true, target: '/' },
+    })
+    await user.click(restore)
+    await waitFor(() =>
+      expect(requestBackupOperation).toHaveBeenLastCalledWith('restore-in-place', {
+        restore: { snapshotId: 'abcdef0123456789', include: ['/srv/app'], dryRun: false },
+      }),
+    )
+    expect(
+      await screen.findByText(/sauvegarde de sécurité des fichiers remplacés/),
+    ).toBeInTheDocument()
+  })
+
+  it('prepares an archive of a path, then offers its download', async () => {
+    session.role = 'admin'
+    vi.mocked(listBackupSnapshots).mockResolvedValue([
+      {
+        id: 'abcdef0123456789',
+        shortId: 'abcdef01',
+        time: '2026-11-24T03:00:02Z',
+        hostname: 'homelab',
+        paths: ['/srv'],
+        tags: ['homelab-manager'],
+        totalFiles: 14,
+        totalBytes: 65536,
+        dataAdded: 2048,
+      },
+    ])
+    const finished = new Date().toISOString()
+    vi.mocked(requestBackupOperation).mockResolvedValue({
+      ...success,
+      id: 'dump-run',
+      operation: 'dump',
+      state: 'running',
+      details: { archivePath: '/srv/app' },
+    })
+    vi.mocked(getBackupRun).mockResolvedValue({
+      ...success,
+      id: 'dump-run',
+      operation: 'dump',
+      finishedAt: finished,
+      details: { archivePath: '/srv/app', archiveBytes: 2048 },
+    })
+    const user = userEvent.setup()
+    renderPage()
+    await user.click(await screen.findByRole('button', { name: 'Instantanés' }))
+    await user.click(await screen.findByRole('button', { name: /Restaurer…/ }))
+    await user.type(screen.getByLabelText(/Télécharger une archive/), '/srv/app')
+    await user.click(screen.getByRole('button', { name: "Préparer l'archive" }))
+    await waitFor(() =>
+      expect(requestBackupOperation).toHaveBeenCalledWith('dump', {
+        dump: { snapshotId: 'abcdef0123456789', path: '/srv/app' },
+      }),
+    )
+    const link = await screen.findByRole('link', { name: 'Télécharger' })
+    expect(link).toHaveAttribute('href', '/api/v1/backups/runs/dump-run/archive')
+  })
+
   it('compares two snapshots, older first, and lists the changes', async () => {
     session.role = 'admin'
     const snapshot = (id: string, time: string) => ({

@@ -54,6 +54,16 @@ type Job struct {
 	Diff *Diff `json:"diff,omitempty"`
 	// Copy: copy only. The repository of the job is the source.
 	Copy *Copy `json:"copy,omitempty"`
+	// Dump: dump only.
+	Dump *Dump `json:"dump,omitempty"`
+}
+
+// Dump names the path of a snapshot to archive and the archive file, in
+// the archives directory.
+type Dump struct {
+	SnapshotID string `json:"snapshotId"`
+	Path       string `json:"path"`
+	Target     string `json:"target"`
 }
 
 // Diff names the two snapshots to compare.
@@ -148,17 +158,40 @@ func (j Job) Validate() error {
 			return err
 		}
 	}
-	if (j.Restore != nil) != (j.Operation == domain.BackupOpRestore) {
-		return errors.New("a restore belongs to restore only")
+	restoring := j.Operation == domain.BackupOpRestore || j.Operation == domain.BackupOpRestoreInPlace
+	if (j.Restore != nil) != restoring {
+		return errors.New("a restore belongs to restore and restore-in-place only")
 	}
 	if j.Restore != nil {
 		restore := domain.BackupRestore{SnapshotID: j.Restore.SnapshotID, Include: j.Restore.Include, DryRun: j.Restore.DryRun}
-		if err := domain.ValidateBackupRestore(restore); err != nil {
+		if j.Operation == domain.BackupOpRestoreInPlace {
+			if err := domain.ValidateInPlaceRestore(restore); err != nil {
+				return err
+			}
+			if j.Restore.Target != "/" {
+				return errors.New("an in-place restore targets /")
+			}
+		} else {
+			if err := domain.ValidateBackupRestore(restore); err != nil {
+				return err
+			}
+			name, ok := strings.CutPrefix(j.Restore.Target, domain.BackupRestoreRoot+"/")
+			if id, err := uuid.Parse(name); !ok || err != nil || id.String() != name {
+				return errors.New("the restore target must be a run directory of the quarantine")
+			}
+		}
+	}
+	if (j.Dump != nil) != (j.Operation == domain.BackupOpDump) {
+		return errors.New("an archive belongs to dump only")
+	}
+	if j.Dump != nil {
+		if err := domain.ValidateBackupDump(domain.BackupDumpRequest{SnapshotID: j.Dump.SnapshotID, Path: j.Dump.Path}); err != nil {
 			return err
 		}
-		name, ok := strings.CutPrefix(j.Restore.Target, domain.BackupRestoreRoot+"/")
-		if id, err := uuid.Parse(name); !ok || err != nil || id.String() != name {
-			return errors.New("the restore target must be a run directory of the quarantine")
+		name, ok := strings.CutPrefix(j.Dump.Target, domain.BackupArchiveRoot+"/")
+		id, err := uuid.Parse(strings.TrimSuffix(name, ".tar.gz"))
+		if !ok || err != nil || name != id.String()+".tar.gz" {
+			return errors.New("the archive must be a run file of the archives directory")
 		}
 	}
 	if (j.Diff != nil) != (j.Operation == domain.BackupOpDiff) {

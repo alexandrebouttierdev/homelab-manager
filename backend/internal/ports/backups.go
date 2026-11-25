@@ -80,6 +80,8 @@ type BackupJob struct {
 	Restore *domain.BackupRestore
 	// Diff: diff only.
 	Diff *domain.BackupDiffRequest
+	// Dump: dump only.
+	Dump *domain.BackupDumpRequest
 	// Copy: copy only, the destination; CopyInit creates it first and
 	// CopyRetention, when not nil, applies to it after the copy.
 	Copy          *domain.BackupRepository

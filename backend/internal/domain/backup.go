@@ -597,6 +597,87 @@ func ValidateBackupRestore(restore BackupRestore) error {
 	return nil
 }
 
+// In-place restores and archives (decision D-2).
+const (
+	// InPlaceSimulationValidity is how long a successful simulation of an
+	// in-place restore allows the same restore.
+	InPlaceSimulationValidity = 30 * time.Minute
+	// BackupArchiveRoot holds the archive of the last dump run, readable by
+	// the Manager's group (deployments/tmpfiles/homelab-backup.conf).
+	BackupArchiveRoot = "/var/lib/homelab-backup/archives"
+	// MaxBackupArchiveBytes bounds an archive: a larger one fails.
+	MaxBackupArchiveBytes = 4 << 30
+	// BackupArchiveRetention is how long an archive stays downloadable.
+	BackupArchiveRetention = 24 * time.Hour
+)
+
+var (
+	ErrBackupSimulationRequired = errors.New("an in-place restore needs a successful simulation of the same paths in the last 30 minutes")
+	// ErrBackupArchiveUnavailable: not a successful dump run, or its
+	// archive is older than BackupArchiveRetention or was replaced.
+	ErrBackupArchiveUnavailable = errors.New("the archive is not available")
+)
+
+// inPlaceProtected are the trees an in-place restore never writes to: the
+// system itself (restored through the quarantine, by hand), the virtual
+// file systems, and the state of the Manager and of its backups. The unit
+// of restore-in-place also keeps /usr, /boot and /etc read-only.
+var inPlaceProtected = []string{
+	"/bin", "/boot", "/dev", "/efi", "/etc", "/lib", "/lib32", "/lib64", "/libx32", "/proc", "/run", "/sbin",
+	"/sys", "/tmp", "/usr", "/var/cache/homelab-backup", "/var/lib/homelab-backup", "/var/lib/homelab-manager",
+	"/var/lib/homelab-vulnscan",
+}
+
+// ValidateInPlaceRestore checks a restore to the original location: it
+// names at least one path, none of them / nor inside a protected tree.
+func ValidateInPlaceRestore(restore BackupRestore) error {
+	if err := ValidateBackupRestore(restore); err != nil {
+		return err
+	}
+	if len(restore.Include) == 0 {
+		return invalidBackup("include", "an in-place restore names the paths it restores")
+	}
+	for _, include := range restore.Include {
+		if include == "/" {
+			return invalidBackup("include", "an in-place restore never restores the whole machine")
+		}
+		for _, protected := range inPlaceProtected {
+			if include == protected || strings.HasPrefix(include, protected+"/") || strings.HasPrefix(protected, include+"/") {
+				return invalidBackup("include", "%q touches %s, which an in-place restore never writes to", include, protected)
+			}
+		}
+	}
+	return nil
+}
+
+// InPlaceKey names a simulation: the snapshot and the sorted paths.
+func InPlaceKey(restore BackupRestore) string {
+	paths := slices.Clone(restore.Include)
+	slices.Sort(paths)
+	return restore.SnapshotID + "\x00" + strings.Join(paths, "\x00")
+}
+
+// BackupDumpRequest names the snapshot and the one path to archive.
+type BackupDumpRequest struct {
+	SnapshotID string
+	Path       string
+}
+
+func ValidateBackupDump(dump BackupDumpRequest) error {
+	if !snapshotIDPattern.MatchString(dump.SnapshotID) {
+		return invalidBackup("snapshotId", "must be 8 to 64 lowercase hexadecimal characters")
+	}
+	if err := validateAbsolutePath(dump.Path); err != nil {
+		return invalidBackup("path", "%q %s", dump.Path, err.Error())
+	}
+	return nil
+}
+
+// BackupArchivePath is the archive of a dump run.
+func BackupArchivePath(root string, runID uuid.UUID) string {
+	return root + "/" + runID.String() + ".tar.gz"
+}
+
 // RestoreTarget is the quarantine directory of a restore run.
 func RestoreTarget(runID uuid.UUID) string {
 	return BackupRestoreRoot + "/" + runID.String()
@@ -605,7 +686,14 @@ func RestoreTarget(runID uuid.UUID) string {
 // BackupRunDetails holds what an operation other than a backup reports.
 type BackupRunDetails struct {
 	// Restore: the snapshot, the quarantine directory and the figures.
-	SnapshotID    string `json:"snapshotId,omitempty"`
+	SnapshotID string `json:"snapshotId,omitempty"`
+	// InPlace: a restore to the original location (D-2); SafetySnapshotID
+	// is the backup of what it replaced, made just before.
+	InPlace          bool   `json:"inPlace,omitempty"`
+	SafetySnapshotID string `json:"safetySnapshotId,omitempty"`
+	// Archive: a dump run, its path in the snapshot and its size.
+	ArchivePath   string `json:"archivePath,omitempty"`
+	ArchiveBytes  int64  `json:"archiveBytes,omitempty"`
 	Target        string `json:"target,omitempty"`
 	DryRun        bool   `json:"dryRun,omitempty"`
 	TotalFiles    int64  `json:"totalFiles,omitempty"`
@@ -655,13 +743,19 @@ const (
 	// BackupOpCopy copies the snapshots to the copy repository, which it
 	// may initialize first.
 	BackupOpCopy BackupOperation = "copy"
+	// BackupOpRestoreInPlace restores paths of a snapshot where they were
+	// (decision D-2), after a safety backup of what it replaces.
+	BackupOpRestoreInPlace BackupOperation = "restore-in-place"
+	// BackupOpDump writes one path of a snapshot as a .tar.gz archive to
+	// download (decision D-2).
+	BackupOpDump BackupOperation = "dump"
 )
 
 // BackupOperations lists the instances of homelab-backup@.service the
 // polkit rule allows.
 var BackupOperations = []BackupOperation{
 	BackupOpInit, BackupOpBackup, BackupOpForgetPrune, BackupOpCheck, BackupOpRestore, BackupOpSnapshots, BackupOpUnlock,
-	BackupOpDiff, BackupOpCopy,
+	BackupOpDiff, BackupOpCopy, BackupOpRestoreInPlace, BackupOpDump,
 }
 
 func (o BackupOperation) Valid() bool {

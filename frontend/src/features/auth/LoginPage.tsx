@@ -1,6 +1,7 @@
 import {
   Eye,
   EyeOff,
+  Fingerprint,
   KeyRound,
   LockKeyhole,
   LogIn,
@@ -28,6 +29,7 @@ export function LoginPage() {
     remember,
     setRemember,
     isPending,
+    passkey,
     errorMessage,
     notice,
     secondFactor,
@@ -178,6 +180,19 @@ export function LoginPage() {
                 )}
                 {isPending ? 'Connexion…' : 'Se connecter'}
               </button>
+              {passkey && (
+                <button
+                  type="button"
+                  onClick={passkey.onClick}
+                  disabled={isPending}
+                  className="flex h-10 w-full items-center justify-center gap-2 rounded-md border border-line bg-card px-4 text-sm font-medium text-text-primary transition-colors hover:bg-elevated disabled:cursor-wait disabled:opacity-60"
+                >
+                  <Fingerprint className="h-4 w-4" aria-hidden="true" />
+                  {passkey.isPending
+                    ? 'En attente de la passkey…'
+                    : 'Se connecter avec une passkey'}
+                </button>
+              )}
             </form>
           )}
 

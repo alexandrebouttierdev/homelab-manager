@@ -331,11 +331,11 @@ func TestRequiringTheSecondFactorNeedsOneOwnFactor(t *testing.T) {
 	factors := newMemoryFactors()
 	security := NewSecurityUsecase(&memorySecurity{}).WithSecondFactors(factors)
 	ctx := context.Background()
-	if _, err := security.UpdatePolicy(ctx, securityAdmin, "10.0.0.1", 60, nil, true, ""); !errors.Is(err, domain.ErrSecondFactorNotEnrolled) {
+	if _, err := security.UpdatePolicy(ctx, securityAdmin, "10.0.0.1", 60, nil, true, false, ""); !errors.Is(err, domain.ErrSecondFactorNotEnrolled) {
 		t.Fatalf("requiring without an own factor = %v", err)
 	}
 	factors.totp[securityAdmin.ID] = domain.TOTPEnrollment{Confirmed: true}
-	policy, err := security.UpdatePolicy(ctx, securityAdmin, "10.0.0.1", 60, nil, true, "")
+	policy, err := security.UpdatePolicy(ctx, securityAdmin, "10.0.0.1", 60, nil, true, false, "")
 	if err != nil || !policy.RequireAdminSecondFactor || !security.Policy().RequireAdminSecondFactor {
 		t.Fatalf("UpdatePolicy = (%+v, %v)", policy, err)
 	}

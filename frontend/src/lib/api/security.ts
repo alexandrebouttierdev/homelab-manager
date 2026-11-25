@@ -20,6 +20,8 @@ export type SecurityPolicy = {
   allowedNetworks: string[]
   /** Administrators without a second factor are limited to its enrollment. */
   requireAdminSecondFactor: boolean
+  /** Accounts may sign in with a passkey alone, without their password (decision D-14). */
+  allowPasskeyLogin: boolean
   /** Address of this browser as seen by the Manager. */
   currentAddress: string
 }

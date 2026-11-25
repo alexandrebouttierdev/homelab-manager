@@ -47,6 +47,7 @@ func (r *SecurityRepository) SecurityPolicy(ctx context.Context) (domain.Securit
 		return domain.SecurityPolicy{}, fmt.Errorf("stored security policy: %w", err)
 	}
 	policy.RequireAdminSecondFactor = record.RequireAdminSecondFactor
+	policy.AllowPasskeyLogin = record.AllowPasskeyLogin
 	return policy, nil
 }
 
@@ -59,11 +60,11 @@ func (r *SecurityRepository) SetSecurityPolicy(ctx context.Context, policy domai
 		case ent.IsNotFound(err):
 			err = tx.SecurityPolicy.Create().SetSingletonKey(settingsSingletonKey).
 				SetIdleTimeoutMinutes(policy.IdleTimeoutMinutes).SetAllowedNetworks(networks).
-				SetRequireAdminSecondFactor(policy.RequireAdminSecondFactor).Exec(ctx)
+				SetRequireAdminSecondFactor(policy.RequireAdminSecondFactor).SetAllowPasskeyLogin(policy.AllowPasskeyLogin).Exec(ctx)
 		case err == nil:
 			err = tx.SecurityPolicy.UpdateOneID(record.ID).
 				SetIdleTimeoutMinutes(policy.IdleTimeoutMinutes).SetAllowedNetworks(networks).
-				SetRequireAdminSecondFactor(policy.RequireAdminSecondFactor).Exec(ctx)
+				SetRequireAdminSecondFactor(policy.RequireAdminSecondFactor).SetAllowPasskeyLogin(policy.AllowPasskeyLogin).Exec(ctx)
 		}
 		if err != nil {
 			return fmt.Errorf("write security policy: %w", err)

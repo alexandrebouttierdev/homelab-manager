@@ -27,6 +27,8 @@ type SecurityPolicy struct {
 	AllowedNetworks []string `json:"allowed_networks,omitempty"`
 	// RequireAdminSecondFactor holds the value of the "require_admin_second_factor" field.
 	RequireAdminSecondFactor bool `json:"require_admin_second_factor,omitempty"`
+	// AllowPasskeyLogin holds the value of the "allow_passkey_login" field.
+	AllowPasskeyLogin bool `json:"allow_passkey_login,omitempty"`
 	// UpdatedAt holds the value of the "updated_at" field.
 	UpdatedAt    time.Time `json:"updated_at,omitempty"`
 	selectValues sql.SelectValues
@@ -39,7 +41,7 @@ func (*SecurityPolicy) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case securitypolicy.FieldAllowedNetworks:
 			values[i] = new([]byte)
-		case securitypolicy.FieldRequireAdminSecondFactor:
+		case securitypolicy.FieldRequireAdminSecondFactor, securitypolicy.FieldAllowPasskeyLogin:
 			values[i] = new(sql.NullBool)
 		case securitypolicy.FieldIdleTimeoutMinutes:
 			values[i] = new(sql.NullInt64)
@@ -96,6 +98,12 @@ func (_m *SecurityPolicy) assignValues(columns []string, values []any) error {
 			} else if value.Valid {
 				_m.RequireAdminSecondFactor = value.Bool
 			}
+		case securitypolicy.FieldAllowPasskeyLogin:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field allow_passkey_login", values[i])
+			} else if value.Valid {
+				_m.AllowPasskeyLogin = value.Bool
+			}
 		case securitypolicy.FieldUpdatedAt:
 			if value, ok := values[i].(*sql.NullTime); !ok {
 				return fmt.Errorf("unexpected type %T for field updated_at", values[i])
@@ -149,6 +157,9 @@ func (_m *SecurityPolicy) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("require_admin_second_factor=")
 	builder.WriteString(fmt.Sprintf("%v", _m.RequireAdminSecondFactor))
+	builder.WriteString(", ")
+	builder.WriteString("allow_passkey_login=")
+	builder.WriteString(fmt.Sprintf("%v", _m.AllowPasskeyLogin))
 	builder.WriteString(", ")
 	builder.WriteString("updated_at=")
 	builder.WriteString(_m.UpdatedAt.Format(time.ANSIC))

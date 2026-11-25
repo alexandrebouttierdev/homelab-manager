@@ -82,6 +82,21 @@ export function SecurityPolicyPanel() {
                 </span>
               </span>
             </label>
+            <label className="flex cursor-pointer items-start gap-2 text-sm text-text-primary">
+              <input
+                type="checkbox"
+                className="mt-1 h-3.5 w-3.5 accent-accent"
+                {...policy.register('allowPasskeyLogin')}
+              />
+              <span>
+                Autoriser la connexion par passkey seule
+                <span className="block text-xs text-text-muted">
+                  Un compte qui a enregistré une passkey pourra se connecter sans son mot de passe,
+                  avec le code ou la biométrie de son appareil. Exige le domaine WebAuthn du
+                  Manager.
+                </span>
+              </span>
+            </label>
             {policy.errorMessage && (
               <p className="text-xs text-danger" role="alert">
                 {policy.errorMessage}

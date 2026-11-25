@@ -16639,6 +16639,7 @@ type SecurityPolicyMutation struct {
 	allowed_networks            *[]string
 	appendallowed_networks      []string
 	require_admin_second_factor *bool
+	allow_passkey_login         *bool
 	updated_at                  *time.Time
 	clearedFields               map[string]struct{}
 	done                        bool
@@ -16929,6 +16930,42 @@ func (m *SecurityPolicyMutation) ResetRequireAdminSecondFactor() {
 	m.require_admin_second_factor = nil
 }
 
+// SetAllowPasskeyLogin sets the "allow_passkey_login" field.
+func (m *SecurityPolicyMutation) SetAllowPasskeyLogin(b bool) {
+	m.allow_passkey_login = &b
+}
+
+// AllowPasskeyLogin returns the value of the "allow_passkey_login" field in the mutation.
+func (m *SecurityPolicyMutation) AllowPasskeyLogin() (r bool, exists bool) {
+	v := m.allow_passkey_login
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAllowPasskeyLogin returns the old "allow_passkey_login" field's value of the SecurityPolicy entity.
+// If the SecurityPolicy object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SecurityPolicyMutation) OldAllowPasskeyLogin(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAllowPasskeyLogin is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAllowPasskeyLogin requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAllowPasskeyLogin: %w", err)
+	}
+	return oldValue.AllowPasskeyLogin, nil
+}
+
+// ResetAllowPasskeyLogin resets all changes to the "allow_passkey_login" field.
+func (m *SecurityPolicyMutation) ResetAllowPasskeyLogin() {
+	m.allow_passkey_login = nil
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (m *SecurityPolicyMutation) SetUpdatedAt(t time.Time) {
 	m.updated_at = &t
@@ -16999,7 +17036,7 @@ func (m *SecurityPolicyMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *SecurityPolicyMutation) Fields() []string {
-	fields := make([]string, 0, 5)
+	fields := make([]string, 0, 6)
 	if m.singleton_key != nil {
 		fields = append(fields, securitypolicy.FieldSingletonKey)
 	}
@@ -17011,6 +17048,9 @@ func (m *SecurityPolicyMutation) Fields() []string {
 	}
 	if m.require_admin_second_factor != nil {
 		fields = append(fields, securitypolicy.FieldRequireAdminSecondFactor)
+	}
+	if m.allow_passkey_login != nil {
+		fields = append(fields, securitypolicy.FieldAllowPasskeyLogin)
 	}
 	if m.updated_at != nil {
 		fields = append(fields, securitypolicy.FieldUpdatedAt)
@@ -17031,6 +17071,8 @@ func (m *SecurityPolicyMutation) Field(name string) (ent.Value, bool) {
 		return m.AllowedNetworks()
 	case securitypolicy.FieldRequireAdminSecondFactor:
 		return m.RequireAdminSecondFactor()
+	case securitypolicy.FieldAllowPasskeyLogin:
+		return m.AllowPasskeyLogin()
 	case securitypolicy.FieldUpdatedAt:
 		return m.UpdatedAt()
 	}
@@ -17050,6 +17092,8 @@ func (m *SecurityPolicyMutation) OldField(ctx context.Context, name string) (ent
 		return m.OldAllowedNetworks(ctx)
 	case securitypolicy.FieldRequireAdminSecondFactor:
 		return m.OldRequireAdminSecondFactor(ctx)
+	case securitypolicy.FieldAllowPasskeyLogin:
+		return m.OldAllowPasskeyLogin(ctx)
 	case securitypolicy.FieldUpdatedAt:
 		return m.OldUpdatedAt(ctx)
 	}
@@ -17088,6 +17132,13 @@ func (m *SecurityPolicyMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetRequireAdminSecondFactor(v)
+		return nil
+	case securitypolicy.FieldAllowPasskeyLogin:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAllowPasskeyLogin(v)
 		return nil
 	case securitypolicy.FieldUpdatedAt:
 		v, ok := value.(time.Time)
@@ -17171,6 +17222,9 @@ func (m *SecurityPolicyMutation) ResetField(name string) error {
 		return nil
 	case securitypolicy.FieldRequireAdminSecondFactor:
 		m.ResetRequireAdminSecondFactor()
+		return nil
+	case securitypolicy.FieldAllowPasskeyLogin:
+		m.ResetAllowPasskeyLogin()
 		return nil
 	case securitypolicy.FieldUpdatedAt:
 		m.ResetUpdatedAt()

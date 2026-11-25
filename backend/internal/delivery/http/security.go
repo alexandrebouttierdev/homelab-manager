@@ -145,6 +145,7 @@ type securityPolicyDTO struct {
 	IdleTimeoutMinutes       int      `json:"idleTimeoutMinutes"`
 	AllowedNetworks          []string `json:"allowedNetworks"`
 	RequireAdminSecondFactor bool     `json:"requireAdminSecondFactor"`
+	AllowPasskeyLogin        bool     `json:"allowPasskeyLogin"`
 	// CurrentAddress lets the interface warn before a self-exclusion.
 	CurrentAddress string `json:"currentAddress"`
 }
@@ -154,6 +155,8 @@ type securityPolicyRequest struct {
 	AllowedNetworks    *[]string `json:"allowedNetworks"`
 	// RequireAdminSecondFactor keeps its current value when absent.
 	RequireAdminSecondFactor *bool `json:"requireAdminSecondFactor"`
+	// AllowPasskeyLogin keeps its current value when absent.
+	AllowPasskeyLogin *bool `json:"allowPasskeyLogin"`
 }
 
 func securityPolicyHandler(security *usecase.SecurityUsecase) http.HandlerFunc {
@@ -179,11 +182,15 @@ func updateSecurityPolicyHandler(security *usecase.SecurityUsecase) http.Handler
 			return
 		}
 		address := clientIP(r)
-		requireSecondFactor := security.Policy().RequireAdminSecondFactor
+		current := security.Policy()
+		requireSecondFactor, allowPasskey := current.RequireAdminSecondFactor, current.AllowPasskeyLogin
 		if request.RequireAdminSecondFactor != nil {
 			requireSecondFactor = *request.RequireAdminSecondFactor
 		}
-		policy, err := security.UpdatePolicy(r.Context(), user, address, *request.IdleTimeoutMinutes, *request.AllowedNetworks, requireSecondFactor, middleware.GetReqID(r.Context()))
+		if request.AllowPasskeyLogin != nil {
+			allowPasskey = *request.AllowPasskeyLogin
+		}
+		policy, err := security.UpdatePolicy(r.Context(), user, address, *request.IdleTimeoutMinutes, *request.AllowedNetworks, requireSecondFactor, allowPasskey, middleware.GetReqID(r.Context()))
 		switch {
 		case errors.Is(err, domain.ErrSecondFactorNotEnrolled):
 			writeError(w, r, http.StatusConflict, "SECOND_FACTOR_NOT_ENROLLED", "Enroll your own second factor before requiring it.")
@@ -204,7 +211,8 @@ func updateSecurityPolicyHandler(security *usecase.SecurityUsecase) http.Handler
 func toSecurityPolicyDTO(policy domain.SecurityPolicy, address string) securityPolicyDTO {
 	return securityPolicyDTO{
 		IdleTimeoutMinutes: policy.IdleTimeoutMinutes, AllowedNetworks: policy.Networks(),
-		RequireAdminSecondFactor: policy.RequireAdminSecondFactor, CurrentAddress: address,
+		RequireAdminSecondFactor: policy.RequireAdminSecondFactor, AllowPasskeyLogin: policy.AllowPasskeyLogin,
+		CurrentAddress: address,
 	}
 }
 

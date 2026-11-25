@@ -68,6 +68,28 @@ export function beginWebAuthnLogin() {
   }).then((body) => body.options)
 }
 
+/** Whether the login page may offer the login with a passkey alone (decision D-14). */
+export function passkeyLoginAvailable() {
+  return requestJSON<{ available: boolean }>('/api/v1/auth/login/passkey').then(
+    (body) => body.available,
+  )
+}
+
+/** Options of a login with a passkey alone; the Manager sets the ceremony cookie. */
+export function beginPasskeyLogin() {
+  return requestJSON<{ options: CeremonyOptions }>('/api/v1/auth/login/passkey', {
+    method: 'POST',
+  }).then((body) => body.options)
+}
+
+/** Ends a login with a passkey alone with the answer of the browser. */
+export function completePasskeyLogin(response: unknown) {
+  return requestJSON<{ user: SessionUser }>('/api/v1/auth/login/passkey/finish', {
+    method: 'POST',
+    body: JSON.stringify({ response }),
+  })
+}
+
 /** Second step of a login with the answer of a security key. */
 export function completeWithKey(response: unknown) {
   return requestJSON<{ user: SessionUser }>('/api/v1/auth/login/second-factor', {

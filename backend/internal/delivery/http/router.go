@@ -110,6 +110,9 @@ func NewRouter(logger *zap.Logger, services Services, sessionSecure bool, webRoo
 		r.With(sameOrigin, loginRateLimit).Post("/auth/login", loginHandler(auth, sessionSecure))
 		r.With(sameOrigin, loginRateLimit).Post("/auth/login/second-factor", completeSecondFactorHandler(auth, sessionSecure))
 		r.With(sameOrigin, loginRateLimit).Post("/auth/login/second-factor/webauthn", beginWebAuthnLoginHandler(auth, sessionSecure))
+		r.Get("/auth/login/passkey", passkeyLoginStatusHandler(auth))
+		r.With(sameOrigin, loginRateLimit).Post("/auth/login/passkey", beginPasskeyLoginHandler(auth, sessionSecure))
+		r.With(sameOrigin, loginRateLimit).Post("/auth/login/passkey/finish", completePasskeyLoginHandler(auth, sessionSecure))
 		r.Get("/auth/session", sessionHandler(auth))
 		r.Group(func(protected chi.Router) {
 			protected.Use(requireSession(auth, tokens))

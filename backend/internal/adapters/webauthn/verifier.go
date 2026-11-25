@@ -1,7 +1,8 @@
 // Package webauthn runs the WebAuthn ceremonies with
 // github.com/go-webauthn/webauthn (SPEC_ADMINISTRATION.md § 3.3): passkeys
-// and FIDO2 security keys as a second factor, user verification required,
-// no attestation requested.
+// and FIDO2 security keys as a second factor, or a passkey alone when the
+// policy allows it (decision D-14); user verification required, no
+// attestation requested.
 package webauthn
 
 import (
@@ -159,6 +160,57 @@ func (v *Verifier) FinishLogin(user domain.User, existing []domain.WebAuthnCrede
 		return nil, nil, fmt.Errorf("encode the credential: %w", err)
 	}
 	return credential.ID, stored, nil
+}
+
+func (v *Verifier) BeginPasskeyLogin() ([]byte, []byte, error) {
+	assertion, session, err := v.webauthn.BeginDiscoverableLogin(library.WithUserVerification(protocol.VerificationRequired))
+	if err != nil {
+		return nil, nil, fmt.Errorf("begin passkey login: %w", err)
+	}
+	return encodePair(assertion, session)
+}
+
+func (v *Verifier) FinishPasskeyLogin(session, response []byte, lookup ports.PasskeyLookup) (domain.User, []byte, []byte, error) {
+	var data library.SessionData
+	if err := json.Unmarshal(session, &data); err != nil {
+		return domain.User{}, nil, nil, fmt.Errorf("decode the session: %w", err)
+	}
+	parsed, err := protocol.ParseCredentialRequestResponseBytes(response)
+	if err != nil {
+		return domain.User{}, nil, nil, fmt.Errorf("%w: %v", domain.ErrInvalidWebAuthnAnswer, err)
+	}
+	var found domain.User
+	var lookupErr error
+	handler := func(_, userHandle []byte) (library.User, error) {
+		user, keys, err := lookup(userHandle)
+		if err != nil {
+			lookupErr = err
+			return nil, err
+		}
+		acc, err := newAccount(user, keys)
+		if err != nil {
+			lookupErr = err
+			return nil, err
+		}
+		found = user
+		return acc, nil
+	}
+	credential, err := v.webauthn.ValidateDiscoverableLogin(handler, data, parsed)
+	if lookupErr != nil && !errors.Is(lookupErr, domain.ErrWebAuthnKeyNotFound) {
+		// A storage failure is not a wrong answer.
+		return domain.User{}, nil, nil, lookupErr
+	}
+	if err != nil {
+		return domain.User{}, nil, nil, fmt.Errorf("%w: %v", domain.ErrInvalidWebAuthnAnswer, err)
+	}
+	if credential.Authenticator.CloneWarning {
+		return domain.User{}, nil, nil, fmt.Errorf("%w: the sign count went backwards", domain.ErrInvalidWebAuthnAnswer)
+	}
+	stored, err := json.Marshal(credential)
+	if err != nil {
+		return domain.User{}, nil, nil, fmt.Errorf("encode the credential: %w", err)
+	}
+	return found, credential.ID, stored, nil
 }
 
 func encodePair(options any, session *library.SessionData) ([]byte, []byte, error) {

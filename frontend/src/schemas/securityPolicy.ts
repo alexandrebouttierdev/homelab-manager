@@ -26,6 +26,7 @@ export const securityPolicySchema = z.object({
       'Notation CIDR attendue, par exemple 192.168.1.0/24',
     ),
   requireAdminSecondFactor: z.boolean(),
+  allowPasskeyLogin: z.boolean(),
 })
 
 export type SecurityPolicyValues = z.infer<typeof securityPolicySchema>

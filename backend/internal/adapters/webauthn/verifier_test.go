@@ -62,6 +62,8 @@ type authenticator struct {
 	credentialID []byte
 	signCount    uint32
 	origin       string
+	// withoutUV answers without user verification (no PIN, no biometrics).
+	withoutUV bool
 }
 
 func newAuthenticator(t *testing.T) *authenticator {
@@ -100,6 +102,9 @@ func (a *authenticator) authData(attested bool) []byte {
 	rpHash := sha256.Sum256([]byte(testRPID))
 	data := append([]byte{}, rpHash[:]...)
 	flags := byte(0x01 | 0x04) // user present, user verified
+	if a.withoutUV {
+		flags = 0x01
+	}
 	if attested {
 		flags |= 0x40
 	}
@@ -258,5 +263,90 @@ func TestRegistrationRefusesAnInvalidAnswer(t *testing.T) {
 	}
 	if _, _, err := verifier.FinishRegistration(user, nil, session, []byte(`{"id":"x"}`)); !errors.Is(err, domain.ErrInvalidWebAuthnAnswer) {
 		t.Fatalf("malformed answer = %v", err)
+	}
+}
+
+// lookupOf finds the accounts of a test like the Manager does: by the user
+// handle, which is the UUID of the account.
+func lookupOf(accounts map[uuid.UUID][]domain.WebAuthnCredential, users ...domain.User) func([]byte) (domain.User, []domain.WebAuthnCredential, error) {
+	return func(handle []byte) (domain.User, []domain.WebAuthnCredential, error) {
+		id, err := uuid.FromBytes(handle)
+		if err != nil {
+			return domain.User{}, nil, domain.ErrWebAuthnKeyNotFound
+		}
+		for _, user := range users {
+			if user.ID == id {
+				return user, accounts[id], nil
+			}
+		}
+		return domain.User{}, nil, domain.ErrWebAuthnKeyNotFound
+	}
+}
+
+func TestPasskeyLoginFindsTheAccountOfTheKey(t *testing.T) {
+	verifier := newVerifier(t)
+	alice := domain.User{ID: uuid.New(), Username: "alice"}
+	bob := domain.User{ID: uuid.New(), Username: "bob"}
+	aliceKey, bobKey := newAuthenticator(t), newAuthenticator(t)
+	accounts := map[uuid.UUID][]domain.WebAuthnCredential{
+		alice.ID: {register(t, verifier, alice, aliceKey)},
+		bob.ID:   {register(t, verifier, bob, bobKey)},
+	}
+	lookup := lookupOf(accounts, alice, bob)
+
+	options, session, err := verifier.BeginPasskeyLogin()
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Contains(options, []byte(`"userVerification":"required"`)) || bytes.Contains(options, []byte(`allowCredentials`)) {
+		t.Fatalf("passkey options = %s", options)
+	}
+	user, id, data, err := verifier.FinishPasskeyLogin(session, bobKey.get(t, options, bob.ID[:]), lookup)
+	if err != nil || user.ID != bob.ID || !bytes.Equal(id, bobKey.credentialID) || len(data) == 0 {
+		t.Fatalf("passkey login = %+v, %v", user, err)
+	}
+
+	refused := map[string]func(options []byte) []byte{
+		// The key of Bob claims to be Alice.
+		"other account": func(options []byte) []byte { return bobKey.get(t, options, alice.ID[:]) },
+		"unknown account": func(options []byte) []byte {
+			stranger := uuid.New()
+			return aliceKey.get(t, options, stranger[:])
+		},
+		"no user handle": func(options []byte) []byte { return aliceKey.get(t, options, nil) },
+		"no verification": func(options []byte) []byte {
+			aliceKey.withoutUV = true
+			defer func() { aliceKey.withoutUV = false }()
+			return aliceKey.get(t, options, alice.ID[:])
+		},
+		"other origin": func(options []byte) []byte {
+			aliceKey.origin = "https://evil.test"
+			defer func() { aliceKey.origin = testOrigin }()
+			return aliceKey.get(t, options, alice.ID[:])
+		},
+		"malformed answer": func([]byte) []byte { return []byte(`{"id":"x"}`) },
+	}
+	for name, answer := range refused {
+		options, session, err := verifier.BeginPasskeyLogin()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if _, _, _, err := verifier.FinishPasskeyLogin(session, answer(options), lookup); !errors.Is(err, domain.ErrInvalidWebAuthnAnswer) {
+			t.Fatalf("%s = %v", name, err)
+		}
+	}
+
+	// A session of a login with a known user is not a passkey session.
+	options, session, _ = verifier.BeginLogin(alice, accounts[alice.ID])
+	if _, _, _, err := verifier.FinishPasskeyLogin(session, aliceKey.get(t, options, alice.ID[:]), lookup); !errors.Is(err, domain.ErrInvalidWebAuthnAnswer) {
+		t.Fatalf("answer to a second-factor ceremony = %v", err)
+	}
+	// A storage failure is reported as such.
+	failing := func([]byte) (domain.User, []domain.WebAuthnCredential, error) {
+		return domain.User{}, nil, errors.New("disk failure")
+	}
+	options, session, _ = verifier.BeginPasskeyLogin()
+	if _, _, _, err := verifier.FinishPasskeyLogin(session, aliceKey.get(t, options, alice.ID[:]), failing); err == nil || errors.Is(err, domain.ErrInvalidWebAuthnAnswer) {
+		t.Fatalf("storage failure = %v", err)
 	}
 }

@@ -12,7 +12,7 @@ Ce document est le contrat exact de l'API implémentée. Toute différence entre
 - Horodatages émis en RFC 3339 UTC (`2026-11-21T20:58:00Z`, fraction de seconde possible).
 - Une valeur inconnue est `null` ou absente selon le DTO, jamais remplacée par zéro. Zéro est une mesure réelle.
 - Corps de requête limité à 1 MiB, JSON strict : champ inconnu ou second document JSON → `400 VALIDATION_ERROR`.
-- Toutes les routes sauf `/health`, `/api/v1/health`, `/api/v1/auth/login`, `/api/v1/auth/login/second-factor` et `/api/v1/auth/session` exigent une session.
+- Toutes les routes sauf `/health`, `/api/v1/health`, `/api/v1/auth/login`, `/api/v1/auth/login/second-factor…`, `/api/v1/auth/login/passkey…` et `/api/v1/auth/session` exigent une session.
 - Les messages d'erreur de l'API sont techniques et en anglais ; l'interface affiche ses propres messages, en français, à partir du `code`.
 
 ## 2. Routes
@@ -23,6 +23,9 @@ Ce document est le contrat exact de l'API implémentée. Toute différence entre
 | `GET /api/v1/health` | non | Santé détaillée (§ 4.1) |
 | `POST /api/v1/auth/login` | non | Ouvre une session, ou un défi de second facteur (§ 3) |
 | `POST /api/v1/auth/login/second-factor` | défi | Termine une connexion avec un second facteur (§ 3.5) |
+| `GET /api/v1/auth/login/passkey` | non | Connexion par passkey seule proposée ou non (§ 3.7) |
+| `POST /api/v1/auth/login/passkey` | non | Options d'une connexion par passkey seule (§ 3.7) |
+| `POST /api/v1/auth/login/passkey/finish` | cérémonie | Termine une connexion par passkey seule (§ 3.7) |
 | `GET /api/v1/auth/session` | cookie | Utilisateur courant (§ 3) |
 | `GET /api/v1/auth/second-factor` | oui | État de son second facteur (§ 3.5) |
 | `POST /api/v1/auth/second-factor/totp` | oui | Commence l'enrôlement TOTP (§ 3.5) |
@@ -192,8 +195,8 @@ Comptes de Homelab Manager uniquement : aucun compte Linux n'est lu ni modifié.
 
 ### 3.3 Politique de sécurité
 
-- `GET /api/v1/security/policy` (admin) : `200 { "idleTimeoutMinutes": 60, "allowedNetworks": [], "requireAdminSecondFactor": false, "currentAddress": "192.168.1.20" }`. `currentAddress` est l'adresse vue par le Manager pour la requête.
-- `PUT /api/v1/security/policy` (admin) avec `{ "idleTimeoutMinutes": 60, "allowedNetworks": ["192.168.1.0/24"], "requireAdminSecondFactor": true }`, les deux premiers champs obligatoires, `requireAdminSecondFactor` facultatif (valeur actuelle conservée s'il est absent ; l'activer exige que l'administrateur qui modifie ait lui-même un second facteur, sinon `409 SECOND_FACTOR_NOT_ENROLLED`) : `idleTimeoutMinutes` de 5 à 720 ; `allowedNetworks` 32 préfixes CIDR au plus, stockés masqués ; liste vide = toutes les adresses. Succès `200` (même objet que `GET`), avec audit (`security_policy`, `local`, `update`). Une politique qui exclurait `currentAddress` : `409 POLICY_EXCLUDES_CURRENT_ADDRESS`.
+- `GET /api/v1/security/policy` (admin) : `200 { "idleTimeoutMinutes": 60, "allowedNetworks": [], "requireAdminSecondFactor": false, "allowPasskeyLogin": false, "currentAddress": "192.168.1.20" }`. `currentAddress` est l'adresse vue par le Manager pour la requête.
+- `PUT /api/v1/security/policy` (admin) avec `{ "idleTimeoutMinutes": 60, "allowedNetworks": ["192.168.1.0/24"], "requireAdminSecondFactor": true }`, les deux premiers champs obligatoires, `requireAdminSecondFactor` facultatif (valeur actuelle conservée s'il est absent ; l'activer exige que l'administrateur qui modifie ait lui-même un second facteur, sinon `409 SECOND_FACTOR_NOT_ENROLLED`), de même que `allowPasskeyLogin` (faux par défaut, § 3.7) : `idleTimeoutMinutes` de 5 à 720 ; `allowedNetworks` 32 préfixes CIDR au plus, stockés masqués ; liste vide = toutes les adresses. Succès `200` (même objet que `GET`), avec audit (`security_policy`, `local`, `update`). Une politique qui exclurait `currentAddress` : `409 POLICY_EXCLUDES_CURRENT_ADDRESS`.
 - **Réseaux autorisés** — avec une liste non vide, toute requête d'une adresse hors liste reçoit `403 NETWORK_NOT_ALLOWED`, interface comprise, sauf `GET /health`. L'adresse est celle de la connexion TCP (`RemoteAddr`) : derrière un proxy inverse, c'est celle du proxy ; aucun en-tête `X-Forwarded-For` n'est pris en compte.
 
 ### 3.4 Journal d'audit
@@ -233,6 +236,15 @@ Jetons en lecture seule pour les scripts (SPEC_ADMINISTRATION.md § 3.5, phase 8
 - `GET /api/v1/auth/tokens` → `{ "tokens": [Jeton], "scopes": [...] }`, les plus récents d'abord ; `?scope=all` (admin) : ceux de tous les comptes, sinon `403 FORBIDDEN` (audité). Jeton : `{ "id", "name", "prefix" (12 premiers caractères), "scopes", "username", "createdAt", "expiresAt", "lastUsedAt" }`.
 - `DELETE /api/v1/auth/tokens/{tokenID}` → `204` ; jeton d'un autre compte pour un non-administrateur, ou inconnu : `404 NOT_FOUND`. Audité (`api_token` / UUID / `revoke`).
 - Un jeton ne peut pas gérer les jetons : ces routes exigent une session.
+
+### 3.7 Connexion par passkey seule
+
+Décision D-14 (SPEC_ADMINISTRATION.md § 10) : un compte qui a enregistré une passkey peut se connecter sans son mot de passe, si la politique l'autorise (`allowPasskeyLogin`, faux par défaut) et que WebAuthn est configuré. La passkey vaut les deux facteurs : l'appareil et son code ou sa biométrie (vérification de l'utilisateur exigée).
+
+- `GET /api/v1/auth/login/passkey` (sans session) : `200 { "available": true | false }`, vrai si la politique l'autorise et que WebAuthn est configuré. La page de connexion n'affiche le bouton que dans ce cas.
+- `POST /api/v1/auth/login/passkey`, sans corps : `200 { "options": { "publicKey": { "challenge", "rpId", "userVerification": "required", "timeout" } } }`, sans `allowCredentials` (le navigateur propose les passkeys qu'il détient pour le site), et cookie de cérémonie `homelab_passkey` (`HttpOnly`, `SameSite=Strict`, `Path=/api/v1/auth/login/passkey`, 5 minutes, gardé en mémoire, 1 000 cérémonies en cours au plus, sinon `429 RATE_LIMITED`). Politique : `403 PASSKEY_LOGIN_DISABLED` ; WebAuthn non configuré : `503 WEBAUTHN_UNAVAILABLE`.
+- `POST /api/v1/auth/login/passkey/finish` avec `{ "response": { …réponse de navigator.credentials.get… } }` (64 Kio au plus, sinon `400 VALIDATION_ERROR`) et le cookie de cérémonie, qui est effacé quel que soit le résultat : une cérémonie ne reçoit qu'une réponse. Le compte est celui du `userHandle` de la réponse (UUID du compte) ; la passkey doit lui appartenir, vérifier l'utilisateur, et son compteur de signatures ne doit pas reculer. Succès `200 { "user": … }`, cookie de session, méthode de session `passkey`, échecs de mot de passe remis à zéro. Refus : cérémonie absente, expirée ou déjà utilisée `401 PASSKEY_CEREMONY_EXPIRED` ; passkey inconnue ou invalide, compte désactivé ou verrouillé `401 INVALID_PASSKEY` (sans compter d'échec : le compte d'une réponse invalide n'est pas établi) ; compte qui doit changer son mot de passe `409 PASSKEY_PASSWORD_CHANGE` (il se connecte avec son mot de passe) ; politique désactivée entre-temps `403 PASSKEY_LOGIN_DISABLED`.
+- Les deux routes `POST` ont le contrôle d'origine et la limitation par adresse de `POST /api/v1/auth/login`, compteur partagé.
 
 ## 4. Santé, synthèse, hôte et paramètres
 
@@ -1011,6 +1023,10 @@ Les routes sont versionnées sous `/api/v1`. Un changement incompatible (champ s
 | `AUDIT_UNAVAILABLE` | 500 | Lecture du journal d'audit en échec |
 | `INVALID_SECOND_FACTOR` | 401, 400 | Code TOTP ou de secours faux (401 à la connexion, 400 à la confirmation) |
 | `LOGIN_CHALLENGE_EXPIRED` | 401 | Défi de connexion absent, expiré ou épuisé |
+| `PASSKEY_LOGIN_DISABLED` | 403 | Connexion par passkey seule non autorisée par la politique |
+| `PASSKEY_CEREMONY_EXPIRED` | 401 | Cérémonie de connexion par passkey absente, expirée ou déjà utilisée |
+| `INVALID_PASSKEY` | 401 | Passkey inconnue ou refusée, ou compte désactivé ou verrouillé |
+| `PASSKEY_PASSWORD_CHANGE` | 409 | Le compte de la passkey doit d'abord changer son mot de passe |
 | `SECOND_FACTOR_REQUIRED` | 403 | Second facteur à enrôler d'abord (administrateur, politique) |
 | `SECOND_FACTOR_UNAVAILABLE` | 503 | Clé maître absente : TOTP indisponible |
 | `SECOND_FACTOR_ALREADY_ENABLED` | 409 | Second facteur déjà activé |

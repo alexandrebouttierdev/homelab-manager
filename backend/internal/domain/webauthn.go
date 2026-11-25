@@ -28,6 +28,10 @@ var (
 	ErrNoWebAuthnCeremony    = errors.New("no key registration is pending")
 	ErrInvalidWebAuthnAnswer = errors.New("the answer of the key is invalid")
 	ErrWebAuthnKeyExists     = errors.New("this security key is already registered")
+	// Passkey login (decision D-14).
+	ErrPasskeyLoginDisabled  = errors.New("the security policy does not allow the login with a passkey alone")
+	ErrInvalidPasskey        = errors.New("the passkey is unknown, invalid or its account cannot sign in")
+	ErrPasskeyPasswordChange = errors.New("the account must change its password: sign in with it")
 )
 
 // WebAuthnCredential is a passkey or a security key of an account. Data is

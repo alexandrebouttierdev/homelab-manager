@@ -53,12 +53,14 @@ describe('security API', () => {
       idleTimeoutMinutes: 30,
       allowedNetworks: ['10.0.0.0/8'],
       requireAdminSecondFactor: false,
+      allowPasskeyLogin: false,
     })
     expect(fetchMock.mock.calls[1][1].method).toBe('PUT')
     expect(JSON.parse(fetchMock.mock.calls[1][1].body)).toEqual({
       idleTimeoutMinutes: 30,
       allowedNetworks: ['10.0.0.0/8'],
       requireAdminSecondFactor: false,
+      allowPasskeyLogin: false,
     })
   })
 
@@ -81,6 +83,7 @@ describe('security API', () => {
         idleTimeoutMinutes: 60,
         allowedNetworks: ['10.0.0.0/8'],
         requireAdminSecondFactor: false,
+        allowPasskeyLogin: false,
       }),
     ).rejects.toThrow(/votre propre adresse/)
   })

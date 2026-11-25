@@ -23,7 +23,18 @@ type WebAuthnVerifier interface {
 	// credential used and its stored form updated (sign count), or
 	// domain.ErrInvalidWebAuthnAnswer.
 	FinishLogin(user domain.User, existing []domain.WebAuthnCredential, session, response []byte) (credentialID, data []byte, err error)
+	// BeginPasskeyLogin starts a login without a user name: the browser
+	// offers the passkeys it holds for the site (decision D-14).
+	BeginPasskeyLogin() (options, session []byte, err error)
+	// FinishPasskeyLogin checks the assertion of a passkey. lookup returns
+	// the account of the user handle and its keys. It returns that account,
+	// the identifier of the credential used and its stored form updated, or
+	// domain.ErrInvalidWebAuthnAnswer.
+	FinishPasskeyLogin(session, response []byte, lookup PasskeyLookup) (user domain.User, credentialID, data []byte, err error)
 }
+
+// PasskeyLookup finds the account of a user handle, with its keys.
+type PasskeyLookup func(userHandle []byte) (domain.User, []domain.WebAuthnCredential, error)
 
 // WebAuthnRepository stores the passkeys and security keys of the accounts.
 type WebAuthnRepository interface {

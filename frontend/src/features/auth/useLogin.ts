@@ -1,21 +1,24 @@
 import { zodResolver } from '@hookform/resolvers/zod'
-import { useMutation, useQueryClient } from '@tanstack/react-query'
+import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState, type FormEvent } from 'react'
 import { useForm } from 'react-hook-form'
 import { useLocation, useNavigate } from 'react-router-dom'
 import { sessionQueryKey } from '../../hooks/useSession'
 import {
   ApiError,
+  beginPasskeyLogin,
   beginWebAuthnLogin,
+  completePasskeyLogin,
   completeSecondFactor,
   completeWithKey,
   login,
   needsSecondFactor,
+  passkeyLoginAvailable,
   type SecondFactorMethod,
   type SessionUser,
 } from '../../lib/api/auth'
 import { otherMethods, preferredMethod } from '../../lib/secondFactor'
-import { getCredential } from '../../lib/webauthn'
+import { getCredential, webauthnSupported } from '../../lib/webauthn'
 import { loginSchema, type LoginValues } from '../../schemas/login'
 import { secondFactorLoginSchema, type SecondFactorLoginValues } from '../../schemas/secondFactor'
 
@@ -103,6 +106,18 @@ export function useLogin() {
       if (expired(error)) keyLogin.reset()
     },
   })
+  // Login with a passkey alone, when the policy allows it (decision D-14).
+  const passkeyStatus = useQuery({
+    queryKey: ['auth', 'passkey-login'],
+    queryFn: passkeyLoginAvailable,
+    enabled: webauthnSupported(),
+    retry: false,
+  })
+  const passkeyLogin = useMutation({
+    mutationFn: async () => completePasskeyLogin(await getCredential(await beginPasskeyLogin())),
+    onMutate: () => setExpiredMessage(null),
+    onSuccess: (result) => signedIn(result.user),
+  })
   const switchMethod = (next: SecondFactorMethod) => {
     setMethod(next)
     if (next !== 'webauthn') codeForm.reset({ method: next, code: '' })
@@ -111,7 +126,7 @@ export function useLogin() {
   }
 
   const state = location.state as { notice?: unknown } | null
-  const errorMessage = mutation.error?.message ?? expiredMessage
+  const errorMessage = mutation.error?.message ?? passkeyLogin.error?.message ?? expiredMessage
 
   return {
     register: form.register,
@@ -119,7 +134,19 @@ export function useLogin() {
     onSubmit: form.handleSubmit((values) => mutation.mutate(values)),
     remember,
     setRemember,
-    isPending: mutation.isPending,
+    isPending: mutation.isPending || passkeyLogin.isPending,
+    /** Login with a passkey alone: offered when the policy and the browser allow it. */
+    passkey:
+      passkeyStatus.data === true
+        ? {
+            /** Browsers require a click to ask a passkey. */
+            onClick: () => {
+              mutation.reset()
+              passkeyLogin.mutate()
+            },
+            isPending: passkeyLogin.isPending,
+          }
+        : null,
     errorMessage,
     /** Message passed by the previous page (e.g. after a password change). */
     notice: typeof state?.notice === 'string' && !errorMessage ? state.notice : null,

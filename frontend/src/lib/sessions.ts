@@ -30,6 +30,8 @@ const authMethods: Record<string, string> = {
   password: 'Mot de passe',
   'password+totp': 'Mot de passe + application',
   'password+recovery': 'Mot de passe + code de secours',
+  'password+webauthn': 'Mot de passe + clé de sécurité',
+  passkey: 'Passkey seule',
 }
 
 export type SessionRow = {

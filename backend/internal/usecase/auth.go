@@ -37,6 +37,8 @@ type AuthUsecase struct {
 	// Set by WithWebAuthn; nil without webauthn_rp_id.
 	verifier ports.WebAuthnVerifier
 	keys     ports.WebAuthnRepository
+	// passkeys are the logins with a passkey alone in progress (D-14).
+	passkeys *passkeyCeremonies
 
 	// dummyHash is verified when the username is unknown, so that a missing
 	// account costs the same Argon2id work as a wrong password.
@@ -45,7 +47,9 @@ type AuthUsecase struct {
 }
 
 func NewAuthUsecase(users ports.UserRepository, sessions ports.SessionRepository, hasher ports.PasswordHasher) *AuthUsecase {
-	return &AuthUsecase{users: users, sessions: sessions, hasher: hasher, now: time.Now, challenges: newLoginChallenges()}
+	return &AuthUsecase{users: users, sessions: sessions, hasher: hasher, now: time.Now, challenges: newLoginChallenges(),
+		passkeys: newPasskeyCeremonies(),
+	}
 }
 
 // sessionLifetime is the fixed maximum duration of a session.

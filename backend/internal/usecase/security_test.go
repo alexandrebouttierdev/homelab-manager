@@ -299,16 +299,16 @@ func TestSecurityPolicyUpdate(t *testing.T) {
 		t.Fatalf("Load = %v, policy %+v", err, security.Policy())
 	}
 
-	if _, err := security.UpdatePolicy(ctx, securityAdmin, "192.168.1.5", 60, []string{"10.0.0.0/8"}, false, ""); !errors.Is(err, domain.ErrPolicyExcludesCurrentAddress) {
+	if _, err := security.UpdatePolicy(ctx, securityAdmin, "192.168.1.5", 60, []string{"10.0.0.0/8"}, false, false, ""); !errors.Is(err, domain.ErrPolicyExcludesCurrentAddress) {
 		t.Fatalf("self-exclusion = %v, want ErrPolicyExcludesCurrentAddress", err)
 	}
-	if _, err := security.UpdatePolicy(ctx, securityAdmin, "10.1.2.3", 4, nil, false, ""); !errors.Is(err, domain.ErrInvalidSecurityPolicy) {
+	if _, err := security.UpdatePolicy(ctx, securityAdmin, "10.1.2.3", 4, nil, false, false, ""); !errors.Is(err, domain.ErrInvalidSecurityPolicy) {
 		t.Fatalf("invalid policy = %v, want ErrInvalidSecurityPolicy", err)
 	}
 	if len(repository.audits) != 0 {
 		t.Fatal("refused changes are not stored")
 	}
-	updated, err := security.UpdatePolicy(ctx, securityAdmin, "10.1.2.3", 45, []string{"10.0.0.0/8"}, false, "req-1")
+	updated, err := security.UpdatePolicy(ctx, securityAdmin, "10.1.2.3", 45, []string{"10.0.0.0/8"}, false, false, "req-1")
 	if err != nil || updated.IdleTimeoutMinutes != 45 {
 		t.Fatalf("UpdatePolicy = (%+v, %v)", updated, err)
 	}

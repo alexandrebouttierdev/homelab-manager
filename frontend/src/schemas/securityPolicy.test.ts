@@ -8,6 +8,7 @@ describe('securityPolicySchema', () => {
         idleTimeoutMinutes: 5,
         networks: '',
         requireAdminSecondFactor: false,
+        allowPasskeyLogin: false,
       }).success,
     ).toBe(true)
     expect(
@@ -15,15 +16,36 @@ describe('securityPolicySchema', () => {
         idleTimeoutMinutes: 720,
         networks: '10.0.0.0/8\nfd00::/8',
         requireAdminSecondFactor: true,
+        allowPasskeyLogin: false,
       }).success,
     ).toBe(true)
   })
 
   it.each([
-    { idleTimeoutMinutes: 4, networks: '', requireAdminSecondFactor: false },
-    { idleTimeoutMinutes: 721, networks: '', requireAdminSecondFactor: false },
-    { idleTimeoutMinutes: 60, networks: '10.0.0.1', requireAdminSecondFactor: false },
-    { idleTimeoutMinutes: 60, networks: 'not-a-network/8', requireAdminSecondFactor: false },
+    {
+      idleTimeoutMinutes: 4,
+      networks: '',
+      requireAdminSecondFactor: false,
+      allowPasskeyLogin: false,
+    },
+    {
+      idleTimeoutMinutes: 721,
+      networks: '',
+      requireAdminSecondFactor: false,
+      allowPasskeyLogin: false,
+    },
+    {
+      idleTimeoutMinutes: 60,
+      networks: '10.0.0.1',
+      requireAdminSecondFactor: false,
+      allowPasskeyLogin: false,
+    },
+    {
+      idleTimeoutMinutes: 60,
+      networks: 'not-a-network/8',
+      requireAdminSecondFactor: false,
+      allowPasskeyLogin: false,
+    },
   ])('rejects %o', (values) => {
     expect(securityPolicySchema.safeParse(values).success).toBe(false)
   })

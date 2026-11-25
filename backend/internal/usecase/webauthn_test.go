@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"homelab-manager/backend/internal/domain"
+	"homelab-manager/backend/internal/ports"
 
 	"github.com/google/uuid"
 )
@@ -92,6 +93,34 @@ func (f *fakeVerifier) FinishLogin(_ domain.User, existing []domain.WebAuthnCred
 		}
 	}
 	return nil, nil, domain.ErrInvalidWebAuthnAnswer
+}
+
+func (f *fakeVerifier) BeginPasskeyLogin() ([]byte, []byte, error) {
+	options, session := f.next("passkey")
+	return options, session, nil
+}
+
+// FinishPasskeyLogin accepts "ok:<session>:<user UUID>:<credential>".
+func (f *fakeVerifier) FinishPasskeyLogin(session, response []byte, lookup ports.PasskeyLookup) (domain.User, []byte, []byte, error) {
+	rest, ok := strings.CutPrefix(string(response), "ok:"+string(session)+":")
+	handle, credential, found := strings.Cut(rest, ":")
+	id, err := uuid.Parse(handle)
+	if !ok || !found || err != nil {
+		return domain.User{}, nil, nil, domain.ErrInvalidWebAuthnAnswer
+	}
+	user, existing, err := lookup(id[:])
+	if errors.Is(err, domain.ErrWebAuthnKeyNotFound) {
+		return domain.User{}, nil, nil, domain.ErrInvalidWebAuthnAnswer
+	}
+	if err != nil {
+		return domain.User{}, nil, nil, err
+	}
+	for _, key := range existing {
+		if bytes.Equal(key.CredentialID, []byte(credential)) {
+			return user, key.CredentialID, []byte("data-passkey"), nil
+		}
+	}
+	return domain.User{}, nil, nil, domain.ErrInvalidWebAuthnAnswer
 }
 
 func sessionOf(t *testing.T, options []byte) string {

@@ -279,7 +279,7 @@ Un jeton ne permet aucune action ni l'accès aux comptes, aux paramètres ou à 
 
 Chaque utilisateur l'active dans « Configuration » › Double authentification : mot de passe actuel, QR code à scanner (Aegis, Google Authenticator, 1Password…), premier code, puis 10 codes de secours affichés une seule fois. La connexion demande ensuite un code après le mot de passe.
 
-**Passkeys et clés de sécurité** : dans la même carte, « Ajouter une clé » enregistre une clé FIDO2 (YubiKey…) ou une passkey du téléphone ou de l'ordinateur, avec un nom ; jusqu'à 10 clés par compte, chacune supprimable. La clé doit vérifier l'utilisateur (PIN, empreinte, visage). À la connexion, la clé est proposée en premier, l'application et les codes de secours restant possibles. Il faut un nom de domaine et HTTPS (le navigateur refuse WebAuthn sur une adresse IP ou en HTTP, sauf `localhost`) :
+**Passkeys et clés de sécurité** : dans la même carte, « Ajouter une clé » enregistre une clé FIDO2 (YubiKey…) ou une passkey du téléphone ou de l'ordinateur, avec un nom ; jusqu'à 10 clés par compte, chacune supprimable. La clé doit vérifier l'utilisateur (PIN, empreinte, visage). À la connexion, la clé est proposée en premier, l'application et les codes de secours restant possibles. Si la politique de sécurité l'autorise, la page de connexion propose aussi « Se connecter avec une passkey », sans identifiant ni mot de passe. Il faut un nom de domaine et HTTPS (le navigateur refuse WebAuthn sur une adresse IP ou en HTTP, sauf `localhost`) :
 
 ```yaml
 webauthn_rp_id: "homelab.example"
@@ -411,7 +411,7 @@ La première release est `v2.3.0`, alignée sur la [spécification produit](docs
 ## État et limites connues
 
 - **Livré** : supervision système et Docker, historique, événements, comptes et rôles, sessions, politique de sécurité, journal d'audit, double authentification (TOTP, passkeys et clés FIDO2, codes de secours), jetons d'API en lecture seule, journaux système, services système avec actions en liste blanche (phase 5), sauvegardes restic avec diff et dépôt de copie (phase 6), tâches planifiées en lecture (phase 7), alertes avec silences et notifications (phase 4), vulnérabilités des paquets avec Grype (module V ; Debian, Ubuntu, Alpine, Fedora, RHEL, Rocky Linux et AlmaLinux 9 et suivantes), redémarrage et extinction (optionnels).
-- **Non implémenté, à spécifier** : connexion par passkey seule (sans mot de passe) ; les passkeys servent de second facteur. Voir [docs/SPEC_ADMINISTRATION.md](docs/SPEC_ADMINISTRATION.md) et la [feuille de route](docs/superpowers/plans/2026-11-23-feuille-de-route-v3.md).
+- **Connexion par passkey seule** : désactivée par défaut ; un administrateur l'autorise dans Utilisateurs → Politique de sécurité (décision D-14 de [docs/SPEC_ADMINISTRATION.md](docs/SPEC_ADMINISTRATION.md), à confirmer).
 - Historiques bruts ou agrégés, 2 000 points au plus par requête ; l'interface choisit le pas selon la période.
 - À l'intervalle par défaut (10 s), la base croît d'environ 300 Mo par jour jusqu'à la rétention : ≈ 2 Go pour 7 jours.
 - Conteneurs et événements paginés par curseur, autres listes bornées ; images, volumes et réseaux Docker inutilisés listés en lecture seule, relus chaque minute.

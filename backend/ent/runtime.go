@@ -500,8 +500,12 @@ func init() {
 	securitypolicyDescRequireAdminSecondFactor := securitypolicyFields[4].Descriptor()
 	// securitypolicy.DefaultRequireAdminSecondFactor holds the default value on creation for the require_admin_second_factor field.
 	securitypolicy.DefaultRequireAdminSecondFactor = securitypolicyDescRequireAdminSecondFactor.Default.(bool)
+	// securitypolicyDescAllowPasskeyLogin is the schema descriptor for allow_passkey_login field.
+	securitypolicyDescAllowPasskeyLogin := securitypolicyFields[5].Descriptor()
+	// securitypolicy.DefaultAllowPasskeyLogin holds the default value on creation for the allow_passkey_login field.
+	securitypolicy.DefaultAllowPasskeyLogin = securitypolicyDescAllowPasskeyLogin.Default.(bool)
 	// securitypolicyDescUpdatedAt is the schema descriptor for updated_at field.
-	securitypolicyDescUpdatedAt := securitypolicyFields[5].Descriptor()
+	securitypolicyDescUpdatedAt := securitypolicyFields[6].Descriptor()
 	// securitypolicy.DefaultUpdatedAt holds the default value on creation for the updated_at field.
 	securitypolicy.DefaultUpdatedAt = securitypolicyDescUpdatedAt.Default.(func() time.Time)
 	// securitypolicy.UpdateDefaultUpdatedAt holds the default value on update for the updated_at field.

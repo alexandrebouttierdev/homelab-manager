@@ -53,6 +53,20 @@ func (_c *SecurityPolicyCreate) SetNillableRequireAdminSecondFactor(v *bool) *Se
 	return _c
 }
 
+// SetAllowPasskeyLogin sets the "allow_passkey_login" field.
+func (_c *SecurityPolicyCreate) SetAllowPasskeyLogin(v bool) *SecurityPolicyCreate {
+	_c.mutation.SetAllowPasskeyLogin(v)
+	return _c
+}
+
+// SetNillableAllowPasskeyLogin sets the "allow_passkey_login" field if the given value is not nil.
+func (_c *SecurityPolicyCreate) SetNillableAllowPasskeyLogin(v *bool) *SecurityPolicyCreate {
+	if v != nil {
+		_c.SetAllowPasskeyLogin(*v)
+	}
+	return _c
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_c *SecurityPolicyCreate) SetUpdatedAt(v time.Time) *SecurityPolicyCreate {
 	_c.mutation.SetUpdatedAt(v)
@@ -120,6 +134,10 @@ func (_c *SecurityPolicyCreate) defaults() {
 		v := securitypolicy.DefaultRequireAdminSecondFactor
 		_c.mutation.SetRequireAdminSecondFactor(v)
 	}
+	if _, ok := _c.mutation.AllowPasskeyLogin(); !ok {
+		v := securitypolicy.DefaultAllowPasskeyLogin
+		_c.mutation.SetAllowPasskeyLogin(v)
+	}
 	if _, ok := _c.mutation.UpdatedAt(); !ok {
 		v := securitypolicy.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
@@ -148,6 +166,9 @@ func (_c *SecurityPolicyCreate) check() error {
 	}
 	if _, ok := _c.mutation.RequireAdminSecondFactor(); !ok {
 		return &ValidationError{Name: "require_admin_second_factor", err: errors.New(`ent: missing required field "SecurityPolicy.require_admin_second_factor"`)}
+	}
+	if _, ok := _c.mutation.AllowPasskeyLogin(); !ok {
+		return &ValidationError{Name: "allow_passkey_login", err: errors.New(`ent: missing required field "SecurityPolicy.allow_passkey_login"`)}
 	}
 	if _, ok := _c.mutation.UpdatedAt(); !ok {
 		return &ValidationError{Name: "updated_at", err: errors.New(`ent: missing required field "SecurityPolicy.updated_at"`)}
@@ -202,6 +223,10 @@ func (_c *SecurityPolicyCreate) createSpec() (*SecurityPolicy, *sqlgraph.CreateS
 	if value, ok := _c.mutation.RequireAdminSecondFactor(); ok {
 		_spec.SetField(securitypolicy.FieldRequireAdminSecondFactor, field.TypeBool, value)
 		_node.RequireAdminSecondFactor = value
+	}
+	if value, ok := _c.mutation.AllowPasskeyLogin(); ok {
+		_spec.SetField(securitypolicy.FieldAllowPasskeyLogin, field.TypeBool, value)
+		_node.AllowPasskeyLogin = value
 	}
 	if value, ok := _c.mutation.UpdatedAt(); ok {
 		_spec.SetField(securitypolicy.FieldUpdatedAt, field.TypeTime, value)

@@ -22,6 +22,8 @@ const (
 	FieldAllowedNetworks = "allowed_networks"
 	// FieldRequireAdminSecondFactor holds the string denoting the require_admin_second_factor field in the database.
 	FieldRequireAdminSecondFactor = "require_admin_second_factor"
+	// FieldAllowPasskeyLogin holds the string denoting the allow_passkey_login field in the database.
+	FieldAllowPasskeyLogin = "allow_passkey_login"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
 	FieldUpdatedAt = "updated_at"
 	// Table holds the table name of the securitypolicy in the database.
@@ -35,6 +37,7 @@ var Columns = []string{
 	FieldIdleTimeoutMinutes,
 	FieldAllowedNetworks,
 	FieldRequireAdminSecondFactor,
+	FieldAllowPasskeyLogin,
 	FieldUpdatedAt,
 }
 
@@ -53,6 +56,8 @@ var (
 	SingletonKeyValidator func(string) error
 	// DefaultRequireAdminSecondFactor holds the default value on creation for the "require_admin_second_factor" field.
 	DefaultRequireAdminSecondFactor bool
+	// DefaultAllowPasskeyLogin holds the default value on creation for the "allow_passkey_login" field.
+	DefaultAllowPasskeyLogin bool
 	// DefaultUpdatedAt holds the default value on creation for the "updated_at" field.
 	DefaultUpdatedAt func() time.Time
 	// UpdateDefaultUpdatedAt holds the default value on update for the "updated_at" field.
@@ -82,6 +87,11 @@ func ByIdleTimeoutMinutes(opts ...sql.OrderTermOption) OrderOption {
 // ByRequireAdminSecondFactor orders the results by the require_admin_second_factor field.
 func ByRequireAdminSecondFactor(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldRequireAdminSecondFactor, opts...).ToFunc()
+}
+
+// ByAllowPasskeyLogin orders the results by the allow_passkey_login field.
+func ByAllowPasskeyLogin(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldAllowPasskeyLogin, opts...).ToFunc()
 }
 
 // ByUpdatedAt orders the results by the updated_at field.

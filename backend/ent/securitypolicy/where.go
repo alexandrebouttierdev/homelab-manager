@@ -70,6 +70,11 @@ func RequireAdminSecondFactor(v bool) predicate.SecurityPolicy {
 	return predicate.SecurityPolicy(sql.FieldEQ(FieldRequireAdminSecondFactor, v))
 }
 
+// AllowPasskeyLogin applies equality check predicate on the "allow_passkey_login" field. It's identical to AllowPasskeyLoginEQ.
+func AllowPasskeyLogin(v bool) predicate.SecurityPolicy {
+	return predicate.SecurityPolicy(sql.FieldEQ(FieldAllowPasskeyLogin, v))
+}
+
 // UpdatedAt applies equality check predicate on the "updated_at" field. It's identical to UpdatedAtEQ.
 func UpdatedAt(v time.Time) predicate.SecurityPolicy {
 	return predicate.SecurityPolicy(sql.FieldEQ(FieldUpdatedAt, v))
@@ -188,6 +193,16 @@ func RequireAdminSecondFactorEQ(v bool) predicate.SecurityPolicy {
 // RequireAdminSecondFactorNEQ applies the NEQ predicate on the "require_admin_second_factor" field.
 func RequireAdminSecondFactorNEQ(v bool) predicate.SecurityPolicy {
 	return predicate.SecurityPolicy(sql.FieldNEQ(FieldRequireAdminSecondFactor, v))
+}
+
+// AllowPasskeyLoginEQ applies the EQ predicate on the "allow_passkey_login" field.
+func AllowPasskeyLoginEQ(v bool) predicate.SecurityPolicy {
+	return predicate.SecurityPolicy(sql.FieldEQ(FieldAllowPasskeyLogin, v))
+}
+
+// AllowPasskeyLoginNEQ applies the NEQ predicate on the "allow_passkey_login" field.
+func AllowPasskeyLoginNEQ(v bool) predicate.SecurityPolicy {
+	return predicate.SecurityPolicy(sql.FieldNEQ(FieldAllowPasskeyLogin, v))
 }
 
 // UpdatedAtEQ applies the EQ predicate on the "updated_at" field.

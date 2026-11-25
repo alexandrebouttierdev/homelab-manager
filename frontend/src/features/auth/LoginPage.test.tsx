@@ -9,10 +9,15 @@ import { LoginPage } from './LoginPage'
 
 vi.mock('../../lib/api/auth', () => ({
   login: vi.fn(),
+  passkeyLoginAvailable: vi.fn(async () => false),
+  beginPasskeyLogin: vi.fn(),
+  completePasskeyLogin: vi.fn(),
   ApiError: class ApiError extends Error {
     status = 401
   },
 }))
+
+vi.mock('../../lib/webauthn', () => ({ getCredential: vi.fn(), webauthnSupported: () => true }))
 
 describe('LoginPage', () => {
   it('validates required fields before sending credentials', async () => {

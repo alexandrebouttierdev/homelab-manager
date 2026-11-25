@@ -17,6 +17,7 @@ func (SecurityPolicy) Fields() []ent.Field {
 		field.Int("idle_timeout_minutes"),
 		field.JSON("allowed_networks", []string{}),
 		field.Bool("require_admin_second_factor").Default(false),
+		field.Bool("allow_passkey_login").Default(false),
 		field.Time("updated_at").Default(timeNow).UpdateDefault(timeNow),
 	}
 }

@@ -102,6 +102,12 @@ export const errorMessages: Record<string, string> = {
   OWN_PASSWORD_RESET: 'Changez votre propre mot de passe dans Paramètres.',
   INVALID_SECOND_FACTOR: 'Code incorrect ou clé refusée.',
   LOGIN_CHALLENGE_EXPIRED: 'Délai dépassé : reconnectez-vous avec votre mot de passe.',
+  PASSKEY_CEREMONY_EXPIRED: 'Délai dépassé : relancez la connexion par passkey.',
+  PASSKEY_LOGIN_DISABLED:
+    "La connexion par passkey seule n'est pas autorisée : connectez-vous avec votre mot de passe.",
+  INVALID_PASSKEY: 'Cette passkey ne permet pas de se connecter.',
+  PASSKEY_PASSWORD_CHANGE:
+    'Ce compte doit changer son mot de passe : connectez-vous avec lui une première fois.',
   SECOND_FACTOR_REQUIRED: 'Activez la double authentification pour continuer.',
   SECOND_FACTOR_UNAVAILABLE:
     'Double authentification par application indisponible : la clé du coffre est absente. Utilisez un code de secours.',

@@ -372,6 +372,7 @@ var (
 		{Name: "idle_timeout_minutes", Type: field.TypeInt},
 		{Name: "allowed_networks", Type: field.TypeJSON},
 		{Name: "require_admin_second_factor", Type: field.TypeBool, Default: false},
+		{Name: "allow_passkey_login", Type: field.TypeBool, Default: false},
 		{Name: "updated_at", Type: field.TypeTime},
 	}
 	// SecurityPoliciesTable holds the schema information for the "security_policies" table.

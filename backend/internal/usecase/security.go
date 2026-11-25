@@ -58,7 +58,7 @@ func (u *SecurityUsecase) AllowsAddress(address string) bool {
 // address of the administrator making the change.
 // Requiring a second factor from administrators needs one on the account of
 // the administrator making the change, so that nobody is locked out.
-func (u *SecurityUsecase) UpdatePolicy(ctx context.Context, actor domain.User, currentAddress string, idleTimeoutMinutes int, networks []string, requireAdminSecondFactor bool, requestID string) (domain.SecurityPolicy, error) {
+func (u *SecurityUsecase) UpdatePolicy(ctx context.Context, actor domain.User, currentAddress string, idleTimeoutMinutes int, networks []string, requireAdminSecondFactor, allowPasskeyLogin bool, requestID string) (domain.SecurityPolicy, error) {
 	policy, err := domain.NewSecurityPolicy(idleTimeoutMinutes, networks)
 	if err != nil {
 		return domain.SecurityPolicy{}, err
@@ -79,6 +79,7 @@ func (u *SecurityUsecase) UpdatePolicy(ctx context.Context, actor domain.User, c
 		}
 	}
 	policy.RequireAdminSecondFactor = requireAdminSecondFactor
+	policy.AllowPasskeyLogin = allowPasskeyLogin
 	audit := domain.AuditEntry{
 		Actor: actor.Username, TargetType: "security_policy", TargetID: "local",
 		Action: "update", RequestID: requestID, Outcome: domain.AuditSuccess,

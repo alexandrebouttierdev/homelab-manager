@@ -18,6 +18,9 @@ vi.mock('../../lib/api/auth', () => ({
   completeSecondFactor: vi.fn(),
   beginWebAuthnLogin: vi.fn(),
   completeWithKey: vi.fn(),
+  passkeyLoginAvailable: vi.fn(async () => false),
+  beginPasskeyLogin: vi.fn(),
+  completePasskeyLogin: vi.fn(),
   needsSecondFactor: (response: object) => 'secondFactorRequired' in response,
   ApiError: class ApiError extends Error {
     status = 401
@@ -25,7 +28,7 @@ vi.mock('../../lib/api/auth', () => ({
   },
 }))
 
-vi.mock('../../lib/webauthn', () => ({ getCredential: vi.fn() }))
+vi.mock('../../lib/webauthn', () => ({ getCredential: vi.fn(), webauthnSupported: () => true }))
 
 const alice = {
   id: 'a',

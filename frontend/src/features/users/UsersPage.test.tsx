@@ -154,12 +154,14 @@ describe('UsersPage', () => {
       idleTimeoutMinutes: 60,
       allowedNetworks: [],
       requireAdminSecondFactor: false,
+      allowPasskeyLogin: false,
       currentAddress: '192.0.2.1',
     })
     vi.mocked(updateSecurityPolicy).mockResolvedValue({
       idleTimeoutMinutes: 60,
       allowedNetworks: ['10.0.0.0/8'],
       requireAdminSecondFactor: false,
+      allowPasskeyLogin: false,
       currentAddress: '192.0.2.1',
     })
     const user = userEvent.setup()
@@ -183,6 +185,7 @@ describe('UsersPage', () => {
         idleTimeoutMinutes: 60,
         allowedNetworks: ['10.0.0.0/8'],
         requireAdminSecondFactor: false,
+        allowPasskeyLogin: false,
       }),
     )
   })

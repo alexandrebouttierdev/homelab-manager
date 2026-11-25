@@ -32,6 +32,9 @@ type SecurityPolicy struct {
 	// AllowedNetworks limits the addresses that may use the interface; an
 	// empty list allows every address.
 	AllowedNetworks []netip.Prefix
+	// AllowPasskeyLogin lets an account sign in with a passkey alone,
+	// without its password (decision D-14); off by default.
+	AllowPasskeyLogin bool
 }
 
 func DefaultSecurityPolicy() SecurityPolicy {

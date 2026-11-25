@@ -90,6 +90,20 @@ func (_u *SecurityPolicyUpdate) SetNillableRequireAdminSecondFactor(v *bool) *Se
 	return _u
 }
 
+// SetAllowPasskeyLogin sets the "allow_passkey_login" field.
+func (_u *SecurityPolicyUpdate) SetAllowPasskeyLogin(v bool) *SecurityPolicyUpdate {
+	_u.mutation.SetAllowPasskeyLogin(v)
+	return _u
+}
+
+// SetNillableAllowPasskeyLogin sets the "allow_passkey_login" field if the given value is not nil.
+func (_u *SecurityPolicyUpdate) SetNillableAllowPasskeyLogin(v *bool) *SecurityPolicyUpdate {
+	if v != nil {
+		_u.SetAllowPasskeyLogin(*v)
+	}
+	return _u
+}
+
 // SetUpdatedAt sets the "updated_at" field.
 func (_u *SecurityPolicyUpdate) SetUpdatedAt(v time.Time) *SecurityPolicyUpdate {
 	_u.mutation.SetUpdatedAt(v)
@@ -179,6 +193,9 @@ func (_u *SecurityPolicyUpdate) sqlSave(ctx context.Context) (_node int, err err
 	if value, ok := _u.mutation.RequireAdminSecondFactor(); ok {
 		_spec.SetField(securitypolicy.FieldRequireAdminSecondFactor, field.TypeBool, value)
 	}
+	if value, ok := _u.mutation.AllowPasskeyLogin(); ok {
+		_spec.SetField(securitypolicy.FieldAllowPasskeyLogin, field.TypeBool, value)
+	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(securitypolicy.FieldUpdatedAt, field.TypeTime, value)
 	}
@@ -259,6 +276,20 @@ func (_u *SecurityPolicyUpdateOne) SetRequireAdminSecondFactor(v bool) *Security
 func (_u *SecurityPolicyUpdateOne) SetNillableRequireAdminSecondFactor(v *bool) *SecurityPolicyUpdateOne {
 	if v != nil {
 		_u.SetRequireAdminSecondFactor(*v)
+	}
+	return _u
+}
+
+// SetAllowPasskeyLogin sets the "allow_passkey_login" field.
+func (_u *SecurityPolicyUpdateOne) SetAllowPasskeyLogin(v bool) *SecurityPolicyUpdateOne {
+	_u.mutation.SetAllowPasskeyLogin(v)
+	return _u
+}
+
+// SetNillableAllowPasskeyLogin sets the "allow_passkey_login" field if the given value is not nil.
+func (_u *SecurityPolicyUpdateOne) SetNillableAllowPasskeyLogin(v *bool) *SecurityPolicyUpdateOne {
+	if v != nil {
+		_u.SetAllowPasskeyLogin(*v)
 	}
 	return _u
 }
@@ -381,6 +412,9 @@ func (_u *SecurityPolicyUpdateOne) sqlSave(ctx context.Context) (_node *Security
 	}
 	if value, ok := _u.mutation.RequireAdminSecondFactor(); ok {
 		_spec.SetField(securitypolicy.FieldRequireAdminSecondFactor, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.AllowPasskeyLogin(); ok {
+		_spec.SetField(securitypolicy.FieldAllowPasskeyLogin, field.TypeBool, value)
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(securitypolicy.FieldUpdatedAt, field.TypeTime, value)

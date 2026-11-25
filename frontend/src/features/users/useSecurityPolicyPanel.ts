@@ -17,12 +17,18 @@ export function useSecurityPolicyPanel() {
   const policy = useQuery({ queryKey: securityPolicyQueryKey, queryFn: getSecurityPolicy })
   const form = useForm<SecurityPolicyValues>({
     resolver: zodResolver(securityPolicySchema),
-    defaultValues: { idleTimeoutMinutes: 60, networks: '', requireAdminSecondFactor: false },
+    defaultValues: {
+      idleTimeoutMinutes: 60,
+      networks: '',
+      requireAdminSecondFactor: false,
+      allowPasskeyLogin: false,
+    },
     values: policy.data
       ? {
           idleTimeoutMinutes: policy.data.idleTimeoutMinutes,
           networks: policy.data.allowedNetworks.join('\n'),
           requireAdminSecondFactor: policy.data.requireAdminSecondFactor ?? false,
+          allowPasskeyLogin: policy.data.allowPasskeyLogin ?? false,
         }
       : undefined,
   })
@@ -32,6 +38,7 @@ export function useSecurityPolicyPanel() {
         idleTimeoutMinutes: values.idleTimeoutMinutes,
         allowedNetworks: networksFromText(values.networks),
         requireAdminSecondFactor: values.requireAdminSecondFactor,
+        allowPasskeyLogin: values.allowPasskeyLogin,
       }),
     onSuccess: (updated) => queryClient.setQueryData(securityPolicyQueryKey, updated),
   })

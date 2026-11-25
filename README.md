@@ -120,17 +120,18 @@ Chaque archive contient, pour une architecture, les trois binaires statiques (`h
 
 <br>
 
-Avec la [CLI GitHub](https://cli.github.com/), qui fonctionne aussi pour un dépôt privé :
-
 ```bash
 VERSION=2.3.0   # numéro de la release choisie, sans le « v »
-ARCH=amd64      # ou arm64
-gh release download "v$VERSION" -R alexandrebouttierdev/homelab-manager \
-  -p "homelab-manager_${VERSION}_linux_${ARCH}.tar.gz" -p SHA256SUMS
+ARCH=amd64      # ou arm64 (Raspberry Pi 4/5, Mac Apple Silicon…)
+BASE=https://github.com/alexandrebouttierdev/homelab-manager/releases/download/v$VERSION
+curl -fsSLO "$BASE/homelab-manager_${VERSION}_linux_${ARCH}.tar.gz"
+curl -fsSLO "$BASE/SHA256SUMS"
 sha256sum -c --ignore-missing SHA256SUMS
 tar -xzf "homelab-manager_${VERSION}_linux_${ARCH}.tar.gz"
 cd "homelab-manager_${VERSION}_linux_${ARCH}"
 ```
+
+Avec la [CLI GitHub](https://cli.github.com/), une fois connecté (`gh auth login`), les deux `curl` deviennent : `gh release download "v$VERSION" -R alexandrebouttierdev/homelab-manager -p "homelab-manager_${VERSION}_linux_${ARCH}.tar.gz" -p SHA256SUMS`.
 
 </details>
 
@@ -188,7 +189,25 @@ head -c 32 /dev/urandom | base64 | sudo systemd-creds encrypt \
 ```
 
 > [!NOTE]
-> Sans cette clé, le Manager démarre quand même et la supervision fonctionne, mais la double authentification par application, les canaux à secret et les sauvegardes sont indisponibles. Le journal du service l'indique au démarrage.
+> Sans cette clé, le Manager démarre quand même et la supervision fonctionne, mais la double authentification par application, les canaux à secret et les sauvegardes sont indisponibles. Le journal du service l'indique au démarrage (« No secrets key configured »).
+
+<details>
+<summary><b>Conteneur LXC (Proxmox, OrbStack…) : la clé n'est pas chargée</b></summary>
+
+<br>
+
+Dans un conteneur système LXC, systemd peut désactiver l'import des secrets chiffrés (`ImportCredential=` vidé par `/run/systemd/system/service.d/zzz-lxc-service.conf`) : le journal indique alors « No secrets key configured » malgré l'étape ci-dessus. Utiliser à la place un fichier de clé lisible par le seul service :
+
+```bash
+head -c 32 /dev/urandom | base64 | sudo install -m 0400 -o homelab-manager -g homelab-manager /dev/stdin /etc/homelab-manager/secrets.key
+echo "HOMELAB_SECRETS_KEY_FILE=/etc/homelab-manager/secrets.key" | sudo tee -a /etc/homelab-manager/manager.env
+sudo chmod 0600 /etc/homelab-manager/manager.env
+sudo systemctl restart homelab-manager   # le journal indique « Secrets key loaded »
+```
+
+La clé n'est alors protégée que par les droits du fichier, pas par le TPM. Ce même fichier systemd allège aussi le cloisonnement des services (`ProtectSystem`, `NoNewPrivileges`…) : une machine virtuelle ou une installation directe isole mieux le Manager.
+
+</details>
 
 ### 5. Démarrer
 

@@ -108,7 +108,7 @@ Aucune valeur inventée : une donnée absente s'affiche comme indisponible, un m
 |---|---|
 | **Système** | Linux avec systemd, `amd64` ou `arm64`. Testé sur **Debian 13** |
 | **Docker** | Docker Engine, pour la supervision des conteneurs (sans lui, la collecte Docker est indisponible et le reste fonctionne) |
-| **Disque** | ≈ 300 Mo par jour d'historique à l'intervalle par défaut, soit ≈ 2 Go pour 7 jours de rétention |
+| **Disque** | ≈ 300 Mo par jour d'historique à l'intervalle par défaut, soit ≈ 2 Go pour 7 jours de rétention ; ≈ 3,5 Go de plus pour la base de Grype si le module Vulnérabilités est installé |
 | **Modules optionnels** | `polkitd`, et selon le module `restic`, `grype`, `openssh-client` (voir [Modules optionnels](#modules-optionnels)) |
 
 ### 1. Obtenir l'archive
@@ -404,7 +404,7 @@ sudo systemctl restart homelab-manager.service   # prend en compte ReadWritePath
 
 <br>
 
-- L'unité télécharge la base de Grype (environ 100 Mo) depuis `grype.anchore.io` avant un scan quand une base plus récente est publiée (une par jour). Une base de plus de 5 jours fait échouer le scan plutôt que donner un résultat trompeur.
+- L'unité télécharge la base de Grype depuis `grype.anchore.io` avant un scan quand une base plus récente est publiée (une par jour) : environ 200 Mo compressés, **3,4 Go une fois décompressée** dans `/var/cache/homelab-vulnscan` (mesuré le 25 novembre 2026). Le premier scan dure donc quelques minutes, les suivants quelques secondes. Une base de plus de 5 jours fait échouer le scan plutôt que donner un résultat trompeur.
 - **Sans accès à Internet** : désactiver ce téléchargement (`sudo systemctl edit homelab-vulnscan.service`, puis `Environment=GRYPE_DB_AUTO_UPDATE=false` sous `[Service]`) et importer une base à la main : `sudo -u homelab-vulnscan env GRYPE_DB_CACHE_DIR=/var/cache/homelab-vulnscan/db grype db import <archive>`.
 - Un scan en échec indique sa cause (Grype ou unité absents, règle polkit absente, délai dépassé, base injoignable ou périmée) ; le détail est dans `journalctl -u homelab-vulnscan`.
 - Une base RPM Berkeley DB (RHEL 8 et dérivées) est signalée non prise en charge. Les dépendances embarquées dans des binaires ou des images Docker sont hors périmètre.

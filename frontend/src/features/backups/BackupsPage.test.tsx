@@ -4,6 +4,7 @@ import userEvent from '@testing-library/user-event'
 import { MemoryRouter } from 'react-router-dom'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import {
+  generateBackupSSHKey,
   getBackupConfig,
   getBackupRun,
   getBackupSummary,
@@ -37,6 +38,7 @@ vi.mock('../../lib/api/backups', () => ({
   removeBackupCopy: vi.fn(),
   initBackupCopy: vi.fn(),
   connectBackupCopy: vi.fn(),
+  generateBackupSSHKey: vi.fn(),
 }))
 
 const session = vi.hoisted(() => ({ role: 'viewer' as 'viewer' | 'operator' | 'admin' }))
@@ -115,6 +117,7 @@ const config: BackupConfig = {
   updatedAt: null,
   updatedBy: null,
   copy: null,
+  sshKey: null,
 }
 
 function renderPage() {
@@ -368,6 +371,61 @@ describe('BackupsPage', () => {
     })
     await user.click(await screen.findByRole('button', { name: 'Créer le dépôt de copie' }))
     expect(await screen.findByText('copy-generated-password')).toBeInTheDocument()
+  })
+
+  it('lets an administrator generate the SSH key, then save an SFTP repository', async () => {
+    session.role = 'admin'
+    const withKey: BackupConfig = {
+      ...config,
+      sshKey: {
+        publicKey: 'ssh-ed25519 AAAAmanager homelab-manager-backup',
+        fingerprint: 'SHA256:manager',
+        createdAt: '2026-11-25T08:00:00Z',
+      },
+    }
+    vi.mocked(generateBackupSSHKey).mockResolvedValue(withKey)
+    vi.mocked(updateBackupConfig).mockResolvedValue(withKey)
+    const user = userEvent.setup()
+    renderPage()
+    await user.click(await screen.findByRole('button', { name: 'Configuration' }))
+    expect(screen.queryByText('Clé SSH du Manager')).not.toBeInTheDocument()
+
+    await user.selectOptions(
+      await screen.findByLabelText('Type', { selector: '#backup-type' }),
+      'sftp',
+    )
+    expect(await screen.findByText('Clé SSH du Manager')).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: 'Générer la clé SSH' }))
+    expect(
+      await screen.findByDisplayValue('ssh-ed25519 AAAAmanager homelab-manager-backup'),
+    ).toBeInTheDocument()
+    expect(screen.getByText(/Empreinte SHA256:manager/)).toBeInTheDocument()
+
+    const location = screen.getByLabelText('Emplacement', { selector: '#backup-location' })
+    await user.clear(location)
+    await user.type(location, 'sftp://backup@nas.lan:2222/srv/restic')
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }))
+    expect(await screen.findByText("La clé d'hôte du serveur est requise")).toBeInTheDocument()
+    expect(updateBackupConfig).not.toHaveBeenCalled()
+    await user.type(screen.getByLabelText("Clé d'hôte du serveur"), 'nas.lan ssh-ed25519 AAAAhost')
+    await user.click(screen.getByRole('button', { name: 'Enregistrer' }))
+    await waitFor(() => expect(updateBackupConfig).toHaveBeenCalled())
+    expect(vi.mocked(updateBackupConfig).mock.calls[0][0]).toMatchObject({
+      repository: {
+        type: 'sftp',
+        location: 'sftp://backup@nas.lan:2222/srv/restic',
+        hostKey: 'nas.lan ssh-ed25519 AAAAhost',
+      },
+      username: '',
+      secret: '',
+    })
+
+    // Replacing the key asks first.
+    await user.click(screen.getByRole('button', { name: 'Remplacer la clé' }))
+    expect(await screen.findByText(/L'ancienne clé ne servira plus/)).toBeInTheDocument()
+    expect(generateBackupSSHKey).toHaveBeenCalledTimes(1)
+    await user.click(screen.getByRole('button', { name: 'Confirmer le remplacement' }))
+    await waitFor(() => expect(generateBackupSSHKey).toHaveBeenCalledTimes(2))
   })
 
   it('hides the copy repository from a viewer when none is set', async () => {

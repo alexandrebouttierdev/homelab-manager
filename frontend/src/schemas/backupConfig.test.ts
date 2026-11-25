@@ -4,6 +4,7 @@ import { backupConfigSchema, type BackupConfigValues } from './backupConfig'
 const valid: BackupConfigValues = {
   type: 'local',
   location: '/mnt/backup',
+  hostKey: '',
   username: '',
   secret: '',
   sources: '/etc\n/var/lib/docker/volumes',
@@ -45,6 +46,29 @@ describe('backupConfigSchema', () => {
     expect(errors({ excludes: '#comment' })).toContain('excludes')
     expect(errors({ excludeIfPresent: 'a/b' })).toContain('excludeIfPresent')
     expect(errors({ time: '25:00' })).toContain('time')
+  })
+
+  it('checks an SFTP repository and its host key', () => {
+    const hostKey = 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0'
+    expect(
+      errors({ type: 'sftp', location: 'sftp://backup@nas.lan:2222/srv/restic', hostKey }),
+    ).toEqual([])
+    expect(
+      errors({ type: 'sftp', location: 'sftp://backup@[fd00::1]/srv/restic', hostKey }),
+    ).toEqual([])
+    for (const location of [
+      'sftp://nas.lan/srv/restic',
+      'sftp://backup:pass@nas.lan/srv/restic',
+      'sftp://backup@nas.lan/',
+      'sftp://backup@nas.lan/srv/../etc',
+      'sftp://backup@nas.lan/srv/a b',
+      'sftp:backup@nas.lan:/srv',
+      'sftp://-oProxyCommand=x@nas.lan/srv',
+    ])
+      expect(errors({ type: 'sftp', location, hostKey })).toContain('location')
+    expect(
+      errors({ type: 'sftp', location: 'sftp://backup@nas.lan/srv/restic', hostKey: ' ' }),
+    ).toContain('hostKey')
   })
 
   it('checks the retention and the check', () => {

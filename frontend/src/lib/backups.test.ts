@@ -12,6 +12,8 @@ import {
   describeSchedule,
   describeStats,
   formatDuration,
+  locationHint,
+  repositoryLabel,
   runFailureText,
   runLabel,
   runStateInfo,
@@ -53,6 +55,7 @@ const config: BackupConfig = {
   updatedAt: null,
   updatedBy: null,
   copy: null,
+  sshKey: null,
 }
 
 describe('backups', () => {
@@ -132,6 +135,46 @@ describe('backups', () => {
     expect(local.repository).toEqual({ type: 'local', location: '/mnt/backup' })
     expect(local.username).toBe('')
     expect(valuesToInput({ ...values, type: 'none' }).repository).toBeNull()
+  })
+
+  it('keeps the host key of an SFTP repository only', () => {
+    const sftp: BackupConfig = {
+      ...config,
+      repository: {
+        type: 'sftp',
+        location: 'sftp://backup@nas.lan/srv/restic',
+        hostKey: 'ssh-ed25519 AAAA',
+        hostKeyFingerprint: 'SHA256:abc',
+      },
+    }
+    const values = configToValues(sftp)
+    expect(values).toMatchObject({ type: 'sftp', hostKey: 'ssh-ed25519 AAAA' })
+    expect(valuesToInput({ ...values, hostKey: ' nas.lan ssh-ed25519 BBBB\n' }).repository).toEqual(
+      {
+        type: 'sftp',
+        location: 'sftp://backup@nas.lan/srv/restic',
+        hostKey: 'nas.lan ssh-ed25519 BBBB',
+      },
+    )
+    expect(valuesToInput({ ...values, type: 'local', location: '/mnt/b' }).repository).toEqual({
+      type: 'local',
+      location: '/mnt/b',
+    })
+    expect(valuesToInput(values).username).toBe('')
+    expect(
+      copyValuesToInput({
+        ...copyToValues(null),
+        type: 'sftp',
+        location: 'sftp://c@h/srv/c',
+        hostKey: 'k',
+      }),
+    ).toMatchObject({
+      repository: { type: 'sftp', location: 'sftp://c@h/srv/c', hostKey: 'k' },
+      username: '',
+    })
+    expect(credentialLabels('sftp')).toBeNull()
+    expect(locationHint('sftp')).toContain('sftp://utilisateur@hôte')
+    expect(repositoryLabel('sftp')).toBe('SFTP')
   })
 
   it('names the keys of each repository type', () => {
@@ -221,6 +264,7 @@ describe('backups', () => {
     expect(copyToValues(null)).toEqual({
       type: 'local',
       location: '',
+      hostKey: '',
       username: '',
       secret: '',
       afterBackup: true,

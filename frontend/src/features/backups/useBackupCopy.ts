@@ -16,6 +16,7 @@ import {
   copyValuesToInput,
   credentialLabels,
   describeDetails,
+  locationHint,
   repositoryLabel,
   repositoryTypeOptions,
   runFailureText,
@@ -97,6 +98,10 @@ export function useBackupCopy(
     errors: form.formState.errors,
     typeOptions: repositoryTypeOptions.filter((option) => option.value !== 'none'),
     credentials: credentialLabels(type),
+    locationHint: locationHint(type ?? 'local'),
+    isSFTP: type === 'sftp',
+    hostKeyFingerprint:
+      copy?.repository.type === 'sftp' ? (copy.repository.hostKeyFingerprint ?? null) : null,
     usernameSet: copy?.credentials.username ?? false,
     secretSet: copy?.credentials.secret ?? false,
     onSubmit: form.handleSubmit((values) => save.mutate(copyValuesToInput(values))),

@@ -76,6 +76,8 @@ export const errorMessages: Record<string, string> = {
   BACKUP_COPY_NOT_CONFIGURED: "Aucun dépôt de copie n'est configuré.",
   BACKUP_COPY_NOT_INITIALIZED: "Le dépôt de copie n'est ni créé ni rattaché.",
   BACKUP_COPY_ALREADY_INITIALIZED: 'Le dépôt de copie est déjà prêt.',
+  BACKUP_SSH_KEY_MISSING:
+    "Un dépôt SFTP a besoin de la clé SSH du Manager : générez-la d'abord, puis installez-la sur le serveur.",
   UNIT_NOT_MANAGEABLE:
     "Cette unité n'est pas dans la liste des unités gérables de la configuration du Manager.",
   UNIT_ACTION_RATE_LIMITED: "Trop d'actions sur les services en une minute. Réessayez plus tard.",

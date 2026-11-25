@@ -13,6 +13,7 @@ import {
 import {
   configToValues,
   credentialLabels,
+  locationHint,
   repositoryTypeOptions,
   valuesToInput,
   weekdayOptions,
@@ -71,6 +72,12 @@ export function useBackupConfigForm(config: BackupConfig | undefined, canManage:
     typeOptions: repositoryTypeOptions,
     weekdayOptions,
     credentials: credentialLabels(type),
+    locationHint: locationHint(type ?? 'none'),
+    /** SFTP asks for the host key of the server and the SSH key of the Manager. */
+    isSFTP: type === 'sftp',
+    /** Fingerprint of the stored host key, when the stored repository is SFTP. */
+    hostKeyFingerprint:
+      config?.repository?.type === 'sftp' ? (config.repository.hostKeyFingerprint ?? null) : null,
     /** Placeholders tell a stored key apart from a missing one, never its value. */
     usernameSet: config?.credentials.username ?? false,
     secretSet: config?.credentials.secret ?? false,

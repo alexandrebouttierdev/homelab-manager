@@ -239,7 +239,7 @@ export function ContainersPage() {
                         {container.status || '—'}
                       </p>
                     </TD>
-                    <TD className="font-mono text-xs">
+                    <TD className="whitespace-nowrap text-[13px] text-text-secondary">
                       {isRunning(container.state) ? formatUptime(container.uptimeSeconds) : '—'}
                     </TD>
                     <TD>

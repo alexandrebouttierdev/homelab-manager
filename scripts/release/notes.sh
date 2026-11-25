@@ -35,7 +35,7 @@ cat <<NOTES
 Archives pour Linux \`amd64\` et \`arm64\` : binaires \`homelab-manager\`,
 \`homelab-docker-proxy\` et \`homelab-backup-runner\`, interface compilée
 (\`frontend/dist\`), unités systemd, configuration et règles polkit. Vérifier l'archive avec \`sha256sum -c SHA256SUMS\`,
-puis suivre « Installation depuis une release » du README.
+puis suivre la section « Installation » du README.
 NOTES
 if [[ -n "$repository" && -n "$last" ]]; then
   echo

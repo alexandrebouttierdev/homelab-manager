@@ -1,85 +1,54 @@
 <svg xmlns="http://www.w3.org/2000/svg" width="1280" height="420" viewBox="0 0 1280 420" role="img" aria-labelledby="title desc">
   <title id="title">Homelab Manager</title>
   <desc id="desc">La supervision de votre serveur Linux, sans le superflu. Un binaire Go, un fichier SQLite, aucun cloud ni terminal web.</desc>
-  <defs>
-    <pattern id="dots" width="24" height="24" patternUnits="userSpaceOnUse">
-      <circle cx="2" cy="2" r="1" fill="#dde1e7"/>
-    </pattern>
-    <clipPath id="frame">
-      <rect width="1280" height="420" rx="16"/>
-    </clipPath>
-    <filter id="lift" x="-10%" y="-10%" width="120%" height="130%">
-      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#0b0d10" flood-opacity="0.06"/>
-    </filter>
-  </defs>
-  <style>
-    .sans { font-family: Geist, Inter, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif; }
-    .mono { font-family: 'Geist Mono', ui-monospace, SFMono-Regular, Menlo, Consolas, 'DejaVu Sans Mono', monospace; }
-  </style>
-
-  <g clip-path="url(#frame)">
-    <rect width="1280" height="420" fill="#f6f7f9"/>
-    <rect width="1280" height="420" fill="url(#dots)"/>
+  <style>@font-face{font-family:HMSans;font-weight:400;src:url(data:font/woff2;base64,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) format('woff2')}@font-face{font-family:HMSans;font-weight:600;src:url(data:font/woff2;base64,d09GMgABAAAAAAXUABAAAAAACqgAAAV3AAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAGigbgjAcTAZgP1NUQVRaAHQRCAqKBIgTATYCJANECyQABCAFgTAHIAwHG4EIEZWk+hA/DsoxXjOS7U3Kk0a5xSJvJEnxcD5cRBC/X5vd908UjXimRBqhX0WjVbKmRoIUfsJauPXh31P+3CRT0NdORFJiVCfg91HsnqD1PwD89am1VRFtPl21NEIlU8pikmimFjL8988fEtdeREMzKxGbS0SU2PQz4gFCXB/9Ldk5BZgDCASHAM0SqJ4Xn4qVjTpTG6shu+2YGoEMA7xEqm6cEyPwLGFnUA4ahaW8qy8GDIQLFytZJgrhRQCBBfj653l4PApdv+eGoIxhwJNzeXKH+tOPfqWtXwjU/xF0uYKROxgMTKMCRf52aiHiaQzyja4/4qH+TSHqv1C/+d7/AJi3pVBobmBMQCMYLAYFaM7beXDjjqBxKBAYAAEFxn9kCncj08M6CPc8rjsKQeEJmKyk6uEG+UwUON9MrBAfaVQ+qP8o8zvBwyJNtGfLHdp/rAABxDp7cIRGEJ5osIsGp6jH7qk+wgOPF31TRAD5HdFJiR+KO2/hCMjw1Q06L2Iz6wETFSL7QzWQUNxCIJnRfh05GiNSFi2TTk69Rk2UEEBmIjsQQ6vp3nWPO1zqYhc5zzkRes1A6rQzQFAATsAexDski4Au3RDU47aSr2Bw+SjodOlN8gB/Pz4mimfcFYrJK5e5C3K5LI/h3DhGEP+EAN4ktLBtRhbam9nW0NOceyFhyfqD7MHzgewb4w5PgLVLgtoPXifrb9TVofrrfqzdM3LeIDU3uzqGPToA2Q7K/7LdsBO7y1Ubrlt/nT1wYe1kjzpVx2Jn+/JESATuwHMhnKtMoJY755miG4jfxS42KRblSzjqnm0c6sM3cTQHLjn6mMGHUfspQ33DtxpOZTjxzEtifSHPRtd+/H4488rIkBzEG2pRy5ITzi3u7JddueSuvq4Qjkmgdrn5wV+rbycCyvuNl2uWePA1rh6Xw/fsO3do7t/23MtrV/idXH742oW+F2FdskQzPyc+nZ5W2TrvoZ6tc/YPtjZ/EdgxmO5lajRWqZ22ZuHCAOu+75OPRYZdGJevyUsQjPmNhXBOdM3K69fmF19eUa0/3V6lVXZXFkxbbUWzvVU9vWWaapNJ6ygr1cH/pHMgYWKbk8RZs1mcmRWtxtHysnGjLCDktnr7WdoqTUmlvs5h19eqEh94fzZQM+NA9LdzrY7Tz+0/n6WRyitH1u/qEDXK7oqCCZO5aLKvUq1tVl4/Nr/41fDRylRFmdZuMOhsZaU6ujqkfuVlSOvFOXrnLV3as0mxt6Ql8VNndYhV5oZ6df+b7v3vTYq7JSzJb2rXKUrWxkZDZ8YTfSlmnKYnfpKRzM+f1SWqHc0t5mYkT2wLkjRnNkvTC6LNPi8yME+qnJuXrN2Jf8bocwzmmrIyS40hJ1b/ZamXv0hvsvycorJGKvXbnK2SCzpNBWyT+t1W49XDw4bL95rrG3abjZcPjxiv2m2tHyrQqGJnDYaYSW1VQb5WjJnUG2NmdUo82ZLy3u2WuDeWp20JVfnvDbyMlIl9pU171SWrvXy12WZfadYCV81qq3Uoo1QV3nL1YZOlYmbmYgpvoH/mMiWC9yv+eT9XGXvVcr42/qrnx29NCeu9uxcAsFoQAIHrNuQtbWeU/uZJ018G4AP23xUA+CLN4wIoKokeo94OcEcBAAJvUOPHBhz5HBAKpchzUJ4nlbcNCJWOxByGlCUIoXh4MJCS7VJ2L/EahMQOx69AXGym2uvhzSsy6REABKCQhgYAhO7loRGNdF6gyMAUITxYMpYAXiBLDrlYli94uXA/dOX1/cEysnPqNW1Ihwl1+nWb0qeOk+y9+ibNwWm4XjRqSDczjE8Y1tGcOlMw3q+LPaQOBEfQVNmpUbzCu8np9s3MMQAAAA==) format('woff2')}@font-face{font-family:HMMono;font-weight:400;src:url(data:font/woff2;base64,d09GMgABAAAAAAX4ABEAAAAAC4AAAAWfAAIAxAAAAAAAAAAAAAAAAAAAAAAAAAAAGhYbIBwwBmAAZAhACYJzERAKiXSJJwE2AiQDFAsUAAQgBQYHIAyDNBv7CVHU6cVJBPBjId78ylShMkbQLOg6Pv6ADMppzq4kg9ZAQeccOYAoO0SOIx0wOndFlR8fZF1xrQLyD/jZvgIE0aXzRavwpwGlCzylaiw5kZAEJARn8L7gOHyOc4wk+r+1Vvf/uXm3EbVl0XShIo2SCJk0g67ZJVSTeCNZaJqynjVUOw2u84g8xuZtA0RYfy0QgAsAABRB2OPrAFmeCHKOjyfgIAKwugoAwCNXqSH8Xeh55uh+RF5bjh9EhD8ZAIilRm4nAf1iYwDGQkpyQVfR7HBSJjklKmAVARDAnUaOE0rxGsXpmqz8C2JBgnyFtKbWRoUAoADLIQKSKZqe9fER+u932GO/w447HUENHfrf1T/isWgkDBCLh2fpomq21oCTjooxlBgxKwlwRVlbrkdGYCP7YEo4Uo+KcFFL+OVbcqBqjMM5rV0l5Fadk9VrOdQ1aTghbNpYzUGqFCW2RzXJ5moOWsVBKqLVHEKVEjeF4visVqgrhmKMbDeUuLJ7y3ZTLIb5xhN2GHqtYmJO29NWJrSo2aeH0XU7dL2jmkOURUTH0HVU2SuF7OXuIsvVHFLVmGIKJdPajGam1LBVVH98NKrEzNemNfM1NRzN3Nm2o+Vw/4U92ccNdtdW4QyHJGUuKH1uDLphUIYKo2YqTISNQr3vxfGab5GA9vkcUhcKxTFOUtOblZTWwpaBLDp6eJVWajWHs2psToup4WhUr0YiBA4yHykCHQBwAoAAgAE44H8AACLQP4CiSE5OINJ4ZDnk8QdCgUVbjG9aBln8NoPd9PUqwIXU1ZffJ3zut7UT5ldrjfdeMgE3WXz6lQ/2GY8SsvgYu+kRIPXwbibIxE0ZXAtMwkDcVKCT+soqyYnvWfiNbHw18/UmBsbAw3LZSMpUXteTPssfB1JPpJ9zG98QQSaMdR8jhIGBQz9xXZLNz7OFBZbQ5WRSTiSaWJtW3BOPbu3uKdjWHU8WNzclijsH8te1llzMLtBvfLCoaay2/aFtewdmvo+eunF3gb2MFQwNx/aNnSh8KdOX+VKhv5BYb523VPm1J1W+bWrw2fXPquLdKRkfqmQtyeKueP7Wnu78bTDDjRZa5bbunvytq5rVwZmpxGgCsAeR4zcK0wmxftOBTXtvSaUK0yyfIuZNf0nj44m4BjwwvNwRz7Vy4x3Li7HOlv6m0cfVVK6ae/3E83+rf5+3abO9+1XJWt48sb97XuycH9+//qWl122bk6c7ZsS2mbnTrjgFAJaISlVDoJ2L9JyccYhNnLwOp8lytzoRkQF4Tk7L4pg5uU+LYBUWv6wOQaJ/7fiyxVyOq34+KHLq6qPslS1H9Pa2MBwGGgYwC7M4w8l9GmCf0+xss+M03XMIEND92DxPz4XyMBIhYyakoTgoiohHJzrZRAAiEQDEJgEFCo+AC12UcMgMn7DsV6gI/GGGaAiUtkpE9OX7+JBlMZ5ZqU/LHhAY+FmQqGx+hkkeftmdB5EZkrEDJNl5otG2u+2kOIPSO10ai2FDnDsHkMBnYuz2cVp7BASR5lO56Gje0TWhC11LLRIKJ9Pr4MIkQuIReMcz+qWbehAA9dbkyAOPTd6u/xxM+AOAn7uEVYDfq+13Ko02WkD/AThRAEDgP+nQiUPUsgeIxXVJqUExaK9pAzYp1Q0gcuzKKAGAPEH4WRTbCNq2elwXgEjCoZKFYOhIkCwXCq8+R9WqUr4gwDG+yq1Ps3IRAaoCH4tYb0ynCpmMsagZg5qUyDbTgt3mY3+ViI4l6tGggiKkdOnkBhsVy4plU6tURBaXimVXr0ShDD417TCpL9pFe8ZyqlAgVxBTsWR3OGWDAWUqkhnTo24YFk+es48c/oyrLH0CSILRJ3xoL+2jh+nd6DMTLyYSMns1vYveTT+lh7MPyczYLFt700g2emnimtwFAA==) format('woff2')}.s{font-family:HMSans,'Instrument Sans',-apple-system,'Segoe UI',Roboto,Arial,sans-serif;font-variant-numeric:tabular-nums}.m{font-family:HMMono,'IBM Plex Mono',ui-monospace,Menlo,Consolas,monospace}</style>
+  <rect x="0.5" y="0.5" width="1279" height="419" rx="15.5" fill="#fbfbf9" stroke="#e4e4de"/>
+  <circle cx="76" cy="99" r="4" fill="#1e7f4f"/>
+  <text x="90" y="104" class="s" font-size="15" fill="#6b6b64">Auto-hébergé · Linux · Docker</text>
+  <g transform="translate(72 128) scale(1.75)">
+    <rect x="1" y="1" width="30" height="30" rx="8" fill="#efefeb" stroke="#d2d2ca" stroke-width="0.9"/>
+    <g fill="none" stroke="#171715" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="8" y="8.5" width="16" height="6.5" rx="1.5"/><rect x="8" y="17" width="16" height="6.5" rx="1.5"/></g>
+    <circle cx="11.5" cy="11.75" r="1.3" fill="#1e7f4f"/><circle cx="11.5" cy="20.25" r="1.3" fill="#1e7f4f"/>
   </g>
-  <rect x="0.5" y="0.5" width="1279" height="419" rx="15.5" fill="none" stroke="#e3e6ea"/>
-
-  <!-- Identity -->
-  <circle cx="76" cy="118" r="4" fill="#23895a"/>
-  <text x="90" y="123" class="mono" font-size="13" letter-spacing="1.04" fill="#4f5661">AUTO-HÉBERGÉ · LINUX · DOCKER</text>
-
-  <g transform="translate(72 146) scale(2)">
-    <rect x="1" y="1" width="30" height="30" rx="7" fill="#111315" stroke="#2a2e33" stroke-width="0.75"/>
-    <g fill="none" stroke="#8b9cfb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <rect x="8" y="8" width="16" height="7" rx="1.5"/>
-      <rect x="8" y="17" width="16" height="7" rx="1.5"/>
-      <path d="M11.5 11.5h.01M11.5 20.5h.01"/>
-    </g>
+  <text x="146" y="177" class="s" font-size="58" font-weight="600" letter-spacing="-1.8" fill="#171715">Homelab Manager</text>
+  <text x="72" y="238" class="s" font-size="24" fill="#171715">La supervision de votre serveur Linux, <tspan fill="#6b6b64">sans le superflu.</tspan></text>
+  <rect x="72.5" y="272.5" width="470.71000000000004" height="75" rx="10" fill="#ffffff" stroke="#e4e4de"/>
+  <text x="94" y="308" class="s" font-size="28" font-weight="600" letter-spacing="-0.8" fill="#171715">1</text>
+  <text x="94" y="331" class="s" font-size="15" fill="#6b6b64">binaire Go</text>
+  <line x1="187.09" y1="273" x2="187.09" y2="347" stroke="#e4e4de"/>
+  <text x="209.59" y="308" class="s" font-size="28" font-weight="600" letter-spacing="-0.8" fill="#171715">1</text>
+  <text x="209.59" y="331" class="s" font-size="15" fill="#6b6b64">fichier SQLite</text>
+  <line x1="326.125" y1="273" x2="326.125" y2="347" stroke="#e4e4de"/>
+  <text x="348.625" y="308" class="s" font-size="28" font-weight="600" letter-spacing="-0.8" fill="#171715">0</text>
+  <text x="348.625" y="331" class="s" font-size="15" fill="#6b6b64">cloud</text>
+  <line x1="409.405" y1="273" x2="409.405" y2="347" stroke="#e4e4de"/>
+  <text x="431.905" y="308" class="s" font-size="28" font-weight="600" letter-spacing="-0.8" fill="#171715">0</text>
+  <text x="431.905" y="331" class="s" font-size="15" fill="#6b6b64">terminal web</text>
+  <rect x="808.5" y="60.5" width="399" height="299" rx="14" fill="#ffffff" stroke="#d2d2ca"/>
+  <circle cx="834" cy="93" r="4" fill="#1e7f4f"/>
+  <text x="848" y="98" class="m" font-size="14" fill="#171715">optiplex</text>
+  <text x="1186" y="98" class="s" font-size="13" fill="#6b6b64" text-anchor="end">En ligne</text>
+  <line x1="809" y1="120.5" x2="1207" y2="120.5" stroke="#e4e4de"/>
+  <text x="830" y="148" class="s" font-size="13" fill="#4a4a44">Processeur</text>
+  <g transform="translate(830 156)">
+    <path d="M0 30 L24 28 L48 32 L72 22 L96 26 L120 14 L144 20 L168 24 L192 12 L216 18 L240 8 L264 16 L288 20 L312 10 L336 14 L356 12 L356 40 L0 40 Z" fill="#2458c6" fill-opacity="0.12"/>
+    <path d="M0 30 L24 28 L48 32 L72 22 L96 26 L120 14 L144 20 L168 24 L192 12 L216 18 L240 8 L264 16 L288 20 L312 10 L336 14 L356 12" fill="none" stroke="#2458c6" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>
   </g>
-  <text x="156" y="201" class="sans" font-size="64" font-weight="650" letter-spacing="-2.5" fill="#0b0d10">Homelab Manager</text>
-
-  <text x="72" y="266" class="sans" font-size="24" fill="#4f5661">La supervision de votre serveur Linux, <tspan fill="#0b0d10">sans le superflu.</tspan></text>
-
-  <g class="mono" font-size="14" fill="#4f5661" text-anchor="middle">
-    <rect x="72.5" y="298.5" width="129" height="32" rx="16" fill="#ffffff" stroke="#d5d9e0"/>
-    <text x="137" y="319"><tspan fill="#3d4fc4">1</tspan> binaire Go</text>
-    <rect x="211.5" y="298.5" width="162" height="32" rx="16" fill="#ffffff" stroke="#d5d9e0"/>
-    <text x="292.5" y="319"><tspan fill="#3d4fc4">1</tspan> fichier SQLite</text>
-    <rect x="383.5" y="298.5" width="87" height="32" rx="16" fill="#ffffff" stroke="#d5d9e0"/>
-    <text x="427" y="319"><tspan fill="#3d4fc4">0</tspan> cloud</text>
-    <rect x="480.5" y="298.5" width="146" height="32" rx="16" fill="#ffffff" stroke="#d5d9e0"/>
-    <text x="553.5" y="319"><tspan fill="#3d4fc4">0</tspan> terminal web</text>
+  <text x="830" y="222" class="s" font-size="13" fill="#4a4a44">Mémoire</text>
+  <g transform="translate(830 230)">
+    <path d="M0 22 L24 22 L48 21 L72 21 L96 19 L120 20 L144 18 L168 18 L192 17 L216 16 L240 17 L264 15 L288 16 L312 15 L336 15 L356 14 L356 40 L0 40 Z" fill="#c2610f" fill-opacity="0.12"/>
+    <path d="M0 22 L24 22 L48 21 L72 21 L96 19 L120 20 L144 18 L168 18 L192 17 L216 16 L240 17 L264 15 L288 16 L312 15 L336 15 L356 14" fill="none" stroke="#c2610f" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round"/>
   </g>
-
-  <!-- Machine card (illustrative, no figures) -->
-  <rect x="808.5" y="60.5" width="400" height="300" rx="14" fill="#ffffff" stroke="#dde1e7" filter="url(#lift)"/>
-  <text x="830" y="94" class="mono" font-size="12" fill="#5d6470">machine locale</text>
-  <circle cx="1119" cy="90" r="3" fill="#23895a"/>
-  <text x="1186" y="94" class="mono" font-size="12" fill="#1f7a50" text-anchor="end">en ligne</text>
-
-  <text x="830" y="124" class="sans" font-size="13" fill="#4f5661">CPU</text>
-  <g transform="translate(830 132)">
-    <path d="M0 30 L24 28 L48 32 L72 22 L96 26 L120 14 L144 20 L168 24 L192 12 L216 18 L240 8 L264 16 L288 20 L312 10 L336 14 L354 12 L354 42 L0 42 Z" fill="#2f6fcf" fill-opacity="0.10"/>
-    <path d="M0 30 L24 28 L48 32 L72 22 L96 26 L120 14 L144 20 L168 24 L192 12 L216 18 L240 8 L264 16 L288 20 L312 10 L336 14 L354 12" fill="none" stroke="#2f6fcf" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
-  </g>
-
-  <text x="830" y="196" class="sans" font-size="13" fill="#4f5661">Mémoire</text>
-  <g transform="translate(830 204)">
-    <path d="M0 24 L24 24 L48 22 L72 23 L96 20 L120 21 L144 18 L168 19 L192 18 L216 16 L240 17 L264 15 L288 16 L312 14 L336 15 L354 14 L354 42 L0 42 Z" fill="#7c5ce0" fill-opacity="0.10"/>
-    <path d="M0 24 L24 24 L48 22 L72 23 L96 20 L120 21 L144 18 L168 19 L192 18 L216 16 L240 17 L264 15 L288 16 L312 14 L336 15 L354 14" fill="none" stroke="#7c5ce0" stroke-width="2" stroke-linejoin="round" stroke-linecap="round"/>
-  </g>
-
-  <g class="sans" font-size="13" fill="#0b0d10">
-    <rect x="830" y="262" width="173" height="34" rx="8" fill="#f1f3f6"/>
-    <circle cx="844" cy="279" r="3" fill="#23895a"/>
-    <text x="856" y="284">Docker</text>
-    <rect x="1011" y="262" width="173" height="34" rx="8" fill="#f1f3f6"/>
-    <circle cx="1025" cy="279" r="3" fill="#23895a"/>
-    <text x="1037" y="284">systemd</text>
-    <rect x="830" y="304" width="173" height="34" rx="8" fill="#f1f3f6"/>
-    <circle cx="844" cy="321" r="3" fill="#23895a"/>
-    <text x="856" y="326">restic</text>
-    <rect x="1011" y="304" width="173" height="34" rx="8" fill="#f1f3f6"/>
-    <circle cx="1025" cy="321" r="3" fill="#c98a12"/>
-    <text x="1037" y="326">Grype</text>
-  </g>
+  <rect x="830.0" y="304" width="83.0" height="34" rx="8" fill="#efefeb"/>
+  <circle cx="844.0" cy="321" r="3.5" fill="#1e7f4f"/>
+  <text x="855.0" y="326" class="s" font-size="13" fill="#171715">Docker</text>
+  <rect x="921.0" y="304" width="83.0" height="34" rx="8" fill="#efefeb"/>
+  <circle cx="935.0" cy="321" r="3.5" fill="#1e7f4f"/>
+  <text x="946.0" y="326" class="s" font-size="13" fill="#171715">systemd</text>
+  <rect x="1012.0" y="304" width="83.0" height="34" rx="8" fill="#efefeb"/>
+  <circle cx="1026.0" cy="321" r="3.5" fill="#1e7f4f"/>
+  <text x="1037.0" y="326" class="s" font-size="13" fill="#171715">restic</text>
+  <rect x="1103.0" y="304" width="83.0" height="34" rx="8" fill="#efefeb"/>
+  <circle cx="1117.0" cy="321" r="3.5" fill="#9a6500"/>
+  <text x="1128.0" y="326" class="s" font-size="13" fill="#171715">Grype</text>
 </svg>

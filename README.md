@@ -7,13 +7,13 @@
 
 <br><br>
 
-[![CI](https://img.shields.io/github/actions/workflow/status/alexandrebouttierdev/homelab-manager/ci.yml?branch=dev&label=CI&style=flat-square&labelColor=17191c)](https://github.com/alexandrebouttierdev/homelab-manager/actions/workflows/ci.yml)
-[![Audit](https://img.shields.io/github/actions/workflow/status/alexandrebouttierdev/homelab-manager/audit.yml?branch=dev&label=audit&style=flat-square&labelColor=17191c)](https://github.com/alexandrebouttierdev/homelab-manager/actions/workflows/audit.yml)
-[![Release](https://img.shields.io/github/v/release/alexandrebouttierdev/homelab-manager?sort=semver&display_name=tag&label=release&style=flat-square&labelColor=17191c&color=8b9cfb)](https://github.com/alexandrebouttierdev/homelab-manager/releases/latest)
-![Go 1.26](https://img.shields.io/badge/Go-1.26-2a2f37?style=flat-square&labelColor=17191c&logo=go&logoColor=00ADD8)
-![React 19](https://img.shields.io/badge/React-19-2a2f37?style=flat-square&labelColor=17191c&logo=react&logoColor=61DAFB)
-![SQLite](https://img.shields.io/badge/SQLite-embarqué-2a2f37?style=flat-square&labelColor=17191c&logo=sqlite&logoColor=white)
-![Debian 13](https://img.shields.io/badge/Debian-13-2a2f37?style=flat-square&labelColor=17191c&logo=debian&logoColor=white)
+[![CI](https://img.shields.io/github/actions/workflow/status/alexandrebouttierdev/homelab-manager/ci.yml?branch=dev&label=CI&style=flat-square&labelColor=1d1d1b)](https://github.com/alexandrebouttierdev/homelab-manager/actions/workflows/ci.yml)
+[![Audit](https://img.shields.io/github/actions/workflow/status/alexandrebouttierdev/homelab-manager/audit.yml?branch=dev&label=audit&style=flat-square&labelColor=1d1d1b)](https://github.com/alexandrebouttierdev/homelab-manager/actions/workflows/audit.yml)
+[![Release](https://img.shields.io/github/v/release/alexandrebouttierdev/homelab-manager?sort=semver&display_name=tag&label=release&style=flat-square&labelColor=1d1d1b&color=34342f)](https://github.com/alexandrebouttierdev/homelab-manager/releases/latest)
+![Go 1.26](https://img.shields.io/badge/Go-1.26-34342f?style=flat-square&labelColor=1d1d1b&logo=go&logoColor=00ADD8)
+![React 19](https://img.shields.io/badge/React-19-34342f?style=flat-square&labelColor=1d1d1b&logo=react&logoColor=61DAFB)
+![SQLite](https://img.shields.io/badge/SQLite-embarqué-34342f?style=flat-square&labelColor=1d1d1b&logo=sqlite&logoColor=white)
+![Debian 13](https://img.shields.io/badge/Debian-13-34342f?style=flat-square&labelColor=1d1d1b&logo=debian&logoColor=white)
 
 **[Site](https://alexandrebouttierdev.github.io/homelab-manager/)** · **[Fonctionnalités](#fonctionnalités)** · **[Installation](#installation)** · **[Modules optionnels](#modules-optionnels)** · **[Configuration](#configuration)** · **[Exploitation](#exploitation)** · **[Développement](#développement)** · **[Documentation](#documentation)**
 

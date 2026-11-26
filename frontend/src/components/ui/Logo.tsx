@@ -28,17 +28,10 @@ export function Logo({ compact = false, to = '/', className }: LogoProps) {
           rx="8"
           className="fill-elevated stroke-line-strong transition-colors group-hover:stroke-text-muted"
         />
-        <g
-          className="stroke-text-primary"
-          strokeWidth="1.8"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-        >
-          <rect x="8" y="8.5" width="16" height="6.5" rx="1.5" />
-          <rect x="8" y="17" width="16" height="6.5" rx="1.5" />
-        </g>
-        <circle cx="11.5" cy="11.75" r="1.3" className="fill-success" />
-        <circle cx="11.5" cy="20.25" r="1.3" className="fill-success" />
+        {/* The mark: one ring (the single machine) with its status light. */}
+        <circle cx="16" cy="16" r="7.7" strokeWidth="3.1" className="stroke-text-primary" />
+        <circle cx="21.45" cy="10.55" r="3.8" className="fill-elevated" />
+        <circle cx="21.45" cy="10.55" r="2.8" className="fill-success" />
       </svg>
       {!compact && (
         <span className="min-w-0 truncate text-sm font-semibold tracking-[-0.01em] text-text-primary">

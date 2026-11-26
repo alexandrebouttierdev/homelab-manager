@@ -1,0 +1,6 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 1024 1024" role="img" aria-labelledby="title">
+  <title id="title">MonoOps</title>
+  <defs><mask id="cut" maskUnits="userSpaceOnUse" x="-512" y="-512" width="1024" height="1024"><rect x="-512" y="-512" width="1024" height="1024" fill="#ffffff"/><circle cx="217.8" cy="-217.8" r="152" fill="#000000"/></mask></defs>
+  <rect width="1024" height="1024" rx="230" fill="#171715"/>
+  <g transform="translate(512 512) scale(0.8)"><circle r="308" fill="none" stroke="#edede6" stroke-width="124" mask="url(#cut)"/><circle cx="217.8" cy="-217.8" r="112" fill="#52c48d"/></g>
+</svg>

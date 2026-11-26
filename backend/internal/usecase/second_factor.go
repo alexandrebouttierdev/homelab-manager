@@ -6,14 +6,14 @@ import (
 	"sync"
 	"time"
 
-	"homelab-manager/backend/internal/domain"
-	"homelab-manager/backend/internal/ports"
+	"monoops/backend/internal/domain"
+	"monoops/backend/internal/ports"
 
 	"github.com/google/uuid"
 )
 
 // totpIssuer names the Manager in authenticator apps.
-const totpIssuer = "Homelab Manager"
+const totpIssuer = "MonoOps"
 
 // totpAssociatedData binds a sealed TOTP secret to its account.
 func totpAssociatedData(userID uuid.UUID) string {

@@ -10,9 +10,9 @@ import (
 	"testing"
 	"time"
 
-	"homelab-manager/backend/internal/backupjob"
-	"homelab-manager/backend/internal/domain"
-	"homelab-manager/backend/internal/ports"
+	"monoops/backend/internal/backupjob"
+	"monoops/backend/internal/domain"
+	"monoops/backend/internal/ports"
 
 	"github.com/google/uuid"
 )
@@ -31,7 +31,7 @@ type fakeUnits struct {
 
 func (f *fakeUnits) Act(ctx context.Context, name string, verb domain.UnitVerb) (domain.UnitStableState, error) {
 	f.units = append(f.units, string(verb)+" "+name)
-	op := domain.BackupOperation(name[len("homelab-backup@") : len(name)-len(".service")])
+	op := domain.BackupOperation(name[len("monoops-backup@") : len(name)-len(".service")])
 	if err := backupjob.ReadStrict(backupjob.JobPath(f.config.JobsDir, op), backupjob.MaxJobBytes, &f.sawJob); err != nil {
 		f.t.Fatalf("job: %v", err)
 	}
@@ -89,7 +89,7 @@ func TestExecuteWritesTheJobStartsTheUnitAndReadsTheResult(t *testing.T) {
 	if err != nil || result.SnapshotID != "abc" || result.Stats.FilesNew != 2 || len(result.Snapshots) != 1 {
 		t.Fatalf("result = %+v, %v", result, err)
 	}
-	if len(units.units) != 1 || units.units[0] != "start homelab-backup@backup.service" {
+	if len(units.units) != 1 || units.units[0] != "start monoops-backup@backup.service" {
 		t.Fatalf("units = %v", units.units)
 	}
 	if units.sawJob.Repository != "/mnt/backup" || units.sawJob.Sources[0] != "/etc" || units.sawCreds.Password != "p" {
@@ -239,12 +239,12 @@ func TestExecuteWritesADiffAndACopy(t *testing.T) {
 // The polkit rule shipped with the project allows exactly the operations
 // of the Manager.
 func TestThePolkitRuleListsEveryOperation(t *testing.T) {
-	rule, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "deployments", "polkit", "50-homelab-manager-backup.rules"))
+	rule, err := os.ReadFile(filepath.Join("..", "..", "..", "..", "deployments", "polkit", "50-monoops-backup.rules"))
 	if err != nil {
 		t.Fatal(err)
 	}
 	var listed []string
-	for _, match := range regexp.MustCompile(`"(homelab-backup@[a-z-]+\.service)"`).FindAllStringSubmatch(string(rule), -1) {
+	for _, match := range regexp.MustCompile(`"(monoops-backup@[a-z-]+\.service)"`).FindAllStringSubmatch(string(rule), -1) {
 		listed = append(listed, match[1])
 	}
 	var want []string

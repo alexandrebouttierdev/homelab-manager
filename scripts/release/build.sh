@@ -18,18 +18,21 @@ VITE_APP_VERSION="$version" npm --prefix "$root/frontend" run build
 stage=$(mktemp -d)
 trap 'rm -rf "$stage"' EXIT
 for arch in amd64 arm64; do
-  name="homelab-manager_${version}_linux_${arch}"
+  name="monoops_${version}_linux_${arch}"
   dir="$stage/$name"
   mkdir -p "$dir/bin" "$dir/frontend"
   for command in manager docker-proxy backup-runner; do
+    # The Manager is the product itself: its binary is plain "monoops".
+    binary="monoops-$command"
+    [[ "$command" == manager ]] && binary=monoops
     # Pure Go (modernc SQLite): no C toolchain, static binaries.
     CGO_ENABLED=0 GOOS=linux GOARCH="$arch" go -C "$root/backend" build -trimpath \
       -ldflags "-s -w -X main.version=$version" \
-      -o "$dir/bin/homelab-$command" "./cmd/$command"
+      -o "$dir/bin/$binary" "./cmd/$command"
   done
   cp -R "$root/frontend/dist" "$dir/frontend/dist"
   cp -R "$root/deployments" "$dir/deployments"
   cp "$root/README.md" "$dir/"
   tar -C "$stage" --owner=0 --group=0 --numeric-owner -czf "$out/$name.tar.gz" "$name"
 done
-(cd "$out" && sha256sum homelab-manager_*.tar.gz > SHA256SUMS)
+(cd "$out" && sha256sum monoops_*.tar.gz > SHA256SUMS)

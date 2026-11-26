@@ -6,9 +6,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"homelab-manager/backend/ent/container"
-	"homelab-manager/backend/ent/event"
-	"homelab-manager/backend/ent/predicate"
+	"monoops/backend/ent/container"
+	"monoops/backend/ent/event"
+	"monoops/backend/ent/predicate"
 	"time"
 
 	"entgo.io/ent/dialect/sql"

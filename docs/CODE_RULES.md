@@ -1,4 +1,4 @@
-# Règles de code — Homelab Manager
+# Règles de code — MonoOps
 
 Version 2.2 — 24 novembre 2026 (audits de sécurité des dépendances, bonnes pratiques React, règles générales de sécurité)
 

@@ -5,7 +5,7 @@ package ent
 import (
 	"encoding/json"
 	"fmt"
-	"homelab-manager/backend/ent/backupconfig"
+	"monoops/backend/ent/backupconfig"
 	"strings"
 	"time"
 

@@ -5,10 +5,10 @@ import (
 	"fmt"
 	"time"
 
-	"homelab-manager/backend/ent"
-	"homelab-manager/backend/ent/failedunit"
-	"homelab-manager/backend/internal/domain"
-	"homelab-manager/backend/internal/ports"
+	"monoops/backend/ent"
+	"monoops/backend/ent/failedunit"
+	"monoops/backend/internal/domain"
+	"monoops/backend/internal/ports"
 )
 
 var _ ports.FailedUnitRepository = (*SystemUnitRepository)(nil)

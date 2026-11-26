@@ -6,8 +6,8 @@ import (
 	"net/http"
 	"time"
 
-	"homelab-manager/backend/internal/domain"
-	"homelab-manager/backend/internal/usecase"
+	"monoops/backend/internal/domain"
+	"monoops/backend/internal/usecase"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/go-chi/chi/v5/middleware"
@@ -17,7 +17,7 @@ import (
 const (
 	// challengeCookieName holds the pending login between the password and
 	// the second factor; it is only sent to the authentication routes.
-	challengeCookieName = "homelab_login"
+	challengeCookieName = "monoops_login"
 	challengeCookiePath = "/api/v1/auth"
 	maxSecondFactorCode = 64
 	// maxWebAuthnBody bounds a request that carries an answer of the

@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"homelab-manager/backend/internal/backupjob"
-	"homelab-manager/backend/internal/domain"
+	"monoops/backend/internal/backupjob"
+	"monoops/backend/internal/domain"
 )
 
 // fakeRestic records its arguments, environment and exclusion file, then
@@ -125,7 +125,7 @@ func (f *fixture) run(operation string) (int, backupjob.Result, string) {
 func backupJob() backupjob.Job {
 	return backupjob.Job{
 		Version: domain.BackupJobVersion, Operation: domain.BackupOpBackup,
-		RepositoryType: domain.RepositoryS3, Repository: "https://s3.example.com/bucket/homelab",
+		RepositoryType: domain.RepositoryS3, Repository: "https://s3.example.com/bucket/monoops",
 		Sources:  []string{"/etc", "/srv/data"},
 		Excludes: []string{"*.tmp", "**/node_modules"}, ExcludeCaches: true, ExcludeIfPresent: ".nobackup",
 	}
@@ -133,8 +133,8 @@ func backupJob() backupjob.Job {
 
 const summaryLine = `{"message_type":"summary","files_new":3,"files_changed":1,"files_unmodified":10,"dirs_new":1,"dirs_changed":0,"dirs_unmodified":4,"data_added":2048,"total_files_processed":14,"total_bytes_processed":65536,"total_duration":1.5,"snapshot_id":"abcdef0123456789"}`
 
-const snapshotsJSON = `[{"time":"2026-11-23T03:00:00Z","paths":["/etc"],"hostname":"homelab","tags":["homelab-manager"],"id":"old","short_id":"old"},` +
-	`{"time":"2026-11-24T03:00:01Z","paths":["/etc","/srv/data"],"hostname":"homelab","tags":["homelab-manager"],"id":"abcdef0123456789","short_id":"abcdef01","summary":{"total_files_processed":14,"total_bytes_processed":65536,"data_added":2048}}]`
+const snapshotsJSON = `[{"time":"2026-11-23T03:00:00Z","paths":["/etc"],"hostname":"monoops","tags":["monoops"],"id":"old","short_id":"old"},` +
+	`{"time":"2026-11-24T03:00:01Z","paths":["/etc","/srv/data"],"hostname":"monoops","tags":["monoops"],"id":"abcdef0123456789","short_id":"abcdef01","summary":{"total_files_processed":14,"total_bytes_processed":65536,"data_added":2048}}]`
 
 func TestBackupBuildsFixedArgumentsAndReportsTheSummary(t *testing.T) {
 	f := newFixture(t)
@@ -147,7 +147,7 @@ func TestBackupBuildsFixedArgumentsAndReportsTheSummary(t *testing.T) {
 		t.Fatalf("status %d, result %+v, stderr %s", status, result, stderr)
 	}
 	wantArgs := []string{
-		"backup", "--json", "--tag", "homelab-manager", "--exclude-caches", "--exclude-if-present", ".nobackup",
+		"backup", "--json", "--tag", "monoops", "--exclude-caches", "--exclude-if-present", ".nobackup",
 		"--exclude-file", "", "--", "/etc", "/srv/data",
 	}
 	args := strings.Split(strings.TrimSpace(f.read("args.backup")), "\n")
@@ -164,7 +164,7 @@ func TestBackupBuildsFixedArgumentsAndReportsTheSummary(t *testing.T) {
 	}
 	env := f.read("env.backup")
 	for _, want := range []string{
-		"RESTIC_REPOSITORY=s3:https://s3.example.com/bucket/homelab", "RESTIC_PASSWORD=repo-pass",
+		"RESTIC_REPOSITORY=s3:https://s3.example.com/bucket/monoops", "RESTIC_PASSWORD=repo-pass",
 		"AWS_ACCESS_KEY_ID=key-id", "AWS_SECRET_ACCESS_KEY=key-secret", "RESTIC_CACHE_DIR=" + f.config.CacheDir,
 	} {
 		if !strings.Contains(env, want+"\n") {
@@ -183,7 +183,7 @@ func TestBackupBuildsFixedArgumentsAndReportsTheSummary(t *testing.T) {
 	if len(result.Snapshots) != 2 || result.Snapshots[0].ID != "abcdef0123456789" || result.Snapshots[0].TotalFiles != 14 {
 		t.Fatalf("snapshots = %+v (newest first)", result.Snapshots)
 	}
-	if strings.TrimSpace(f.read("args.snapshots")) != "snapshots\n--json\n--tag\nhomelab-manager" {
+	if strings.TrimSpace(f.read("args.snapshots")) != "snapshots\n--json\n--tag\nmonoops" {
 		t.Fatalf("snapshots args = %q", f.read("args.snapshots"))
 	}
 }
@@ -227,14 +227,14 @@ func TestBackupFailureKeepsResticMessage(t *testing.T) {
 func TestInit(t *testing.T) {
 	f := newFixture(t)
 	f.file("init.out", `{"message_type":"initialized","id":"r1","repository":"/mnt/backup"}`)
-	job := backupjob.Job{Version: 1, Operation: domain.BackupOpInit, RepositoryType: domain.RepositoryRest, Repository: "https://backup.lan/homelab"}
+	job := backupjob.Job{Version: 1, Operation: domain.BackupOpInit, RepositoryType: domain.RepositoryRest, Repository: "https://backup.lan/monoops"}
 	f.job(job, domain.BackupCredentials{Password: "p", Username: "u", Secret: "s"})
 	status, result, stderr := f.run("init")
 	if status != 0 || !result.Success {
 		t.Fatalf("status %d result %+v %s", status, result, stderr)
 	}
 	env := f.read("env.init")
-	if !strings.Contains(env, "RESTIC_REPOSITORY=rest:https://backup.lan/homelab\n") || !strings.Contains(env, "RESTIC_REST_USERNAME=u\n") {
+	if !strings.Contains(env, "RESTIC_REPOSITORY=rest:https://backup.lan/monoops\n") || !strings.Contains(env, "RESTIC_REST_USERNAME=u\n") {
 		t.Fatalf("env = %s", env)
 	}
 	if strings.TrimSpace(f.read("args.init")) != "init\n--json" {
@@ -293,12 +293,12 @@ func TestRunnerRefusesUnknownFieldsAndOperations(t *testing.T) {
 	}
 }
 
-// With HOMELAB_TEST_RESTIC=1 and restic installed, a real repository is
+// With MONOOPS_TEST_RESTIC=1 and restic installed, a real repository is
 // initialised and backed up in a temporary directory.
 func TestRunnerWithRealRestic(t *testing.T) {
 	restic, err := exec.LookPath("restic")
-	if err != nil || os.Getenv("HOMELAB_TEST_RESTIC") != "1" {
-		t.Skip("set HOMELAB_TEST_RESTIC=1 with restic installed")
+	if err != nil || os.Getenv("MONOOPS_TEST_RESTIC") != "1" {
+		t.Skip("set MONOOPS_TEST_RESTIC=1 with restic installed")
 	}
 	f := newFixture(t)
 	f.config.Restic = restic
@@ -431,13 +431,13 @@ func TestMaintenanceOperations(t *testing.T) {
 
 	forget := repositoryJob(domain.BackupOpForgetPrune)
 	forget.Retention = &backupjob.Retention{KeepDaily: 7, KeepMonthly: 6}
-	f.file("forget.out", `[{"tags":["homelab-manager"],"host":"h","paths":["/etc"],"keep":[{"id":"a"}],"remove":[{"id":"b"},{"id":"c"}]}]`+"\nrepacking packs\n")
+	f.file("forget.out", `[{"tags":["monoops"],"host":"h","paths":["/etc"],"keep":[{"id":"a"}],"remove":[{"id":"b"},{"id":"c"}]}]`+"\nrepacking packs\n")
 	f.job(forget, domain.BackupCredentials{Password: "p"})
 	status, result, _ = f.run("forget-prune")
 	if status != 0 || result.Details.SnapshotsRemoved != 2 || len(result.Snapshots) != 2 {
 		t.Fatalf("forget: %d %+v", status, result)
 	}
-	if got := strings.TrimSpace(f.read("args.forget")); got != "forget\n--json\n--tag\nhomelab-manager\n--keep-daily\n7\n--keep-monthly\n6\n--prune" {
+	if got := strings.TrimSpace(f.read("args.forget")); got != "forget\n--json\n--tag\nmonoops\n--keep-daily\n7\n--keep-monthly\n6\n--prune" {
 		t.Fatalf("forget args = %q", got)
 	}
 }
@@ -618,7 +618,7 @@ func TestCopyInitializesThenCopies(t *testing.T) {
 	if got := strings.TrimSpace(f.read("args.init")); got != "init\n--copy-chunker-params\n--json" {
 		t.Fatalf("init args = %q", got)
 	}
-	if got := strings.TrimSpace(f.read("args.copy")); got != "copy\n--tag\nhomelab-manager" {
+	if got := strings.TrimSpace(f.read("args.copy")); got != "copy\n--tag\nmonoops" {
 		t.Fatalf("copy args = %q", got)
 	}
 	env := f.read("env.copy")
@@ -655,7 +655,7 @@ func TestCopyAppliesTheRetentionAndHidesTheSecrets(t *testing.T) {
 	if _, err := os.Stat(filepath.Join(f.bin, "args.init")); !os.IsNotExist(err) {
 		t.Fatal("init ran on a connected repository")
 	}
-	if got := strings.TrimSpace(f.read("args.forget")); got != "forget\n--json\n--tag\nhomelab-manager\n--keep-daily\n3\n--prune" {
+	if got := strings.TrimSpace(f.read("args.forget")); got != "forget\n--json\n--tag\nmonoops\n--keep-daily\n3\n--prune" {
 		t.Fatalf("forget args = %q", got)
 	}
 

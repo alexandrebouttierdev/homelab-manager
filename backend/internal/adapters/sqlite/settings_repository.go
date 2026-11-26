@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"homelab-manager/backend/ent"
-	"homelab-manager/backend/ent/appsetting"
-	"homelab-manager/backend/internal/domain"
+	"monoops/backend/ent"
+	"monoops/backend/ent/appsetting"
+	"monoops/backend/internal/domain"
 )
 
 const settingsSingletonKey = "local"

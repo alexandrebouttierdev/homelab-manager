@@ -5,9 +5,9 @@ package ent
 import (
 	"context"
 	"fmt"
-	"homelab-manager/backend/ent/alertrule"
-	"homelab-manager/backend/ent/predicate"
 	"math"
+	"monoops/backend/ent/alertrule"
+	"monoops/backend/ent/predicate"
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"

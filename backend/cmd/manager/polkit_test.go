@@ -10,7 +10,7 @@ import (
 	"strings"
 	"testing"
 
-	"homelab-manager/backend/internal/domain"
+	"monoops/backend/internal/domain"
 )
 
 func TestPolkitRuleListsTheUnitsAndVerbs(t *testing.T) {
@@ -26,7 +26,7 @@ func TestPolkitRuleListsTheUnitsAndVerbs(t *testing.T) {
 		`var units = ["backup.timer","nginx.service"];`,
 		`var verbs = ["start","stop","restart","reload"];`,
 		`action.id === "org.freedesktop.systemd1.manage-units"`,
-		`subject.user === "homelab-manager"`,
+		`subject.user === "monoops"`,
 	} {
 		if !strings.Contains(rule, want) {
 			t.Errorf("rule lacks %s:\n%s", want, rule)
@@ -75,14 +75,14 @@ func TestPolkitRuleGrantsOnlyTheListedActions(t *testing.T) {
 	cases := []struct {
 		id, user, unit, verb, want string
 	}{
-		{manage, "homelab-manager", "nginx.service", "restart", "yes"},
-		{manage, "homelab-manager", "getty@tty1.service", "start", "yes"},
-		{manage, "homelab-manager", "nginx.service", "reload", "yes"},
-		{manage, "homelab-manager", "ssh.service", "restart", "undefined"},
-		{manage, "homelab-manager", "nginx.service", "enable", "undefined"},
+		{manage, "monoops", "nginx.service", "restart", "yes"},
+		{manage, "monoops", "getty@tty1.service", "start", "yes"},
+		{manage, "monoops", "nginx.service", "reload", "yes"},
+		{manage, "monoops", "ssh.service", "restart", "undefined"},
+		{manage, "monoops", "nginx.service", "enable", "undefined"},
 		{manage, "alice", "nginx.service", "restart", "undefined"},
-		{"org.freedesktop.systemd1.manage-unit-files", "homelab-manager", "nginx.service", "start", "undefined"},
-		{"org.freedesktop.systemd1.reload-daemon", "homelab-manager", "", "", "undefined"},
+		{"org.freedesktop.systemd1.manage-unit-files", "monoops", "nginx.service", "start", "undefined"},
+		{"org.freedesktop.systemd1.reload-daemon", "monoops", "", "", "undefined"},
 	}
 	var encoded []string
 	for _, c := range cases {
@@ -124,7 +124,7 @@ func TestRunCommandPrintsTheRule(t *testing.T) {
 }
 
 func TestLoadConfigReadsTheAllowList(t *testing.T) {
-	t.Setenv("HOMELAB_SYSTEMD_MANAGEABLE_UNITS", "nginx.service  backup.timer")
+	t.Setenv("MONOOPS_SYSTEMD_MANAGEABLE_UNITS", "nginx.service  backup.timer")
 	config, err := LoadConfig()
 	if err != nil {
 		t.Fatal(err)
@@ -132,7 +132,7 @@ func TestLoadConfigReadsTheAllowList(t *testing.T) {
 	if got := config.ManageableUnits.Names(); len(got) != 2 || got[0] != "backup.timer" || got[1] != "nginx.service" {
 		t.Fatalf("allow list = %v", got)
 	}
-	t.Setenv("HOMELAB_SYSTEMD_MANAGEABLE_UNITS", "nginx.service ../etc/passwd")
+	t.Setenv("MONOOPS_SYSTEMD_MANAGEABLE_UNITS", "nginx.service ../etc/passwd")
 	if _, err := LoadConfig(); err == nil || !strings.Contains(err.Error(), "systemd_manageable_units") {
 		t.Fatalf("invalid name = %v, want an error", err)
 	}
@@ -160,18 +160,18 @@ func TestSystemRuleGrantsOnlyTheThreeSettings(t *testing.T) {
 	if err := os.WriteFile(scriptPath, []byte(evaluator), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	rulePath := filepath.Join("..", "..", "..", "deployments", "polkit", "50-homelab-manager-system.rules")
+	rulePath := filepath.Join("..", "..", "..", "deployments", "polkit", "50-monoops-system.rules")
 	cases := []struct{ id, user, want string }{
-		{"org.freedesktop.hostname1.set-static-hostname", "homelab-manager", "yes"},
-		{"org.freedesktop.timedate1.set-timezone", "homelab-manager", "yes"},
-		{"org.freedesktop.locale1.set-locale", "homelab-manager", "yes"},
+		{"org.freedesktop.hostname1.set-static-hostname", "monoops", "yes"},
+		{"org.freedesktop.timedate1.set-timezone", "monoops", "yes"},
+		{"org.freedesktop.locale1.set-locale", "monoops", "yes"},
 		{"org.freedesktop.hostname1.set-static-hostname", "alice", "undefined"},
-		{"org.freedesktop.hostname1.set-hostname", "homelab-manager", "undefined"},
-		{"org.freedesktop.hostname1.set-machine-info", "homelab-manager", "undefined"},
-		{"org.freedesktop.timedate1.set-time", "homelab-manager", "undefined"},
-		{"org.freedesktop.timedate1.set-ntp", "homelab-manager", "undefined"},
-		{"org.freedesktop.locale1.set-keyboard", "homelab-manager", "undefined"},
-		{"org.freedesktop.login1.reboot", "homelab-manager", "undefined"},
+		{"org.freedesktop.hostname1.set-hostname", "monoops", "undefined"},
+		{"org.freedesktop.hostname1.set-machine-info", "monoops", "undefined"},
+		{"org.freedesktop.timedate1.set-time", "monoops", "undefined"},
+		{"org.freedesktop.timedate1.set-ntp", "monoops", "undefined"},
+		{"org.freedesktop.locale1.set-keyboard", "monoops", "undefined"},
+		{"org.freedesktop.login1.reboot", "monoops", "undefined"},
 	}
 	var encoded []string
 	for _, c := range cases {
@@ -204,17 +204,17 @@ func TestMaintenanceRuleGrantsTheCatalogOnly(t *testing.T) {
 	if err := os.WriteFile(scriptPath, []byte(evaluator), 0o600); err != nil {
 		t.Fatal(err)
 	}
-	rulePath := filepath.Join("..", "..", "..", "deployments", "polkit", "50-homelab-manager-maintenance.rules")
+	rulePath := filepath.Join("..", "..", "..", "deployments", "polkit", "50-monoops-maintenance.rules")
 	const manage = "org.freedesktop.systemd1.manage-units"
 	type check struct{ id, user, unit, verb, want string }
 	var cases []check
 	for _, unit := range domain.MaintenanceUnits() {
-		cases = append(cases, check{manage, "homelab-manager", unit, "start", "yes"}, check{manage, "homelab-manager", unit, "stop", "undefined"})
+		cases = append(cases, check{manage, "monoops", unit, "start", "yes"}, check{manage, "monoops", unit, "stop", "undefined"})
 	}
 	cases = append(cases,
-		check{manage, "alice", "homelab-journal-vacuum@512M.service", "start", "undefined"},
-		check{manage, "homelab-manager", "homelab-journal-vacuum@1M.service", "start", "undefined"},
-		check{manage, "homelab-manager", "homelab-journal-vacuum@.service", "start", "undefined"},
+		check{manage, "alice", "monoops-journal-vacuum@512M.service", "start", "undefined"},
+		check{manage, "monoops", "monoops-journal-vacuum@1M.service", "start", "undefined"},
+		check{manage, "monoops", "monoops-journal-vacuum@.service", "start", "undefined"},
 	)
 	var encoded []string
 	for _, c := range cases {

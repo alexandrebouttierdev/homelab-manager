@@ -3,7 +3,7 @@ package usecase
 import (
 	"time"
 
-	"homelab-manager/backend/internal/domain"
+	"monoops/backend/internal/domain"
 )
 
 type HealthUsecase struct {
@@ -18,7 +18,7 @@ func (u *HealthUsecase) Status() domain.Health {
 	now := time.Now().UTC()
 	return domain.Health{
 		Status:    "ok",
-		Service:   "homelab-manager",
+		Service:   "monoops",
 		Timestamp: now,
 		Uptime:    now.Sub(u.startedAt).Round(time.Second).String(),
 	}

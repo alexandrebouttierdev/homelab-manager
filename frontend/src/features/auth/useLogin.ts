@@ -22,7 +22,7 @@ import { getCredential, webauthnSupported } from '../../lib/webauthn'
 import { loginSchema, type LoginValues } from '../../schemas/login'
 import { secondFactorLoginSchema, type SecondFactorLoginValues } from '../../schemas/secondFactor'
 
-const usernameStorageKey = 'homelab-manager-username'
+const usernameStorageKey = 'monoops-username'
 
 function readRememberedUsername(): string {
   try {

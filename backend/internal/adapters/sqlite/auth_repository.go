@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"time"
 
-	"homelab-manager/backend/ent"
-	"homelab-manager/backend/ent/predicate"
-	"homelab-manager/backend/ent/session"
-	"homelab-manager/backend/ent/user"
-	"homelab-manager/backend/internal/domain"
+	"monoops/backend/ent"
+	"monoops/backend/ent/predicate"
+	"monoops/backend/ent/session"
+	"monoops/backend/ent/user"
+	"monoops/backend/internal/domain"
 
 	"github.com/google/uuid"
 )

@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"homelab-manager/backend/internal/domain"
+	"monoops/backend/internal/domain"
 
 	"github.com/google/uuid"
 )
@@ -122,7 +122,7 @@ func mailContent(settings domain.ChannelSettings, message domain.NotificationMes
 		"To: " + strings.Join(settings.To, ", "),
 		"Subject: " + mime.QEncoding.Encode("utf-8", message.Title),
 		"Date: " + now.Format(time.RFC1123Z),
-		fmt.Sprintf("Message-ID: <%s@homelab-manager>", uuid.New()),
+		fmt.Sprintf("Message-ID: <%s@monoops>", uuid.New()),
 		"MIME-Version: 1.0",
 		"Content-Type: text/plain; charset=utf-8",
 		"Content-Transfer-Encoding: quoted-printable",

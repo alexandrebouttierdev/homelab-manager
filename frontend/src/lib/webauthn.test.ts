@@ -24,7 +24,7 @@ describe('webauthn', () => {
     const options = creationOptionsFromJSON({
       publicKey: {
         challenge: 'AQID',
-        rp: { id: 'homelab.example', name: 'Homelab Manager' },
+        rp: { id: 'monoops.example', name: 'MonoOps' },
         user: { id: 'BAU', name: 'alice', displayName: 'Alice' },
         pubKeyCredParams: [{ type: 'public-key', alg: -7 }],
         excludeCredentials: [{ type: 'public-key', id: 'Bg', transports: ['usb'] }],
@@ -32,7 +32,7 @@ describe('webauthn', () => {
     })
     expect(new Uint8Array(options.challenge as ArrayBuffer)).toEqual(new Uint8Array([1, 2, 3]))
     expect(new Uint8Array(options.user.id as ArrayBuffer)).toEqual(new Uint8Array([4, 5]))
-    expect(options.rp.id).toBe('homelab.example')
+    expect(options.rp.id).toBe('monoops.example')
     expect(new Uint8Array(options.excludeCredentials?.[0].id as ArrayBuffer)).toEqual(
       new Uint8Array([6]),
     )

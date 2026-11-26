@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"homelab-manager/backend/internal/domain"
+	"monoops/backend/internal/domain"
 )
 
 type SystemCollector interface {

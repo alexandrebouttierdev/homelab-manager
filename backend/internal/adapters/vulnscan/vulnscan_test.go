@@ -12,9 +12,9 @@ import (
 	"testing"
 	"time"
 
-	"homelab-manager/backend/internal/adapters/dbustest"
-	"homelab-manager/backend/internal/adapters/packages"
-	"homelab-manager/backend/internal/domain"
+	"monoops/backend/internal/adapters/dbustest"
+	"monoops/backend/internal/adapters/packages"
+	"monoops/backend/internal/domain"
 
 	"github.com/godbus/dbus/v5"
 	"github.com/godbus/dbus/v5/prop"
@@ -113,12 +113,12 @@ func TestInventoryFollowsTheSyftFormat(t *testing.T) {
 }
 
 // TestSyftDecodesTheInventory runs "syft convert" on the inventory when
-// HOMELAB_TEST_SYFT names a Syft binary: Grype decodes "sbom:" documents
+// MONOOPS_TEST_SYFT names a Syft binary: Grype decodes "sbom:" documents
 // with the same code.
 func TestSyftDecodesTheInventory(t *testing.T) {
-	syft := os.Getenv("HOMELAB_TEST_SYFT")
+	syft := os.Getenv("MONOOPS_TEST_SYFT")
 	if syft == "" {
-		t.Skip("HOMELAB_TEST_SYFT is not set")
+		t.Skip("MONOOPS_TEST_SYFT is not set")
 	}
 	dir := t.TempDir()
 	inventory := domain.PackageInventory{Distro: ubuntu, Manager: domain.PackageManagerDpkg}
@@ -282,7 +282,7 @@ func (f *fakeSystemd) GetUnit(name string) (dbus.ObjectPath, *dbus.Error) {
 	if f.unloaded {
 		return "", dbus.NewError("org.freedesktop.systemd1.NoSuchUnit", []any{"unit not loaded"})
 	}
-	return "/org/freedesktop/systemd1/unit/homelab_2dvulnscan_2eservice", nil
+	return "/org/freedesktop/systemd1/unit/monoops_2dvulnscan_2eservice", nil
 }
 
 func serveSystemd(t *testing.T, fake *fakeSystemd) Connector {
@@ -297,7 +297,7 @@ func serveSystemd(t *testing.T, fake *fakeSystemd) Connector {
 	if err := conn.Export(fake, managerPath, managerInterface); err != nil {
 		t.Fatal(err)
 	}
-	if _, err := prop.Export(conn, "/org/freedesktop/systemd1/unit/homelab_2dvulnscan_2eservice", prop.Map{
+	if _, err := prop.Export(conn, "/org/freedesktop/systemd1/unit/monoops_2dvulnscan_2eservice", prop.Map{
 		unitInterface:                      {"ActiveState": {Value: fake.active}},
 		"org.freedesktop.systemd1.Service": {"Result": {Value: fake.result}},
 	}); err != nil {
@@ -337,7 +337,7 @@ func TestUnitStarterWaitsForTheStartJob(t *testing.T) {
 	}
 	fake.mu.Lock()
 	defer fake.mu.Unlock()
-	if len(fake.calls) != 2 || fake.calls[0] != "StartUnit homelab-vulnscan.service replace" || fake.calls[1] != "GetUnit homelab-vulnscan.service" {
+	if len(fake.calls) != 2 || fake.calls[0] != "StartUnit monoops-vulnscan.service replace" || fake.calls[1] != "GetUnit monoops-vulnscan.service" {
 		t.Fatalf("calls = %v, want StartUnit then GetUnit only", fake.calls)
 	}
 }
@@ -414,12 +414,12 @@ func TestScannerWritesRunsAndReads(t *testing.T) {
 
 // TestInventoryMatchesSyftOnARealDatabase compares, package by package, the
 // inventory with the one Syft builds from the same files. It runs when
-// HOMELAB_TEST_SYFT names a Syft binary and HOMELAB_TEST_ROOT a directory
+// MONOOPS_TEST_SYFT names a Syft binary and MONOOPS_TEST_ROOT a directory
 // holding etc/os-release and var/lib/dpkg/status (or lib/apk/db/installed).
 func TestInventoryMatchesSyftOnARealDatabase(t *testing.T) {
-	syft, root := os.Getenv("HOMELAB_TEST_SYFT"), os.Getenv("HOMELAB_TEST_ROOT")
+	syft, root := os.Getenv("MONOOPS_TEST_SYFT"), os.Getenv("MONOOPS_TEST_ROOT")
 	if syft == "" || root == "" {
-		t.Skip("HOMELAB_TEST_SYFT and HOMELAB_TEST_ROOT are not set")
+		t.Skip("MONOOPS_TEST_SYFT and MONOOPS_TEST_ROOT are not set")
 	}
 	inventory, err := packages.New(root).Inventory(context.Background())
 	if err != nil {

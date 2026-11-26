@@ -10,8 +10,8 @@ import (
 	"errors"
 	"fmt"
 
-	"homelab-manager/backend/internal/domain"
-	"homelab-manager/backend/internal/ports"
+	"monoops/backend/internal/domain"
+	"monoops/backend/internal/ports"
 
 	"github.com/go-webauthn/webauthn/protocol"
 	library "github.com/go-webauthn/webauthn/webauthn"

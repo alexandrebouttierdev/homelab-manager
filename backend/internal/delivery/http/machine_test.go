@@ -7,8 +7,8 @@ import (
 	"strings"
 	"testing"
 
-	"homelab-manager/backend/ent/auditlog"
-	"homelab-manager/backend/internal/domain"
+	"monoops/backend/ent/auditlog"
+	"monoops/backend/internal/domain"
 
 	"github.com/go-chi/chi/v5"
 )
@@ -29,12 +29,12 @@ func TestPowerActionValidatesBeforeAnyChange(t *testing.T) {
 	router := chi.NewRouter()
 	router.Post("/api/v1/machine/power/{action}", powerActionHandler(nil))
 	cases := []struct{ action, body string }{
-		{"suspend", `{"confirmHostname":"homelab"}`},
-		{"Reboot", `{"confirmHostname":"homelab"}`},
+		{"suspend", `{"confirmHostname":"monoops"}`},
+		{"Reboot", `{"confirmHostname":"monoops"}`},
 		{"reboot", `{}`},
 		{"reboot", `{"confirmHostname":""}`},
 		{"reboot", `{"confirmHostname":"` + strings.Repeat("a", 254) + `"}`},
-		{"reboot", `{"confirmHostname":"homelab","force":true}`},
+		{"reboot", `{"confirmHostname":"monoops","force":true}`},
 	}
 	for _, c := range cases {
 		recorder := httptest.NewRecorder()
@@ -63,14 +63,14 @@ func TestPowerActionEndToEnd(t *testing.T) {
 		t.Fatalf("wrong host = %d %s, want 400 HOSTNAME_MISMATCH", response.Code, response.Body)
 	}
 	controller.err = domain.ErrPowerActionRefused
-	if response := call(router, http.MethodPost, "/api/v1/machine/power/reboot", `{"confirmHostname":"homelab"}`, admin); response.Code != http.StatusServiceUnavailable || errorCode(t, response) != "POWER_ACTION_REFUSED" {
+	if response := call(router, http.MethodPost, "/api/v1/machine/power/reboot", `{"confirmHostname":"monoops"}`, admin); response.Code != http.StatusServiceUnavailable || errorCode(t, response) != "POWER_ACTION_REFUSED" {
 		t.Fatalf("polkit refusal = %d %s, want 503 POWER_ACTION_REFUSED", response.Code, response.Body)
 	}
 	controller.err = nil
-	if response := call(router, http.MethodPost, "/api/v1/machine/power/reboot", `{"confirmHostname":"homelab"}`, admin); response.Code != http.StatusAccepted {
+	if response := call(router, http.MethodPost, "/api/v1/machine/power/reboot", `{"confirmHostname":"monoops"}`, admin); response.Code != http.StatusAccepted {
 		t.Fatalf("reboot = %d %s, want 202", response.Code, response.Body)
 	}
-	if response := call(router, http.MethodPost, "/api/v1/machine/power/poweroff", `{"confirmHostname":"homelab"}`, admin); response.Code != http.StatusConflict || errorCode(t, response) != "ACTION_IN_PROGRESS" {
+	if response := call(router, http.MethodPost, "/api/v1/machine/power/poweroff", `{"confirmHostname":"monoops"}`, admin); response.Code != http.StatusConflict || errorCode(t, response) != "ACTION_IN_PROGRESS" {
 		t.Fatalf("second request = %d %s, want 409 ACTION_IN_PROGRESS", response.Code, response.Body)
 	}
 	if len(controller.requested) != 2 {
@@ -86,7 +86,7 @@ func TestPowerActionEndToEnd(t *testing.T) {
 func TestPowerActionsDisabledByConfiguration(t *testing.T) {
 	router, _ := newTestRouter(t, nil)
 	admin := signIn(t, router, "admin", "admin-password-1")
-	if response := call(router, http.MethodPost, "/api/v1/machine/power/poweroff", `{"confirmHostname":"homelab"}`, admin); response.Code != http.StatusConflict || errorCode(t, response) != "POWER_ACTIONS_DISABLED" {
+	if response := call(router, http.MethodPost, "/api/v1/machine/power/poweroff", `{"confirmHostname":"monoops"}`, admin); response.Code != http.StatusConflict || errorCode(t, response) != "POWER_ACTIONS_DISABLED" {
 		t.Fatalf("disabled = %d %s, want 409 POWER_ACTIONS_DISABLED", response.Code, response.Body)
 	}
 }

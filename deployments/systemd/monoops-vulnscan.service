@@ -1,27 +1,27 @@
-# Homelab Manager: runs Grype on the package inventory written by the
+# MonoOps: runs Grype on the package inventory written by the
 # Manager (SPEC_ADMINISTRATION.md § 8 ter.2). Started only by the Manager
-# over D-Bus, allowed by deployments/polkit/50-homelab-manager-vulnscan.rules;
+# over D-Bus, allowed by deployments/polkit/50-monoops-vulnscan.rules;
 # never enabled. The commands are fixed: nothing from the Manager or a user
 # is added to them.
 #
 # To stop the daily download of the Grype database (D-10), run
-# "systemctl edit homelab-vulnscan.service" and add:
+# "systemctl edit monoops-vulnscan.service" and add:
 #   [Service]
 #   Environment=GRYPE_DB_AUTO_UPDATE=false
 # then import a database by hand (grype db import, see README).
 [Unit]
-Description=Homelab Manager vulnerability scan (Grype)
+Description=MonoOps vulnerability scan (Grype)
 Documentation=https://github.com/anchore/grype
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=oneshot
-User=homelab-vulnscan
-Group=homelab-vulnscan
-Environment=HOME=/var/cache/homelab-vulnscan
-Environment=XDG_CACHE_HOME=/var/cache/homelab-vulnscan
-Environment=GRYPE_DB_CACHE_DIR=/var/cache/homelab-vulnscan/db
+User=monoops-vulnscan
+Group=monoops-vulnscan
+Environment=HOME=/var/cache/monoops-vulnscan
+Environment=XDG_CACHE_HOME=/var/cache/monoops-vulnscan
+Environment=GRYPE_DB_CACHE_DIR=/var/cache/monoops-vulnscan/db
 Environment=GRYPE_DB_AUTO_UPDATE=true
 Environment=GRYPE_DB_VALIDATE_AGE=true
 # A database older than 5 days fails the scan instead of giving a
@@ -29,13 +29,13 @@ Environment=GRYPE_DB_VALIDATE_AGE=true
 Environment=GRYPE_DB_MAX_ALLOWED_BUILT_AGE=120h
 Environment=GRYPE_CHECK_FOR_APP_UPDATE=false
 # A result left by an earlier run must never be read as the new one.
-ExecStartPre=/usr/bin/rm -f /var/lib/homelab-vulnscan/result/result.json
-ExecStart=/usr/bin/grype sbom:/var/lib/homelab-vulnscan/inventory/inventory.json -o json --file /var/lib/homelab-vulnscan/result/result.json
+ExecStartPre=/usr/bin/rm -f /var/lib/monoops-vulnscan/result/result.json
+ExecStart=/usr/bin/grype sbom:/var/lib/monoops-vulnscan/inventory/inventory.json -o json --file /var/lib/monoops-vulnscan/result/result.json
 TimeoutStartSec=15min
 UMask=0027
-CacheDirectory=homelab-vulnscan
+CacheDirectory=monoops-vulnscan
 CacheDirectoryMode=0750
-ReadWritePaths=/var/lib/homelab-vulnscan/result
+ReadWritePaths=/var/lib/monoops-vulnscan/result
 # Lowest priority and bounded resources: the scan never competes with the
 # services of the machine.
 CPUWeight=idle

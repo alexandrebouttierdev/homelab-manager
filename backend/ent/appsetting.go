@@ -4,7 +4,7 @@ package ent
 
 import (
 	"fmt"
-	"homelab-manager/backend/ent/appsetting"
+	"monoops/backend/ent/appsetting"
 	"strings"
 	"time"
 

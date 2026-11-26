@@ -6,8 +6,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"homelab-manager/backend/ent/predicate"
-	"homelab-manager/backend/ent/securitypolicy"
+	"monoops/backend/ent/predicate"
+	"monoops/backend/ent/securitypolicy"
 	"time"
 
 	"entgo.io/ent/dialect/sql"

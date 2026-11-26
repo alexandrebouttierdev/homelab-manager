@@ -1,12 +1,12 @@
-# Homelab Manager: maintenance task "journal-vacuum" of the catalog
+# MonoOps: maintenance task "journal-vacuum" of the catalog
 # (decision D-1). The instance is the size the systemd journal is kept
-# under; the polkit rule lets homelab-manager start only the instances
+# under; the polkit rule lets monoops start only the instances
 # 256M, 512M, 1024M and 2048M, never another command.
 #
 # Install as root:root 0644 in /etc/systemd/system/ then run
 # "systemctl daemon-reload".
 [Unit]
-Description=Homelab Manager: keep the systemd journal under %i
+Description=MonoOps: keep the systemd journal under %i
 
 [Service]
 Type=oneshot

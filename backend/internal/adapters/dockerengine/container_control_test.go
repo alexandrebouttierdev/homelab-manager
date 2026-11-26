@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"homelab-manager/backend/internal/domain"
+	"monoops/backend/internal/domain"
 )
 
 type roundTripFunc func(*http.Request) (*http.Response, error)

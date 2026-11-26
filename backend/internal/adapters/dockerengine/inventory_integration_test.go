@@ -8,11 +8,11 @@ import (
 )
 
 // TestInventoryWithARealDocker reads the inventory through a real proxy
-// when HOMELAB_TEST_DOCKER_SOCKET names its socket; skipped otherwise.
+// when MONOOPS_TEST_DOCKER_SOCKET names its socket; skipped otherwise.
 func TestInventoryWithARealDocker(t *testing.T) {
-	socket := os.Getenv("HOMELAB_TEST_DOCKER_SOCKET")
+	socket := os.Getenv("MONOOPS_TEST_DOCKER_SOCKET")
 	if socket == "" {
-		t.Skip("HOMELAB_TEST_DOCKER_SOCKET is not set")
+		t.Skip("MONOOPS_TEST_DOCKER_SOCKET is not set")
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 	defer cancel()

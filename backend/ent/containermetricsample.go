@@ -5,8 +5,8 @@ package ent
 import (
 	"encoding/json"
 	"fmt"
-	"homelab-manager/backend/ent/container"
-	"homelab-manager/backend/ent/containermetricsample"
+	"monoops/backend/ent/container"
+	"monoops/backend/ent/containermetricsample"
 	"strings"
 	"time"
 

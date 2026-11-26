@@ -4,16 +4,16 @@ import (
 	"context"
 	"time"
 
-	"homelab-manager/backend/internal/domain"
-	"homelab-manager/backend/internal/ports"
+	"monoops/backend/internal/domain"
+	"monoops/backend/internal/ports"
 )
 
-// Defaults of the deployment (deployments/systemd/homelab-vulnscan.service,
-// deployments/tmpfiles/homelab-vulnscan.conf).
+// Defaults of the deployment (deployments/systemd/monoops-vulnscan.service,
+// deployments/tmpfiles/monoops-vulnscan.conf).
 const (
-	DefaultUnit          = "homelab-vulnscan.service"
-	DefaultInventoryPath = "/var/lib/homelab-vulnscan/inventory/inventory.json"
-	DefaultResultPath    = "/var/lib/homelab-vulnscan/result/result.json"
+	DefaultUnit          = "monoops-vulnscan.service"
+	DefaultInventoryPath = "/var/lib/monoops-vulnscan/inventory/inventory.json"
+	DefaultResultPath    = "/var/lib/monoops-vulnscan/result/result.json"
 	// DefaultTimeout leaves the unit its TimeoutStartSec=15min, plus the
 	// time systemd needs to stop it.
 	DefaultTimeout = 16 * time.Minute

@@ -5,11 +5,11 @@ package enttest
 import (
 	"context"
 
-	"homelab-manager/backend/ent"
+	"monoops/backend/ent"
 	// required by schema hooks.
-	_ "homelab-manager/backend/ent/runtime"
+	_ "monoops/backend/ent/runtime"
 
-	"homelab-manager/backend/ent/migrate"
+	"monoops/backend/ent/migrate"
 
 	"entgo.io/ent/dialect/sql/schema"
 )

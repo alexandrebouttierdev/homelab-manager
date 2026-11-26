@@ -9,7 +9,7 @@ import (
 	"strings"
 	"time"
 
-	"homelab-manager/backend/internal/domain"
+	"monoops/backend/internal/domain"
 
 	"github.com/spf13/viper"
 )
@@ -52,20 +52,20 @@ func LoadConfig() (Config, error) {
 	v.SetConfigName("manager")
 	v.SetConfigType("yaml")
 	// First match wins: system configuration, then a repository checkout.
-	v.AddConfigPath("/etc/homelab-manager")
+	v.AddConfigPath("/etc/monoops")
 	v.AddConfigPath("./deployments/config")
 	v.AddConfigPath(".")
-	v.SetEnvPrefix("HOMELAB")
+	v.SetEnvPrefix("MONOOPS")
 	v.SetEnvKeyReplacer(strings.NewReplacer(".", "_", "-", "_"))
 	v.AutomaticEnv()
 	v.SetDefault("http_address", ":8080")
-	v.SetDefault("database_path", "./data/homelab-manager.db")
+	v.SetDefault("database_path", "./data/monoops.db")
 	v.SetDefault("admin_username", "admin")
 	v.SetDefault("admin_password", "")
 	v.SetDefault("session_secure", false)
 	v.SetDefault("tls_cert_file", "")
 	v.SetDefault("tls_key_file", "")
-	v.SetDefault("docker_proxy_socket", "/run/homelab-docker-proxy/docker.sock")
+	v.SetDefault("docker_proxy_socket", "/run/monoops-docker-proxy/docker.sock")
 	v.SetDefault("web_root", "./frontend/dist")
 	v.SetDefault("system_collect_interval_seconds", 10)
 	v.SetDefault("docker_collect_interval_seconds", 15)
@@ -75,7 +75,7 @@ func LoadConfig() (Config, error) {
 	// deployments/polkit; both are off by default.
 	v.SetDefault("power_actions_enabled", false)
 	// Starting, stopping and restarting containers also need
-	// HOMELAB_DOCKER_PROXY_CONTAINER_ACTIONS in the proxy; both are off by
+	// MONOOPS_DOCKER_PROXY_CONTAINER_ACTIONS in the proxy; both are off by
 	// default (D-5).
 	v.SetDefault("docker_actions_enabled", false)
 	// Changing the host name, time zone and language also needs the polkit
@@ -83,23 +83,23 @@ func LoadConfig() (Config, error) {
 	v.SetDefault("system_preferences_enabled", false)
 	v.SetDefault("secrets_key_file", "")
 	// Package vulnerabilities (module V): files exchanged with the
-	// homelab-vulnscan.service unit, created by its tmpfiles.d entry.
+	// monoops-vulnscan.service unit, created by its tmpfiles.d entry.
 	v.SetDefault("vulnerability_scan_interval_hours", 24)
-	v.SetDefault("vulnscan_inventory_path", "/var/lib/homelab-vulnscan/inventory/inventory.json")
-	v.SetDefault("vulnscan_result_path", "/var/lib/homelab-vulnscan/result/result.json")
+	v.SetDefault("vulnscan_inventory_path", "/var/lib/monoops-vulnscan/inventory/inventory.json")
+	v.SetDefault("vulnscan_result_path", "/var/lib/monoops-vulnscan/result/result.json")
 	// Units the operators may start, stop, restart and reload; empty by
-	// default. HOMELAB_SYSTEMD_MANAGEABLE_UNITS separates them by spaces.
-	// They also need the rule printed by "homelab-manager polkit-rule".
+	// default. MONOOPS_SYSTEMD_MANAGEABLE_UNITS separates them by spaces.
+	// They also need the rule printed by "monoops polkit-rule".
 	v.SetDefault("systemd_manageable_units", []string{})
-	// Backups (phase 6): directories exchanged with homelab-backup@.service,
-	// created by deployments/tmpfiles/homelab-backup.conf.
-	v.SetDefault("backup_jobs_dir", "/var/lib/homelab-backup/jobs")
-	v.SetDefault("backup_runs_dir", "/var/lib/homelab-backup/runs")
+	// Backups (phase 6): directories exchanged with monoops-backup@.service,
+	// created by deployments/tmpfiles/monoops-backup.conf.
+	v.SetDefault("backup_jobs_dir", "/var/lib/monoops-backup/jobs")
+	v.SetDefault("backup_runs_dir", "/var/lib/monoops-backup/runs")
 	// WebAuthn: the domain name the browser shows (not an IP address) and
-	// the origins of the interface; HOMELAB_WEBAUTHN_ORIGINS separates them
+	// the origins of the interface; MONOOPS_WEBAUTHN_ORIGINS separates them
 	// by spaces. Without a domain name, passkeys and security keys are off.
 	v.SetDefault("webauthn_rp_id", "")
-	v.SetDefault("webauthn_rp_name", "Homelab Manager")
+	v.SetDefault("webauthn_rp_name", "MonoOps")
 	v.SetDefault("webauthn_origins", []string{})
 
 	if err := v.ReadInConfig(); err != nil {
@@ -152,7 +152,7 @@ func LoadConfig() (Config, error) {
 }
 
 // defaultAdminPassword is used only to create the administrator on a fresh
-// database when HOMELAB_ADMIN_PASSWORD is empty. It must be changed from the
+// database when MONOOPS_ADMIN_PASSWORD is empty. It must be changed from the
 // Settings page; an existing account is never reset to it.
 const defaultAdminPassword = "admin"
 
@@ -230,7 +230,7 @@ func (c Config) validateWebAuthn() error {
 	for _, origin := range c.WebAuthnOrigins {
 		parsed, err := url.Parse(origin)
 		if err != nil || parsed.Host == "" || (parsed.Path != "" && parsed.Path != "/") || parsed.RawQuery != "" || parsed.Fragment != "" || parsed.User != nil {
-			return fmt.Errorf("webauthn origin %q must be a scheme and a host, like https://homelab.example", origin)
+			return fmt.Errorf("webauthn origin %q must be a scheme and a host, like https://monoops.example", origin)
 		}
 		host := strings.ToLower(parsed.Hostname())
 		if host != c.WebAuthnRPID && !strings.HasSuffix(host, "."+c.WebAuthnRPID) {
@@ -245,7 +245,7 @@ func (c Config) validateWebAuthn() error {
 
 // secretsCredentialName is the systemd credential imported by the unit
 // (ImportCredential=), decrypted into $CREDENTIALS_DIRECTORY.
-const secretsCredentialName = "homelab-manager-secrets-key"
+const secretsCredentialName = "monoops-secrets-key"
 
 // SecretsKeyPath returns the file holding the master key of the secrets
 // box: the configured file, else the systemd credential, else "" (TOTP

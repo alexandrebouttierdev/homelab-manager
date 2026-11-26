@@ -91,7 +91,7 @@ describe('unit actions', () => {
     ).toEqual({ tone: 'success', message: 'nginx.service redémarrée (état : active).' })
     const refused = describeUnitAction(action({ state: 'failed', failure: 'not_allowed' }))
     expect(refused.tone).toBe('danger')
-    expect(refused.message).toContain('homelab-manager polkit-rule')
+    expect(refused.message).toContain('monoops polkit-rule')
     expect(describeUnitAction(action({ state: 'failed', failure: 'timeout' })).message).toContain(
       '90 secondes',
     )

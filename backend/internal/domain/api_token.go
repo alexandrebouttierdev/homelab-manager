@@ -17,7 +17,7 @@ import (
 
 // Bounds of the API tokens (SPEC_ADMINISTRATION.md § 3.5).
 const (
-	APITokenPrefix          = "hlm_"
+	APITokenPrefix          = "mop_"
 	apiTokenBytes           = 32
 	APITokenDisplayLength   = 12
 	MaxAPITokensPerUser     = 20
@@ -123,7 +123,7 @@ func (r APITokenRequest) Validate() (APITokenRequest, error) {
 	return r, nil
 }
 
-// NewAPITokenSecret returns a new token, "hlm_" and 32 random bytes in
+// NewAPITokenSecret returns a new token, "mop_" and 32 random bytes in
 // base64url, and the hash stored in its place.
 func NewAPITokenSecret() (string, string, error) {
 	random := make([]byte, apiTokenBytes)

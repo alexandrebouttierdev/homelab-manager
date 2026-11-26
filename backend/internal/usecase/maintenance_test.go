@@ -8,7 +8,7 @@ import (
 	"testing"
 	"time"
 
-	"homelab-manager/backend/internal/domain"
+	"monoops/backend/internal/domain"
 
 	"go.uber.org/zap"
 )
@@ -107,7 +107,7 @@ func TestMaintenanceRunsOnRequestWithItsUnit(t *testing.T) {
 	controller.mu.Lock()
 	calls := slices.Clone(controller.calls)
 	controller.mu.Unlock()
-	if !slices.Equal(calls, []string{"start homelab-journal-vacuum@1024M.service"}) {
+	if !slices.Equal(calls, []string{"start monoops-journal-vacuum@1024M.service"}) {
 		t.Fatalf("calls = %v", calls)
 	}
 	waitFor(t, func() bool { return len(audit.outcomes()) == 2 })

@@ -4,7 +4,7 @@ package ent
 
 import (
 	"fmt"
-	"homelab-manager/backend/ent/notificationchannel"
+	"monoops/backend/ent/notificationchannel"
 	"strings"
 	"time"
 

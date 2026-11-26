@@ -19,7 +19,7 @@ import (
 	"testing"
 	"time"
 
-	"homelab-manager/backend/internal/domain"
+	"monoops/backend/internal/domain"
 )
 
 // fakeSMTP is an in-memory SMTP server for one connection at a time. It

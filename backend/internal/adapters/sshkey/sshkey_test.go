@@ -22,12 +22,12 @@ func authorizedLine(t *testing.T, public any, comment string) string {
 
 func TestGenerateGivesAWorkingKeyPair(t *testing.T) {
 	var keys Keys
-	private, public, err := keys.Generate("homelab-manager-backup")
+	private, public, err := keys.Generate("monoops-backup")
 	if err != nil {
 		t.Fatal(err)
 	}
 	if !strings.HasPrefix(private, "-----BEGIN OPENSSH PRIVATE KEY-----") ||
-		!strings.HasPrefix(public, "ssh-ed25519 ") || !strings.HasSuffix(public, " homelab-manager-backup") {
+		!strings.HasPrefix(public, "ssh-ed25519 ") || !strings.HasSuffix(public, " monoops-backup") {
 		t.Fatalf("key pair = %q / %q", private[:40], public)
 	}
 	signer, err := ssh.ParsePrivateKey([]byte(private))
@@ -42,7 +42,7 @@ func TestGenerateGivesAWorkingKeyPair(t *testing.T) {
 	if err != nil || fingerprint != ssh.FingerprintSHA256(parsed) || !strings.HasPrefix(fingerprint, "SHA256:") {
 		t.Fatalf("fingerprint = %q, %v", fingerprint, err)
 	}
-	_, other, _ := keys.Generate("homelab-manager-backup")
+	_, other, _ := keys.Generate("monoops-backup")
 	if other == public {
 		t.Fatal("two generated keys are equal")
 	}

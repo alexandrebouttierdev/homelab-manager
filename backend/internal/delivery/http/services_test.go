@@ -10,9 +10,9 @@ import (
 
 	"go.uber.org/zap"
 
-	"homelab-manager/backend/internal/adapters/sqlite"
-	"homelab-manager/backend/internal/domain"
-	"homelab-manager/backend/internal/usecase"
+	"monoops/backend/internal/adapters/sqlite"
+	"monoops/backend/internal/domain"
+	"monoops/backend/internal/usecase"
 )
 
 // fakeUnits stands for the systemd adapter.

@@ -30,7 +30,7 @@ const (
 	actionTimeout = 75 * time.Second
 	// TooLargeHeader marks an answer refused because it exceeds
 	// maxResponseBytes, so the Manager can ask for fewer log lines.
-	TooLargeHeader = "X-Homelab-Too-Large"
+	TooLargeHeader = "X-MonoOps-Too-Large"
 )
 
 // dockerStreamTypes are the content types of a log answer: multiplexed for
@@ -47,7 +47,7 @@ var containerVerbs = map[string]bool{"start": true, "stop": true, "restart": tru
 // Options are the settings of the proxy.
 type Options struct {
 	// ContainerActions lets start, stop and restart through
-	// (HOMELAB_DOCKER_PROXY_CONTAINER_ACTIONS). Off by default: the proxy
+	// (MONOOPS_DOCKER_PROXY_CONTAINER_ACTIONS). Off by default: the proxy
 	// is then read-only.
 	ContainerActions bool
 }

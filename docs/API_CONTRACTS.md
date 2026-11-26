@@ -1,4 +1,4 @@
-# Contrats API — Homelab Manager
+# Contrats API — MonoOps
 
 Version 2.1 — 22 novembre 2026
 
@@ -144,7 +144,7 @@ Toutes les routes de supervision sont en lecture seule ; les seules écritures s
 - Limitation : 10 tentatives par minute et par adresse IP source, au-delà `429 RATE_LIMITED` (fenêtre fixe d'une minute, au plus 10 000 adresses suivies). Le compteur est partagé avec `POST /auth/login/second-factor` : une connexion en deux étapes compte deux tentatives.
 - Contrôle d'origine identique aux mutations (ci-dessous).
 
-**Cookie** — nom `homelab_session`, `HttpOnly`, `SameSite=Lax`, `Path=/`, `Secure` si TLS est activé ou `HOMELAB_SESSION_SECURE=true`. Durée de vie fixe de 12 heures, sans prolongation. Seul le SHA-256 du jeton (32 octets aléatoires) est stocké.
+**Cookie** — nom `monoops_session`, `HttpOnly`, `SameSite=Lax`, `Path=/`, `Secure` si TLS est activé ou `MONOOPS_SESSION_SECURE=true`. Durée de vie fixe de 12 heures, sans prolongation. Seul le SHA-256 du jeton (32 octets aléatoires) est stocké.
 
 **Session** — `GET /api/v1/auth/session` : `200 { "user": … }` (même objet que la connexion), sinon `401 SESSION_NOT_FOUND`, y compris pour un compte désactivé ou supprimé.
 
@@ -162,7 +162,7 @@ Toutes les routes de supervision sont en lecture seule ; les seules écritures s
 
 ### 3.1 Comptes et rôles
 
-Comptes de Homelab Manager uniquement : aucun compte Linux n'est lu ni modifié.
+Comptes de MonoOps uniquement : aucun compte Linux n'est lu ni modifié.
 
 **Rôles** — `viewer` : consultation et son propre mot de passe. `operator` : idem, plus l'acquittement des alertes et les silences (permission `alerts:operate`), le lancement d'un scan de vulnérabilités (`vulnerabilities:scan`) les actions sur les unités de la liste blanche (`services:manage`, § 4.7) et le lancement d'une sauvegarde (`backups:run`, § 4.10). `admin` : idem, plus `PUT /api/v1/settings/retention`, les routes `/api/v1/users`, la gestion des règles d'alerte (`alerts:manage`) et la configuration des sauvegardes (`backups:manage`). Un rôle insuffisant reçoit `403 FORBIDDEN`.
 
@@ -183,7 +183,7 @@ Comptes de Homelab Manager uniquement : aucun compte Linux n'est lu ni modifié.
 - `PATCH /api/v1/users/{userID}` avec au moins un champ parmi `{ "displayName", "role", "disabled" }` : succès `200 { "user": Compte }`. Désactiver un compte révoque ses sessions.
 - `DELETE /api/v1/users/{userID}` : `200 { "deleted": true }`. Les sessions du compte sont supprimées ; ses lignes d'audit sont conservées.
 - `POST /api/v1/users/{userID}/password` avec `{ "password": "..." }` (12 à 1 024 octets) : `200 { "user": Compte }` avec `mustChangePassword: true`. Le titulaire devra changer ce mot de passe à sa connexion suivante ; ses sessions sont révoquées et un verrouillage en cours est levé. Audité (`user`, UUID, `reset_password`). Sur son propre compte : `409 OWN_PASSWORD_RESET` (utiliser `POST /api/v1/auth/password`).
-- Compte initial : créé sans `HOMELAB_ADMIN_PASSWORD`, `admin` / `admin` a `mustChangePassword: true` ; au démarrage, un compte existant qui accepte encore ce mot de passe reçoit la même obligation.
+- Compte initial : créé sans `MONOOPS_ADMIN_PASSWORD`, `admin` / `admin` a `mustChangePassword: true` ; au démarrage, un compte existant qui accepte encore ce mot de passe reçoit la même obligation.
 - Le dernier administrateur actif ne peut être ni rétrogradé, ni désactivé, ni supprimé : `409 LAST_ADMIN`.
 - Chaque modification réussie écrit une ligne d'audit (`user`, UUID du compte, `create` / `update` / `delete`) dans la même transaction.
 
@@ -227,9 +227,9 @@ TOTP (RFC 6238 : HMAC-SHA-1, 6 chiffres, 30 s, ±1 période, un code n'est accep
 
 - **Réponse de la première étape** : `200 { "secondFactorRequired": true, "methods": ["webauthn", "totp", "recovery"], "expiresAt": "…" }`. `methods` liste ce que le compte peut utiliser : `totp` s'il a une application confirmée et que la clé maître est présente, `webauthn` s'il a au moins une clé et que WebAuthn est configuré, `recovery` toujours.
 - **Options d'une connexion par clé** — `POST /api/v1/auth/login/second-factor/webauthn`, sans corps, avec le cookie de défi : `200 { "options": { "publicKey": { "challenge", "rpId", "allowCredentials", "userVerification": "required", "timeout" } } }`. Un nouvel appel remplace la cérémonie précédente du défi. Défi absent ou expiré : `401 LOGIN_CHALLENGE_EXPIRED` ; aucune clé : `409 WEBAUTHN_KEY_NOT_FOUND` ; non configuré : `503 WEBAUTHN_UNAVAILABLE`. Même limitation par adresse et même contrôle d'origine que la connexion.
-- **Deuxième étape de connexion** — `POST /api/v1/auth/login/second-factor` avec `{ "method": "totp" | "recovery", "code": "123456" }` ou `{ "method": "webauthn", "response": { …réponse de navigator.credentials.get… } }` (`code` 1 à 64 octets ; espaces ignorés pour le TOTP, casse, espaces et tirets ignorés pour un code de secours) et le cookie de défi `homelab_login` (`HttpOnly`, `SameSite=Strict`, `Path=/api/v1/auth`, 5 minutes, 5 essais, gardé en mémoire : un redémarrage du Manager impose de ressaisir le mot de passe). Succès `200 { "user": … }`, cookie de session et méthode de session `password+totp`, `password+webauthn` ou `password+recovery`. Une cérémonie WebAuthn ne reçoit qu'une réponse : juste ou fausse, il faut redemander des options. La clé doit vérifier l'utilisateur (PIN, empreinte) ; un compteur de signatures qui recule (clé clonée) est refusé. Code ou réponse faux, ou réponse sans cérémonie : `401 INVALID_SECOND_FACTOR`, compté dans le verrouillage du compte (§ 3.2). Défi absent, expiré, épuisé ou compte devenu indisponible : `401 LOGIN_CHALLENGE_EXPIRED`. TOTP sans clé maître : `503 SECOND_FACTOR_UNAVAILABLE` ; clé sans WebAuthn configuré : `503 WEBAUTHN_UNAVAILABLE` (les codes de secours restent acceptés). Même limitation par adresse et même contrôle d'origine que la connexion.
+- **Deuxième étape de connexion** — `POST /api/v1/auth/login/second-factor` avec `{ "method": "totp" | "recovery", "code": "123456" }` ou `{ "method": "webauthn", "response": { …réponse de navigator.credentials.get… } }` (`code` 1 à 64 octets ; espaces ignorés pour le TOTP, casse, espaces et tirets ignorés pour un code de secours) et le cookie de défi `monoops_login` (`HttpOnly`, `SameSite=Strict`, `Path=/api/v1/auth`, 5 minutes, 5 essais, gardé en mémoire : un redémarrage du Manager impose de ressaisir le mot de passe). Succès `200 { "user": … }`, cookie de session et méthode de session `password+totp`, `password+webauthn` ou `password+recovery`. Une cérémonie WebAuthn ne reçoit qu'une réponse : juste ou fausse, il faut redemander des options. La clé doit vérifier l'utilisateur (PIN, empreinte) ; un compteur de signatures qui recule (clé clonée) est refusé. Code ou réponse faux, ou réponse sans cérémonie : `401 INVALID_SECOND_FACTOR`, compté dans le verrouillage du compte (§ 3.2). Défi absent, expiré, épuisé ou compte devenu indisponible : `401 LOGIN_CHALLENGE_EXPIRED`. TOTP sans clé maître : `503 SECOND_FACTOR_UNAVAILABLE` ; clé sans WebAuthn configuré : `503 WEBAUTHN_UNAVAILABLE` (les codes de secours restent acceptés). Même limitation par adresse et même contrôle d'origine que la connexion.
 - `GET /api/v1/auth/second-factor` : `200 { "enabled": false, "pending": false, "recoveryCodesRemaining": 0, "available": true, "keys": [Clé], "webauthnAvailable": true }`. `enabled` et `pending` concernent le TOTP ; `available` est faux quand la clé maître manque (§ 2.5 de la spécification), `webauthnAvailable` quand WebAuthn n'est pas configuré. Clé : `{ "id": "uuid", "name": "YubiKey bleue", "createdAt": "…", "lastUsedAt": "…" | null }` ; l'identifiant et la clé publique ne sortent pas du serveur.
-- `POST /api/v1/auth/second-factor/totp` avec `{ "password": "..." }` : `200 { "secret": "BASE32…", "uri": "otpauth://totp/Homelab%20Manager:alice?…", "qr": { "size": 29, "rows": ["1111111010…", …] } }`. `rows` décrit les modules du QR code (`1` = foncé), à dessiner par l'interface. Remplace un enrôlement en attente. Mot de passe faux : `401 INVALID_CREDENTIALS` ; déjà activé : `409 SECOND_FACTOR_ALREADY_ENABLED` ; sans clé maître : `503 SECOND_FACTOR_UNAVAILABLE`.
+- `POST /api/v1/auth/second-factor/totp` avec `{ "password": "..." }` : `200 { "secret": "BASE32…", "uri": "otpauth://totp/MonoOps:alice?…", "qr": { "size": 29, "rows": ["1111111010…", …] } }`. `rows` décrit les modules du QR code (`1` = foncé), à dessiner par l'interface. Remplace un enrôlement en attente. Mot de passe faux : `401 INVALID_CREDENTIALS` ; déjà activé : `409 SECOND_FACTOR_ALREADY_ENABLED` ; sans clé maître : `503 SECOND_FACTOR_UNAVAILABLE`.
 - `POST /api/v1/auth/second-factor/totp/confirm` avec `{ "code": "123456" }` : `200 { "recoveryCodes": ["k7pq-2mzx-b9ht", …] }` (10 codes, affichés cette seule fois). Code faux : `400 INVALID_SECOND_FACTOR` ; aucun enrôlement en attente : `409 NO_PENDING_ENROLLMENT`. Audité (`user`, UUID, `second_factor_enable`).
 - `POST /api/v1/auth/second-factor/webauthn` avec `{ "password" }` : `200 { "options": { "publicKey": { "challenge", "rp", "user", "pubKeyCredParams", "excludeCredentials", "authenticatorSelection": { "residentKey": "preferred", "userVerification": "required" }, "attestation": "none", "timeout" } } }`, à passer à `navigator.credentials.create`. Démarre un enregistrement valable 5 minutes, qui remplace le précédent du compte. Mot de passe faux : `401 INVALID_CREDENTIALS` ; 10 clés déjà : `409 TOO_MANY_WEBAUTHN_KEYS`.
 - `POST /api/v1/auth/second-factor/webauthn/confirm` avec `{ "name": "YubiKey bleue", "response": { …réponse de navigator.credentials.create… } }` : `201 { "key": Clé, "recoveryCodes": [...] }`. `name` 1 à 64 caractères, sans caractère de contrôle. `recoveryCodes` contient 10 codes nouveaux si le compte n'en avait plus aucun (premier second facteur), sinon `[]`. L'enregistrement ne reçoit qu'une réponse. Nom invalide : `400 VALIDATION_ERROR` ; réponse invalide (autre origine, autre défi, signature fausse, clé sans vérification de l'utilisateur) : `400 INVALID_WEBAUTHN_RESPONSE` ; pas d'enregistrement en cours ou expiré : `409 NO_PENDING_ENROLLMENT` ; clé déjà enregistrée, sur ce compte ou un autre : `409 WEBAUTHN_KEY_EXISTS` (le navigateur refuse déjà les clés du compte, listées dans `excludeCredentials`) ; 10 clés déjà : `409 TOO_MANY_WEBAUTHN_KEYS`. Audité (`user`, UUID, `webauthn_add`).
@@ -241,8 +241,8 @@ TOTP (RFC 6238 : HMAC-SHA-1, 6 chiffres, 30 s, ±1 période, un code n'est accep
 
 Jetons en lecture seule pour les scripts (SPEC_ADMINISTRATION.md § 3.5, phase 8A). Chaque compte gère ses jetons ; un administrateur liste et révoque ceux de tous.
 
-- **Usage** : en-tête `Authorization: Bearer hlm_<43 caractères>` sur une route `GET` (ou `HEAD`) de ses portées ; aucun cookie, aucun contrôle d'origine. Portées : `metrics:read` (`/api/v1/dashboard`, `/api/v1/host…`), `containers:read` (`/api/v1/containers…` sauf le journal d'un conteneur, `/api/v1/docker…`), `events:read` (`/api/v1/events`), `services:read` (`/api/v1/system/units…`, en lecture), `backups:read` (`/api/v1/backups/summary`, `/runs…`, `/snapshots`). **Portées d'action** (décision D-4) : `services:operate` ouvre `POST /api/v1/system/units/{unitName}/actions` (§ 4.7) et `containers:operate` `POST /api/v1/containers/{containerID}/actions` (§ 6.4), chacune avec la route `GET …/actions/last` correspondante ; ce sont les seules requêtes `POST` permises à un jeton. Le rôle du compte doit permettre l'action à la création du jeton (`403 TOKEN_SCOPE_NOT_ALLOWED` sinon : `operator` ou `admin`) et à chaque usage (`403 FORBIDDEN`, audité, si le compte a perdu ce rôle) ; la route applique ses propres contrôles (liste blanche, réglages, limite de 30 actions par minute du compte). Avant l'action, une ligne d'audit nomme le jeton (`api_token` / UUID du jeton / `act` / `requested`, même `requestId` que l'audit de l'action) ; sans écriture possible, rien n'est fait (`503 TOKEN_ACTION_NOT_AUDITED`). Toute autre route ou méthode : `403 TOKEN_SCOPE_DENIED`. Jeton inconnu, révoqué, expiré, ou compte désactivé ou supprimé : `401 TOKEN_INVALID`. Les lectures ne sont pas auditées ; `lastUsedAt` est écrit au plus une fois par minute.
-- `POST /api/v1/auth/tokens` avec `{ "name": "Home Assistant", "scopes": ["metrics:read"], "expiresInDays": 90 }` → `201 { "token": "hlm_…", "apiToken": Jeton }`, en-tête `Cache-Control: no-store` : le jeton n'est plus jamais renvoyé, seul son SHA-256 est stocké. `name` 1 à 100 caractères, au moins une portée, sans doublon, `expiresInDays` 1 à 365 (90 si absent ; sans expiration impossible). Plus de 20 jetons pour le compte : `409 TOO_MANY_TOKENS`. Portée d'action que le rôle ne permet pas : `403 TOKEN_SCOPE_NOT_ALLOWED`. Audité (`api_token` / UUID / `create`).
+- **Usage** : en-tête `Authorization: Bearer mop_<43 caractères>` sur une route `GET` (ou `HEAD`) de ses portées ; aucun cookie, aucun contrôle d'origine. Portées : `metrics:read` (`/api/v1/dashboard`, `/api/v1/host…`), `containers:read` (`/api/v1/containers…` sauf le journal d'un conteneur, `/api/v1/docker…`), `events:read` (`/api/v1/events`), `services:read` (`/api/v1/system/units…`, en lecture), `backups:read` (`/api/v1/backups/summary`, `/runs…`, `/snapshots`). **Portées d'action** (décision D-4) : `services:operate` ouvre `POST /api/v1/system/units/{unitName}/actions` (§ 4.7) et `containers:operate` `POST /api/v1/containers/{containerID}/actions` (§ 6.4), chacune avec la route `GET …/actions/last` correspondante ; ce sont les seules requêtes `POST` permises à un jeton. Le rôle du compte doit permettre l'action à la création du jeton (`403 TOKEN_SCOPE_NOT_ALLOWED` sinon : `operator` ou `admin`) et à chaque usage (`403 FORBIDDEN`, audité, si le compte a perdu ce rôle) ; la route applique ses propres contrôles (liste blanche, réglages, limite de 30 actions par minute du compte). Avant l'action, une ligne d'audit nomme le jeton (`api_token` / UUID du jeton / `act` / `requested`, même `requestId` que l'audit de l'action) ; sans écriture possible, rien n'est fait (`503 TOKEN_ACTION_NOT_AUDITED`). Toute autre route ou méthode : `403 TOKEN_SCOPE_DENIED`. Jeton inconnu, révoqué, expiré, ou compte désactivé ou supprimé : `401 TOKEN_INVALID`. Les lectures ne sont pas auditées ; `lastUsedAt` est écrit au plus une fois par minute.
+- `POST /api/v1/auth/tokens` avec `{ "name": "Home Assistant", "scopes": ["metrics:read"], "expiresInDays": 90 }` → `201 { "token": "mop_…", "apiToken": Jeton }`, en-tête `Cache-Control: no-store` : le jeton n'est plus jamais renvoyé, seul son SHA-256 est stocké. `name` 1 à 100 caractères, au moins une portée, sans doublon, `expiresInDays` 1 à 365 (90 si absent ; sans expiration impossible). Plus de 20 jetons pour le compte : `409 TOO_MANY_TOKENS`. Portée d'action que le rôle ne permet pas : `403 TOKEN_SCOPE_NOT_ALLOWED`. Audité (`api_token` / UUID / `create`).
 - `GET /api/v1/auth/tokens` → `{ "tokens": [Jeton], "scopes": [...] }`, les plus récents d'abord ; `?scope=all` (admin) : ceux de tous les comptes, sinon `403 FORBIDDEN` (audité). Jeton : `{ "id", "name", "prefix" (12 premiers caractères), "scopes", "username", "createdAt", "expiresAt", "lastUsedAt" }`.
 - `DELETE /api/v1/auth/tokens/{tokenID}` → `204` ; jeton d'un autre compte pour un non-administrateur, ou inconnu : `404 NOT_FOUND`. Audité (`api_token` / UUID / `revoke`).
 - Un jeton ne peut pas gérer les jetons : ces routes exigent une session.
@@ -252,7 +252,7 @@ Jetons en lecture seule pour les scripts (SPEC_ADMINISTRATION.md § 3.5, phase 8
 Décision D-14 (SPEC_ADMINISTRATION.md § 10) : un compte qui a enregistré une passkey peut se connecter sans son mot de passe, si la politique l'autorise (`allowPasskeyLogin`, faux par défaut) et que WebAuthn est configuré. La passkey vaut les deux facteurs : l'appareil et son code ou sa biométrie (vérification de l'utilisateur exigée).
 
 - `GET /api/v1/auth/login/passkey` (sans session) : `200 { "available": true | false }`, vrai si la politique l'autorise et que WebAuthn est configuré. La page de connexion n'affiche le bouton que dans ce cas.
-- `POST /api/v1/auth/login/passkey`, sans corps : `200 { "options": { "publicKey": { "challenge", "rpId", "userVerification": "required", "timeout" } } }`, sans `allowCredentials` (le navigateur propose les passkeys qu'il détient pour le site), et cookie de cérémonie `homelab_passkey` (`HttpOnly`, `SameSite=Strict`, `Path=/api/v1/auth/login/passkey`, 5 minutes, gardé en mémoire, 1 000 cérémonies en cours au plus, sinon `429 RATE_LIMITED`). Politique : `403 PASSKEY_LOGIN_DISABLED` ; WebAuthn non configuré : `503 WEBAUTHN_UNAVAILABLE`.
+- `POST /api/v1/auth/login/passkey`, sans corps : `200 { "options": { "publicKey": { "challenge", "rpId", "userVerification": "required", "timeout" } } }`, sans `allowCredentials` (le navigateur propose les passkeys qu'il détient pour le site), et cookie de cérémonie `monoops_passkey` (`HttpOnly`, `SameSite=Strict`, `Path=/api/v1/auth/login/passkey`, 5 minutes, gardé en mémoire, 1 000 cérémonies en cours au plus, sinon `429 RATE_LIMITED`). Politique : `403 PASSKEY_LOGIN_DISABLED` ; WebAuthn non configuré : `503 WEBAUTHN_UNAVAILABLE`.
 - `POST /api/v1/auth/login/passkey/finish` avec `{ "response": { …réponse de navigator.credentials.get… } }` (64 Kio au plus, sinon `400 VALIDATION_ERROR`) et le cookie de cérémonie, qui est effacé quel que soit le résultat : une cérémonie ne reçoit qu'une réponse. Le compte est celui du `userHandle` de la réponse (UUID du compte) ; la passkey doit lui appartenir, vérifier l'utilisateur, et son compteur de signatures ne doit pas reculer. Succès `200 { "user": … }`, cookie de session, méthode de session `passkey`, échecs de mot de passe remis à zéro. Refus : cérémonie absente, expirée ou déjà utilisée `401 PASSKEY_CEREMONY_EXPIRED` ; passkey inconnue ou invalide, compte désactivé ou verrouillé `401 INVALID_PASSKEY` (sans compter d'échec : le compte d'une réponse invalide n'est pas établi) ; compte qui doit changer son mot de passe `409 PASSKEY_PASSWORD_CHANGE` (il se connecte avec son mot de passe) ; politique désactivée entre-temps `403 PASSKEY_LOGIN_DISABLED`.
 - Les deux routes `POST` ont le contrôle d'origine et la limitation par adresse de `POST /api/v1/auth/login`, compteur partagé.
 
@@ -260,14 +260,14 @@ Décision D-14 (SPEC_ADMINISTRATION.md § 10) : un compte qui a enregistré une 
 
 ### 4.1 Santé
 
-`GET /health` : `200 { "status": "ok", "service": "homelab-manager", "timestamp": "...", "uptime": "12h0m0s" }` tant que le processus répond.
+`GET /health` : `200 { "status": "ok", "service": "monoops", "timestamp": "...", "uptime": "12h0m0s" }` tant que le processus répond.
 
 `GET /api/v1/health` :
 
 ```json
 {
   "status": "degraded",
-  "service": "homelab-manager",
+  "service": "monoops",
   "timestamp": "2026-11-21T20:58:00Z",
   "uptime": "12h0m0s",
   "database": "ok",
@@ -364,7 +364,7 @@ Réservé au rôle `admin` ; voir SPEC_ADMINISTRATION.md § 8 bis.
 
 `GET /api/v1/machine/power` : `200 { "enabled": false, "actions": ["reboot", "poweroff"] }`. `enabled` reflète le réglage de service `power_actions_enabled` (défaut `false`) ; la règle polkit, elle, n'est connue qu'au moment de la demande.
 
-`POST /api/v1/machine/power/{action}` avec `{ "confirmHostname": "homelab" }` (1 à 253 octets, espaces de bord ignorés, comparé exactement au nom d'hôte de la machine) :
+`POST /api/v1/machine/power/{action}` avec `{ "confirmHostname": "monoops" }` (1 à 253 octets, espaces de bord ignorés, comparé exactement au nom d'hôte de la machine) :
 
 - Succès `202 { "requested": true, "action": "reboot" }` : `systemd-logind` a accepté la demande ; le Manager s'arrête avec les autres services peu après. La réponse peut ne pas parvenir si l'arrêt est très rapide.
 - `400 HOSTNAME_MISMATCH` : confirmation différente du nom d'hôte. `409 POWER_ACTIONS_DISABLED` : réglage désactivé. `409 ACTION_IN_PROGRESS` : une demande a déjà été acceptée. `503 POWER_ACTION_REFUSED` : polkit ou logind refuse (règle absente, verrou d'inhibition, arrêt déjà en cours). `500 POWER_ACTION_FAILED` : bus système ou logind injoignable.
@@ -393,7 +393,7 @@ La chaîne de requête est analysée strictement : un curseur doit être encodé
 {
   "entries": [
     { "cursor": "s=…;i=…;b=…;m=…;t=…;x=…", "time": "2026-11-23T09:30:12.123456Z", "priority": 3,
-      "unit": "ssh.service", "identifier": "sshd", "pid": "812", "hostname": "homelab",
+      "unit": "ssh.service", "identifier": "sshd", "pid": "812", "hostname": "monoops",
       "bootId": "bbbb…", "message": "…", "truncated": false }
   ],
   "olderCursor": "s=…", "newerCursor": "s=…", "scanned": 201, "scanLimitReached": false, "skipped": 0
@@ -472,7 +472,7 @@ Lecture des unités systemd par D-Bus (SPEC_ADMINISTRATION.md § 5.1), ouverte �
 - `journal.entries` : les 50 entrées les plus récentes de l'unité, toutes priorités, de la plus récente à la plus ancienne, au format du § 4.6. `available: false` et `entries: []` si le journal ne peut pas être lu (`journalctl` absent ou en échec) ; le détail reste servi.
 - Erreurs : nom invalide `400 VALIDATION_ERROR` (un nom échappé par systemd, contenant `\`, est hors du motif : l'unité figure dans l'inventaire mais son détail est refusé) ; unité absente du dernier inventaire ou disparue `404 NOT_FOUND` ; aucun inventaire réussi ou systemd injoignable `503 SYSTEMD_UNAVAILABLE` ; autre échec de lecture `500 SYSTEMD_READ_FAILED`.
 
-**Actions** (SPEC_ADMINISTRATION.md § 5.2, phase 5) : `start`, `stop`, `restart` ou `reload` d'une unité de `manageableUnits`, par D-Bus (`StartUnit`, `StopUnit`, `RestartUnit`, `ReloadUnit`, mode `replace`, sans authentification interactive), autorisé par la règle polkit que génère `homelab-manager polkit-rule`. « Exécuter » un timer est un `start` du service qu'il déclenche, demandé par l'interface sur ce service.
+**Actions** (SPEC_ADMINISTRATION.md § 5.2, phase 5) : `start`, `stop`, `restart` ou `reload` d'une unité de `manageableUnits`, par D-Bus (`StartUnit`, `StopUnit`, `RestartUnit`, `ReloadUnit`, mode `replace`, sans authentification interactive), autorisé par la règle polkit que génère `monoops polkit-rule`. « Exécuter » un timer est un `start` du service qu'il déclenche, demandé par l'interface sur ce service.
 
 `POST /api/v1/system/units/{unitName}/actions` (`operator` ou `admin` ; jeton d'API : portée `services:operate`, § 3.6) avec `{ "action": "restart" }` → `202 { "action": Action }` (`state: running`). L'action se poursuit en arrière-plan : le Manager suit le job puis l'unité jusqu'à un état stable (ni `activating`, ni `deactivating`, ni `reloading`), 90 s au plus. Action :
 
@@ -574,7 +574,7 @@ Moteur d'alertes intégré (SPEC_ADMINISTRATION.md § 6), évalué toutes les 15
 ```json
 {
   "id": "uuid", "name": "Téléphone", "type": "ntfy", "enabled": true, "minSeverity": "warning", "renotifyMinutes": 30,
-  "settings": { "serverUrl": "https://ntfy.example.org", "topic": "homelab" },
+  "settings": { "serverUrl": "https://ntfy.example.org", "topic": "monoops" },
   "secrets": { "accessToken": { "defined": true, "fingerprint": "3f9a0c1b7e42" } },
   "lastSentAt": "2026-11-24T10:05:04Z", "lastErrorAt": null, "lastError": null, "lastErrorStatus": null,
   "createdAt": "2026-11-24T09:00:00Z", "updatedAt": "2026-11-24T09:00:00Z"
@@ -606,7 +606,7 @@ Moteur d'alertes intégré (SPEC_ADMINISTRATION.md § 6), évalué toutes les 15
 - Renotification : une fois par minute, une alerte `firing` (non acquittée), hors silence, dont le dernier message sur ce canal date d'au moins `renotifyMinutes` (à défaut, `lastNotifiedAt` ou `firedAt`) est renvoyée comme « toujours active ». Une alerte déclenchée pendant un silence est donc notifiée à la fin du silence si elle est toujours active et si le canal renotifie (`renotifyMinutes` > 0).
 - Chaque envoi : 10 s au plus, TLS 1.2 au moins avec certificat vérifié, aucune redirection suivie, réponse lue sur 64 Kio au plus puis ignorée. Un échec est noté sur le canal, sans nouvel essai ; la supervision n'en dépend pas.
 - Messages en français : titre `<machine> · <sévérité> · <règle>` (un seul élément) ou `<machine> · 2 déclenchées, 1 résolue`, puis un bloc par notification (événement, sévérité, règle ; cible, valeur et seuil ou état observé, durée). Telegram : `POST https://api.telegram.org/bot<jeton>/sendMessage` (4 096 caractères au plus). Discord : `POST` sur l'URL du webhook, mentions désactivées (2 000 caractères). Gotify : `POST <serverUrl>/message`, en-tête `X-Gotify-Key`, priorité 2, 5 ou 8. ntfy : publication JSON sur `<serverUrl>` (`topic`, `title`, `message`, `priority` 3, 4 ou 5), `Authorization: Bearer` avec un jeton. SMTP : `STARTTLS` exigé ou TLS immédiat, `AUTH PLAIN` avec un utilisateur, texte en `quoted-printable`, sujet encodé.
-- Webhook : `POST` JSON, `Content-Type: application/json`, `User-Agent: Homelab-Manager` :
+- Webhook : `POST` JSON, `Content-Type: application/json`, `User-Agent: MonoOps` :
 
 ```json
 {
@@ -622,11 +622,11 @@ Moteur d'alertes intégré (SPEC_ADMINISTRATION.md § 6), évalué toutes les 15
 }
 ```
 
-`event` : `firing`, `resolved` ou `reminder` ; `target` omet les champs vides ; `notifications` est vide pour un test (`test: true`) ; `omitted` compte les notifications retirées du message. Avec `signingSecret` : en-têtes `X-Homelab-Timestamp` (secondes Unix) et `X-Homelab-Signature: sha256=<hex>`, HMAC-SHA256 du secret sur `<timestamp>.<corps brut>`. Le récepteur recalcule la signature sur le corps reçu, la compare en temps constant et refuse un horodatage trop ancien (5 min par exemple).
+`event` : `firing`, `resolved` ou `reminder` ; `target` omet les champs vides ; `notifications` est vide pour un test (`test: true`) ; `omitted` compte les notifications retirées du message. Avec `signingSecret` : en-têtes `X-MonoOps-Timestamp` (secondes Unix) et `X-MonoOps-Signature: sha256=<hex>`, HMAC-SHA256 du secret sur `<timestamp>.<corps brut>`. Le récepteur recalcule la signature sur le corps reçu, la compare en temps constant et refuse un horodatage trop ancien (5 min par exemple).
 
 ### 4.9 Vulnérabilités des paquets
 
-Vulnérabilités connues des paquets système de la machine du Manager (SPEC_ADMINISTRATION.md § 8 ter), trouvées par Grype dans l'unité dédiée `homelab-vulnscan.service`. Une vulnérabilité listée est **identifiée**, pas mesurée comme exploitable. Sans base de données, ces routes répondent `503 VULNERABILITIES_UNAVAILABLE`.
+Vulnérabilités connues des paquets système de la machine du Manager (SPEC_ADMINISTRATION.md § 8 ter), trouvées par Grype dans l'unité dédiée `monoops-vulnscan.service`. Une vulnérabilité listée est **identifiée**, pas mesurée comme exploitable. Sans base de données, ces routes répondent `503 VULNERABILITIES_UNAVAILABLE`.
 
 **Scan** :
 
@@ -676,13 +676,13 @@ Vulnérabilités connues des paquets système de la machine du Manager (SPEC_ADM
 
 ### 4.10 Sauvegardes
 
-Sauvegardes chiffrées par restic (SPEC_ADMINISTRATION.md § 7, incréments 6A, 6B, 6C et 6D). restic ne s'exécute que dans l'unité root `homelab-backup@<opération>.service` (`init`, `backup`, `forget-prune`, `check`, `restore`, `snapshots`, `unlock`, `diff`, `copy`), démarrée par le Manager par D-Bus (règle polkit `50-homelab-manager-backup.rules`) ; le programme `homelab-backup-runner` y lit le fichier de travail écrit par le Manager, le valide de nouveau et lance restic sans shell. Une opération à la fois. Sans base de données : `503 BACKUPS_UNAVAILABLE` sur toutes les routes ; pendant le démarrage du Manager (avant que les exécutions laissées en cours par un arrêt soient closes) et pendant son arrêt, une demande d'opération reçoit aussi `503 BACKUPS_UNAVAILABLE`.
+Sauvegardes chiffrées par restic (SPEC_ADMINISTRATION.md § 7, incréments 6A, 6B, 6C et 6D). restic ne s'exécute que dans l'unité root `monoops-backup@<opération>.service` (`init`, `backup`, `forget-prune`, `check`, `restore`, `snapshots`, `unlock`, `diff`, `copy`), démarrée par le Manager par D-Bus (règle polkit `50-monoops-backup.rules`) ; le programme `monoops-backup-runner` y lit le fichier de travail écrit par le Manager, le valide de nouveau et lance restic sans shell. Une opération à la fois. Sans base de données : `503 BACKUPS_UNAVAILABLE` sur toutes les routes ; pendant le démarrage du Manager (avant que les exécutions laissées en cours par un arrêt soient closes) et pendant son arrêt, une demande d'opération reçoit aussi `503 BACKUPS_UNAVAILABLE`.
 
 `GET /api/v1/backups/config` (tous les rôles) :
 
 ```json
 {
-  "repository": { "type": "s3", "location": "https://s3.eu-central-003.backblazeb2.com/bucket/homelab" },
+  "repository": { "type": "s3", "location": "https://s3.eu-central-003.backblazeb2.com/bucket/monoops" },
   "initialized": true, "initializedAt": "2026-11-24T10:00:00Z",
   "credentials": { "password": true, "username": true, "secret": true },
   "secretsAvailable": true,
@@ -694,7 +694,7 @@ Sauvegardes chiffrées par restic (SPEC_ADMINISTRATION.md § 7, incréments 6A, 
   "check": { "enabled": true, "subsetPercent": 5 },
   "updatedAt": "2026-11-24T10:00:00Z", "updatedBy": "alice",
   "copy": {
-    "repository": { "type": "rest", "location": "https://nas.lan:8000/homelab" },
+    "repository": { "type": "rest", "location": "https://nas.lan:8000/monoops" },
     "initialized": true, "initializedAt": "2026-11-25T02:00:00Z",
     "credentials": { "password": true, "username": true, "secret": true },
     "afterBackup": true
@@ -713,7 +713,7 @@ Un dépôt SFTP (6D) :
     "hostKeyFingerprint": "SHA256:Qm9yZGVhdXgtc2FuZHdpY2g…"
   },
   "sshKey": {
-    "publicKey": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI… homelab-manager-backup",
+    "publicKey": "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAI… monoops-backup",
     "fingerprint": "SHA256:b2N0b2JyZS1ub3ZlbWJyZQ…", "createdAt": "2026-11-25T08:00:00Z"
   }
 }
@@ -729,17 +729,17 @@ Un dépôt SFTP (6D) :
 
 `PUT /api/v1/backups/config` (`admin`) remplace la configuration : mêmes champs, sans `initialized`, `credentials`, `secretsAvailable` ni `updated*`, plus `username` et `secret` (absents ou `null` : conservés ; `""` : supprimés) ; `retention` et `check` absents : conservés. Réponse : la configuration. Audité (`backup_config` / `local` / `update`) dans la même transaction.
 
-- Validation : sources absolues, propres (sans `..`, `//` ni `/` final), 50 au plus, sans doublon ; motifs d'exclusion d'une ligne, 500 au plus, 4 Kio chacun, syntaxe glob valide, sans `#` initial ; `excludeIfPresent` vide ou nom de fichier (`[A-Za-z0-9._-]`) ; `sqliteDatabases` (décision D-3) : 20 chemins absolus propres au plus, sans doublon ni chemin sous `/var/lib/homelab-backup/dumps`, absent de la requête : liste gardée ; champs inconnus refusés. Sinon `400 VALIDATION_ERROR`, le message nommant le champ.
-- **Copies SQLite** (décision D-3) : avant chaque sauvegarde, `homelab-backup-runner` copie chaque base de `sqliteDatabases` par `VACUUM INTO`, base ouverte en lecture seule (une transaction de lecture : copie cohérente même pendant les écritures de l'application, en mode WAL ou non), vérifie la copie (`PRAGMA quick_check`) et l'ajoute aux sources sous `/var/lib/homelab-backup/dumps/<chemin de la base>` ; les copies sont effacées après la sauvegarde. Un fichier absent, un lien symbolique, un fichier qui n'est pas une base SQLite ou une copie impossible n'arrêtent pas la sauvegarde : elle se termine en avertissement (`warning`), le message nommant chaque base.
+- Validation : sources absolues, propres (sans `..`, `//` ni `/` final), 50 au plus, sans doublon ; motifs d'exclusion d'une ligne, 500 au plus, 4 Kio chacun, syntaxe glob valide, sans `#` initial ; `excludeIfPresent` vide ou nom de fichier (`[A-Za-z0-9._-]`) ; `sqliteDatabases` (décision D-3) : 20 chemins absolus propres au plus, sans doublon ni chemin sous `/var/lib/monoops-backup/dumps`, absent de la requête : liste gardée ; champs inconnus refusés. Sinon `400 VALIDATION_ERROR`, le message nommant le champ.
+- **Copies SQLite** (décision D-3) : avant chaque sauvegarde, `monoops-backup-runner` copie chaque base de `sqliteDatabases` par `VACUUM INTO`, base ouverte en lecture seule (une transaction de lecture : copie cohérente même pendant les écritures de l'application, en mode WAL ou non), vérifie la copie (`PRAGMA quick_check`) et l'ajoute aux sources sous `/var/lib/monoops-backup/dumps/<chemin de la base>` ; les copies sont effacées après la sauvegarde. Un fichier absent, un lien symbolique, un fichier qui n'est pas une base SQLite ou une copie impossible n'arrêtent pas la sauvegarde : elle se termine en avertissement (`warning`), le message nommant chaque base.
 - Changer de dépôt remet `initialized` à `false` et efface le mot de passe : le nouveau dépôt doit être initialisé. Refusé pendant une opération : `409 BACKUP_IN_PROGRESS`. Modifier une clé sans clé du coffre : `503 SECRETS_UNAVAILABLE`. Un dépôt SFTP avant la génération de la clé SSH du Manager : `409 BACKUP_SSH_KEY_MISSING`.
 
 `POST /api/v1/backups/ssh-key` (`admin`, sans corps) → `200` la configuration, avec `sshKey`. Génère une nouvelle clé Ed25519 et remplace la précédente, qui ne sert plus : les sauvegardes SFTP échouent tant que la nouvelle clé publique n'est pas installée sur les serveurs. Audité (`backup_config` / `local` / `generate_ssh_key`). Sans clé du coffre : `503 SECRETS_UNAVAILABLE`.
 
 `POST /api/v1/backups/repository/init` (`admin`, sans corps) → `202 { "password": "…", "run": Exécution }`, en-tête `Cache-Control: no-store`. Le Manager génère le mot de passe du dépôt (32 octets aléatoires, base64url), le scelle dans le coffre et lance `restic init` ; le mot de passe n'est plus jamais renvoyé. Audité (`backup_config` / `local` / `init_repository`). Sans dépôt : `409 BACKUP_NOT_CONFIGURED` ; déjà initialisé : `409 BACKUP_ALREADY_INITIALIZED` ; opération en cours : `409 BACKUP_IN_PROGRESS` ; sans clé du coffre : `503 SECRETS_UNAVAILABLE`. `POST /api/v1/backups/repository/connect` (`admin`) avec `{ "password": "…" }` → `202 { "run": Exécution }` (`operation: snapshots`) : rattache un dépôt existant à l'emplacement configuré. Le mot de passe est scellé, restic liste les instantanés ; le dépôt devient `initialized` si la liste réussit (sinon `failure: restic_failed`, par exemple « wrong password », et l'administrateur recommence). Audité (`backup_config` / `local` / `connect_repository`). Mêmes erreurs que l'initialisation ; mot de passe vide `400 VALIDATION_ERROR`.
 
-`POST /api/v1/backups/operations` (`admin`) avec `{ "operation": "forget-prune" | "check" | "unlock" | "restore" | "restore-in-place" | "dump" | "diff" | "copy", "restore": { "snapshotId": "…", "include": ["/etc"], "dryRun": true }, "diff": { "from": "…", "to": "…" }, "dump": { "snapshotId": "…", "path": "/srv/app" } }` → `202 { "run": Exécution }`. `forget-prune` applique la politique de `retention`, même désactivée, pourvu qu'elle garde au moins un instantané ; `check` relit `check.subsetPercent` des données ; `unlock` supprime **tous** les verrous du dépôt (`restic unlock --remove-all`), à réserver au cas où une opération interrompue en a laissé ; `restore` exige `restore` : `snapshotId` (8 à 64 caractères hexadécimaux minuscules), `include` (chemins absolus propres, 50 au plus, vide pour tout l'instantané) et `dryRun`. La restauration `restore` écrit dans `/var/lib/homelab-backup/restore/<id de l'exécution>/` (0700, root) ; une simulation n'y laisse rien. **`restore-in-place`** (décision D-2) remet les chemins à leur emplacement d'origine : `include` obligatoire, aucun chemin égal à `/` ni dans, ou au-dessus de, `/bin`, `/boot`, `/dev`, `/efi`, `/etc`, `/lib*`, `/proc`, `/run`, `/sbin`, `/sys`, `/tmp`, `/usr`, `/var/lib/homelab-manager`, `/var/lib/homelab-backup`, `/var/cache/homelab-backup`, `/var/lib/homelab-vulnscan` (`400 VALIDATION_ERROR`). Une restauration réelle exige une simulation réussie des mêmes chemins (dans n'importe quel ordre) et du même instantané depuis moins de 30 minutes, utilisable une fois (`409 BACKUP_SIMULATION_REQUIRED`). Elle sauvegarde d'abord l'état actuel des chemins qui existent (instantané étiqueté `homelab-manager` et `before-restore`, `details.safetySnapshotId`), ne restaure rien si cette sauvegarde échoue, puis lance `restic restore --target / --overwrite if-changed` : les fichiers identiques ne sont pas touchés, aucun fichier absent de l'instantané n'est supprimé. `details` porte `inPlace: true`, `target: "/"`, les chiffres de restic. **`dump`** (D-2) exige `dump` : `snapshotId` et `path`, un chemin absolu propre de l'instantané ; `restic dump --archive tar` est compressé en `.tar.gz` dans `/var/lib/homelab-backup/archives/<id>.tar.gz` (0640, groupe du Manager), 4 Gio au plus (au-delà : échec, archive supprimée) ; seule l'archive de la dernière exécution `dump` est gardée. `details` porte `archivePath` et `archiveBytes`.
+`POST /api/v1/backups/operations` (`admin`) avec `{ "operation": "forget-prune" | "check" | "unlock" | "restore" | "restore-in-place" | "dump" | "diff" | "copy", "restore": { "snapshotId": "…", "include": ["/etc"], "dryRun": true }, "diff": { "from": "…", "to": "…" }, "dump": { "snapshotId": "…", "path": "/srv/app" } }` → `202 { "run": Exécution }`. `forget-prune` applique la politique de `retention`, même désactivée, pourvu qu'elle garde au moins un instantané ; `check` relit `check.subsetPercent` des données ; `unlock` supprime **tous** les verrous du dépôt (`restic unlock --remove-all`), à réserver au cas où une opération interrompue en a laissé ; `restore` exige `restore` : `snapshotId` (8 à 64 caractères hexadécimaux minuscules), `include` (chemins absolus propres, 50 au plus, vide pour tout l'instantané) et `dryRun`. La restauration `restore` écrit dans `/var/lib/monoops-backup/restore/<id de l'exécution>/` (0700, root) ; une simulation n'y laisse rien. **`restore-in-place`** (décision D-2) remet les chemins à leur emplacement d'origine : `include` obligatoire, aucun chemin égal à `/` ni dans, ou au-dessus de, `/bin`, `/boot`, `/dev`, `/efi`, `/etc`, `/lib*`, `/proc`, `/run`, `/sbin`, `/sys`, `/tmp`, `/usr`, `/var/lib/monoops`, `/var/lib/monoops-backup`, `/var/cache/monoops-backup`, `/var/lib/monoops-vulnscan` (`400 VALIDATION_ERROR`). Une restauration réelle exige une simulation réussie des mêmes chemins (dans n'importe quel ordre) et du même instantané depuis moins de 30 minutes, utilisable une fois (`409 BACKUP_SIMULATION_REQUIRED`). Elle sauvegarde d'abord l'état actuel des chemins qui existent (instantané étiqueté `monoops` et `before-restore`, `details.safetySnapshotId`), ne restaure rien si cette sauvegarde échoue, puis lance `restic restore --target / --overwrite if-changed` : les fichiers identiques ne sont pas touchés, aucun fichier absent de l'instantané n'est supprimé. `details` porte `inPlace: true`, `target: "/"`, les chiffres de restic. **`dump`** (D-2) exige `dump` : `snapshotId` et `path`, un chemin absolu propre de l'instantané ; `restic dump --archive tar` est compressé en `.tar.gz` dans `/var/lib/monoops-backup/archives/<id>.tar.gz` (0640, groupe du Manager), 4 Gio au plus (au-delà : échec, archive supprimée) ; seule l'archive de la dernière exécution `dump` est gardée. `details` porte `archivePath` et `archiveBytes`.
 
-`GET /api/v1/backups/runs/{runID}/archive` (`admin`) → `200` `application/gzip`, `Content-Disposition: attachment; filename="sauvegarde-<date>.tar.gz"`, `Cache-Control: no-store`. Exécution qui n'est pas un `dump` réussi, archive de plus de 24 heures ou remplacée par une suivante : `410 BACKUP_ARCHIVE_UNAVAILABLE` ; exécution inconnue `404 NOT_FOUND`. `diff` (6C) exige `diff` : `from` et `to`, deux identifiants d'instantanés différents (8 à 64 caractères hexadécimaux minuscules) ; `restic diff` compare `from` à `to`, 11 min au plus. `copy` (6C) copie les instantanés marqués `homelab-manager` absents du dépôt de copie, qui doit être prêt. Audité (`backup_run` / UUID / nom de l'opération). Autre opération, restauration ou diff invalide : `400 VALIDATION_ERROR` ; dépôt non prêt : `409 BACKUP_NOT_CONFIGURED` ou `BACKUP_NOT_INITIALIZED` ; dépôt de copie absent ou non prêt : `409 BACKUP_COPY_NOT_CONFIGURED` ou `BACKUP_COPY_NOT_INITIALIZED` ; opération en cours : `409 BACKUP_IN_PROGRESS`.
+`GET /api/v1/backups/runs/{runID}/archive` (`admin`) → `200` `application/gzip`, `Content-Disposition: attachment; filename="sauvegarde-<date>.tar.gz"`, `Cache-Control: no-store`. Exécution qui n'est pas un `dump` réussi, archive de plus de 24 heures ou remplacée par une suivante : `410 BACKUP_ARCHIVE_UNAVAILABLE` ; exécution inconnue `404 NOT_FOUND`. `diff` (6C) exige `diff` : `from` et `to`, deux identifiants d'instantanés différents (8 à 64 caractères hexadécimaux minuscules) ; `restic diff` compare `from` à `to`, 11 min au plus. `copy` (6C) copie les instantanés marqués `monoops` absents du dépôt de copie, qui doit être prêt. Audité (`backup_run` / UUID / nom de l'opération). Autre opération, restauration ou diff invalide : `400 VALIDATION_ERROR` ; dépôt non prêt : `409 BACKUP_NOT_CONFIGURED` ou `BACKUP_NOT_INITIALIZED` ; dépôt de copie absent ou non prêt : `409 BACKUP_COPY_NOT_CONFIGURED` ou `BACKUP_COPY_NOT_INITIALIZED` ; opération en cours : `409 BACKUP_IN_PROGRESS`.
 
 `PUT /api/v1/backups/copy` (`admin`) avec `{ "repository": { "type", "location", "hostKey" }, "username": "…" | null, "secret": "…" | null, "afterBackup": true }` → `200` la configuration. Définit le dépôt de copie : mêmes règles d'emplacement et de clés que le dépôt principal (`username` et `secret` absents ou `null` : conservés, `""` : supprimés). Il doit différer du dépôt principal ; deux dépôts S3 doivent partager la même clé d'accès, restic n'en prenant qu'une pour une copie. Sinon `400 VALIDATION_ERROR`, le message nommant `copy.location`, `copy.hostKey` ou `copy.username`. Un dépôt de copie SFTP utilise la même clé SSH du Manager (sans elle : `409 BACKUP_SSH_KEY_MISSING`). Changer d'emplacement efface son mot de passe et le remet à initialiser ; changer seulement sa clé d'hôte, non. Sans dépôt principal : `409 BACKUP_NOT_CONFIGURED` ; pendant une opération : `409 BACKUP_IN_PROGRESS` ; modifier une clé sans clé du coffre : `503 SECRETS_UNAVAILABLE`. Audité (`backup_config` / `local` / `update_copy`). `POST /api/v1/backups/copy/remove` (`admin`) → `200` la configuration, `copy: null` : le Manager oublie le dépôt de copie et son mot de passe, les données restent en place ; sans dépôt de copie `409 BACKUP_COPY_NOT_CONFIGURED`. Audité (`remove_copy`).
 
@@ -771,7 +771,7 @@ Exécution :
 
 `GET /api/v1/backups/runs?limit=50` (tous les rôles, `limit` de 1 à 200, défaut 50) → `{ "runs": [Exécution] }`, les plus récentes d'abord ; conservées un an. `GET /api/v1/backups/runs/{runID}` → `{ "run": Exécution }` ; inconnue `404 NOT_FOUND` ; identifiant invalide `400 VALIDATION_ERROR`.
 
-`GET /api/v1/backups/snapshots` (tous les rôles) → `{ "snapshots": [{ "id", "shortId", "time", "hostname", "paths", "tags", "totalFiles", "totalBytes", "dataAdded" }] }` : instantanés du dépôt marqués `homelab-manager`, les plus récents d'abord, 500 au plus, relus après chaque sauvegarde réussie (`totalFiles`, `totalBytes` et `dataAdded` valent 0 si restic ne les a pas enregistrés).
+`GET /api/v1/backups/snapshots` (tous les rôles) → `{ "snapshots": [{ "id", "shortId", "time", "hostname", "paths", "tags", "totalFiles", "totalBytes", "dataAdded" }] }` : instantanés du dépôt marqués `monoops`, les plus récents d'abord, 500 au plus, relus après chaque sauvegarde réussie (`totalFiles`, `totalBytes` et `dataAdded` valent 0 si restic ne les a pas enregistrés).
 
 `GET /api/v1/backups/summary` (tous les rôles) → `{ "configured": true, "initialized": true, "running": Exécution | null, "lastRun": Exécution | null, "lastSuccess": Exécution | null, "lastCheck": Exécution | null, "lastCopy": Exécution | null, "nextRunAt": "…" | null }`. `lastRun` et `lastSuccess` ne portent que sur les sauvegardes, `lastCheck` est la dernière vérification réussie, `lastCopy` la dernière copie, réussie ou non ; `nextRunAt` : prochaine sauvegarde planifiée, `null` si la planification est désactivée ou si le dépôt n'est pas prêt.
 
@@ -822,14 +822,14 @@ Décision D-6 (SPEC_ADMINISTRATION.md § 10). Lues et changées par D-Bus auprè
 {
   "enabled": false,
   "localeEditable": false,
-  "preferences": { "hostname": "homelab", "timezone": "Europe/Paris", "locale": "fr_FR.UTF-8" },
+  "preferences": { "hostname": "monoops", "timezone": "Europe/Paris", "locale": "fr_FR.UTF-8" },
   "timezones": ["Africa/Abidjan", "…", "UTC"]
 }
 ```
 
 - `hostname` : nom statique (à défaut, nom courant) ; `timezone` : fuseau de la base tz ; `locale` : valeur de `LANG` (vide si elle n'est pas définie). `timezones` : fuseaux connus de la machine (`ListTimezones`), triés, 1 000 au plus, vide si la liste est illisible.
 - `localeEditable` vaut `false` quand la distribution interdit à systemd de changer la langue : Debian livre `/usr/share/dbus-1/system.d/systemd-localed-read-only.conf`, qui refuse `SetLocale` à tout compte, root compris ; la langue se change alors par `dpkg-reconfigure locales`, hors du Manager.
-- `enabled` reflète `system_preferences_enabled` (défaut `false`) ; la règle polkit `deployments/polkit/50-homelab-manager-system.rules` n'est connue qu'au moment d'un changement.
+- `enabled` reflète `system_preferences_enabled` (défaut `false`) ; la règle polkit `deployments/polkit/50-monoops-system.rules` n'est connue qu'au moment d'un changement.
 - Services injoignables : `503 SYSTEM_PREFERENCES_UNAVAILABLE`.
 
 `PUT /api/v1/system/preferences` (`admin`) avec `{ "hostname": "nas", "timezone": "UTC", "locale": "en_US.UTF-8" }` (les trois champs, tels qu'ils doivent être) → `200`, même corps que la lecture, plus `"changed": ["hostname", "timezone"]`.
@@ -840,9 +840,9 @@ Décision D-6 (SPEC_ADMINISTRATION.md § 10). Lues et changées par D-Bus auprè
 
 ### 4.13 Tâches de maintenance
 
-Décision D-1 (SPEC_ADMINISTRATION.md § 10) : un catalogue fixe de tâches que le Manager planifie lui-même, à la place de l'édition de Cron (règle 3). Aucune commande n'est stockée ni transmise : chaque tâche démarre par D-Bus une unité fournie, autorisée par la règle polkit `deployments/polkit/50-homelab-manager-maintenance.rules` (verbe `start` sur ces unités seules).
+Décision D-1 (SPEC_ADMINISTRATION.md § 10) : un catalogue fixe de tâches que le Manager planifie lui-même, à la place de l'édition de Cron (règle 3). Aucune commande n'est stockée ni transmise : chaque tâche démarre par D-Bus une unité fournie, autorisée par la règle polkit `deployments/polkit/50-monoops-maintenance.rules` (verbe `start` sur ces unités seules).
 
-Catalogue : `journal-vacuum`, « Nettoyage du journal système », qui démarre `homelab-journal-vacuum@<taille>M.service` (`journalctl --vacuum-size=<taille>M`) ; tailles 256, 512, 1 024 ou 2 048 Mio.
+Catalogue : `journal-vacuum`, « Nettoyage du journal système », qui démarre `monoops-journal-vacuum@<taille>M.service` (`journalctl --vacuum-size=<taille>M`) ; tailles 256, 512, 1 024 ou 2 048 Mio.
 
 `GET /api/v1/maintenance/tasks` (tous les rôles ; pas de jeton) → `200` :
 
@@ -852,7 +852,7 @@ Catalogue : `journal-vacuum`, « Nettoyage du journal système », qui démarre 
     "kind": "journal-vacuum",
     "schedule": { "enabled": false, "frequency": "weekly", "weekday": 0, "time": "04:00" },
     "maxSizeMiB": 512, "sizes": [256, 512, 1024, 2048],
-    "unit": "homelab-journal-vacuum@512M.service",
+    "unit": "monoops-journal-vacuum@512M.service",
     "running": false, "nextRunAt": null,
     "lastRun": { "at": "2026-11-25T04:00:00Z", "origin": "schedule", "succeeded": true, "message": null },
     "updatedAt": null, "updatedBy": null
@@ -1066,7 +1066,7 @@ Décision D-5 (SPEC_ADMINISTRATION.md § 10). Ni `exec`, ni suppression, ni `kil
 - Le proxy refuse une réponse de plus de 8 Mio : le Manager redemande alors un quart des lignes, trois fois au plus, et renvoie `truncated: true` (les lignes les plus anciennes manquent).
 - Le journal n'est pas filtré : il contient ce que l'application écrit. Conteneur inconnu `404 NOT_FOUND` ; conteneur supprimé `409 CONTAINER_REMOVED` ; proxy ou Docker injoignable `503 DOCKER_UNAVAILABLE`.
 
-**Actions** — `GET /api/v1/docker/container-actions` → `200 { "enabled": false, "actions": ["start", "stop", "restart"] }`. `enabled` reflète le réglage `docker_actions_enabled` (défaut `false`) ; le proxy doit aussi les autoriser (`HOMELAB_DOCKER_PROXY_CONTAINER_ACTIONS=true`), ce qui n'est connu qu'au moment de l'action.
+**Actions** — `GET /api/v1/docker/container-actions` → `200 { "enabled": false, "actions": ["start", "stop", "restart"] }`. `enabled` reflète le réglage `docker_actions_enabled` (défaut `false`) ; le proxy doit aussi les autoriser (`MONOOPS_DOCKER_PROXY_CONTAINER_ACTIONS=true`), ce qui n'est connu qu'au moment de l'action.
 
 `POST /api/v1/containers/{containerID}/actions` (`operator`, `admin`) avec `{ "action": "start" | "stop" | "restart" }` → `202 { "action": Action }`. La demande est auditée (`container` / nom / verbe / `requested`) avant d'être transmise à Docker, puis son résultat (`success` ou `failure`). Elle est suivie en arrière-plan (90 s au plus) ; Docker applique le délai d'arrêt du conteneur (10 s par défaut) avant de le tuer. Un conteneur déjà démarré ou déjà arrêté est un succès.
 

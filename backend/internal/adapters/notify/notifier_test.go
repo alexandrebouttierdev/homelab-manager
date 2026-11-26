@@ -15,7 +15,7 @@ import (
 	"testing"
 	"time"
 
-	"homelab-manager/backend/internal/domain"
+	"monoops/backend/internal/domain"
 
 	"github.com/google/uuid"
 )
@@ -149,7 +149,7 @@ func TestNtfyPublishesJSONWithAnOptionalToken(t *testing.T) {
 		if token != "" {
 			secrets[domain.SecretAccessToken] = token
 		}
-		if err := notifier.Send(context.Background(), channel(domain.ChannelNtfy, domain.ChannelSettings{ServerURL: server.URL, Topic: "homelab"}), secrets, "nas", batch()); err != nil {
+		if err := notifier.Send(context.Background(), channel(domain.ChannelNtfy, domain.ChannelSettings{ServerURL: server.URL, Topic: "monoops"}), secrets, "nas", batch()); err != nil {
 			t.Fatalf("Send() = %v", err)
 		}
 		request := handler.only(t)
@@ -158,7 +158,7 @@ func TestNtfyPublishesJSONWithAnOptionalToken(t *testing.T) {
 		if token != "" {
 			wantAuth = "Bearer " + token
 		}
-		if body["topic"] != "homelab" || body["priority"] != float64(5) || request.header.Get("Authorization") != wantAuth {
+		if body["topic"] != "monoops" || body["priority"] != float64(5) || request.header.Get("Authorization") != wantAuth {
 			t.Fatalf("request = %v %s", request.header, request.body)
 		}
 	}
@@ -174,8 +174,8 @@ func TestWebhookIsSignedWhenItHasASecret(t *testing.T) {
 		t.Fatalf("Send() = %v", err)
 	}
 	request := handler.only(t)
-	timestamp := request.header.Get("X-Homelab-Timestamp")
-	if timestamp != strconv.FormatInt(sendAt.Unix(), 10) || request.header.Get("X-Homelab-Signature") != domain.SignWebhook([]byte(secret), sendAt.Unix(), request.body) {
+	timestamp := request.header.Get("X-MonoOps-Timestamp")
+	if timestamp != strconv.FormatInt(sendAt.Unix(), 10) || request.header.Get("X-MonoOps-Signature") != domain.SignWebhook([]byte(secret), sendAt.Unix(), request.body) {
 		t.Fatalf("headers = %v", request.header)
 	}
 	if body := decode(t, request.body); body["version"] != float64(1) || body["host"] != "nas" {
@@ -186,7 +186,7 @@ func TestWebhookIsSignedWhenItHasASecret(t *testing.T) {
 	if err := notifier.Send(context.Background(), channel(domain.ChannelWebhook, domain.ChannelSettings{URL: server.URL}), nil, "nas", batch()); err != nil {
 		t.Fatal(err)
 	}
-	if unsigned.only(t).header.Get("X-Homelab-Signature") != "" {
+	if unsigned.only(t).header.Get("X-MonoOps-Signature") != "" {
 		t.Fatal("a webhook without secret is signed")
 	}
 }

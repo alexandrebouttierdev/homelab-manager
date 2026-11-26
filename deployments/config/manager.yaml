@@ -1,41 +1,41 @@
 http_address: ":8080"
-database_path: "/var/lib/homelab-manager/homelab-manager.db"
+database_path: "/var/lib/monoops/monoops.db"
 tls_cert_file: ""
 tls_key_file: ""
-docker_proxy_socket: "/run/homelab-docker-proxy/docker.sock"
-web_root: "/opt/homelab-manager/frontend/dist"
+docker_proxy_socket: "/run/monoops-docker-proxy/docker.sock"
+web_root: "/opt/monoops/frontend/dist"
 system_collect_interval_seconds: 10
 docker_collect_interval_seconds: 15
 docker_discovery_interval_seconds: 30
 metrics_retention_days: 7
 # Redémarrer et éteindre la machine depuis l'interface : exige aussi la règle
-# polkit deployments/polkit/50-homelab-manager-power.rules (voir README).
+# polkit deployments/polkit/50-monoops-power.rules (voir README).
 power_actions_enabled: false
 # Démarrer, arrêter et redémarrer un conteneur depuis sa page (D-5) : le proxy
-# Docker doit aussi les autoriser (HOMELAB_DOCKER_PROXY_CONTAINER_ACTIONS).
+# Docker doit aussi les autoriser (MONOOPS_DOCKER_PROXY_CONTAINER_ACTIONS).
 docker_actions_enabled: false
 # Nom de la machine, fuseau horaire et langue modifiables depuis les Paramètres
-# (D-6) : exige aussi la règle polkit deployments/polkit/50-homelab-manager-system.rules.
+# (D-6) : exige aussi la règle polkit deployments/polkit/50-monoops-system.rules.
 system_preferences_enabled: false
 # Clé maître du coffre de secrets (TOTP). Vide : la clé importée par systemd
-# (ImportCredential=homelab-manager-secrets-key, voir README).
+# (ImportCredential=monoops-secrets-key, voir README).
 secrets_key_file: ""
 # Passkeys et clés FIDO2 (phase 8B) : nom de domaine de l'interface (pas une
 # adresse IP) et ses adresses exactes en HTTPS. Vide : WebAuthn désactivé.
 webauthn_rp_id: ""
-webauthn_rp_name: "Homelab Manager"
+webauthn_rp_name: "MonoOps"
 webauthn_origins: []
 # Vulnérabilités des paquets (module V) : intervalle des scans automatiques
-# (6 à 168 h) et fichiers échangés avec l'unité homelab-vulnscan.service
-# (créés par deployments/tmpfiles/homelab-vulnscan.conf, voir README).
+# (6 à 168 h) et fichiers échangés avec l'unité monoops-vulnscan.service
+# (créés par deployments/tmpfiles/monoops-vulnscan.conf, voir README).
 vulnerability_scan_interval_hours: 24
-vulnscan_inventory_path: "/var/lib/homelab-vulnscan/inventory/inventory.json"
-vulnscan_result_path: "/var/lib/homelab-vulnscan/result/result.json"
+vulnscan_inventory_path: "/var/lib/monoops-vulnscan/inventory/inventory.json"
+vulnscan_result_path: "/var/lib/monoops-vulnscan/result/result.json"
 # Services système (phase 5) : unités que les opérateurs peuvent démarrer,
 # arrêter, redémarrer ou recharger. Vide par défaut. Après chaque changement,
-# régénérer la règle polkit : homelab-manager polkit-rule (voir README).
+# régénérer la règle polkit : monoops polkit-rule (voir README).
 systemd_manageable_units: []
-# Sauvegardes (phase 6) : répertoires échangés avec homelab-backup@.service,
-# créés par deployments/tmpfiles/homelab-backup.conf (voir README).
-backup_jobs_dir: "/var/lib/homelab-backup/jobs"
-backup_runs_dir: "/var/lib/homelab-backup/runs"
+# Sauvegardes (phase 6) : répertoires échangés avec monoops-backup@.service,
+# créés par deployments/tmpfiles/monoops-backup.conf (voir README).
+backup_jobs_dir: "/var/lib/monoops-backup/jobs"
+backup_runs_dir: "/var/lib/monoops-backup/runs"

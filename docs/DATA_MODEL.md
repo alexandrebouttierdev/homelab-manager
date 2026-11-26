@@ -1,4 +1,4 @@
-# Modèle de données — Homelab Manager
+# Modèle de données — MonoOps
 
 Version 2.1 — 22 novembre 2026
 
@@ -9,7 +9,7 @@ Modèle logique d'Ent et SQLite. Il décrit un hôte unique et ses conteneurs lo
 ### User
 - UUID, identifiant de connexion unique (motif `^[a-z0-9._-]{1,64}$` pour un compte créé depuis l'interface), nom affiché, hash du mot de passe (Argon2id), timestamps.
 - `role` : `viewer`, `operator` ou `admin` (contrainte `CHECK`). `disabled_at` : NULL si le compte est actif. `must_change_password` : vrai pour un compte créé par un administrateur, jusqu'à ce que son titulaire choisisse son mot de passe. `last_login_at`, `last_login_ip` : dernière connexion réussie.
-- Comptes de Homelab Manager uniquement, jamais des comptes Linux. Le compte initial est créé administrateur ; la migration `003_user_accounts.sql` a promu administrateurs les comptes existants. Aucun mot de passe en clair.
+- Comptes de MonoOps uniquement, jamais des comptes Linux. Le compte initial est créé administrateur ; la migration `003_user_accounts.sql` a promu administrateurs les comptes existants. Aucun mot de passe en clair.
 - Suppression : les sessions du compte sont supprimées dans la même transaction ; les lignes d'audit, qui désignent l'acteur par son identifiant texte, sont conservées.
 
 ### Session

@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"homelab-manager/backend/internal/domain"
+	"monoops/backend/internal/domain"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -97,7 +97,7 @@ func TestAPITokenAuthenticate(t *testing.T) {
 	if _, _, err := tokens.Authenticate(context.Background(), secret); !errors.Is(err, domain.ErrAPITokenUnauthorized) {
 		t.Fatalf("expired token = %v", err)
 	}
-	if _, _, err := tokens.Authenticate(context.Background(), "hlm_nope"); !errors.Is(err, domain.ErrAPITokenUnauthorized) {
+	if _, _, err := tokens.Authenticate(context.Background(), "mop_nope"); !errors.Is(err, domain.ErrAPITokenUnauthorized) {
 		t.Fatalf("malformed token = %v", err)
 	}
 	other := domain.User{ID: uuid.New(), Username: "olivia", Role: domain.RoleOperator}

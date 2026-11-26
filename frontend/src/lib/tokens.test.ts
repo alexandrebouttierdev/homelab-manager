@@ -5,7 +5,7 @@ import { tokenExpiry, tokenScopeLabel, tokenScopeOptions } from './tokens'
 const token: ApiToken = {
   id: 't',
   name: 'ha',
-  prefix: 'hlm_abcdefgh',
+  prefix: 'mop_abcdefgh',
   scopes: ['metrics:read'],
   username: 'vera',
   createdAt: '2026-11-24T10:00:00Z',

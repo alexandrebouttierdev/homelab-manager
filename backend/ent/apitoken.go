@@ -5,7 +5,7 @@ package ent
 import (
 	"encoding/json"
 	"fmt"
-	"homelab-manager/backend/ent/apitoken"
+	"monoops/backend/ent/apitoken"
 	"strings"
 	"time"
 

@@ -5,8 +5,8 @@ import (
 	"fmt"
 	"sync"
 
-	"homelab-manager/backend/internal/domain"
-	"homelab-manager/backend/internal/ports"
+	"monoops/backend/internal/domain"
+	"monoops/backend/internal/ports"
 )
 
 // SecurityUsecase keeps the security policy in memory, so that every

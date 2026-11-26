@@ -4,7 +4,7 @@ package ent
 
 import (
 	"fmt"
-	"homelab-manager/backend/ent/recoverycode"
+	"monoops/backend/ent/recoverycode"
 	"strings"
 	"time"
 

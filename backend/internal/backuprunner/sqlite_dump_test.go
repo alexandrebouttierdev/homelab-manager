@@ -9,7 +9,7 @@ import (
 	"strings"
 	"testing"
 
-	"homelab-manager/backend/internal/domain"
+	"monoops/backend/internal/domain"
 )
 
 // openWAL opens a database in WAL mode, as most applications do.

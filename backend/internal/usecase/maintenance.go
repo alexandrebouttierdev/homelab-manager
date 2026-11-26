@@ -7,8 +7,8 @@ import (
 	"sync"
 	"time"
 
-	"homelab-manager/backend/internal/domain"
-	"homelab-manager/backend/internal/ports"
+	"monoops/backend/internal/domain"
+	"monoops/backend/internal/ports"
 
 	"go.uber.org/zap"
 )
@@ -247,9 +247,9 @@ func maintenanceFailure(err error) string {
 	}
 	switch actionErr.Failure {
 	case domain.ActionNotAllowed:
-		return "polkit a refusé : installez la règle 50-homelab-manager-maintenance.rules"
+		return "polkit a refusé : installez la règle 50-monoops-maintenance.rules"
 	case domain.ActionNotFound:
-		return "unité absente : installez homelab-journal-vacuum@.service"
+		return "unité absente : installez monoops-journal-vacuum@.service"
 	case domain.ActionUnitFailed:
 		return "l'unité a échoué : consultez son journal"
 	case domain.ActionTimeout:

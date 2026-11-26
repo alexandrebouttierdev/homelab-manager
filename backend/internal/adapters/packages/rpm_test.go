@@ -11,7 +11,7 @@ import (
 	"strings"
 	"testing"
 
-	"homelab-manager/backend/internal/domain"
+	"monoops/backend/internal/domain"
 )
 
 // rpmTag is one tag of a header written by encodeRPMHeader.

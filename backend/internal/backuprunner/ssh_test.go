@@ -16,9 +16,9 @@ import (
 	"testing"
 	"time"
 
-	"homelab-manager/backend/internal/adapters/sshkey"
-	"homelab-manager/backend/internal/backupjob"
-	"homelab-manager/backend/internal/domain"
+	"monoops/backend/internal/adapters/sshkey"
+	"monoops/backend/internal/backupjob"
+	"monoops/backend/internal/domain"
 
 	"golang.org/x/crypto/ssh"
 )
@@ -105,7 +105,7 @@ func TestSFTPGivesSSHTheManagerKeyAndThePinnedHostKeysOnly(t *testing.T) {
 		!strings.Contains(env, "RESTIC_FROM_REPOSITORY=sftp://backup@nas.lan:2222//srv/restic\n") {
 		t.Fatalf("env = %s", env)
 	}
-	if left, _ := filepath.Glob(filepath.Join(f.config.TempDir, "homelab-ssh-*")); len(left) != 0 {
+	if left, _ := filepath.Glob(filepath.Join(f.config.TempDir, "monoops-ssh-*")); len(left) != 0 {
 		t.Fatalf("the SSH directory stays: %v", left)
 	}
 }

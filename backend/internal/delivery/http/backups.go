@@ -13,8 +13,8 @@ import (
 	"github.com/go-chi/chi/v5/middleware"
 	"github.com/google/uuid"
 
-	"homelab-manager/backend/internal/domain"
-	"homelab-manager/backend/internal/usecase"
+	"monoops/backend/internal/domain"
+	"monoops/backend/internal/usecase"
 )
 
 // backupRepositoryDTO locates a repository. hostKey is the pinned host key

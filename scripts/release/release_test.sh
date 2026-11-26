@@ -43,7 +43,7 @@ commit "Merge without convention"
 expect "commit outside the convention" "4.0.1"
 
 notes=$("$here/notes.sh" 4.0.1 https://github.com/example/repo)
-for want in "## Homelab Manager v4.0.1" "### Autres changements" "- Merge without convention (" \
+for want in "## MonoOps v4.0.1" "### Autres changements" "- Merge without convention (" \
   "Différences : https://github.com/example/repo/compare/v4.0.0...v4.0.1"; do
   if ! grep -qF -- "$want" <<<"$notes"; then
     echo "FAIL notes: missing '$want'" >&2

@@ -3,7 +3,7 @@
 package systemmetricsample
 
 import (
-	"homelab-manager/backend/ent/predicate"
+	"monoops/backend/ent/predicate"
 	"time"
 
 	"entgo.io/ent/dialect/sql"

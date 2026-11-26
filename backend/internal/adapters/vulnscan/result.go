@@ -8,7 +8,7 @@ import (
 	"os"
 	"time"
 
-	"homelab-manager/backend/internal/domain"
+	"monoops/backend/internal/domain"
 )
 
 // maxResultBytes bounds the Grype result read by the Manager.

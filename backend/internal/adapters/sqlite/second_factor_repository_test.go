@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"homelab-manager/backend/ent/auditlog"
-	"homelab-manager/backend/internal/domain"
+	"monoops/backend/ent/auditlog"
+	"monoops/backend/internal/domain"
 
 	"github.com/google/uuid"
 )

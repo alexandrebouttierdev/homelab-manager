@@ -13,7 +13,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"homelab-manager/backend/ent"
+	"monoops/backend/ent"
 
 	"entgo.io/ent/dialect"
 	entsql "entgo.io/ent/dialect/sql"

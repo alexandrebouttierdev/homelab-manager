@@ -99,7 +99,7 @@ func TestJournalEntryFromRecord(t *testing.T) {
 		"_SYSTEMD_UNIT":        "ssh.service",
 		"_COMM":                "sshd",
 		"_PID":                 "812",
-		"_HOSTNAME":            "homelab",
+		"_HOSTNAME":            "monoops",
 		"MESSAGE":              strings.Repeat("é", MaxJournalMessageBytes),
 	}
 	entry, ok := JournalEntryFrom(record)
@@ -127,8 +127,8 @@ func TestJournalEntryFromRecord(t *testing.T) {
 }
 
 func TestJournalShortLine(t *testing.T) {
-	entry := JournalEntry{Time: time.Date(2026, 11, 23, 9, 0, 0, 0, time.UTC), Hostname: "homelab", Identifier: "sshd", PID: "812", Message: "first\nsecond"}
-	if got, want := entry.ShortLine(), "2026-11-23T09:00:00Z homelab sshd[812]: first\n    second"; got != want {
+	entry := JournalEntry{Time: time.Date(2026, 11, 23, 9, 0, 0, 0, time.UTC), Hostname: "monoops", Identifier: "sshd", PID: "812", Message: "first\nsecond"}
+	if got, want := entry.ShortLine(), "2026-11-23T09:00:00Z monoops sshd[812]: first\n    second"; got != want {
 		t.Fatalf("ShortLine() = %q, want %q", got, want)
 	}
 	if got := (JournalEntry{Time: entry.Time, Message: "kernel"}).ShortLine(); got != "2026-11-23T09:00:00Z -: kernel" {

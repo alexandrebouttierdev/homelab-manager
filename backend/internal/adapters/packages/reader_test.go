@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"homelab-manager/backend/internal/domain"
+	"monoops/backend/internal/domain"
 )
 
 func writeFile(t *testing.T, root, name, content string) {

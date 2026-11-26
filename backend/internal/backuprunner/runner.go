@@ -1,5 +1,5 @@
-// Package backuprunner is homelab-backup-runner, the program that
-// homelab-backup@.service runs as root (SPEC_ADMINISTRATION.md § 7.1). It
+// Package backuprunner is monoops-backup-runner, the program that
+// monoops-backup@.service runs as root (SPEC_ADMINISTRATION.md § 7.1). It
 // reads the job the Manager wrote, validates it again, translates it into
 // restic arguments by a fixed schema and runs restic without a shell. No
 // value of the job becomes an option: sources follow "--", exclusions go
@@ -24,8 +24,8 @@ import (
 	"strings"
 	"time"
 
-	"homelab-manager/backend/internal/backupjob"
-	"homelab-manager/backend/internal/domain"
+	"monoops/backend/internal/backupjob"
+	"monoops/backend/internal/domain"
 )
 
 // Exit codes of restic (restic 0.17 and later).
@@ -68,8 +68,8 @@ type Config struct {
 
 func Defaults() Config {
 	return Config{
-		JobsDir: "/var/lib/homelab-backup/jobs", RunsDir: "/var/lib/homelab-backup/runs",
-		CacheDir: "/var/cache/homelab-backup", TempDir: os.TempDir(), Restic: "/usr/bin/restic",
+		JobsDir: "/var/lib/monoops-backup/jobs", RunsDir: "/var/lib/monoops-backup/runs",
+		CacheDir: "/var/cache/monoops-backup", TempDir: os.TempDir(), Restic: "/usr/bin/restic",
 		Path: "/usr/sbin:/usr/bin:/sbin:/bin", RestoreRoot: domain.BackupRestoreRoot, DumpRoot: domain.BackupDumpRoot,
 		InPlaceRoot: "/", ArchiveRoot: domain.BackupArchiveRoot, Now: time.Now,
 	}

@@ -6,7 +6,7 @@ import (
 	"testing"
 	"time"
 
-	"homelab-manager/backend/internal/domain"
+	"monoops/backend/internal/domain"
 
 	"github.com/google/uuid"
 )
@@ -99,7 +99,7 @@ func TestSilencesAreBounded(t *testing.T) {
 func notificationChannel(name string) domain.NotificationChannel {
 	return domain.NotificationChannel{
 		ID: uuid.New(), Name: name, Type: domain.ChannelNtfy, Enabled: true, MinSeverity: domain.AlertWarning, RenotifyMinutes: 30,
-		Settings:      domain.ChannelSettings{ServerURL: "https://ntfy.example.org", Topic: "homelab"},
+		Settings:      domain.ChannelSettings{ServerURL: "https://ntfy.example.org", Topic: "monoops"},
 		SealedSecrets: "v1.sealed", SecretNames: []string{domain.SecretAccessToken}, CreatedAt: alertAt, UpdatedAt: alertAt,
 	}
 }
@@ -115,7 +115,7 @@ func TestNotificationChannelsAreStoredWithTheirAudit(t *testing.T) {
 		t.Fatalf("CreateNotificationChannel: %v", err)
 	}
 	stored, err := repository.NotificationChannel(ctx, channel.ID)
-	if err != nil || stored.Settings.Topic != "homelab" || stored.SealedSecrets != "v1.sealed" || len(stored.SecretNames) != 1 ||
+	if err != nil || stored.Settings.Topic != "monoops" || stored.SealedSecrets != "v1.sealed" || len(stored.SecretNames) != 1 ||
 		stored.MinSeverity != domain.AlertWarning || stored.RenotifyMinutes != 30 || stored.LastSentAt != nil {
 		t.Fatalf("NotificationChannel() = (%+v, %v)", stored, err)
 	}

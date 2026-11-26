@@ -1,5 +1,5 @@
 -- Several Manager accounts with roles (SPEC_ADMINISTRATION.md § 3.1-3.2).
--- These are Homelab Manager accounts only, never Linux accounts.
+-- These are MonoOps accounts only, never Linux accounts.
 -- Before this migration the only account was the administrator, so every
 -- existing row becomes an administrator.
 ALTER TABLE users ADD COLUMN display_name TEXT NOT NULL DEFAULT '';

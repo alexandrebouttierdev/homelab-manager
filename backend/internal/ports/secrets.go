@@ -1,6 +1,6 @@
 package ports
 
-import "homelab-manager/backend/internal/domain"
+import "monoops/backend/internal/domain"
 
 // SecretBox encrypts the secrets the Manager must reuse
 // (SPEC_ADMINISTRATION.md § 2.5). The associated data binds a sealed value

@@ -1,12 +1,12 @@
-# Homelab Manager: runs one restic operation for the Manager
+# MonoOps: runs one restic operation for the Manager
 # (SPEC_ADMINISTRATION.md § 7.1): init, backup, forget-prune, check,
-# restore (into /var/lib/homelab-backup/restore/<run>), snapshots, unlock,
+# restore (into /var/lib/monoops-backup/restore/<run>), snapshots, unlock,
 # diff, copy (to the copy repository). Started
 # only by the Manager over D-Bus, allowed by
-# deployments/polkit/50-homelab-manager-backup.rules; never enabled.
-# homelab-backup-runner reads the job the Manager wrote in
-# /var/lib/homelab-backup/jobs, validates it again and runs restic without a
-# shell; the result goes to /var/lib/homelab-backup/runs.
+# deployments/polkit/50-monoops-backup.rules; never enabled.
+# monoops-backup-runner reads the job the Manager wrote in
+# /var/lib/monoops-backup/jobs, validates it again and runs restic without a
+# shell; the result goes to /var/lib/monoops-backup/runs.
 #
 # An SFTP repository needs the ssh client (openssh-client): restic starts
 # it with the key of the Manager and the pinned host keys, written by the
@@ -16,27 +16,27 @@
 # It runs as root to read every source an administrator chose. It can write
 # only its cache, its results and the usual mount points of a backup disk
 # or share (/mnt, /media, /srv, /var/backups). For a local repository
-# elsewhere, run "systemctl edit homelab-backup@.service" and add:
+# elsewhere, run "systemctl edit monoops-backup@.service" and add:
 #   [Service]
 #   ReadWritePaths=/path/of/the/repository
 [Unit]
-Description=Homelab Manager backup operation %i (restic)
+Description=MonoOps backup operation %i (restic)
 Documentation=https://restic.readthedocs.io/
 After=network-online.target
 Wants=network-online.target
 
 [Service]
 Type=oneshot
-ExecStart=/usr/local/bin/homelab-backup-runner %i
+ExecStart=/usr/local/bin/monoops-backup-runner %i
 TimeoutStartSec=6h
 UMask=0027
-CacheDirectory=homelab-backup
+CacheDirectory=monoops-backup
 CacheDirectoryMode=0700
-ReadWritePaths=/var/lib/homelab-backup/runs /var/lib/homelab-backup/jobs /var/lib/homelab-backup/restore
+ReadWritePaths=/var/lib/monoops-backup/runs /var/lib/monoops-backup/jobs /var/lib/monoops-backup/restore
 # Consistent copies of the SQLite databases made before a backup (D-3).
-ReadWritePaths=/var/lib/homelab-backup/dumps
+ReadWritePaths=/var/lib/monoops-backup/dumps
 # Archive of the last dump run, read by the Manager's group (D-2).
-ReadWritePaths=/var/lib/homelab-backup/archives
+ReadWritePaths=/var/lib/monoops-backup/archives
 ReadWritePaths=-/mnt -/media -/srv -/var/backups
 # Low priority: a backup never competes with the services of the machine.
 CPUWeight=idle

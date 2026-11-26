@@ -1,19 +1,19 @@
 [Unit]
 Description=Restricted Docker API proxy
-Requires=homelab-docker-proxy.socket
-After=homelab-docker-proxy.socket
+Requires=monoops-docker-proxy.socket
+After=monoops-docker-proxy.socket
 
 [Service]
 Type=simple
-User=homelab-docker-proxy
-Group=homelab-docker-proxy
+User=monoops-docker-proxy
+Group=monoops-docker-proxy
 SupplementaryGroups=docker
-ExecStart=/usr/local/bin/homelab-docker-proxy
-Environment=HOMELAB_DOCKER_ENGINE_SOCKET=/var/run/docker.sock
+ExecStart=/usr/local/bin/monoops-docker-proxy
+Environment=MONOOPS_DOCKER_ENGINE_SOCKET=/var/run/docker.sock
 # true laisse passer le démarrage, l'arrêt et le redémarrage d'un conteneur
 # (D-5) ; le Manager doit aussi avoir docker_actions_enabled. Lecture seule par
 # défaut.
-Environment=HOMELAB_DOCKER_PROXY_CONTAINER_ACTIONS=false
+Environment=MONOOPS_DOCKER_PROXY_CONTAINER_ACTIONS=false
 Restart=on-failure
 RestartSec=3
 NoNewPrivileges=true

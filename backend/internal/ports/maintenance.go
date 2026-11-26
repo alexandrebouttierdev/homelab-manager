@@ -3,7 +3,7 @@ package ports
 import (
 	"context"
 
-	"homelab-manager/backend/internal/domain"
+	"monoops/backend/internal/domain"
 )
 
 // MaintenanceStore keeps the settings and the last run of the tasks of the

@@ -12,13 +12,13 @@ import (
 	"sync"
 	"time"
 
-	"homelab-manager/backend/internal/domain"
-	"homelab-manager/backend/internal/usecase"
+	"monoops/backend/internal/domain"
+	"monoops/backend/internal/usecase"
 
 	"github.com/go-chi/chi/v5/middleware"
 )
 
-const sessionCookieName = "homelab_session"
+const sessionCookieName = "monoops_session"
 
 type sessionUserKey struct{}
 
@@ -204,7 +204,7 @@ func requireSession(auth *usecase.AuthUsecase, tokens *usecase.APITokenUsecase) 
 				writeError(w, r, http.StatusServiceUnavailable, "AUTH_UNAVAILABLE", "Authentication is unavailable.")
 				return
 			}
-			// An API token authenticates a script: Authorization: Bearer hlm_….
+			// An API token authenticates a script: Authorization: Bearer mop_….
 			if header := r.Header.Get("Authorization"); header != "" {
 				secret, ok := strings.CutPrefix(header, "Bearer ")
 				if !ok || tokens == nil {

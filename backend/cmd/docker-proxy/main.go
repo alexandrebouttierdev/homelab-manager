@@ -11,7 +11,7 @@ import (
 	"syscall"
 	"time"
 
-	"homelab-manager/backend/internal/dockerproxy"
+	"monoops/backend/internal/dockerproxy"
 
 	"go.uber.org/zap"
 )
@@ -35,15 +35,15 @@ func main() {
 	}
 	defer listener.Close()
 
-	engineSocket := os.Getenv("HOMELAB_DOCKER_ENGINE_SOCKET")
+	engineSocket := os.Getenv("MONOOPS_DOCKER_ENGINE_SOCKET")
 	if engineSocket == "" {
 		engineSocket = "/var/run/docker.sock"
 	}
 	// Start, stop and restart are refused unless the administrator turns
 	// them on here and in the Manager (docker_actions_enabled).
-	actions, err := strconv.ParseBool(envOr("HOMELAB_DOCKER_PROXY_CONTAINER_ACTIONS", "false"))
+	actions, err := strconv.ParseBool(envOr("MONOOPS_DOCKER_PROXY_CONTAINER_ACTIONS", "false"))
 	if err != nil {
-		logger.Fatal("HOMELAB_DOCKER_PROXY_CONTAINER_ACTIONS must be true or false", zap.Error(err))
+		logger.Fatal("MONOOPS_DOCKER_PROXY_CONTAINER_ACTIONS must be true or false", zap.Error(err))
 	}
 	proxy := dockerproxy.NewWithOptions(engineSocket, dockerproxy.Options{ContainerActions: actions})
 	if actions {

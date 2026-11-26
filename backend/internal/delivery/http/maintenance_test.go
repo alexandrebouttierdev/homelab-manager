@@ -7,9 +7,9 @@ import (
 	"sync"
 	"testing"
 
-	"homelab-manager/backend/internal/adapters/sqlite"
-	"homelab-manager/backend/internal/domain"
-	"homelab-manager/backend/internal/usecase"
+	"monoops/backend/internal/adapters/sqlite"
+	"monoops/backend/internal/domain"
+	"monoops/backend/internal/usecase"
 
 	"go.uber.org/zap"
 )
@@ -49,7 +49,7 @@ func TestMaintenanceRoutes(t *testing.T) {
 
 	list := call(router, http.MethodGet, "/api/v1/maintenance/tasks", "", operator)
 	if list.Code != http.StatusOK || !strings.Contains(list.Body.String(), `"kind":"journal-vacuum"`) ||
-		!strings.Contains(list.Body.String(), `"sizes":[256,512,1024,2048]`) || !strings.Contains(list.Body.String(), `"unit":"homelab-journal-vacuum@512M.service"`) {
+		!strings.Contains(list.Body.String(), `"sizes":[256,512,1024,2048]`) || !strings.Contains(list.Body.String(), `"unit":"monoops-journal-vacuum@512M.service"`) {
 		t.Fatalf("list = %d %s", list.Code, list.Body)
 	}
 	body := `{"schedule":{"enabled":true,"frequency":"daily","weekday":0,"time":"02:30"},"maxSizeMiB":1024}`
@@ -80,7 +80,7 @@ func TestMaintenanceRoutes(t *testing.T) {
 	units.mu.Lock()
 	calls := strings.Join(units.calls, ",")
 	units.mu.Unlock()
-	if calls != "start homelab-journal-vacuum@1024M.service" {
+	if calls != "start monoops-journal-vacuum@1024M.service" {
 		t.Fatalf("calls = %s", calls)
 	}
 	audit := call(router, http.MethodGet, "/api/v1/audit?targetType=maintenance_task", "", admin)

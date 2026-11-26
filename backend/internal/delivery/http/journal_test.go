@@ -14,9 +14,9 @@ import (
 
 	"go.uber.org/zap"
 
-	"homelab-manager/backend/internal/domain"
-	"homelab-manager/backend/internal/ports"
-	"homelab-manager/backend/internal/usecase"
+	"monoops/backend/internal/domain"
+	"monoops/backend/internal/ports"
+	"monoops/backend/internal/usecase"
 )
 
 const testBoot = "bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb"
@@ -46,7 +46,7 @@ func newFakeJournal() *fakeJournal {
 			"_SYSTEMD_UNIT":        "ssh.service",
 			"SYSLOG_IDENTIFIER":    "sshd",
 			"_PID":                 "42",
-			"_HOSTNAME":            "homelab",
+			"_HOSTNAME":            "monoops",
 			"MESSAGE":              "message " + strconv.Itoa(i),
 			"_CMDLINE":             "sshd --password=hunter2",
 		})
@@ -235,7 +235,7 @@ func TestJournalExport(t *testing.T) {
 		t.Fatalf("log export = %d %v", response.Code, response.Header())
 	}
 	lines := strings.Split(strings.TrimSpace(response.Body.String()), "\n")
-	if len(lines) != 1 || !strings.HasSuffix(lines[0], " homelab sshd[42]: message 3") {
+	if len(lines) != 1 || !strings.HasSuffix(lines[0], " monoops sshd[42]: message 3") {
 		t.Fatalf("log lines = %q", lines)
 	}
 	if journal.last.Reverse || journal.last.Limit != domain.MaxJournalExport {

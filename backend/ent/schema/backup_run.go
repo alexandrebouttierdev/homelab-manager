@@ -6,7 +6,7 @@ import (
 	"github.com/google/uuid"
 )
 
-// BackupRun is one run of homelab-backup@<operation>.service.
+// BackupRun is one run of monoops-backup@<operation>.service.
 type BackupRun struct{ ent.Schema }
 
 func (BackupRun) Fields() []ent.Field {

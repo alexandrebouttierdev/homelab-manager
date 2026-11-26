@@ -1,4 +1,4 @@
-# Instructions Claude Code — Homelab Manager
+# Instructions Claude Code — MonoOps
 
 Les instructions du projet sont dans `AGENTS.md`, fichier unique partagé par tous les assistants de code. Ne pas dupliquer son contenu ici.
 

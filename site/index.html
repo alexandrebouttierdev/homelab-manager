@@ -4,22 +4,22 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>
-      Homelab Manager · supervision légère et auto-hébergée d'un serveur Linux
+      MonoOps · supervision légère et auto-hébergée d'un serveur Linux de production
     </title>
     <meta
       name="description"
-      content="Homelab Manager supervise et administre la machine Linux qui l'héberge et ses conteneurs Docker : métriques, journaux systemd, alertes, sauvegardes restic, vulnérabilités. Un binaire Go, un fichier SQLite, aucun cloud."
+      content="MonoOps supervise et administre le serveur Linux de production qui l'héberge et ses conteneurs Docker : métriques, journaux systemd, alertes, sauvegardes restic, vulnérabilités. Un binaire Go, un fichier SQLite, aucun cloud."
     />
     <meta name="author" content="Alexandre Bouttier" />
-    <meta property="og:title" content="Homelab Manager" />
+    <meta property="og:title" content="MonoOps" />
     <meta
       property="og:description"
-      content="La supervision de votre serveur Linux, sans le superflu. Auto-hébergé, sans cloud ni terminal web."
+      content="La supervision de votre serveur Linux de production, sans le superflu. Auto-hébergé, sans cloud ni terminal web."
     />
     <meta property="og:type" content="website" />
     <meta
       property="og:url"
-      content="https://alexandrebouttierdev.github.io/homelab-manager/"
+      content="https://alexandrebouttierdev.github.io/monoops/"
     />
     <meta name="theme-color" content="#0e0e0d" />
     <link rel="icon" href="favicon.svg" type="image/svg+xml" />
@@ -1040,26 +1040,26 @@
           <svg width="28" height="28" aria-hidden="true">
             <use href="#mark" />
           </svg>
-          Homelab Manager
+          MonoOps
         </a>
         <nav class="nav-links" aria-label="Navigation principale">
           <a href="#fonctionnalites">Fonctionnalités</a>
           <a href="#securite">Sécurité</a>
           <a href="#installation">Installation</a>
           <a
-            href="https://github.com/alexandrebouttierdev/homelab-manager#documentation"
+            href="https://github.com/alexandrebouttierdev/monoops#documentation"
             >Documentation</a
           >
         </nav>
         <div class="top-actions">
           <a
             class="version-pill"
-            href="https://github.com/alexandrebouttierdev/homelab-manager/releases/latest"
+            href="https://github.com/alexandrebouttierdev/monoops/releases/latest"
             >v<span data-version>2.5.0</span></a
           >
           <a
             class="btn btn-ghost"
-            href="https://github.com/alexandrebouttierdev/homelab-manager"
+            href="https://github.com/alexandrebouttierdev/monoops"
           >
             <svg
               width="16"
@@ -1083,14 +1083,14 @@
         <div class="wrap hero-copy">
           <a
             class="announce"
-            href="https://github.com/alexandrebouttierdev/homelab-manager/releases/latest"
+            href="https://github.com/alexandrebouttierdev/monoops/releases/latest"
           >
             <b>v<span data-version>2.5.0</span></b>
             Dernière version · notes de version
             <span aria-hidden="true">→</span>
           </a>
           <h1>
-            La supervision de votre serveur Linux,
+            La supervision de votre serveur Linux de production,
             <span>sans le superflu.</span>
           </h1>
           <p class="lede">
@@ -1100,11 +1100,11 @@
           </p>
           <div class="actions">
             <a class="btn btn-primary" href="#installation"
-              >Installer Homelab Manager</a
+              >Installer MonoOps</a
             >
             <a
               class="btn btn-ghost"
-              href="https://github.com/alexandrebouttierdev/homelab-manager"
+              href="https://github.com/alexandrebouttierdev/monoops"
               >Voir le code sur GitHub</a
             >
           </div>
@@ -1118,7 +1118,7 @@
           <figure class="window">
             <div class="window-bar" aria-hidden="true">
               <div class="dots"><i></i><i></i><i></i></div>
-              <div class="url"><span>https://homelab.lan:8080</span></div>
+              <div class="url"><span>https://monoops.lan:8080</span></div>
               <div style="width: 47px"></div>
             </div>
             <img
@@ -1127,7 +1127,7 @@
               width="2400"
               height="1500"
               fetchpriority="high"
-              alt="Vue d'ensemble de Homelab Manager : processeur, mémoire, stockage et trafic réseau, puis la charge CPU et mémoire de la dernière heure."
+              alt="Vue d'ensemble de MonoOps : processeur, mémoire, stockage et trafic réseau, puis la charge CPU et mémoire de la dernière heure."
             />
             <figcaption>
               Capture de l'interface, avec des données d'exemple
@@ -1701,12 +1701,12 @@
             <h2 id="securite-titre">Sûr par conception, pas par option.</h2>
             <p>
               Un outil d'administration exposé sur le réseau est une cible.
-              Homelab Manager ne propose rien qui donnerait, depuis le
+              MonoOps ne propose rien qui donnerait, depuis le
               navigateur, un accès direct à la machine, et chaque privilège
               passe par une porte étroite.
             </p>
             <a
-              href="https://github.com/alexandrebouttierdev/homelab-manager/blob/dev/docs/SECURITY.md"
+              href="https://github.com/alexandrebouttierdev/monoops/blob/dev/docs/SECURITY.md"
               >Lire les exigences de sécurité →</a
             >
           </div>
@@ -1804,19 +1804,19 @@
             ><code><span class="c"># Télécharger et vérifier l'archive</span>
 VERSION=<span class="v" data-version>2.5.0</span>
 ARCH=<span class="v">amd64</span>   <span class="c"># ou arm64</span>
-BASE=https://github.com/alexandrebouttierdev/homelab-manager/releases/download/v$VERSION
-curl -fsSLO "$BASE/homelab-manager_${VERSION}_linux_${ARCH}.tar.gz"
+BASE=https://github.com/alexandrebouttierdev/monoops/releases/download/v$VERSION
+curl -fsSLO "$BASE/monoops_${VERSION}_linux_${ARCH}.tar.gz"
 curl -fsSLO "$BASE/SHA256SUMS"
 sha256sum -c --ignore-missing SHA256SUMS
-tar -xzf "homelab-manager_${VERSION}_linux_${ARCH}.tar.gz"</code></pre>
+tar -xzf "monoops_${VERSION}_linux_${ARCH}.tar.gz"</code></pre>
             <pre
               id="code-source"
               role="tabpanel"
               aria-labelledby="tab-source"
               hidden
             ><code><span class="c"># Go 1.26 et Node.js 22 sur le poste de développement</span>
-git clone https://github.com/alexandrebouttierdev/homelab-manager.git
-cd homelab-manager
+git clone https://github.com/alexandrebouttierdev/monoops.git
+cd monoops
 npm --prefix frontend ci
 scripts/release/build.sh <span class="v" data-version>2.5.0</span> dist   <span class="c"># archives amd64, arm64 et SHA256SUMS</span></code></pre>
           </div>
@@ -1838,7 +1838,7 @@ scripts/release/build.sh <span class="v" data-version>2.5.0</span> dist   <span 
             </li>
           </ol>
           <a
-            href="https://github.com/alexandrebouttierdev/homelab-manager#installation"
+            href="https://github.com/alexandrebouttierdev/monoops#installation"
             >Guide d'installation complet →</a
           >
         </div>
@@ -1854,11 +1854,11 @@ scripts/release/build.sh <span class="v" data-version>2.5.0</span> dist   <span 
               <p>Auto-hébergé, sans compte à créer, et le code est public.</p>
               <div class="actions">
                 <a class="btn btn-primary" href="#installation"
-                  >Installer Homelab Manager</a
+                  >Installer MonoOps</a
                 >
                 <a
                   class="btn btn-ghost"
-                  href="https://github.com/alexandrebouttierdev/homelab-manager/releases"
+                  href="https://github.com/alexandrebouttierdev/monoops/releases"
                   >Voir les releases</a
                 >
               </div>
@@ -1876,11 +1876,11 @@ scripts/release/build.sh <span class="v" data-version>2.5.0</span> dist   <span 
               <svg width="24" height="24" aria-hidden="true">
                 <use href="#mark" />
               </svg>
-              Homelab Manager
+              MonoOps
             </a>
             <p>
-              Supervision et administration légères, auto-hébergées, d'une
-              machine Linux et de ses conteneurs Docker.
+              Supervision et administration légères, auto-hébergées, d'un
+              serveur Linux de production et de ses conteneurs Docker.
             </p>
           </div>
           <nav aria-label="Pied de page">
@@ -1892,25 +1892,25 @@ scripts/release/build.sh <span class="v" data-version>2.5.0</span> dist   <span 
             <div>
               <b>Documentation</b
               ><a
-                href="https://github.com/alexandrebouttierdev/homelab-manager/blob/dev/docs/PRODUCT_SPEC.md"
+                href="https://github.com/alexandrebouttierdev/monoops/blob/dev/docs/PRODUCT_SPEC.md"
                 >Spécification</a
               ><a
-                href="https://github.com/alexandrebouttierdev/homelab-manager/blob/dev/docs/ARCHITECTURE.md"
+                href="https://github.com/alexandrebouttierdev/monoops/blob/dev/docs/ARCHITECTURE.md"
                 >Architecture</a
               ><a
-                href="https://github.com/alexandrebouttierdev/homelab-manager/blob/dev/docs/API_CONTRACTS.md"
+                href="https://github.com/alexandrebouttierdev/monoops/blob/dev/docs/API_CONTRACTS.md"
                 >Contrats d'API</a
               >
             </div>
             <div>
               <b>Projet</b
-              ><a href="https://github.com/alexandrebouttierdev/homelab-manager"
+              ><a href="https://github.com/alexandrebouttierdev/monoops"
                 >GitHub</a
               ><a
-                href="https://github.com/alexandrebouttierdev/homelab-manager/releases"
+                href="https://github.com/alexandrebouttierdev/monoops/releases"
                 >Releases</a
               ><a
-                href="https://github.com/alexandrebouttierdev/homelab-manager/issues"
+                href="https://github.com/alexandrebouttierdev/monoops/issues"
                 >Signaler un problème</a
               >
             </div>
@@ -2001,7 +2001,7 @@ scripts/release/build.sh <span class="v" data-version>2.5.0</span> dist   <span 
 
         // Latest release number; the version written in the page stays if GitHub does not answer.
         fetch(
-          "https://api.github.com/repos/alexandrebouttierdev/homelab-manager/releases/latest",
+          "https://api.github.com/repos/alexandrebouttierdev/monoops/releases/latest",
           {
             headers: { Accept: "application/vnd.github+json" },
           },

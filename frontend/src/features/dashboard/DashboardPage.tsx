@@ -88,7 +88,7 @@ export function DashboardPage() {
     <div className="space-y-6">
       <PageHeader
         title="Vue d'ensemble"
-        breadcrumb={[{ label: 'Homelab Manager' }, { label: "Vue d'ensemble" }]}
+        breadcrumb={[{ label: 'MonoOps' }, { label: "Vue d'ensemble" }]}
         badge={
           <span className="inline-flex items-center gap-2 text-[13px] text-text-secondary">
             <StatusDot tone={overallTone} />

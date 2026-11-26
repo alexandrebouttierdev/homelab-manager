@@ -104,12 +104,12 @@ func validChannel(kind ChannelType) (NotificationChannel, ChannelSecrets) {
 		channel.Settings.ServerURL = "http://192.168.1.10:8080"
 		secrets[SecretAppToken] = "AbCdEf123456"
 	case ChannelNtfy:
-		channel.Settings.ServerURL, channel.Settings.Topic = "https://ntfy.sh", "homelab_alerts"
+		channel.Settings.ServerURL, channel.Settings.Topic = "https://ntfy.sh", "monoops_alerts"
 	case ChannelSMTP:
 		channel.Settings = ChannelSettings{Host: "smtp.example.org", Port: 587, Security: SMTPStartTLS, Username: "bot", From: "bot@example.org", To: []string{"me@example.org"}}
 		secrets[SecretPassword] = "correct horse"
 	case ChannelWebhook:
-		channel.Settings.URL = "https://hooks.example.org/homelab"
+		channel.Settings.URL = "https://hooks.example.org/monoops"
 	}
 	return channel, secrets
 }
@@ -331,7 +331,7 @@ func TestRenderNotificationInFrench(t *testing.T) {
 		t.Errorf("single Title = %q", single.Title)
 	}
 	test := RenderNotification("nas", NotificationBatch{Test: true}, alertNow, 0)
-	if test.Title != "nas · Test de notification" || !strings.Contains(test.Body, "Homelab Manager") {
+	if test.Title != "nas · Test de notification" || !strings.Contains(test.Body, "MonoOps") {
 		t.Errorf("test message = %+v", test)
 	}
 }

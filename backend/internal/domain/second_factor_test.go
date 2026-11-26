@@ -55,14 +55,14 @@ func TestMatchTOTPAcceptsOnePeriodOfSkew(t *testing.T) {
 }
 
 func TestTOTPURI(t *testing.T) {
-	uri := TOTPURI("Homelab Manager", "alice", []byte("12345678901234567890"))
+	uri := TOTPURI("MonoOps", "alice", []byte("12345678901234567890"))
 	parsed, err := url.Parse(uri)
 	if err != nil {
 		t.Fatal(err)
 	}
 	query := parsed.Query()
-	if parsed.Scheme != "otpauth" || parsed.Host != "totp" || parsed.Path != "/Homelab Manager:alice" ||
-		query.Get("secret") != "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ" || query.Get("issuer") != "Homelab Manager" ||
+	if parsed.Scheme != "otpauth" || parsed.Host != "totp" || parsed.Path != "/MonoOps:alice" ||
+		query.Get("secret") != "GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ" || query.Get("issuer") != "MonoOps" ||
 		query.Get("digits") != "6" || query.Get("period") != "30" || query.Get("algorithm") != "SHA1" {
 		t.Fatalf("uri = %s", uri)
 	}

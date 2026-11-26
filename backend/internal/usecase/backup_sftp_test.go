@@ -7,8 +7,8 @@ import (
 	"testing"
 	"time"
 
-	"homelab-manager/backend/internal/adapters/sshkey"
-	"homelab-manager/backend/internal/domain"
+	"monoops/backend/internal/adapters/sshkey"
+	"monoops/backend/internal/domain"
 
 	"go.uber.org/zap"
 )

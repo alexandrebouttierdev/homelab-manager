@@ -10,7 +10,7 @@ import (
 	"testing"
 	"time"
 
-	"homelab-manager/backend/internal/usecase"
+	"monoops/backend/internal/usecase"
 
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"

@@ -4,8 +4,8 @@ package ent
 
 import (
 	"context"
-	"homelab-manager/backend/ent/predicate"
-	"homelab-manager/backend/ent/webauthncredential"
+	"monoops/backend/ent/predicate"
+	"monoops/backend/ent/webauthncredential"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"

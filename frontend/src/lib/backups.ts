@@ -88,8 +88,8 @@ export function runStateInfo(run: BackupRun): { label: string; tone: BadgeTone }
 }
 
 const failureLabels: Record<BackupFailure, string> = {
-  runner_not_installed: 'homelab-backup-runner ou son unité est absent (voir le README)',
-  not_allowed: "polkit a refusé : la règle 50-homelab-manager-backup.rules n'est pas installée",
+  runner_not_installed: 'monoops-backup-runner ou son unité est absent (voir le README)',
+  not_allowed: "polkit a refusé : la règle 50-monoops-backup.rules n'est pas installée",
   restic_failed: 'restic a échoué',
   timeout: "l'opération a dépassé sa durée maximale",
   invalid_result: "le résultat de l'opération est absent ou illisible",
@@ -376,10 +376,10 @@ const inPlaceProtected = [
   '/sys',
   '/tmp',
   '/usr',
-  '/var/cache/homelab-backup',
-  '/var/lib/homelab-backup',
-  '/var/lib/homelab-manager',
-  '/var/lib/homelab-vulnscan',
+  '/var/cache/monoops-backup',
+  '/var/lib/monoops-backup',
+  '/var/lib/monoops',
+  '/var/lib/monoops-vulnscan',
 ]
 
 /** Why paths cannot be restored in place, or null. */

@@ -9,8 +9,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"homelab-manager/backend/internal/backupjob"
-	"homelab-manager/backend/internal/domain"
+	"monoops/backend/internal/backupjob"
+	"monoops/backend/internal/domain"
 )
 
 // safetyTag marks the backup an in-place restore makes of what it

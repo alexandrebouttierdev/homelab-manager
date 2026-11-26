@@ -5,10 +5,10 @@ package ent
 import (
 	"context"
 	"fmt"
-	"homelab-manager/backend/ent/container"
-	"homelab-manager/backend/ent/event"
-	"homelab-manager/backend/ent/predicate"
 	"math"
+	"monoops/backend/ent/container"
+	"monoops/backend/ent/event"
+	"monoops/backend/ent/predicate"
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"

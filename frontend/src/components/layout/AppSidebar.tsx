@@ -169,7 +169,7 @@ export function AppSidebar({ open, onClose }: AppSidebarProps) {
             />
             <div className="min-w-0">
               <p className="truncate font-mono text-[13px] text-text-primary">
-                {host?.hostname ?? 'Homelab local'}
+                {host?.hostname ?? 'Machine locale'}
               </p>
               <p className="truncate text-xs text-text-muted">
                 {host ? osLabel : 'Connexion au Manager…'}

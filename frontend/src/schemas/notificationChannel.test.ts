@@ -14,7 +14,7 @@ const base: ChannelValues = {
   renotifyMinutes: '30',
   chatId: '',
   serverUrl: 'https://ntfy.sh',
-  topic: 'homelab',
+  topic: 'monoops',
   host: '',
   port: '587',
   security: 'starttls',

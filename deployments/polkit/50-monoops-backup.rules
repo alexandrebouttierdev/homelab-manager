@@ -1,0 +1,22 @@
+// MonoOps: lets the monoops account start the backup
+// operations of monoops-backup@.service, and nothing else
+// (SPEC_ADMINISTRATION.md § 2.1 and § 7.1): only the listed instances, only
+// the verb start; no stop, restart, enable nor daemon-reload.
+//
+// Install as root:root 0644 in /etc/polkit-1/rules.d/.
+polkit.addRule(function (action, subject) {
+    var units = [
+        "monoops-backup@init.service", "monoops-backup@backup.service",
+        "monoops-backup@forget-prune.service", "monoops-backup@check.service",
+        "monoops-backup@restore.service", "monoops-backup@snapshots.service",
+        "monoops-backup@unlock.service", "monoops-backup@diff.service",
+        "monoops-backup@copy.service", "monoops-backup@restore-in-place.service",
+        "monoops-backup@dump.service"
+    ];
+    if (action.id === "org.freedesktop.systemd1.manage-units" &&
+        subject.user === "monoops" &&
+        units.indexOf(action.lookup("unit")) >= 0 &&
+        action.lookup("verb") === "start") {
+        return polkit.Result.YES;
+    }
+});

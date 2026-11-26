@@ -6,7 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"homelab-manager/backend/ent/backuprun"
+	"monoops/backend/ent/backuprun"
 	"time"
 
 	"entgo.io/ent/dialect/sql/sqlgraph"

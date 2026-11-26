@@ -1,6 +1,6 @@
 // Package vulnscan hands the package inventory to Grype: it writes the
 // inventory as a Syft JSON document, asks systemd to start the dedicated
-// homelab-vulnscan.service unit over D-Bus, waits for it and decodes the
+// monoops-vulnscan.service unit over D-Bus, waits for it and decodes the
 // Grype result. The Manager never runs grype itself and never reaches the
 // network for this module (SPEC_ADMINISTRATION.md § 8 ter.2).
 package vulnscan
@@ -17,7 +17,7 @@ import (
 	"strconv"
 	"strings"
 
-	"homelab-manager/backend/internal/domain"
+	"monoops/backend/internal/domain"
 )
 
 // syftSchemaVersion is the Syft JSON schema the document follows; Grype
@@ -164,12 +164,12 @@ func syftInventory(inventory domain.PackageInventory, version string) (syftDocum
 	document := syftDocument{
 		Artifacts:             make([]syftArtifact, 0, len(inventory.Packages)),
 		ArtifactRelationships: []struct{}{},
-		Source:                syftSource{ID: "homelab-manager-host", Name: "/", Type: "directory", Metadata: map[string]string{"path": "/"}},
+		Source:                syftSource{ID: "monoops-host", Name: "/", Type: "directory", Metadata: map[string]string{"path": "/"}},
 		Distro: syftDistro{
 			PrettyName: distro.PrettyName, Name: distro.Name, ID: distro.ID, IDLike: distro.IDLike,
 			VersionID: distro.VersionID, VersionCodename: distro.VersionCodename,
 		},
-		Descriptor: syftDescriptor{Name: "homelab-manager", Version: version},
+		Descriptor: syftDescriptor{Name: "monoops", Version: version},
 		Schema: syftSchema{
 			Version: syftSchemaVersion,
 			URL:     "https://raw.githubusercontent.com/anchore/syft/main/schema/json/schema-" + syftSchemaVersion + ".json",
@@ -182,7 +182,7 @@ func syftInventory(inventory domain.PackageInventory, version string) (syftDocum
 		}
 		qualifiers := map[string]string{"arch": pkg.Architecture, "distro": qualifierDistro, "upstream": upstream}
 		artifact := syftArtifact{
-			Name: pkg.Name, Version: pkg.Version, FoundBy: "homelab-manager", Licenses: []struct{}{}, CPEs: []struct{}{},
+			Name: pkg.Name, Version: pkg.Version, FoundBy: "monoops", Licenses: []struct{}{}, CPEs: []struct{}{},
 		}
 		switch inventory.Manager {
 		case domain.PackageManagerDpkg:

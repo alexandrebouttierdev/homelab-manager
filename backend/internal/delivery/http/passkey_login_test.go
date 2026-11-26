@@ -6,7 +6,7 @@ import (
 	"strings"
 	"testing"
 
-	"homelab-manager/backend/internal/adapters/sqlite"
+	"monoops/backend/internal/adapters/sqlite"
 
 	"go.uber.org/zap"
 )

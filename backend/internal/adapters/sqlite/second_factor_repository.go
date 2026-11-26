@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"time"
 
-	"homelab-manager/backend/ent"
-	"homelab-manager/backend/ent/recoverycode"
-	"homelab-manager/backend/ent/totpsecret"
-	"homelab-manager/backend/ent/webauthncredential"
-	"homelab-manager/backend/internal/domain"
-	"homelab-manager/backend/internal/ports"
+	"monoops/backend/ent"
+	"monoops/backend/ent/recoverycode"
+	"monoops/backend/ent/totpsecret"
+	"monoops/backend/ent/webauthncredential"
+	"monoops/backend/internal/domain"
+	"monoops/backend/internal/ports"
 
 	"github.com/google/uuid"
 )

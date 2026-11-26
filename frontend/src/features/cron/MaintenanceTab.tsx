@@ -15,9 +15,9 @@ export function MaintenanceTab() {
   return (
     <div className="space-y-4">
       <p className="text-xs text-text-secondary">
-        Tâches prédéfinies par Homelab Manager : seuls leur horaire et leurs paramètres se règlent,
-        aucune commande ne se saisit. Chacune tourne dans une unité systemd fournie, à l&apos;heure
-        de la machine ; une tâche manquée pendant un arrêt du Manager n&apos;est pas rattrapée.
+        Tâches prédéfinies par MonoOps : seuls leur horaire et leurs paramètres se règlent, aucune
+        commande ne se saisit. Chacune tourne dans une unité systemd fournie, à l&apos;heure de la
+        machine ; une tâche manquée pendant un arrêt du Manager n&apos;est pas rattrapée.
       </p>
       {model.state.isLoading && <LoadingState label="Lecture des tâches…" rows={2} />}
       {model.state.isError && (

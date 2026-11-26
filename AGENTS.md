@@ -1,4 +1,4 @@
-# Instructions pour les agents — Homelab Manager
+# Instructions pour les agents — MonoOps
 
 Fichier de référence unique pour tout assistant de code (Claude Code, Cursor, Codex, Copilot…). `CLAUDE.md`, `.cursor/rules/` et `.github/copilot-instructions.md` ne font que renvoyer ici : modifier ce fichier, pas leurs copies.
 
@@ -18,8 +18,8 @@ Lire `README.md` et tous les fichiers de `docs/` avant toute modification struct
 
 ## Périmètre
 
-- Homelab Manager supervise une seule machine Linux, celle du Manager. Pas d'hôte distant, d'Agent de collecte, de multi-agent ni de synchronisation entre machines.
-- **Interdits absolus** : aucun terminal, shell ni SSH dans l'application (ni console web, ni `exec` de conteneur) ; les utilisateurs sont uniquement ceux de Homelab Manager (aucun compte Linux, PAM, sudo ni SSH de la machine) ; aucune exécution de code fourni par l'utilisateur.
+- MonoOps supervise une seule machine Linux, celle du Manager. Pas d'hôte distant, d'Agent de collecte, de multi-agent ni de synchronisation entre machines.
+- **Interdits absolus** : aucun terminal, shell ni SSH dans l'application (ni console web, ni `exec` de conteneur) ; les utilisateurs sont uniquement ceux de MonoOps (aucun compte Linux, PAM, sudo ni SSH de la machine) ; aucune exécution de code fourni par l'utilisateur.
 - Les applications PaaS / GitOps restent gérées par Coolify : ne pas les implémenter.
 - Ne pas inventer de fonctionnalité hors spécification. Une maquette de `maquette/` n'est pas une spécification.
 

@@ -14,7 +14,7 @@ if [[ ! -f "$key_file" ]]; then
   mkdir -p backend/data
   (umask 077 && head -c 32 /dev/urandom | base64 > "$key_file")
 fi
-export HOMELAB_SECRETS_KEY_FILE="${HOMELAB_SECRETS_KEY_FILE:-./data/secrets.key}"
+export MONOOPS_SECRETS_KEY_FILE="${MONOOPS_SECRETS_KEY_FILE:-./data/secrets.key}"
 
 go -C backend run ./cmd/manager &
 backend_pid=$!

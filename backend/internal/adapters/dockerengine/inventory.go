@@ -7,7 +7,7 @@ import (
 	"sort"
 	"time"
 
-	"homelab-manager/backend/internal/domain"
+	"monoops/backend/internal/domain"
 )
 
 // Inventory reads the images, volumes and networks of the Docker host and

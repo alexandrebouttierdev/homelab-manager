@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"homelab-manager/backend/internal/domain"
+	"monoops/backend/internal/domain"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -224,7 +224,7 @@ func newNotificationFixture(t *testing.T, withBox bool) notificationFixture {
 func (f notificationFixture) channel(minSeverity domain.AlertSeverity, renotify int) domain.NotificationChannel {
 	channel := domain.NotificationChannel{
 		ID: uuid.New(), Name: "ntfy", Type: domain.ChannelNtfy, Enabled: true, MinSeverity: minSeverity, RenotifyMinutes: renotify,
-		Settings: domain.ChannelSettings{ServerURL: "https://ntfy.example.org", Topic: "homelab"},
+		Settings: domain.ChannelSettings{ServerURL: "https://ntfy.example.org", Topic: "monoops"},
 	}
 	f.repo.channels = append(f.repo.channels, channel)
 	return channel
@@ -382,7 +382,7 @@ func TestAlertTransitionsNeverBlock(t *testing.T) {
 func ntfyInput(token *string) ChannelInput {
 	input := ChannelInput{
 		Name: "téléphone", Type: domain.ChannelNtfy, Enabled: true, MinSeverity: domain.AlertWarning, RenotifyMinutes: 30,
-		Settings: domain.ChannelSettings{ServerURL: "https://ntfy.example.org", Topic: "homelab"},
+		Settings: domain.ChannelSettings{ServerURL: "https://ntfy.example.org", Topic: "monoops"},
 	}
 	if token != nil {
 		input.Secrets = map[string]*string{domain.SecretAccessToken: token}

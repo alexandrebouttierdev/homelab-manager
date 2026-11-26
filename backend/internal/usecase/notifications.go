@@ -12,8 +12,8 @@ import (
 	"sync/atomic"
 	"time"
 
-	"homelab-manager/backend/internal/domain"
-	"homelab-manager/backend/internal/ports"
+	"monoops/backend/internal/domain"
+	"monoops/backend/internal/ports"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"
@@ -35,7 +35,7 @@ const (
 	notificationPurgeTimeout = 30 * time.Second
 	auditTargetSilence       = "alert_silence"
 	auditTargetChannel       = "notification_channel"
-	fallbackHostname         = "homelab"
+	fallbackHostname         = "monoops"
 )
 
 // NotificationAlertReader reads the open alerts and the rules.

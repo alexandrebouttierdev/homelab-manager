@@ -1,16 +1,16 @@
 [Unit]
-Description=Homelab Manager
-After=network-online.target homelab-docker-proxy.socket
-Wants=network-online.target homelab-docker-proxy.socket
+Description=MonoOps
+After=network-online.target monoops-docker-proxy.socket
+Wants=network-online.target monoops-docker-proxy.socket
 
 [Service]
 Type=simple
-User=homelab-manager
-Group=homelab-manager
+User=monoops
+Group=monoops
 # Reads the whole system journal (module J), read-only.
 SupplementaryGroups=systemd-journal
-WorkingDirectory=/opt/homelab-manager
-ExecStart=/usr/local/bin/homelab-manager
+WorkingDirectory=/opt/monoops
+ExecStart=/usr/local/bin/monoops
 Restart=on-failure
 RestartSec=5
 NoNewPrivileges=true
@@ -23,20 +23,20 @@ ProtectControlGroups=true
 RestrictAddressFamilies=AF_UNIX AF_INET AF_INET6
 CapabilityBoundingSet=
 AmbientCapabilities=
-StateDirectory=homelab-manager
-# Package inventory for homelab-vulnscan.service (module V); ignored when
+StateDirectory=monoops
+# Package inventory for monoops-vulnscan.service (module V); ignored when
 # the directory does not exist.
-ReadWritePaths=-/var/lib/homelab-vulnscan/inventory
-# Backup jobs for homelab-backup@.service (phase 6); ignored when the
+ReadWritePaths=-/var/lib/monoops-vulnscan/inventory
+# Backup jobs for monoops-backup@.service (phase 6); ignored when the
 # directory does not exist.
-ReadWritePaths=-/var/lib/homelab-backup/jobs
+ReadWritePaths=-/var/lib/monoops-backup/jobs
 StateDirectoryMode=0700
 UMask=0077
-EnvironmentFile=-/etc/homelab-manager/manager.env
+EnvironmentFile=-/etc/monoops/manager.env
 # Master key of the secrets box (TOTP), encrypted with systemd-creds in
 # /etc/credstore.encrypted/ (see README). A missing credential does not
 # prevent the start: TOTP is then unavailable, recovery codes still work.
-ImportCredential=homelab-manager-secrets-key
+ImportCredential=monoops-secrets-key
 
 [Install]
 WantedBy=multi-user.target

@@ -27,7 +27,7 @@ const task: MaintenanceTask = {
   schedule: { enabled: false, frequency: 'weekly', weekday: 0, time: '04:00' },
   maxSizeMiB: 512,
   sizes: [256, 512, 1024, 2048],
-  unit: 'homelab-journal-vacuum@512M.service',
+  unit: 'monoops-journal-vacuum@512M.service',
   running: false,
   nextRunAt: null,
   lastRun: {

@@ -47,7 +47,7 @@ const failureMessages: Record<ContainerActionFailure, string> = {
   not_found: 'Docker ne connaît plus ce conteneur',
   rejected: "Docker a refusé ou n'a pas pu exécuter l'action",
   not_allowed:
-    'le proxy Docker refuse les actions (HOMELAB_DOCKER_PROXY_CONTAINER_ACTIONS est désactivé)',
+    'le proxy Docker refuse les actions (MONOOPS_DOCKER_PROXY_CONTAINER_ACTIONS est désactivé)',
   timeout: "Docker n'a pas répondu en 90 secondes",
   unavailable: "le proxy Docker ou Docker n'est pas joignable",
   interrupted: 'le Manager a été arrêté pendant le suivi',

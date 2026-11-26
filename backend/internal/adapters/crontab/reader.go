@@ -18,8 +18,8 @@ import (
 	"sort"
 	"strings"
 
-	"homelab-manager/backend/internal/domain"
-	"homelab-manager/backend/internal/ports"
+	"monoops/backend/internal/domain"
+	"monoops/backend/internal/ports"
 )
 
 var _ ports.CronReader = (*Reader)(nil)

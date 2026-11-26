@@ -1,4 +1,4 @@
-module homelab-manager/backend
+module monoops/backend
 
 go 1.26.11
 

@@ -3,7 +3,7 @@ package ports
 import (
 	"context"
 
-	"homelab-manager/backend/internal/domain"
+	"monoops/backend/internal/domain"
 )
 
 // CronReader reads the system crontabs, read-only (SPEC_ADMINISTRATION.md

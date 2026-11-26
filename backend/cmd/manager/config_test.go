@@ -4,11 +4,11 @@ import "testing"
 
 func TestConfigValidateCollectionBounds(t *testing.T) {
 	config := Config{
-		HTTPAddress: ":8080", AdminUsername: "admin", DatabasePath: "/var/lib/homelab-manager/homelab-manager.db", DockerProxySocket: "/run/homelab-docker-proxy/docker.sock",
+		HTTPAddress: ":8080", AdminUsername: "admin", DatabasePath: "/var/lib/monoops/monoops.db", DockerProxySocket: "/run/monoops-docker-proxy/docker.sock",
 		SystemIntervalSeconds: 10, DockerStatsIntervalSeconds: 15,
 		DockerDiscoveryIntervalSeconds: 30, MetricsRetentionDays: 30, VulnerabilityScanIntervalHours: 24,
-		VulnscanInventoryPath: "/var/lib/homelab-vulnscan/inventory/inventory.json", VulnscanResultPath: "/var/lib/homelab-vulnscan/result/result.json",
-		BackupJobsDir: "/var/lib/homelab-backup/jobs", BackupRunsDir: "/var/lib/homelab-backup/runs",
+		VulnscanInventoryPath: "/var/lib/monoops-vulnscan/inventory/inventory.json", VulnscanResultPath: "/var/lib/monoops-vulnscan/result/result.json",
+		BackupJobsDir: "/var/lib/monoops-backup/jobs", BackupRunsDir: "/var/lib/monoops-backup/runs",
 	}
 	if err := config.Validate(); err != nil {
 		t.Fatalf("valid configuration rejected: %v", err)
@@ -52,7 +52,7 @@ func TestBootstrapAdminPassword(t *testing.T) {
 }
 
 func TestDefaultRetentionIsSevenDays(t *testing.T) {
-	t.Setenv("HOMELAB_ADMIN_PASSWORD", "")
+	t.Setenv("MONOOPS_ADMIN_PASSWORD", "")
 	config, err := LoadConfig()
 	if err != nil {
 		t.Fatalf("LoadConfig: %v", err)
@@ -71,7 +71,7 @@ func TestPowerActionsAreDisabledByDefault(t *testing.T) {
 	if config.PowerActionsEnabled {
 		t.Fatal("power actions must be disabled unless explicitly enabled")
 	}
-	t.Setenv("HOMELAB_POWER_ACTIONS_ENABLED", "true")
+	t.Setenv("MONOOPS_POWER_ACTIONS_ENABLED", "true")
 	if config, err = LoadConfig(); err != nil || !config.PowerActionsEnabled {
 		t.Fatalf("LoadConfig = (%v, %v), want power actions enabled", config.PowerActionsEnabled, err)
 	}
@@ -83,7 +83,7 @@ func TestDockerActionsAreDisabledByDefault(t *testing.T) {
 	if err != nil || config.DockerActionsEnabled {
 		t.Fatalf("LoadConfig = (%v, %v), want container actions disabled", config.DockerActionsEnabled, err)
 	}
-	t.Setenv("HOMELAB_DOCKER_ACTIONS_ENABLED", "true")
+	t.Setenv("MONOOPS_DOCKER_ACTIONS_ENABLED", "true")
 	if config, err = LoadConfig(); err != nil || !config.DockerActionsEnabled {
 		t.Fatalf("LoadConfig = (%v, %v), want container actions enabled", config.DockerActionsEnabled, err)
 	}
@@ -95,7 +95,7 @@ func TestSystemPreferencesAreDisabledByDefault(t *testing.T) {
 	if err != nil || config.SystemPreferencesEnabled {
 		t.Fatalf("LoadConfig = (%v, %v), want system preferences disabled", config.SystemPreferencesEnabled, err)
 	}
-	t.Setenv("HOMELAB_SYSTEM_PREFERENCES_ENABLED", "true")
+	t.Setenv("MONOOPS_SYSTEM_PREFERENCES_ENABLED", "true")
 	if config, err = LoadConfig(); err != nil || !config.SystemPreferencesEnabled {
 		t.Fatalf("LoadConfig = (%v, %v), want system preferences enabled", config.SystemPreferencesEnabled, err)
 	}
@@ -105,7 +105,7 @@ func TestSecretsKeyPath(t *testing.T) {
 	if got := (Config{SecretsKeyFile: "/etc/key"}).SecretsKeyPath("/run/credentials/x"); got != "/etc/key" {
 		t.Fatalf("configured file = %q", got)
 	}
-	if got := (Config{}).SecretsKeyPath("/run/credentials/homelab-manager.service"); got != "/run/credentials/homelab-manager.service/homelab-manager-secrets-key" {
+	if got := (Config{}).SecretsKeyPath("/run/credentials/monoops.service"); got != "/run/credentials/monoops.service/monoops-secrets-key" {
 		t.Fatalf("systemd credential = %q", got)
 	}
 	if got := (Config{}).SecretsKeyPath(""); got != "" {
@@ -115,12 +115,12 @@ func TestSecretsKeyPath(t *testing.T) {
 
 func TestConfigValidateWebAuthn(t *testing.T) {
 	base := Config{
-		HTTPAddress: ":8080", AdminUsername: "admin", DatabasePath: "/var/lib/homelab-manager/homelab-manager.db", DockerProxySocket: "/run/homelab-docker-proxy/docker.sock",
+		HTTPAddress: ":8080", AdminUsername: "admin", DatabasePath: "/var/lib/monoops/monoops.db", DockerProxySocket: "/run/monoops-docker-proxy/docker.sock",
 		SystemIntervalSeconds: 10, DockerStatsIntervalSeconds: 15,
 		DockerDiscoveryIntervalSeconds: 30, MetricsRetentionDays: 30, VulnerabilityScanIntervalHours: 24,
-		VulnscanInventoryPath: "/var/lib/homelab-vulnscan/inventory/inventory.json", VulnscanResultPath: "/var/lib/homelab-vulnscan/result/result.json",
-		BackupJobsDir: "/var/lib/homelab-backup/jobs", BackupRunsDir: "/var/lib/homelab-backup/runs",
-		WebAuthnRPName: "Homelab Manager",
+		VulnscanInventoryPath: "/var/lib/monoops-vulnscan/inventory/inventory.json", VulnscanResultPath: "/var/lib/monoops-vulnscan/result/result.json",
+		BackupJobsDir: "/var/lib/monoops-backup/jobs", BackupRunsDir: "/var/lib/monoops-backup/runs",
+		WebAuthnRPName: "MonoOps",
 	}
 	tests := []struct {
 		name    string
@@ -129,17 +129,17 @@ func TestConfigValidateWebAuthn(t *testing.T) {
 		valid   bool
 	}{
 		{"off", "", nil, true},
-		{"domain and origin", "homelab.example", []string{"https://homelab.example:8443"}, true},
+		{"domain and origin", "monoops.example", []string{"https://monoops.example:8443"}, true},
 		{"subdomain origin", "example.org", []string{"https://manager.example.org"}, true},
 		{"localhost over HTTP", "localhost", []string{"http://localhost:5173"}, true},
-		{"origins without domain", "", []string{"https://homelab.example"}, false},
+		{"origins without domain", "", []string{"https://monoops.example"}, false},
 		{"IP address", "192.168.1.10", []string{"https://192.168.1.10"}, false},
-		{"URL as domain", "https://homelab.example", []string{"https://homelab.example"}, false},
-		{"no origin", "homelab.example", nil, false},
-		{"other domain", "homelab.example", []string{"https://evil.example"}, false},
-		{"suffix without dot", "homelab.example", []string{"https://myhomelab.example"}, false},
-		{"plain HTTP", "homelab.example", []string{"http://homelab.example"}, false},
-		{"origin with a path", "homelab.example", []string{"https://homelab.example/app"}, false},
+		{"URL as domain", "https://monoops.example", []string{"https://monoops.example"}, false},
+		{"no origin", "monoops.example", nil, false},
+		{"other domain", "monoops.example", []string{"https://evil.example"}, false},
+		{"suffix without dot", "monoops.example", []string{"https://mymonoops.example"}, false},
+		{"plain HTTP", "monoops.example", []string{"http://monoops.example"}, false},
+		{"origin with a path", "monoops.example", []string{"https://monoops.example/app"}, false},
 	}
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {

@@ -23,7 +23,7 @@ CREATE TABLE backup_configs (
     updated_by TEXT NOT NULL DEFAULT ''
 );
 
--- One row per run of homelab-backup@<operation>.service.
+-- One row per run of monoops-backup@<operation>.service.
 CREATE TABLE backup_runs (
     id TEXT PRIMARY KEY,
     operation TEXT NOT NULL CHECK (operation IN ('init', 'backup')),

@@ -4,7 +4,7 @@ package ent
 
 import (
 	"fmt"
-	"homelab-manager/backend/ent/failedunit"
+	"monoops/backend/ent/failedunit"
 	"strings"
 	"time"
 

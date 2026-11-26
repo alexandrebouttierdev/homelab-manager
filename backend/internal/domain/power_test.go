@@ -20,10 +20,10 @@ func TestConfirmsHostname(t *testing.T) {
 		confirmation, hostname string
 		want                   bool
 	}{
-		{"homelab", "homelab", true},
-		{"  homelab ", "homelab", true},
-		{"Homelab", "homelab", false},
-		{"homelab.local", "homelab", false},
+		{"monoops", "monoops", true},
+		{"  monoops ", "monoops", true},
+		{"Monoops", "monoops", false},
+		{"monoops.local", "monoops", false},
 		{"", "", false},
 	}
 	for _, c := range cases {

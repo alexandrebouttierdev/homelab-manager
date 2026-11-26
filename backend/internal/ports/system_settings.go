@@ -3,7 +3,7 @@ package ports
 import (
 	"context"
 
-	"homelab-manager/backend/internal/domain"
+	"monoops/backend/internal/domain"
 )
 
 // SystemSettings reads and changes the host name, time zone and language

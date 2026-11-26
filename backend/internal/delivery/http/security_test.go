@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"homelab-manager/backend/internal/domain"
+	"monoops/backend/internal/domain"
 
 	"github.com/go-chi/chi/v5"
 )

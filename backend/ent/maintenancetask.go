@@ -4,7 +4,7 @@ package ent
 
 import (
 	"fmt"
-	"homelab-manager/backend/ent/maintenancetask"
+	"monoops/backend/ent/maintenancetask"
 	"strings"
 	"time"
 

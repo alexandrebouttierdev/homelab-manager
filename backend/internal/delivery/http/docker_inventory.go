@@ -4,8 +4,8 @@ import (
 	"net/http"
 	"time"
 
-	"homelab-manager/backend/internal/domain"
-	"homelab-manager/backend/internal/usecase"
+	"monoops/backend/internal/domain"
+	"monoops/backend/internal/usecase"
 )
 
 type dockerImageDTO struct {

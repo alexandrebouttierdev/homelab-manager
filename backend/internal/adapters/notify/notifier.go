@@ -21,8 +21,8 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"homelab-manager/backend/internal/domain"
-	"homelab-manager/backend/internal/ports"
+	"monoops/backend/internal/domain"
+	"monoops/backend/internal/ports"
 )
 
 const (
@@ -30,7 +30,7 @@ const (
 	sendTimeout = 10 * time.Second
 	// maxResponseBytes bounds what is read of an answer, then discarded.
 	maxResponseBytes = 64 << 10
-	userAgent        = "Homelab-Manager"
+	userAgent        = "MonoOps"
 	telegramAPI      = "https://api.telegram.org"
 	// Message bounds of the services, in characters.
 	telegramMaxRunes = 4096
@@ -128,8 +128,8 @@ func (n *Notifier) Send(ctx context.Context, channel domain.NotificationChannel,
 		headers := map[string]string{}
 		if secret := secrets[domain.SecretSigningSecret]; secret != "" {
 			timestamp := now.Unix()
-			headers["X-Homelab-Timestamp"] = strconv.FormatInt(timestamp, 10)
-			headers["X-Homelab-Signature"] = domain.SignWebhook([]byte(secret), timestamp, body)
+			headers["X-MonoOps-Timestamp"] = strconv.FormatInt(timestamp, 10)
+			headers["X-MonoOps-Signature"] = domain.SignWebhook([]byte(secret), timestamp, body)
 		}
 		return n.post(ctx, channel.Settings.URL, headers, body)
 	case domain.ChannelSMTP:

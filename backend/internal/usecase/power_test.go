@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	"homelab-manager/backend/internal/domain"
+	"monoops/backend/internal/domain"
 
 	"github.com/google/uuid"
 )
@@ -40,7 +40,7 @@ func (f *fakePower) Request(_ context.Context, action domain.PowerAction) error 
 func newPowerFixture(enabled bool) (*PowerUsecase, *fakePower, *fakeAudit) {
 	audit := &fakeAudit{}
 	power := &fakePower{audit: audit}
-	hostname := func() (string, error) { return "homelab", nil }
+	hostname := func() (string, error) { return "monoops", nil }
 	return NewPowerUsecase(power, audit, hostname, enabled), power, audit
 }
 
@@ -48,7 +48,7 @@ var powerAdmin = domain.User{ID: uuid.New(), Username: "admin", Role: domain.Rol
 
 func TestPowerRequestIsAuditedBeforeTheAction(t *testing.T) {
 	usecase, power, audit := newPowerFixture(true)
-	if err := usecase.Request(context.Background(), powerAdmin, domain.PowerReboot, " homelab ", "req-1"); err != nil {
+	if err := usecase.Request(context.Background(), powerAdmin, domain.PowerReboot, " monoops ", "req-1"); err != nil {
 		t.Fatal(err)
 	}
 	if len(power.requested) != 1 || power.requested[0] != domain.PowerReboot {
@@ -57,7 +57,7 @@ func TestPowerRequestIsAuditedBeforeTheAction(t *testing.T) {
 	if power.auditedFirst[0] != 1 {
 		t.Fatal("the audit entry must be written before asking the system")
 	}
-	want := domain.AuditEntry{Actor: "admin", TargetType: "host", TargetID: "homelab", Action: "reboot", RequestID: "req-1", Outcome: "requested"}
+	want := domain.AuditEntry{Actor: "admin", TargetType: "host", TargetID: "monoops", Action: "reboot", RequestID: "req-1", Outcome: "requested"}
 	if audit.entries[0] != want {
 		t.Fatalf("audit = %+v, want %+v", audit.entries[0], want)
 	}
@@ -71,10 +71,10 @@ func TestPowerRequestIsRefusedBeforeAnyEffect(t *testing.T) {
 		confirmation string
 		want         error
 	}{
-		{"disabled", false, domain.PowerReboot, "homelab", domain.ErrPowerActionsDisabled},
+		{"disabled", false, domain.PowerReboot, "monoops", domain.ErrPowerActionsDisabled},
 		{"wrong host", true, domain.PowerPowerOff, "other", domain.ErrHostnameMismatch},
 		{"empty confirmation", true, domain.PowerPowerOff, "", domain.ErrHostnameMismatch},
-		{"unknown action", true, "suspend", "homelab", domain.ErrInvalidPowerAction},
+		{"unknown action", true, "suspend", "monoops", domain.ErrInvalidPowerAction},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -93,7 +93,7 @@ func TestPowerRequestIsRefusedBeforeAnyEffect(t *testing.T) {
 func TestPowerRequestWithoutAuditDoesNothing(t *testing.T) {
 	usecase, power, audit := newPowerFixture(true)
 	audit.err = errors.New("disk full")
-	if err := usecase.Request(context.Background(), powerAdmin, domain.PowerReboot, "homelab", ""); err == nil {
+	if err := usecase.Request(context.Background(), powerAdmin, domain.PowerReboot, "monoops", ""); err == nil {
 		t.Fatal("expected an error when the audit cannot be written")
 	}
 	if len(power.requested) != 0 {
@@ -104,24 +104,24 @@ func TestPowerRequestWithoutAuditDoesNothing(t *testing.T) {
 func TestARefusedPowerRequestIsAuditedAndCanBeRetried(t *testing.T) {
 	usecase, power, audit := newPowerFixture(true)
 	power.err = domain.ErrPowerActionRefused
-	if err := usecase.Request(context.Background(), powerAdmin, domain.PowerPowerOff, "homelab", ""); !errors.Is(err, domain.ErrPowerActionRefused) {
+	if err := usecase.Request(context.Background(), powerAdmin, domain.PowerPowerOff, "monoops", ""); !errors.Is(err, domain.ErrPowerActionRefused) {
 		t.Fatalf("Request error = %v, want ErrPowerActionRefused", err)
 	}
 	if len(audit.entries) != 2 || audit.entries[1].Outcome != "failure" {
 		t.Fatalf("audit = %+v, want requested then failure", audit.entries)
 	}
 	power.err = nil
-	if err := usecase.Request(context.Background(), powerAdmin, domain.PowerPowerOff, "homelab", ""); err != nil {
+	if err := usecase.Request(context.Background(), powerAdmin, domain.PowerPowerOff, "monoops", ""); err != nil {
 		t.Fatalf("a refused request must not block the next one: %v", err)
 	}
 }
 
 func TestOnlyOnePowerRequestIsAccepted(t *testing.T) {
 	usecase, power, _ := newPowerFixture(true)
-	if err := usecase.Request(context.Background(), powerAdmin, domain.PowerReboot, "homelab", ""); err != nil {
+	if err := usecase.Request(context.Background(), powerAdmin, domain.PowerReboot, "monoops", ""); err != nil {
 		t.Fatal(err)
 	}
-	if err := usecase.Request(context.Background(), powerAdmin, domain.PowerPowerOff, "homelab", ""); !errors.Is(err, domain.ErrActionInProgress) {
+	if err := usecase.Request(context.Background(), powerAdmin, domain.PowerPowerOff, "monoops", ""); !errors.Is(err, domain.ErrActionInProgress) {
 		t.Fatalf("second request = %v, want ErrActionInProgress", err)
 	}
 	if len(power.requested) != 1 {

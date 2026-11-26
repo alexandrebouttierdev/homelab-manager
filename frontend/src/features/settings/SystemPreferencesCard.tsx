@@ -132,7 +132,7 @@ export function SystemPreferencesCard() {
       </CardBody>
       <CardFooter className="text-xs text-text-muted">
         {model.disabledNotice
-          ? 'Modification désactivée dans la configuration du Manager (system_preferences_enabled) ; la règle polkit 50-homelab-manager-system.rules doit aussi être installée.'
+          ? 'Modification désactivée dans la configuration du Manager (system_preferences_enabled) ; la règle polkit 50-monoops-system.rules doit aussi être installée.'
           : model.editable
             ? 'Appliqué par systemd-hostnamed, -timedated et -localed ; chaque changement est inscrit au journal d’audit.'
             : 'Lecture seule : seuls les administrateurs modifient ces préférences.'}

@@ -197,10 +197,10 @@ describe('backups', () => {
       describeDetails(
         run({
           operation: 'restore',
-          details: { filesRestored: 3, target: '/var/lib/homelab-backup/restore/x' },
+          details: { filesRestored: 3, target: '/var/lib/monoops-backup/restore/x' },
         }),
       ),
-    ).toBe('3 fichier(s) restauré(s) dans /var/lib/homelab-backup/restore/x')
+    ).toBe('3 fichier(s) restauré(s) dans /var/lib/monoops-backup/restore/x')
     expect(
       describeDetails(run({ operation: 'forget-prune', details: { snapshotsRemoved: 2 } })),
     ).toBe('2 instantané(s) supprimé(s)')
@@ -300,7 +300,7 @@ describe('in-place restores and archives', () => {
     expect(inPlaceIssue([])).toMatch(/jamais tout/)
     expect(inPlaceIssue(['/'])).toMatch(/machine entière/)
     expect(inPlaceIssue(['/etc/nginx'])).toMatch(/\/etc/)
-    expect(inPlaceIssue(['/var'])).toMatch(/homelab/)
+    expect(inPlaceIssue(['/var'])).toMatch(/monoops/)
     expect(inPlaceIssue(['/srv/app', '/var/lib/docker/volumes/web'])).toBeNull()
   })
 

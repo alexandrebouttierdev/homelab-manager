@@ -11,13 +11,13 @@ import (
 	"testing"
 	"time"
 
-	argon2adapter "homelab-manager/backend/internal/adapters/argon2"
-	"homelab-manager/backend/internal/adapters/qrcode"
-	"homelab-manager/backend/internal/adapters/secretbox"
-	"homelab-manager/backend/internal/adapters/sqlite"
-	"homelab-manager/backend/internal/domain"
-	"homelab-manager/backend/internal/ports"
-	"homelab-manager/backend/internal/usecase"
+	argon2adapter "monoops/backend/internal/adapters/argon2"
+	"monoops/backend/internal/adapters/qrcode"
+	"monoops/backend/internal/adapters/secretbox"
+	"monoops/backend/internal/adapters/sqlite"
+	"monoops/backend/internal/domain"
+	"monoops/backend/internal/ports"
+	"monoops/backend/internal/usecase"
 
 	"github.com/go-chi/chi/v5"
 	"go.uber.org/zap"
@@ -218,7 +218,7 @@ func newTestServices(t *testing.T, controller ports.PowerController) (Services, 
 		Auth: usecase.NewAuthUsecase(authRepository, authRepository, hasher).
 			WithSecurity(securityRepository, auditRepository, security).WithSecondFactor(factorRepository, box),
 		Accounts:      usecase.NewAccountUsecase(sqlite.NewAccountRepository(database.Client()), authRepository, hasher).WithAudit(auditRepository),
-		Power:         usecase.NewPowerUsecase(controller, auditRepository, func() (string, error) { return "homelab", nil }, controller != nil),
+		Power:         usecase.NewPowerUsecase(controller, auditRepository, func() (string, error) { return "monoops", nil }, controller != nil),
 		Security:      security,
 		Audit:         usecase.NewAuditUsecase(auditRepository, auditRepository),
 		SecondFactors: usecase.NewSecondFactorUsecase(authRepository, factorRepository, box, qrcode.New(), hasher),

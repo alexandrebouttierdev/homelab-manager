@@ -20,15 +20,15 @@ describe('machine power API', () => {
 
   it('sends the typed host name with the action', async () => {
     const fetchMock = mockFetch({ requested: true, action: 'reboot' }, 202)
-    await requestPowerAction('reboot', 'homelab')
+    await requestPowerAction('reboot', 'monoops')
     const [path, init] = fetchMock.mock.calls[0]
     expect(path).toBe('/api/v1/machine/power/reboot')
     expect(init.method).toBe('POST')
-    expect(JSON.parse(init.body)).toEqual({ confirmHostname: 'homelab' })
+    expect(JSON.parse(init.body)).toEqual({ confirmHostname: 'monoops' })
   })
 
   it('explains a polkit refusal', async () => {
     mockFetch({ error: { code: 'POWER_ACTION_REFUSED', message: 'refused' } }, 503)
-    await expect(requestPowerAction('poweroff', 'homelab')).rejects.toThrow(/polkit/)
+    await expect(requestPowerAction('poweroff', 'monoops')).rejects.toThrow(/polkit/)
   })
 })

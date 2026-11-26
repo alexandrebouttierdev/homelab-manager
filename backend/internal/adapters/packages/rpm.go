@@ -9,7 +9,7 @@ import (
 	"net/url"
 	"os"
 
-	"homelab-manager/backend/internal/domain"
+	"monoops/backend/internal/domain"
 
 	_ "modernc.org/sqlite" // Pure-Go SQLite driver registered as "sqlite".
 )

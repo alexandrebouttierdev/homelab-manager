@@ -4,7 +4,7 @@ package ent
 
 import (
 	"fmt"
-	"homelab-manager/backend/ent/hostinfo"
+	"monoops/backend/ent/hostinfo"
 	"strings"
 	"time"
 

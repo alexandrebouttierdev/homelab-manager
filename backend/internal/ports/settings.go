@@ -3,7 +3,7 @@ package ports
 import (
 	"context"
 
-	"homelab-manager/backend/internal/domain"
+	"monoops/backend/internal/domain"
 )
 
 // SettingsRepository persists settings changed from the interface.

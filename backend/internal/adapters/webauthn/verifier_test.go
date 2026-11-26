@@ -12,14 +12,14 @@ import (
 	"errors"
 	"testing"
 
-	"homelab-manager/backend/internal/domain"
+	"monoops/backend/internal/domain"
 
 	"github.com/google/uuid"
 )
 
 const (
-	testRPID   = "homelab.test"
-	testOrigin = "https://homelab.test:8443"
+	testRPID   = "monoops.test"
+	testOrigin = "https://monoops.test:8443"
 )
 
 // cbor writes the few CBOR items an authenticator answers with.
@@ -180,7 +180,7 @@ func (a *authenticator) get(t *testing.T, options []byte, userHandle []byte) []b
 
 func newVerifier(t *testing.T) *Verifier {
 	t.Helper()
-	verifier, err := New(Config{RPID: testRPID, RPDisplayName: "Homelab Manager", Origins: []string{testOrigin}})
+	verifier, err := New(Config{RPID: testRPID, RPDisplayName: "MonoOps", Origins: []string{testOrigin}})
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -193,7 +193,7 @@ func register(t *testing.T, verifier *Verifier, user domain.User, key *authentic
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !bytes.Contains(options, []byte(`"userVerification":"required"`)) || !bytes.Contains(options, []byte(`"id":"homelab.test"`)) {
+	if !bytes.Contains(options, []byte(`"userVerification":"required"`)) || !bytes.Contains(options, []byte(`"id":"monoops.test"`)) {
 		t.Fatalf("creation options = %s", options)
 	}
 	id, data, err := verifier.FinishRegistration(user, nil, session, key.create(t, options))

@@ -4,10 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"homelab-manager/backend/ent"
-	"homelab-manager/backend/ent/auditlog"
-	"homelab-manager/backend/internal/domain"
-	"homelab-manager/backend/internal/ports"
+	"monoops/backend/ent"
+	"monoops/backend/ent/auditlog"
+	"monoops/backend/internal/domain"
+	"monoops/backend/internal/ports"
 )
 
 var _ ports.AuditRecorder = (*AuditRepository)(nil)

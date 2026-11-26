@@ -24,7 +24,7 @@ vi.mock('../../hooks/useSession', () => ({
 const existing: ApiToken = {
   id: 't1',
   name: 'Grafana',
-  prefix: 'hlm_abcdefgh',
+  prefix: 'mop_abcdefgh',
   scopes: ['metrics:read', 'containers:read'],
   username: 'vera',
   createdAt: '2026-11-24T10:00:00Z',
@@ -51,7 +51,7 @@ describe('ApiTokensCard', () => {
   it('lists the tokens, creates one shown once and revokes one', async () => {
     vi.mocked(listApiTokens).mockResolvedValue({ tokens: [existing], scopes: [] })
     vi.mocked(createApiToken).mockResolvedValue({
-      token: 'hlm_secret-value',
+      token: 'mop_secret-value',
       apiToken: { ...existing, id: 't2' },
     })
     vi.mocked(revokeApiToken).mockResolvedValue(undefined)
@@ -76,9 +76,9 @@ describe('ApiTokensCard', () => {
         expiresInDays: 90,
       }),
     )
-    expect(await screen.findByText('hlm_secret-value')).toBeInTheDocument()
+    expect(await screen.findByText('mop_secret-value')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: "J'ai copié le jeton" }))
-    expect(screen.queryByText('hlm_secret-value')).not.toBeInTheDocument()
+    expect(screen.queryByText('mop_secret-value')).not.toBeInTheDocument()
 
     await user.click(screen.getByRole('button', { name: 'Révoquer le jeton Grafana' }))
     await waitFor(() => expect(revokeApiToken).toHaveBeenCalledWith('t1'))
@@ -87,7 +87,7 @@ describe('ApiTokensCard', () => {
   it('offers the action scopes to an operator only', async () => {
     vi.mocked(listApiTokens).mockResolvedValue({ tokens: [], scopes: [] })
     vi.mocked(createApiToken).mockResolvedValue({
-      token: 'hlm_secret-value',
+      token: 'mop_secret-value',
       apiToken: { ...existing, id: 't3', scopes: ['containers:operate'] },
     })
     const user = userEvent.setup()
@@ -100,7 +100,7 @@ describe('ApiTokensCard', () => {
     session.role = 'operator'
     vi.mocked(listApiTokens).mockResolvedValue({ tokens: [], scopes: [] })
     vi.mocked(createApiToken).mockResolvedValue({
-      token: 'hlm_secret-value',
+      token: 'mop_secret-value',
       apiToken: { ...existing, id: 't3', scopes: ['containers:operate'] },
     })
     const user = userEvent.setup()

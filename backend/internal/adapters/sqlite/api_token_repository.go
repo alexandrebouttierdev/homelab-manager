@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"time"
 
-	"homelab-manager/backend/ent"
-	entapitoken "homelab-manager/backend/ent/apitoken"
-	entuser "homelab-manager/backend/ent/user"
-	"homelab-manager/backend/internal/domain"
-	"homelab-manager/backend/internal/ports"
+	"monoops/backend/ent"
+	entapitoken "monoops/backend/ent/apitoken"
+	entuser "monoops/backend/ent/user"
+	"monoops/backend/internal/domain"
+	"monoops/backend/internal/ports"
 
 	"github.com/google/uuid"
 )

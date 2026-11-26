@@ -5,7 +5,7 @@ import (
 	"testing"
 	"time"
 
-	"homelab-manager/backend/internal/domain"
+	"monoops/backend/internal/domain"
 )
 
 func TestMaintenanceTasksRoundTrip(t *testing.T) {

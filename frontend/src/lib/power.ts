@@ -15,7 +15,7 @@ export const powerActionTexts: Record<
   poweroff: {
     label: 'Éteindre',
     warning:
-      "La machine s'arrêtera complètement. Homelab Manager ne pourra pas la rallumer : il faudra un accès physique ou Wake-on-LAN.",
+      "La machine s'arrêtera complètement. MonoOps ne pourra pas la rallumer : il faudra un accès physique ou Wake-on-LAN.",
     done: "Extinction demandée. La machine va s'arrêter.",
   },
 }

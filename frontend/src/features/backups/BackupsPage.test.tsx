@@ -220,9 +220,9 @@ describe('BackupsPage', () => {
         id: 'abcdef0123456789',
         shortId: 'abcdef01',
         time: '2026-11-24T03:00:02Z',
-        hostname: 'homelab',
+        hostname: 'monoops',
         paths: ['/etc'],
-        tags: ['homelab-manager'],
+        tags: ['monoops'],
         totalFiles: 14,
         totalBytes: 65536,
         dataAdded: 2048,
@@ -232,7 +232,7 @@ describe('BackupsPage', () => {
       ...success,
       operation: 'restore',
       state: 'running',
-      details: { dryRun: true, target: '/var/lib/homelab-backup/restore/r' },
+      details: { dryRun: true, target: '/var/lib/monoops-backup/restore/r' },
     })
     const user = userEvent.setup()
     renderPage()
@@ -266,9 +266,9 @@ describe('BackupsPage', () => {
         id: 'abcdef0123456789',
         shortId: 'abcdef01',
         time: '2026-11-24T03:00:02Z',
-        hostname: 'homelab',
+        hostname: 'monoops',
         paths: ['/srv'],
-        tags: ['homelab-manager'],
+        tags: ['monoops'],
         totalFiles: 14,
         totalBytes: 65536,
         dataAdded: 2048,
@@ -335,9 +335,9 @@ describe('BackupsPage', () => {
         id: 'abcdef0123456789',
         shortId: 'abcdef01',
         time: '2026-11-24T03:00:02Z',
-        hostname: 'homelab',
+        hostname: 'monoops',
         paths: ['/srv'],
-        tags: ['homelab-manager'],
+        tags: ['monoops'],
         totalFiles: 14,
         totalBytes: 65536,
         dataAdded: 2048,
@@ -379,9 +379,9 @@ describe('BackupsPage', () => {
       id,
       shortId: id.slice(0, 8),
       time,
-      hostname: 'homelab',
+      hostname: 'monoops',
       paths: ['/etc'],
-      tags: ['homelab-manager'],
+      tags: ['monoops'],
       totalFiles: 1,
       totalBytes: 1,
       dataAdded: 1,
@@ -493,7 +493,7 @@ describe('BackupsPage', () => {
     const withKey: BackupConfig = {
       ...config,
       sshKey: {
-        publicKey: 'ssh-ed25519 AAAAmanager homelab-manager-backup',
+        publicKey: 'ssh-ed25519 AAAAmanager monoops-backup',
         fingerprint: 'SHA256:manager',
         createdAt: '2026-11-25T08:00:00Z',
       },
@@ -512,7 +512,7 @@ describe('BackupsPage', () => {
     expect(await screen.findByText('Clé SSH du Manager')).toBeInTheDocument()
     await user.click(screen.getByRole('button', { name: 'Générer la clé SSH' }))
     expect(
-      await screen.findByDisplayValue('ssh-ed25519 AAAAmanager homelab-manager-backup'),
+      await screen.findByDisplayValue('ssh-ed25519 AAAAmanager monoops-backup'),
     ).toBeInTheDocument()
     expect(screen.getByText(/Empreinte SHA256:manager/)).toBeInTheDocument()
 

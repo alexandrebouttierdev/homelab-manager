@@ -12,8 +12,8 @@ import (
 	"testing"
 	"time"
 
-	"homelab-manager/backend/internal/adapters/dbustest"
-	"homelab-manager/backend/internal/domain"
+	"monoops/backend/internal/adapters/dbustest"
+	"monoops/backend/internal/domain"
 
 	"github.com/godbus/dbus/v5"
 	"github.com/godbus/dbus/v5/prop"

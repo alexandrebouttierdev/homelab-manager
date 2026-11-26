@@ -54,7 +54,7 @@ export function unitActionQuestion(choice: UnitActionChoice, from?: string): str
 const failureMessages: Record<UnitActionFailure, string> = {
   failed: "l'unité est en échec : consultez son journal",
   not_allowed:
-    "polkit a refusé : l'unité manque dans la règle installée (régénérez-la avec « homelab-manager polkit-rule »)",
+    "polkit a refusé : l'unité manque dans la règle installée (régénérez-la avec « monoops polkit-rule »)",
   not_found: 'systemd ne connaît pas cette unité',
   rejected: "systemd a refusé l'action (non applicable à cette unité, unité masquée…)",
   timeout: "l'unité n'a pas atteint un état stable en 90 secondes",

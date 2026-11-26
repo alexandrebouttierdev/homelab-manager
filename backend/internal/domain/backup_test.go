@@ -12,8 +12,8 @@ import (
 func TestValidateBackupRepository(t *testing.T) {
 	valid := []BackupRepository{
 		{Type: RepositoryLocal, Location: "/mnt/backup/restic"},
-		{Type: RepositoryRest, Location: "https://backup.lan:8000/homelab"},
-		{Type: RepositoryS3, Location: "https://s3.eu-central-003.backblazeb2.com/my-bucket/homelab"},
+		{Type: RepositoryRest, Location: "https://backup.lan:8000/monoops"},
+		{Type: RepositoryS3, Location: "https://s3.eu-central-003.backblazeb2.com/my-bucket/monoops"},
 	}
 	for _, repository := range valid {
 		if err := ValidateBackupRepository(repository); err != nil {
@@ -50,7 +50,7 @@ const testHostKey = "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLs
 func TestValidateSFTPRepository(t *testing.T) {
 	for _, location := range []string{
 		"sftp://backup@nas.lan/srv/restic",
-		"sftp://backup@nas.lan:2222/srv/restic/homelab",
+		"sftp://backup@nas.lan:2222/srv/restic/monoops",
 		"sftp://u_1@192.168.1.10/volume1/backup",
 		"sftp://backup@[fd00::10]:22/srv/restic",
 	} {
@@ -280,7 +280,7 @@ func TestTruncateBackupMessage(t *testing.T) {
 }
 
 func TestBackupOperationUnit(t *testing.T) {
-	if BackupOpBackup.BackupUnit() != "homelab-backup@backup.service" || !ValidUnitName(BackupOpInit.BackupUnit()) {
+	if BackupOpBackup.BackupUnit() != "monoops-backup@backup.service" || !ValidUnitName(BackupOpInit.BackupUnit()) {
 		t.Fatal("unit name")
 	}
 	for _, op := range BackupOperations {
@@ -396,7 +396,7 @@ func TestValidateBackupRestore(t *testing.T) {
 		}
 	}
 	id := uuid.MustParse("7c9e6679-7425-40de-944b-e07fc1f90ae7")
-	if RestoreTarget(id) != "/var/lib/homelab-backup/restore/7c9e6679-7425-40de-944b-e07fc1f90ae7" {
+	if RestoreTarget(id) != "/var/lib/monoops-backup/restore/7c9e6679-7425-40de-944b-e07fc1f90ae7" {
 		t.Fatal(RestoreTarget(id))
 	}
 }

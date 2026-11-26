@@ -4,7 +4,7 @@ package ent
 
 import (
 	"fmt"
-	"homelab-manager/backend/ent/backuprun"
+	"monoops/backend/ent/backuprun"
 	"strings"
 	"time"
 

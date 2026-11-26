@@ -75,9 +75,8 @@ export function JournalPage() {
         >
           <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-warning" aria-hidden="true" />
           <p>
-            Le Manager ne lit que ses propres entrées : ajoutez le compte{' '}
-            <code>homelab-manager</code> au groupe <code>systemd-journal</code> puis redémarrez le
-            service (voir le README).
+            Le Manager ne lit que ses propres entrées : ajoutez le compte <code>monoops</code> au
+            groupe <code>systemd-journal</code> puis redémarrez le service (voir le README).
           </p>
         </div>
       )}

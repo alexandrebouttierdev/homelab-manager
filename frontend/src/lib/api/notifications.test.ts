@@ -26,7 +26,7 @@ const input: ChannelInput = {
   enabled: true,
   minSeverity: 'warning',
   renotifyMinutes: 30,
-  settings: { serverUrl: 'https://ntfy.sh', topic: 'homelab' },
+  settings: { serverUrl: 'https://ntfy.sh', topic: 'monoops' },
   secrets: { accessToken: null },
 }
 

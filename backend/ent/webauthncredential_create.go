@@ -6,7 +6,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"homelab-manager/backend/ent/webauthncredential"
+	"monoops/backend/ent/webauthncredential"
 	"time"
 
 	"entgo.io/ent/dialect/sql/sqlgraph"

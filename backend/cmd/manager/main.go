@@ -9,26 +9,26 @@ import (
 	"syscall"
 	"time"
 
-	argon2adapter "homelab-manager/backend/internal/adapters/argon2"
-	"homelab-manager/backend/internal/adapters/backupunit"
-	"homelab-manager/backend/internal/adapters/crontab"
-	"homelab-manager/backend/internal/adapters/dockerengine"
-	"homelab-manager/backend/internal/adapters/journalctl"
-	logindadapter "homelab-manager/backend/internal/adapters/logind"
-	"homelab-manager/backend/internal/adapters/notify"
-	"homelab-manager/backend/internal/adapters/packages"
-	"homelab-manager/backend/internal/adapters/qrcode"
-	"homelab-manager/backend/internal/adapters/secretbox"
-	"homelab-manager/backend/internal/adapters/sqlite"
-	"homelab-manager/backend/internal/adapters/sshkey"
-	"homelab-manager/backend/internal/adapters/systemd"
-	"homelab-manager/backend/internal/adapters/systemsettings"
-	"homelab-manager/backend/internal/adapters/vulnscan"
-	webauthnadapter "homelab-manager/backend/internal/adapters/webauthn"
-	systemcollector "homelab-manager/backend/internal/collector/system"
-	httpdelivery "homelab-manager/backend/internal/delivery/http"
-	"homelab-manager/backend/internal/ports"
-	"homelab-manager/backend/internal/usecase"
+	argon2adapter "monoops/backend/internal/adapters/argon2"
+	"monoops/backend/internal/adapters/backupunit"
+	"monoops/backend/internal/adapters/crontab"
+	"monoops/backend/internal/adapters/dockerengine"
+	"monoops/backend/internal/adapters/journalctl"
+	logindadapter "monoops/backend/internal/adapters/logind"
+	"monoops/backend/internal/adapters/notify"
+	"monoops/backend/internal/adapters/packages"
+	"monoops/backend/internal/adapters/qrcode"
+	"monoops/backend/internal/adapters/secretbox"
+	"monoops/backend/internal/adapters/sqlite"
+	"monoops/backend/internal/adapters/sshkey"
+	"monoops/backend/internal/adapters/systemd"
+	"monoops/backend/internal/adapters/systemsettings"
+	"monoops/backend/internal/adapters/vulnscan"
+	webauthnadapter "monoops/backend/internal/adapters/webauthn"
+	systemcollector "monoops/backend/internal/collector/system"
+	httpdelivery "monoops/backend/internal/delivery/http"
+	"monoops/backend/internal/ports"
+	"monoops/backend/internal/usecase"
 
 	"go.uber.org/zap"
 )
@@ -53,7 +53,7 @@ func main() {
 		os.Exit(1)
 	}
 	defer logger.Sync() //nolint:errcheck
-	logger.Info("Starting Homelab Manager", zap.String("version", version))
+	logger.Info("Starting MonoOps", zap.String("version", version))
 
 	database, databaseErr := sqlite.Open(context.Background(), config.DatabasePath)
 	if databaseErr != nil {
@@ -158,7 +158,7 @@ func main() {
 			containerUsecase.Run(schedulerCtx)
 		}()
 		if config.DockerActionsEnabled {
-			logger.Info("Container start, stop and restart are enabled; they also require HOMELAB_DOCKER_PROXY_CONTAINER_ACTIONS in the proxy")
+			logger.Info("Container start, stop and restart are enabled; they also require MONOOPS_DOCKER_PROXY_CONTAINER_ACTIONS in the proxy")
 		}
 	}
 	journalUsecase := loadJournal(logger)
@@ -197,7 +197,7 @@ func main() {
 		}()
 	}
 	// Package vulnerabilities: the Manager writes the inventory, starts the
-	// homelab-vulnscan.service unit and reads its result; without Grype or
+	// monoops-vulnscan.service unit and reads its result; without Grype or
 	// the unit, scans fail with vulnscan_not_installed.
 	var vulnerabilityUsecase *usecase.VulnerabilityUsecase
 	var vulnerabilitiesDone chan struct{}
@@ -228,11 +228,11 @@ func main() {
 			unitActionUsecase.Run(schedulerCtx)
 		}()
 		if names := config.ManageableUnits.Names(); len(names) > 0 {
-			logger.Info("Service actions are allowed on the listed units; they also require the rule of \"homelab-manager polkit-rule\"",
+			logger.Info("Service actions are allowed on the listed units; they also require the rule of \"monoops polkit-rule\"",
 				zap.Strings("units", names))
 		}
 	}
-	// Backups (phase 6): restic runs in homelab-backup@.service only; the
+	// Backups (phase 6): restic runs in monoops-backup@.service only; the
 	// Manager writes the job, starts the unit and reads the result. Without
 	// the secrets key the repository password cannot be kept: backups are
 	// then unavailable.
@@ -302,7 +302,7 @@ func main() {
 	signal.Notify(stop, os.Interrupt, syscall.SIGTERM)
 
 	go func() {
-		logger.Info("Homelab Manager listening", zap.String("address", config.HTTPAddress))
+		logger.Info("MonoOps listening", zap.String("address", config.HTTPAddress))
 		var serveErr error
 		if config.TLSCertFile != "" {
 			serveErr = server.ListenAndServeTLS(config.TLSCertFile, config.TLSKeyFile)

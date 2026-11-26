@@ -8,8 +8,8 @@ import (
 	"sync"
 	"testing"
 
-	"homelab-manager/backend/internal/adapters/dbustest"
-	"homelab-manager/backend/internal/domain"
+	"monoops/backend/internal/adapters/dbustest"
+	"monoops/backend/internal/domain"
 
 	"github.com/godbus/dbus/v5"
 	"github.com/godbus/dbus/v5/prop"
@@ -115,7 +115,7 @@ func serve(t *testing.T) (*Settings, *fakeServices) {
 		target     **prop.Properties
 	}{
 		{hostnameBus, hostnameBus, hostnamePath, hostnamed{fake}, map[string]*prop.Prop{
-			"StaticHostname": {Value: "homelab", Writable: true}, "Hostname": {Value: "homelab"},
+			"StaticHostname": {Value: "monoops", Writable: true}, "Hostname": {Value: "monoops"},
 		}, &fake.hostname},
 		{timedateBus, timedateBus, timedatePath, timedated{fake}, map[string]*prop.Prop{
 			"Timezone": {Value: "Europe/Paris", Writable: true},
@@ -146,7 +146,7 @@ func TestReadAndChangeTheSystemPreferences(t *testing.T) {
 	settings, fake := serve(t)
 	ctx := context.Background()
 	preferences, err := settings.Preferences(ctx)
-	if err != nil || preferences != (domain.SystemPreferences{Hostname: "homelab", Timezone: "Europe/Paris", Locale: "fr_FR.UTF-8"}) {
+	if err != nil || preferences != (domain.SystemPreferences{Hostname: "monoops", Timezone: "Europe/Paris", Locale: "fr_FR.UTF-8"}) {
 		t.Fatalf("preferences = %+v, %v", preferences, err)
 	}
 	zones, err := settings.Timezones(ctx)

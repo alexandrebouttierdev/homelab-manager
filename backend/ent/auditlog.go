@@ -4,7 +4,7 @@ package ent
 
 import (
 	"fmt"
-	"homelab-manager/backend/ent/auditlog"
+	"monoops/backend/ent/auditlog"
 	"strings"
 	"time"
 

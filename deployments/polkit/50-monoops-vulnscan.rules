@@ -1,13 +1,13 @@
-// Homelab Manager: lets the homelab-manager account start the
-// homelab-vulnscan.service unit, and nothing else (SPEC_ADMINISTRATION.md
+// MonoOps: lets the monoops account start the
+// monoops-vulnscan.service unit, and nothing else (SPEC_ADMINISTRATION.md
 // § 8 ter.2, decision D-11): no other unit, no stop, restart, reload,
 // enable nor daemon-reload.
 //
 // Install as root:root 0644 in /etc/polkit-1/rules.d/.
 polkit.addRule(function (action, subject) {
     if (action.id === "org.freedesktop.systemd1.manage-units" &&
-        subject.user === "homelab-manager" &&
-        action.lookup("unit") === "homelab-vulnscan.service" &&
+        subject.user === "monoops" &&
+        action.lookup("unit") === "monoops-vulnscan.service" &&
         action.lookup("verb") === "start") {
         return polkit.Result.YES;
     }

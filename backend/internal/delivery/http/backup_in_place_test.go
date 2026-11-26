@@ -10,12 +10,12 @@ import (
 	"testing"
 	"time"
 
-	"homelab-manager/backend/internal/adapters/secretbox"
-	"homelab-manager/backend/internal/adapters/sqlite"
-	"homelab-manager/backend/internal/adapters/sshkey"
-	"homelab-manager/backend/internal/domain"
-	"homelab-manager/backend/internal/ports"
-	"homelab-manager/backend/internal/usecase"
+	"monoops/backend/internal/adapters/secretbox"
+	"monoops/backend/internal/adapters/sqlite"
+	"monoops/backend/internal/adapters/sshkey"
+	"monoops/backend/internal/domain"
+	"monoops/backend/internal/ports"
+	"monoops/backend/internal/usecase"
 
 	"go.uber.org/zap"
 )

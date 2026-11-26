@@ -3,7 +3,7 @@ package ports
 import (
 	"context"
 
-	"homelab-manager/backend/internal/domain"
+	"monoops/backend/internal/domain"
 )
 
 // JournalRead describes one read of the system journal. The filter is

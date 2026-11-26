@@ -2,14 +2,14 @@ import { describe, expect, it } from 'vitest'
 import { powerConfirmationSchema } from './power'
 
 describe('powerConfirmationSchema', () => {
-  const schema = powerConfirmationSchema('homelab')
+  const schema = powerConfirmationSchema('monoops')
 
   it('accepts the exact host name, ignoring surrounding spaces', () => {
-    expect(schema.safeParse({ confirmHostname: 'homelab' }).success).toBe(true)
-    expect(schema.safeParse({ confirmHostname: ' homelab ' }).success).toBe(true)
+    expect(schema.safeParse({ confirmHostname: 'monoops' }).success).toBe(true)
+    expect(schema.safeParse({ confirmHostname: ' monoops ' }).success).toBe(true)
   })
 
-  it.each(['', 'Homelab', 'homelab.local', 'other'])('rejects %j', (value) => {
+  it.each(['', 'Monoops', 'monoops.local', 'other'])('rejects %j', (value) => {
     expect(schema.safeParse({ confirmHostname: value }).success).toBe(false)
   })
 

@@ -6,8 +6,8 @@ import (
 	"fmt"
 	"strings"
 
-	"homelab-manager/backend/internal/domain"
-	"homelab-manager/backend/internal/ports"
+	"monoops/backend/internal/domain"
+	"monoops/backend/internal/ports"
 
 	"rsc.io/qr"
 )

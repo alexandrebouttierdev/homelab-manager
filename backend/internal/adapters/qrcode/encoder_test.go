@@ -6,7 +6,7 @@ import (
 )
 
 func TestEncodeReturnsTheModuleMatrix(t *testing.T) {
-	matrix, err := New().Encode("otpauth://totp/Homelab%20Manager:alice?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&issuer=Homelab+Manager")
+	matrix, err := New().Encode("otpauth://totp/MonoOps:alice?secret=GEZDGNBVGY3TQOJQGEZDGNBVGY3TQOJQ&issuer=MonoOps")
 	if err != nil {
 		t.Fatal(err)
 	}

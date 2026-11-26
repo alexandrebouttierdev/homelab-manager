@@ -1,15 +1,15 @@
-// Homelab Manager: lets the homelab-manager account start the units of the
+// MonoOps: lets the monoops account start the units of the
 // maintenance catalog (decision D-1), and nothing else: the verb start
 // only, on the listed instances only.
 //
 // Install as root:root 0644 in /etc/polkit-1/rules.d/.
 polkit.addRule(function (action, subject) {
     var units = [
-        "homelab-journal-vacuum@256M.service", "homelab-journal-vacuum@512M.service",
-        "homelab-journal-vacuum@1024M.service", "homelab-journal-vacuum@2048M.service"
+        "monoops-journal-vacuum@256M.service", "monoops-journal-vacuum@512M.service",
+        "monoops-journal-vacuum@1024M.service", "monoops-journal-vacuum@2048M.service"
     ];
     if (action.id === "org.freedesktop.systemd1.manage-units" &&
-        subject.user === "homelab-manager" &&
+        subject.user === "monoops" &&
         units.indexOf(action.lookup("unit")) >= 0 &&
         action.lookup("verb") === "start") {
         return polkit.Result.YES;

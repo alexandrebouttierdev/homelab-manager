@@ -8,7 +8,7 @@ import (
 	"sort"
 	"time"
 
-	"homelab-manager/backend/migrations"
+	"monoops/backend/migrations"
 )
 
 const migrationTimeout = 30 * time.Second

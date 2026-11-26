@@ -70,7 +70,7 @@ export function LoginPage() {
             >
               Connexion
             </h1>
-            <p className="mt-1 text-xs text-text-muted">Homelab Manager · supervision locale</p>
+            <p className="mt-1 text-xs text-text-muted">MonoOps · supervision locale</p>
           </div>
 
           {secondFactor ? (
@@ -207,7 +207,7 @@ export function LoginPage() {
       </div>
 
       <footer className="relative z-10 flex flex-col items-center justify-between gap-2 border-t border-line/60 bg-background/60 px-4 py-3 text-xs text-text-muted sm:flex-row sm:px-6">
-        <span>Homelab Manager · supervision mono-hôte</span>
+        <span>MonoOps · supervision mono-hôte</span>
         <span className="flex items-center gap-2">
           <span>
             {typeof window !== 'undefined' && window.location.protocol === 'https:'

@@ -2,13 +2,13 @@
 Description=Restricted Docker API proxy socket
 
 [Socket]
-ListenStream=/run/homelab-docker-proxy/docker.sock
-SocketGroup=homelab-manager
+ListenStream=/run/monoops-docker-proxy/docker.sock
+SocketGroup=monoops
 SocketMode=0660
 # systemd creates the directory as root:root: the Manager must be able to
 # traverse it. Access is restricted by the socket itself (group, 0660).
 DirectoryMode=0755
-Service=homelab-docker-proxy.service
+Service=monoops-docker-proxy.service
 
 [Install]
 WantedBy=sockets.target

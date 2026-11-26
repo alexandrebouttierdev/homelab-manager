@@ -2,7 +2,7 @@
 
 package runtime
 
-// The schema-stitching logic is generated in homelab-manager/backend/ent/runtime.go
+// The schema-stitching logic is generated in monoops/backend/ent/runtime.go
 
 const (
 	Version = "v0.14.6"                                         // Version of ent codegen.

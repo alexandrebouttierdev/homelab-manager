@@ -5,7 +5,7 @@ package hook
 import (
 	"context"
 	"fmt"
-	"homelab-manager/backend/ent"
+	"monoops/backend/ent"
 )
 
 // The APITokenFunc type is an adapter to allow the use of ordinary

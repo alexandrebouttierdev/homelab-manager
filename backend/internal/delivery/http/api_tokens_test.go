@@ -35,7 +35,7 @@ func createToken(t *testing.T, router http.Handler, cookie *http.Cookie, body st
 	if err := json.Unmarshal(response.Body.Bytes(), &created); err != nil {
 		t.Fatal(err)
 	}
-	if !strings.HasPrefix(created.Token, "hlm_") || !strings.HasPrefix(created.Token, created.APIToken.Prefix) {
+	if !strings.HasPrefix(created.Token, "mop_") || !strings.HasPrefix(created.Token, created.APIToken.Prefix) {
 		t.Fatalf("token = %+v", created)
 	}
 	return created.Token, created.APIToken.ID
@@ -70,7 +70,7 @@ func TestAPITokens(t *testing.T) {
 			t.Errorf("%s %s = %d %s, want %d TOKEN_SCOPE_DENIED", tc.method, tc.path, response.Code, response.Body, tc.code)
 		}
 	}
-	for _, bad := range []string{"hlm_unknown", token[:len(token)-4] + "AAAA", ""} {
+	for _, bad := range []string{"mop_unknown", token[:len(token)-4] + "AAAA", ""} {
 		if response := callWithToken(router, http.MethodGet, "/api/v1/system/units", bad); response.Code != http.StatusUnauthorized {
 			t.Errorf("token %q = %d", bad, response.Code)
 		}

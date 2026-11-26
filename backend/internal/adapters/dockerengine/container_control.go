@@ -14,7 +14,7 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"homelab-manager/backend/internal/domain"
+	"monoops/backend/internal/domain"
 )
 
 const (
@@ -25,7 +25,7 @@ const (
 	logRetries = 3
 	// tooLargeHeader is set by the proxy on an answer above its bound
 	// (dockerproxy.TooLargeHeader).
-	tooLargeHeader = "X-Homelab-Too-Large"
+	tooLargeHeader = "X-MonoOps-Too-Large"
 )
 
 var errLogTooLarge = errors.New("container log answer is too large")

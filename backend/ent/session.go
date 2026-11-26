@@ -4,8 +4,8 @@ package ent
 
 import (
 	"fmt"
-	"homelab-manager/backend/ent/session"
-	"homelab-manager/backend/ent/user"
+	"monoops/backend/ent/session"
+	"monoops/backend/ent/user"
 	"strings"
 	"time"
 

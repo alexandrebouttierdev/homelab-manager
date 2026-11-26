@@ -12,7 +12,7 @@ import (
 	"os"
 	"strings"
 
-	"homelab-manager/backend/internal/ports"
+	"monoops/backend/internal/ports"
 )
 
 const (

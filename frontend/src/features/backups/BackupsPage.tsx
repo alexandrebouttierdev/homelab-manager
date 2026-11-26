@@ -35,7 +35,7 @@ export function BackupsPage() {
         title="Sauvegardes"
         breadcrumb={[{ label: 'Système' }, { label: 'Sauvegardes' }]}
         badge={summary.health && <Badge tone={summary.health.tone}>{summary.health.label}</Badge>}
-        description="Sauvegardes chiffrées par restic, exécutées par l'unité dédiée homelab-backup@.service."
+        description="Sauvegardes chiffrées par restic, exécutées par l'unité dédiée monoops-backup@.service."
         actions={
           <div className="flex gap-2">
             <Button
@@ -325,7 +325,7 @@ function RestorePanel({ model }: { model: BackupRestoreModel }) {
           <p className="mt-1 text-xs text-text-secondary">
             {inPlace
               ? "Les fichiers de l'instantané remplacent ceux d'aujourd'hui à leur emplacement d'origine ; les fichiers identiques ne sont pas touchés et rien n'est supprimé. Avant, une sauvegarde de sécurité garde l'état actuel de ces chemins. /etc, /usr, /boot et les données du Manager ne se restaurent jamais en place."
-              : "Les fichiers sont restaurés dans un répertoire de quarantaine, /var/lib/homelab-backup/restore/…, accessible à root seulement : rien n'est écrit à leur emplacement d'origine. Copiez ensuite ce qui vous sert. Simulez d'abord pour connaître le volume."}
+              : "Les fichiers sont restaurés dans un répertoire de quarantaine, /var/lib/monoops-backup/restore/…, accessible à root seulement : rien n'est écrit à leur emplacement d'origine. Copiez ensuite ce qui vous sert. Simulez d'abord pour connaître le volume."}
           </p>
         </div>
         <button

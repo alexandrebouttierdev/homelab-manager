@@ -7,7 +7,7 @@ import (
 
 func TestSystemPreferenceValues(t *testing.T) {
 	for name, want := range map[string]bool{
-		"homelab": true, "nas-01": true, "nas.home.lan": true, "a": true,
+		"monoops": true, "nas-01": true, "nas.home.lan": true, "a": true,
 		"": false, "-nas": false, "nas-": false, "nas..lan": false, "nas_01": false, "nas lan": false,
 		strings.Repeat("a", 63): true, strings.Repeat("a", 64): false,
 		strings.Repeat("a.", 32) + "b": false,

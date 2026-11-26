@@ -190,7 +190,7 @@ const channels: NotificationChannel[] = [
     enabled: true,
     minSeverity: 'warning',
     renotifyMinutes: 30,
-    settings: { serverUrl: 'https://ntfy.sh', topic: 'homelab' },
+    settings: { serverUrl: 'https://ntfy.sh', topic: 'monoops' },
     secrets: { accessToken: { defined: true, fingerprint: '3f9a0c1b7e42' } },
     lastSentAt: null,
     lastErrorAt: '2026-11-24T09:00:00Z',
@@ -315,7 +315,7 @@ describe('AlertsPage', () => {
     await user.click(restart[0])
     await user.click(screen.getByRole('button', { name: 'Confirmer : Redémarrer' }))
     await waitFor(() => expect(requestUnitAction).toHaveBeenCalledWith('backup.service', 'restart'))
-    expect(await screen.findByText(/homelab-manager polkit-rule/)).toBeInTheDocument()
+    expect(await screen.findByText(/monoops polkit-rule/)).toBeInTheDocument()
   })
 
   it('offers no restart to a viewer', async () => {

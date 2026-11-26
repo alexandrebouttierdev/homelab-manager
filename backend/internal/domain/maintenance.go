@@ -15,7 +15,7 @@ type MaintenanceKind string
 
 const (
 	// MaintenanceJournalVacuum keeps the systemd journal under a size
-	// (journalctl --vacuum-size, in homelab-journal-vacuum@<size>.service).
+	// (journalctl --vacuum-size, in monoops-journal-vacuum@<size>.service).
 	MaintenanceJournalVacuum MaintenanceKind = "journal-vacuum"
 )
 
@@ -90,7 +90,7 @@ func (t MaintenanceTask) Validate() error {
 
 // Unit is the unit a run of the task starts.
 func (t MaintenanceTask) Unit() string {
-	return fmt.Sprintf("homelab-journal-vacuum@%dM.service", t.MaxSizeMiB)
+	return fmt.Sprintf("monoops-journal-vacuum@%dM.service", t.MaxSizeMiB)
 }
 
 // MaintenanceUnits lists every unit of the catalog: the polkit rule grants

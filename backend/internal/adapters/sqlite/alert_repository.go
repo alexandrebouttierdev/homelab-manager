@@ -7,11 +7,11 @@ import (
 	"fmt"
 	"time"
 
-	"homelab-manager/backend/ent"
-	entalert "homelab-manager/backend/ent/alert"
-	entalertrule "homelab-manager/backend/ent/alertrule"
-	"homelab-manager/backend/internal/domain"
-	"homelab-manager/backend/internal/ports"
+	"monoops/backend/ent"
+	entalert "monoops/backend/ent/alert"
+	entalertrule "monoops/backend/ent/alertrule"
+	"monoops/backend/internal/domain"
+	"monoops/backend/internal/ports"
 
 	entsql "entgo.io/ent/dialect/sql"
 	"github.com/google/uuid"

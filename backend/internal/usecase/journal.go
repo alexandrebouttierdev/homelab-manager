@@ -8,8 +8,8 @@ import (
 	"sync"
 	"time"
 
-	"homelab-manager/backend/internal/domain"
-	"homelab-manager/backend/internal/ports"
+	"monoops/backend/internal/domain"
+	"monoops/backend/internal/ports"
 )
 
 // journalCacheLifetime bounds how often the summary and the boot list are

@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"homelab-manager/backend/internal/domain"
+	"monoops/backend/internal/domain"
 )
 
 // TestContainerAndEventPagesAreStable pages through containers that share a

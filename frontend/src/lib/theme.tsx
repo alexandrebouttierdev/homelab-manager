@@ -18,7 +18,7 @@ type ThemeContextValue = {
 }
 
 const ThemeContext = createContext<ThemeContextValue | null>(null)
-const storageKey = 'homelab-manager-theme'
+const storageKey = 'monoops-theme'
 
 function readInitialTheme(): Theme {
   if (typeof window === 'undefined') return 'dark'

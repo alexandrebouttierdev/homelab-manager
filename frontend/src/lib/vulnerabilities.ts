@@ -71,11 +71,11 @@ const failureLabels: Record<ScanFailure, string> = {
   unsupported_distro:
     'distribution non prise en charge (Debian, Ubuntu, Alpine et les distributions RPM à base SQLite : Fedora, RHEL, Rocky Linux et AlmaLinux 9 et suivants)',
   inventory_failed: 'base de paquets illisible',
-  vulnscan_not_installed: "Grype ou l'unité homelab-vulnscan.service n'est pas installé",
+  vulnscan_not_installed: "Grype ou l'unité monoops-vulnscan.service n'est pas installé",
   vulnscan_not_allowed: "la règle polkit qui autorise l'analyse est absente",
   timeout: 'délai de 15 minutes dépassé',
   scan_failed:
-    'Grype a échoué (base injoignable ou de plus de 5 jours ?), voir le journal de homelab-vulnscan',
+    'Grype a échoué (base injoignable ou de plus de 5 jours ?), voir le journal de monoops-vulnscan',
   stale_result: "aucun résultat récent n'a été écrit",
   invalid_result: 'résultat illisible',
   interrupted: 'interrompue par un arrêt du Manager',

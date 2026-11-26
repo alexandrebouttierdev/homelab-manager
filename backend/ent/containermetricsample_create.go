@@ -6,8 +6,8 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"homelab-manager/backend/ent/container"
-	"homelab-manager/backend/ent/containermetricsample"
+	"monoops/backend/ent/container"
+	"monoops/backend/ent/containermetricsample"
 	"time"
 
 	"entgo.io/ent/dialect/sql/sqlgraph"

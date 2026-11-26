@@ -5,12 +5,12 @@ import (
 	"fmt"
 	"time"
 
-	"homelab-manager/backend/ent"
-	"homelab-manager/backend/ent/loginfailure"
-	"homelab-manager/backend/ent/session"
-	"homelab-manager/backend/ent/user"
-	"homelab-manager/backend/internal/domain"
-	"homelab-manager/backend/internal/ports"
+	"monoops/backend/ent"
+	"monoops/backend/ent/loginfailure"
+	"monoops/backend/ent/session"
+	"monoops/backend/ent/user"
+	"monoops/backend/internal/domain"
+	"monoops/backend/internal/ports"
 
 	"github.com/google/uuid"
 )

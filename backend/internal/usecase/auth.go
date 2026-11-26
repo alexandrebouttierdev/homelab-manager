@@ -11,8 +11,8 @@ import (
 	"sync"
 	"time"
 
-	"homelab-manager/backend/internal/domain"
-	"homelab-manager/backend/internal/ports"
+	"monoops/backend/internal/domain"
+	"monoops/backend/internal/ports"
 
 	"github.com/google/uuid"
 )
@@ -530,7 +530,7 @@ func (u *AuthUsecase) ChangePassword(ctx context.Context, token, currentPassword
 
 func (u *AuthUsecase) verifyDummy(password string) {
 	u.dummyOnce.Do(func() {
-		hash, err := u.hasher.Hash("homelab-manager-unknown-user")
+		hash, err := u.hasher.Hash("monoops-unknown-user")
 		if err == nil {
 			u.dummyHash = hash
 		}

@@ -10,12 +10,12 @@ import (
 
 	"go.uber.org/zap"
 
-	"homelab-manager/backend/internal/adapters/secretbox"
-	"homelab-manager/backend/internal/adapters/sqlite"
-	"homelab-manager/backend/internal/adapters/sshkey"
-	"homelab-manager/backend/internal/domain"
-	"homelab-manager/backend/internal/ports"
-	"homelab-manager/backend/internal/usecase"
+	"monoops/backend/internal/adapters/secretbox"
+	"monoops/backend/internal/adapters/sqlite"
+	"monoops/backend/internal/adapters/sshkey"
+	"monoops/backend/internal/domain"
+	"monoops/backend/internal/ports"
+	"monoops/backend/internal/usecase"
 )
 
 // instantExecutor succeeds at once with one snapshot.
@@ -235,7 +235,7 @@ func TestBackupOperationRoutes(t *testing.T) {
 		}
 	}
 	response = call(router, http.MethodPost, "/api/v1/backups/operations", `{"operation":"restore","restore":{"snapshotId":"0123456789ab","include":["/etc"],"dryRun":true}}`, admin)
-	if response.Code != http.StatusAccepted || !strings.Contains(response.Body.String(), `"target":"/var/lib/homelab-backup/restore/`) {
+	if response.Code != http.StatusAccepted || !strings.Contains(response.Body.String(), `"target":"/var/lib/monoops-backup/restore/`) {
 		t.Fatalf("restore = %d %s", response.Code, response.Body)
 	}
 	waitForBody(t, router, "/api/v1/backups/runs?limit=1", admin, `"filesRestored":2`)
@@ -342,7 +342,7 @@ func TestBackupSFTPRoutes(t *testing.T) {
 	response := call(router, http.MethodPost, "/api/v1/backups/ssh-key", "", admin)
 	body := response.Body.String()
 	if response.Code != http.StatusOK || !strings.Contains(body, `"sshKey":{"publicKey":"ssh-ed25519 `) ||
-		!strings.Contains(body, ` homelab-manager-backup","fingerprint":"SHA256:`) || strings.Contains(body, "PRIVATE") {
+		!strings.Contains(body, ` monoops-backup","fingerprint":"SHA256:`) || strings.Contains(body, "PRIVATE") {
 		t.Fatalf("generate = %d %s", response.Code, body)
 	}
 	bad := strings.Replace(sftpBody, hostPublic, "nope", 1)

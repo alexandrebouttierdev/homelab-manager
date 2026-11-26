@@ -9,7 +9,7 @@ import (
 	"testing"
 	"time"
 
-	"homelab-manager/backend/internal/domain"
+	"monoops/backend/internal/domain"
 )
 
 func cookieNamed(t *testing.T, response *httptest.ResponseRecorder, name string) *http.Cookie {

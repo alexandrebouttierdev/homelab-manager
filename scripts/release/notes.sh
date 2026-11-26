@@ -21,7 +21,7 @@ section() {
 
 matching() { grep -E "$1" <<<"$commits" || true; }
 
-echo "## Homelab Manager v$version"
+echo "## MonoOps v$version"
 echo
 section "Changements majeurs" "$(matching '^[a-z]+(\([^)]*\))?!:')"
 section "Nouveautés" "$(matching '^feat(\([^)]*\))?:')"
@@ -32,8 +32,8 @@ section "Autres changements" "$(grep -vE '^(feat|fix|perf)(\([^)]*\))?:|^[a-z]+(
 cat <<NOTES
 ### Installation
 
-Archives pour Linux \`amd64\` et \`arm64\` : binaires \`homelab-manager\`,
-\`homelab-docker-proxy\` et \`homelab-backup-runner\`, interface compilée
+Archives pour Linux \`amd64\` et \`arm64\` : binaires \`monoops\`,
+\`monoops-docker-proxy\` et \`monoops-backup-runner\`, interface compilée
 (\`frontend/dist\`), unités systemd, configuration et règles polkit. Vérifier l'archive avec \`sha256sum -c SHA256SUMS\`,
 puis suivre la section « Installation » du README.
 NOTES

@@ -15,7 +15,7 @@ export function UsersPage() {
       <PageHeader
         title="Utilisateurs & accès"
         breadcrumb={[{ label: 'Paramètres' }, { label: 'Utilisateurs & accès' }]}
-        description="Comptes de Homelab Manager uniquement : aucun compte Linux de la machine n'est lu ni modifié."
+        description="Comptes de MonoOps uniquement : aucun compte Linux de la machine n'est lu ni modifié."
       />
       <SegmentedTabs options={usersTabs} value={tab} onChange={setTab} ariaLabel="Sections" />
       {tab === 'accounts' && <AccountsPanel />}

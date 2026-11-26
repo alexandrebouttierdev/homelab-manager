@@ -4,8 +4,8 @@ package ent
 
 import (
 	"context"
-	"homelab-manager/backend/ent/backuprun"
-	"homelab-manager/backend/ent/predicate"
+	"monoops/backend/ent/backuprun"
+	"monoops/backend/ent/predicate"
 
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"

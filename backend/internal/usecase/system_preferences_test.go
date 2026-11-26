@@ -6,7 +6,7 @@ import (
 	"slices"
 	"testing"
 
-	"homelab-manager/backend/internal/domain"
+	"monoops/backend/internal/domain"
 
 	"go.uber.org/zap"
 )
@@ -52,7 +52,7 @@ func (f *fakeSystemSettings) SetLocale(_ context.Context, value string) error {
 var systemAdmin = domain.User{Username: "alice", Role: domain.RoleAdmin}
 
 func TestSystemPreferencesChangeOnlyWhatDiffers(t *testing.T) {
-	settings := &fakeSystemSettings{current: domain.SystemPreferences{Hostname: "homelab", Timezone: "Europe/Paris", Locale: "fr_FR.UTF-8"}}
+	settings := &fakeSystemSettings{current: domain.SystemPreferences{Hostname: "monoops", Timezone: "Europe/Paris", Locale: "fr_FR.UTF-8"}}
 	audit := &syncAudit{}
 	preferences := NewSystemPreferencesUsecase(settings, audit, true, zap.NewNop())
 	changed, err := preferences.Update(context.Background(), systemAdmin,
@@ -77,7 +77,7 @@ func TestSystemPreferencesChangeOnlyWhatDiffers(t *testing.T) {
 
 func TestSystemPreferencesStopAtTheFirstFailure(t *testing.T) {
 	settings := &fakeSystemSettings{
-		current: domain.SystemPreferences{Hostname: "homelab", Timezone: "Europe/Paris", Locale: "fr_FR.UTF-8"},
+		current: domain.SystemPreferences{Hostname: "monoops", Timezone: "Europe/Paris", Locale: "fr_FR.UTF-8"},
 		fail:    map[string]error{"timezone": domain.ErrSystemValueRejected},
 	}
 	audit := &syncAudit{}
@@ -97,7 +97,7 @@ func TestSystemPreferencesStopAtTheFirstFailure(t *testing.T) {
 }
 
 func TestSystemPreferencesNeedTheSettingAndTheAudit(t *testing.T) {
-	settings := &fakeSystemSettings{current: domain.SystemPreferences{Hostname: "homelab", Timezone: "UTC", Locale: "C.UTF-8"}}
+	settings := &fakeSystemSettings{current: domain.SystemPreferences{Hostname: "monoops", Timezone: "UTC", Locale: "C.UTF-8"}}
 	change := domain.SystemPreferencesChange{Hostname: "nas", Timezone: "UTC", Locale: "C.UTF-8"}
 	disabled := NewSystemPreferencesUsecase(settings, &syncAudit{}, false, zap.NewNop())
 	if _, err := disabled.Update(context.Background(), systemAdmin, change, "req"); !errors.Is(err, domain.ErrSystemPreferencesDisabled) {
@@ -114,7 +114,7 @@ func TestSystemPreferencesNeedTheSettingAndTheAudit(t *testing.T) {
 	preferences := NewSystemPreferencesUsecase(settings, &syncAudit{}, true, zap.NewNop())
 	settings.fail = map[string]error{"zones": errors.New("no list")}
 	current, zones, err := preferences.Preferences(context.Background())
-	if err != nil || current.Hostname != "homelab" || zones != nil {
+	if err != nil || current.Hostname != "monoops" || zones != nil {
 		t.Fatalf("preferences without zones = %+v, %v, %v", current, zones, err)
 	}
 }
@@ -123,7 +123,7 @@ func TestSystemPreferencesNeedTheSettingAndTheAudit(t *testing.T) {
 // change through localed; nothing else changes either.
 func TestLockedLocaleIsRefusedBeforeAnyChange(t *testing.T) {
 	settings := &fakeSystemSettings{
-		current:        domain.SystemPreferences{Hostname: "homelab", Timezone: "UTC", Locale: "en_US.UTF-8"},
+		current:        domain.SystemPreferences{Hostname: "monoops", Timezone: "UTC", Locale: "en_US.UTF-8"},
 		localeReadOnly: true,
 	}
 	preferences := NewSystemPreferencesUsecase(settings, &syncAudit{}, true, zap.NewNop())

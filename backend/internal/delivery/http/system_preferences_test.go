@@ -6,9 +6,9 @@ import (
 	"strings"
 	"testing"
 
-	"homelab-manager/backend/internal/adapters/sqlite"
-	"homelab-manager/backend/internal/domain"
-	"homelab-manager/backend/internal/usecase"
+	"monoops/backend/internal/adapters/sqlite"
+	"monoops/backend/internal/domain"
+	"monoops/backend/internal/usecase"
 
 	"go.uber.org/zap"
 )
@@ -54,7 +54,7 @@ func newSystemRouter(t *testing.T, enabled bool) (http.Handler, *httpFakeSystem,
 	t.Helper()
 	resetLoginRateLimit(t)
 	services, database := newTestServices(t, nil)
-	fake := &httpFakeSystem{current: domain.SystemPreferences{Hostname: "homelab", Timezone: "Europe/Paris", Locale: "fr_FR.UTF-8"}}
+	fake := &httpFakeSystem{current: domain.SystemPreferences{Hostname: "monoops", Timezone: "Europe/Paris", Locale: "fr_FR.UTF-8"}}
 	services.SystemPreferences = usecase.NewSystemPreferencesUsecase(fake, sqlite.NewAuditRepository(database.Client()), enabled, zap.NewNop())
 	router := NewRouter(zap.NewNop(), services, false, "")
 	return router, fake, signIn(t, router, "admin", "admin-password-1")
@@ -64,7 +64,7 @@ func TestSystemPreferencesRoutes(t *testing.T) {
 	router, fake, admin := newSystemRouter(t, true)
 	operator := signInWithRole(t, router, admin, "olivia", "operator")
 	read := call(router, http.MethodGet, "/api/v1/system/preferences", "", operator)
-	if read.Code != http.StatusOK || !strings.Contains(read.Body.String(), `"hostname":"homelab"`) ||
+	if read.Code != http.StatusOK || !strings.Contains(read.Body.String(), `"hostname":"monoops"`) ||
 		!strings.Contains(read.Body.String(), `"timezones":["Europe/Paris","UTC"]`) || !strings.Contains(read.Body.String(), `"enabled":true`) {
 		t.Fatalf("read = %d %s", read.Code, read.Body)
 	}
@@ -108,7 +108,7 @@ func TestSystemPreferencesRoutes(t *testing.T) {
 func TestSystemPreferencesDisabled(t *testing.T) {
 	router, fake, admin := newSystemRouter(t, false)
 	response := call(router, http.MethodPut, "/api/v1/system/preferences", `{"hostname":"nas","timezone":"UTC","locale":"fr_FR.UTF-8"}`, admin)
-	if response.Code != http.StatusConflict || !strings.Contains(response.Body.String(), "SYSTEM_PREFERENCES_DISABLED") || fake.current.Hostname != "homelab" {
+	if response.Code != http.StatusConflict || !strings.Contains(response.Body.String(), "SYSTEM_PREFERENCES_DISABLED") || fake.current.Hostname != "monoops" {
 		t.Fatalf("disabled = %d %s", response.Code, response.Body)
 	}
 }

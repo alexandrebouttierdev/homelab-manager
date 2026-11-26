@@ -1,4 +1,4 @@
-// Package backupjob defines the files the Manager and homelab-backup-runner
+// Package backupjob defines the files the Manager and monoops-backup-runner
 // exchange (SPEC_ADMINISTRATION.md § 7.1): a job and its secrets, written by
 // the Manager, and a result, written by the runner. Both sides decode them
 // strictly and validate them with the domain rules.
@@ -15,7 +15,7 @@ import (
 	"strings"
 	"time"
 
-	"homelab-manager/backend/internal/domain"
+	"monoops/backend/internal/domain"
 
 	"github.com/google/uuid"
 )

@@ -9,9 +9,9 @@ import (
 	"strings"
 	"testing"
 
-	"homelab-manager/backend/internal/adapters/sqlite"
-	"homelab-manager/backend/internal/domain"
-	"homelab-manager/backend/internal/ports"
+	"monoops/backend/internal/adapters/sqlite"
+	"monoops/backend/internal/domain"
+	"monoops/backend/internal/ports"
 
 	"github.com/google/uuid"
 	"go.uber.org/zap"

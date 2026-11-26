@@ -28,7 +28,7 @@ export function ApiTokensCard() {
       />
       <CardBody className="space-y-3">
         <p className="text-xs text-text-secondary">
-          Un jeton s&apos;envoie dans l&apos;en-tête <code>Authorization: Bearer hlm_…</code>. Il ne
+          Un jeton s&apos;envoie dans l&apos;en-tête <code>Authorization: Bearer mop_…</code>. Il ne
           permet que la lecture des parties choisies, jamais une action, et cesse de fonctionner si
           votre compte est désactivé.
         </p>

@@ -1,5 +1,5 @@
-// Command homelab-backup-runner runs one backup operation for
-// homelab-backup@<operation>.service (SPEC_ADMINISTRATION.md § 7.1). It
+// Command monoops-backup-runner runs one backup operation for
+// monoops-backup@<operation>.service (SPEC_ADMINISTRATION.md § 7.1). It
 // takes the operation as its only argument, the instance name of the unit;
 // everything else comes from the job file, validated again.
 package main
@@ -11,7 +11,7 @@ import (
 	"os/signal"
 	"syscall"
 
-	"homelab-manager/backend/internal/backuprunner"
+	"monoops/backend/internal/backuprunner"
 )
 
 // version is set at build time by scripts/release/build.sh.
@@ -19,7 +19,7 @@ var version = "dev"
 
 func main() {
 	if len(os.Args) != 2 {
-		fmt.Fprintf(os.Stderr, "homelab-backup-runner %s\nusage: homelab-backup-runner <operation>\n", version)
+		fmt.Fprintf(os.Stderr, "monoops-backup-runner %s\nusage: monoops-backup-runner <operation>\n", version)
 		os.Exit(2)
 	}
 	// systemd stops the unit with SIGTERM at TimeoutStartSec=: restic is

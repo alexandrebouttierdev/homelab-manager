@@ -11,14 +11,14 @@ func TestAPITokenSecret(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	if !strings.HasPrefix(token, "hlm_") || len(token) != 47 || !LooksLikeAPIToken(token) || hash != HashAPIToken(token) || len(hash) != 64 {
+	if !strings.HasPrefix(token, "mop_") || len(token) != 47 || !LooksLikeAPIToken(token) || hash != HashAPIToken(token) || len(hash) != 64 {
 		t.Fatalf("token %q hash %q", token, hash)
 	}
 	other, _, _ := NewAPITokenSecret()
 	if other == token {
 		t.Fatal("two tokens are equal")
 	}
-	for _, bad := range []string{"", "hlm_", "hlx_" + token[4:], token + "a", token[:46], "hlm_" + strings.Repeat("!", 43)} {
+	for _, bad := range []string{"", "mop_", "hlx_" + token[4:], token + "a", token[:46], "mop_" + strings.Repeat("!", 43)} {
 		if LooksLikeAPIToken(bad) {
 			t.Errorf("%q accepted", bad)
 		}

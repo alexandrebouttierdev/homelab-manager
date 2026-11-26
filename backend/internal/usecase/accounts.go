@@ -6,13 +6,13 @@ import (
 	"fmt"
 	"sync"
 
-	"homelab-manager/backend/internal/domain"
-	"homelab-manager/backend/internal/ports"
+	"monoops/backend/internal/domain"
+	"monoops/backend/internal/ports"
 
 	"github.com/google/uuid"
 )
 
-// maxAccounts bounds the account list; a homelab has a handful of accounts.
+// maxAccounts bounds the account list; one server has a handful of accounts.
 const maxAccounts = 500
 
 const auditTargetUser = "user"

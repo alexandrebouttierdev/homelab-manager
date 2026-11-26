@@ -1,4 +1,4 @@
-// Package backupunit runs a backup operation in homelab-backup@.service:
+// Package backupunit runs a backup operation in monoops-backup@.service:
 // it writes the job and its one-use secrets file, starts the unit by D-Bus
 // (allowed by polkit for these instances only) and reads the result the
 // runner wrote (SPEC_ADMINISTRATION.md § 7.1).
@@ -11,16 +11,16 @@ import (
 	"os"
 	"time"
 
-	"homelab-manager/backend/internal/backupjob"
-	"homelab-manager/backend/internal/domain"
-	"homelab-manager/backend/internal/ports"
+	"monoops/backend/internal/backupjob"
+	"monoops/backend/internal/domain"
+	"monoops/backend/internal/ports"
 )
 
-// Defaults of the deployment (deployments/tmpfiles/homelab-backup.conf and
-// deployments/systemd/homelab-backup@.service).
+// Defaults of the deployment (deployments/tmpfiles/monoops-backup.conf and
+// deployments/systemd/monoops-backup@.service).
 const (
-	DefaultJobsDir = "/var/lib/homelab-backup/jobs"
-	DefaultRunsDir = "/var/lib/homelab-backup/runs"
+	DefaultJobsDir = "/var/lib/monoops-backup/jobs"
+	DefaultRunsDir = "/var/lib/monoops-backup/runs"
 	// The waits leave the unit its TimeoutStartSec=, plus the time systemd
 	// needs to stop it.
 	DefaultInitTimeout   = 11 * time.Minute

@@ -52,7 +52,7 @@ describe('LoginPage', () => {
     )
 
     expect(screen.getByRole('heading', { name: 'Connexion' })).toBeInTheDocument()
-    expect(screen.getByText('Homelab Manager · supervision locale')).toBeInTheDocument()
+    expect(screen.getByText('MonoOps · supervision locale')).toBeInTheDocument()
     expect(screen.getByText('Accès administrateur local')).toBeInTheDocument()
   })
 })

@@ -51,7 +51,7 @@ describe('describeContainerAction', () => {
     expect(describeContainerAction(action({ state: 'succeeded' })).message).toBe('web redémarré.')
     expect(
       describeContainerAction(action({ state: 'failed', failure: 'not_allowed' })).message,
-    ).toMatch(/HOMELAB_DOCKER_PROXY_CONTAINER_ACTIONS/)
+    ).toMatch(/MONOOPS_DOCKER_PROXY_CONTAINER_ACTIONS/)
   })
 })
 

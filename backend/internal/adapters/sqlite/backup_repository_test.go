@@ -9,11 +9,11 @@ import (
 	"testing"
 	"time"
 
-	"homelab-manager/backend/ent"
-	"homelab-manager/backend/ent/auditlog"
-	"homelab-manager/backend/internal/domain"
-	"homelab-manager/backend/internal/ports"
-	"homelab-manager/backend/migrations"
+	"monoops/backend/ent"
+	"monoops/backend/ent/auditlog"
+	"monoops/backend/internal/domain"
+	"monoops/backend/internal/ports"
+	"monoops/backend/migrations"
 
 	"entgo.io/ent/dialect"
 	entsql "entgo.io/ent/dialect/sql"
@@ -143,7 +143,7 @@ func TestBackupRunsAndSnapshots(t *testing.T) {
 
 	snapshots := []domain.BackupSnapshot{
 		{ID: "a", ShortID: "a", Time: start, Paths: []string{"/etc"}},
-		{ID: "b", ShortID: "b", Time: start.Add(time.Hour), Paths: []string{"/etc"}, Tags: []string{"homelab-manager"}, TotalFiles: 5},
+		{ID: "b", ShortID: "b", Time: start.Add(time.Hour), Paths: []string{"/etc"}, Tags: []string{"monoops"}, TotalFiles: 5},
 	}
 	finished := start.Add(90 * time.Hour)
 	last := domain.BackupRun{ID: uuid.New(), Operation: domain.BackupOpBackup, Origin: domain.BackupManual, StartedAt: start.Add(89 * time.Hour)}
@@ -242,7 +242,7 @@ func TestBackupRunDetailsAndLastCheck(t *testing.T) {
 	}{
 		{domain.BackupOpCheck, domain.BackupSucceeded, &domain.BackupRunDetails{SubsetPercent: 5}},
 		{domain.BackupOpCheck, domain.BackupFailed, &domain.BackupRunDetails{SubsetPercent: 5}},
-		{domain.BackupOpRestore, domain.BackupSucceeded, &domain.BackupRunDetails{SnapshotID: "3a253ad8", Target: "/var/lib/homelab-backup/restore/x", FilesRestored: 3}},
+		{domain.BackupOpRestore, domain.BackupSucceeded, &domain.BackupRunDetails{SnapshotID: "3a253ad8", Target: "/var/lib/monoops-backup/restore/x", FilesRestored: 3}},
 	} {
 		at = at.Add(time.Hour)
 		run := domain.BackupRun{ID: uuid.New(), Operation: tc.op, Origin: domain.BackupManual, StartedAt: at}
@@ -357,7 +357,7 @@ func TestBackupSFTPRepositoriesAndSSHKey(t *testing.T) {
 		Copy: &domain.BackupCopyTarget{Repository: domain.BackupRepository{
 			Type: domain.RepositorySFTP, Location: "sftp://copy@offsite.example.org/srv/copy", HostKey: "ssh-ed25519 AAAAcopy",
 		}},
-		SSHKey: &domain.BackupSSHKey{PublicKey: "ssh-ed25519 AAAAmanager homelab-manager-backup", SealedPrivateKey: "sealed-key", CreatedAt: created},
+		SSHKey: &domain.BackupSSHKey{PublicKey: "ssh-ed25519 AAAAmanager monoops-backup", SealedPrivateKey: "sealed-key", CreatedAt: created},
 	}
 	if err := repository.SaveBackupConfig(ctx, config, audit); err != nil {
 		t.Fatalf("the rebuilt table refuses sftp: %v", err)

@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"homelab-manager/backend/internal/backupjob"
-	"homelab-manager/backend/internal/domain"
+	"monoops/backend/internal/backupjob"
+	"monoops/backend/internal/domain"
 )
 
 func inPlaceJob(dryRun bool, include ...string) backupjob.Job {
@@ -39,7 +39,7 @@ func TestInPlaceRestoreBacksUpWhatItReplaces(t *testing.T) {
 		t.Fatalf("status %d, result %+v, stderr %s", status, result, stderr)
 	}
 	backupArgs := strings.TrimSpace(f.read("args.backup"))
-	if backupArgs != "backup\n--json\n--tag\nhomelab-manager\n--tag\nbefore-restore\n--\n"+filepath.Join(f.config.InPlaceRoot, "srv", "app") {
+	if backupArgs != "backup\n--json\n--tag\nmonoops\n--tag\nbefore-restore\n--\n"+filepath.Join(f.config.InPlaceRoot, "srv", "app") {
 		t.Fatalf("safety backup args = %q (an absent path is not backed up)", backupArgs)
 	}
 	want := "restore\n--json\n--target\n" + f.config.InPlaceRoot + "\n--overwrite\nif-changed\n--include\n/srv/app\n--include\n/srv/gone\n--\n3a253ad8"
@@ -89,7 +89,7 @@ func TestInPlaceSimulationChangesNothing(t *testing.T) {
 }
 
 func TestInPlaceRestoreRefusesProtectedPaths(t *testing.T) {
-	for _, include := range []string{"/", "/etc/nginx", "/usr", "/var/lib/homelab-manager", "/var"} {
+	for _, include := range []string{"/", "/etc/nginx", "/usr", "/var/lib/monoops", "/var"} {
 		f := newFixture(t)
 		f.config.InPlaceRoot = t.TempDir()
 		f.job(inPlaceJob(false, include), domain.BackupCredentials{Password: "p"})

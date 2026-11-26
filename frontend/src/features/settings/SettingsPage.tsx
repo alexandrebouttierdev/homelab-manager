@@ -311,7 +311,7 @@ export function SettingsPage() {
       <Card>
         <CardHeader
           title="À propos"
-          subtitle="Homelab Manager · architecture mono-hôte"
+          subtitle="MonoOps · architecture mono-hôte"
           icon={<Database className="h-3.5 w-3.5" />}
         />
         <CardBody className="grid gap-3 text-xs text-text-secondary sm:grid-cols-2">

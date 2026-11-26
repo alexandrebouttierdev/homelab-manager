@@ -4,7 +4,7 @@ package ent
 
 import (
 	"fmt"
-	"homelab-manager/backend/ent/alertsilence"
+	"monoops/backend/ent/alertsilence"
 	"strings"
 	"time"
 

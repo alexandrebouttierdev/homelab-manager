@@ -7,9 +7,9 @@ import (
 	"path/filepath"
 	"strings"
 
-	"homelab-manager/backend/internal/adapters/sshkey"
-	"homelab-manager/backend/internal/backupjob"
-	"homelab-manager/backend/internal/domain"
+	"monoops/backend/internal/adapters/sshkey"
+	"monoops/backend/internal/backupjob"
+	"monoops/backend/internal/domain"
 
 	"golang.org/x/crypto/ssh"
 )
@@ -86,7 +86,7 @@ func prepareSSH(config Config, job backupjob.Job, privateKey string) (options []
 	if strings.ContainsAny(config.TempDir, " \t\n'\"\\") {
 		return nil, cleanup, errors.New("the temporary directory must not contain blanks or quotes")
 	}
-	dir, err := os.MkdirTemp(config.TempDir, "homelab-ssh-")
+	dir, err := os.MkdirTemp(config.TempDir, "monoops-ssh-")
 	if err != nil {
 		return nil, cleanup, fmt.Errorf("create the SSH directory: %w", err)
 	}

@@ -12,7 +12,7 @@ export function Logo({ compact = false, to = '/', className }: LogoProps) {
     <Link
       to={to}
       className={cn('group flex items-center gap-2.5', className)}
-      aria-label="Homelab Manager — accueil"
+      aria-label="MonoOps — accueil"
     >
       <svg
         viewBox="0 0 32 32"
@@ -42,7 +42,7 @@ export function Logo({ compact = false, to = '/', className }: LogoProps) {
       </svg>
       {!compact && (
         <span className="min-w-0 truncate text-sm font-semibold tracking-[-0.01em] text-text-primary">
-          Homelab Manager
+          MonoOps
         </span>
       )}
     </Link>

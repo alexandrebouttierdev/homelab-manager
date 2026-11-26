@@ -9,8 +9,8 @@ import (
 
 	"go.uber.org/zap"
 
-	"homelab-manager/backend/internal/adapters/crontab"
-	"homelab-manager/backend/internal/usecase"
+	"monoops/backend/internal/adapters/crontab"
+	"monoops/backend/internal/usecase"
 )
 
 func newCronRouter(t *testing.T) http.Handler {

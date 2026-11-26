@@ -4,7 +4,7 @@ import (
 	"context"
 	"time"
 
-	"homelab-manager/backend/internal/domain"
+	"monoops/backend/internal/domain"
 
 	"github.com/google/uuid"
 )
@@ -100,7 +100,7 @@ type BackupSecrets struct {
 	SSHKey string
 }
 
-// BackupExecutor runs an operation in homelab-backup@.service and returns
+// BackupExecutor runs an operation in monoops-backup@.service and returns
 // its result. Its failures are *domain.BackupRunError; the context bounds
 // the run.
 type BackupExecutor interface {

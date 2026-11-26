@@ -6,14 +6,14 @@ import (
 	"net/http"
 	"time"
 
-	"homelab-manager/backend/internal/domain"
-	"homelab-manager/backend/internal/usecase"
+	"monoops/backend/internal/domain"
+	"monoops/backend/internal/usecase"
 )
 
 // The cookie of a login with a passkey alone (decision D-14) holds the
 // token of its ceremony, sent back with the answer of the browser.
 const (
-	passkeyCookieName = "homelab_passkey"
+	passkeyCookieName = "monoops_passkey"
 	passkeyCookiePath = "/api/v1/auth/login/passkey"
 )
 

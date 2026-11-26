@@ -32,7 +32,7 @@ function entry(n: number, overrides: Partial<JournalEntry> = {}): JournalEntry {
     unit: 'ssh.service',
     identifier: 'sshd',
     pid: '42',
-    hostname: 'homelab',
+    hostname: 'monoops',
     bootId: 'b',
     message: `message ${n}`,
     truncated: false,

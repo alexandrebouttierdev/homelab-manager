@@ -75,5 +75,5 @@ jobs:
         run: |
           gh release create "v$VERSION" dist/*.tar.gz dist/SHA256SUMS \
             --target "$GITHUB_SHA" \
-            --title "Homelab Manager v$VERSION" \
+            --title "MonoOps v$VERSION" \
             --notes-file notes.md

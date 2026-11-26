@@ -624,7 +624,7 @@ func RenderNotification(host string, batch NotificationBatch, now time.Time, max
 	if batch.Test {
 		return NotificationMessage{
 			Title: host + " · Test de notification",
-			Body:  "Message de test envoyé par Homelab Manager le " + now.UTC().Format("02/01/2006 à 15:04") + " UTC. Ce canal fonctionne.",
+			Body:  "Message de test envoyé par MonoOps le " + now.UTC().Format("02/01/2006 à 15:04") + " UTC. Ce canal fonctionne.",
 		}
 	}
 	title := host + " · " + batchSummary(batch)

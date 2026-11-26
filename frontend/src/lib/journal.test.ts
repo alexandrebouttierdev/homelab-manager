@@ -23,7 +23,7 @@ function entry(n: number, overrides: Partial<JournalEntry> = {}): JournalEntry {
     unit: '',
     identifier: 'sshd',
     pid: '',
-    hostname: 'homelab',
+    hostname: 'monoops',
     bootId: 'b',
     message: `message ${n}`,
     truncated: false,

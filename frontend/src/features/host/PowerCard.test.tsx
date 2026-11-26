@@ -19,7 +19,7 @@ function renderCard() {
     <QueryClientProvider
       client={new QueryClient({ defaultOptions: { queries: { retry: false } } })}
     >
-      <PowerCard hostname="homelab" />
+      <PowerCard hostname="monoops" />
     </QueryClientProvider>,
   )
 }
@@ -35,16 +35,16 @@ describe('PowerCard', () => {
     renderCard()
 
     await user.click(await screen.findByRole('button', { name: 'Redémarrer' }))
-    const input = screen.getByLabelText('Saisissez « homelab » pour confirmer')
+    const input = screen.getByLabelText('Saisissez « monoops » pour confirmer')
     await user.type(input, 'other')
     await user.click(screen.getByRole('button', { name: 'Confirmer : Redémarrer' }))
     expect(await screen.findByText('Saisissez exactement le nom de la machine')).toBeInTheDocument()
     expect(requestPowerAction).not.toHaveBeenCalled()
 
     await user.clear(input)
-    await user.type(input, 'homelab')
+    await user.type(input, 'monoops')
     await user.click(screen.getByRole('button', { name: 'Confirmer : Redémarrer' }))
-    await waitFor(() => expect(requestPowerAction).toHaveBeenCalledWith('reboot', 'homelab'))
+    await waitFor(() => expect(requestPowerAction).toHaveBeenCalledWith('reboot', 'monoops'))
     expect(await screen.findByRole('status')).toHaveTextContent('Redémarrage demandé')
   })
 

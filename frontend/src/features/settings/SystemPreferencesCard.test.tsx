@@ -21,7 +21,7 @@ vi.mock('../../hooks/useSession', () => ({
   }),
 }))
 
-const current = { hostname: 'homelab', timezone: 'Europe/Paris', locale: 'fr_FR.UTF-8' }
+const current = { hostname: 'monoops', timezone: 'Europe/Paris', locale: 'fr_FR.UTF-8' }
 
 function renderCard() {
   render(
@@ -56,12 +56,12 @@ describe('SystemPreferencesCard', () => {
     const user = userEvent.setup()
     renderCard()
     const hostname = await screen.findByLabelText('Nom de la machine')
-    expect(hostname).toHaveValue('homelab')
+    expect(hostname).toHaveValue('monoops')
     await user.clear(hostname)
     await user.type(hostname, 'nas')
     await user.click(screen.getByRole('button', { name: 'Enregistrer' }))
     expect(screen.getByRole('group', { name: 'Confirmer les changements' })).toHaveTextContent(
-      'homelab → nas',
+      'monoops → nas',
     )
     expect(updateSystemPreferences).not.toHaveBeenCalled()
     await user.click(screen.getByRole('button', { name: 'Confirmer les changements' }))

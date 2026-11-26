@@ -6,12 +6,12 @@ import (
 	"fmt"
 	"time"
 
-	"homelab-manager/backend/ent"
-	entconfig "homelab-manager/backend/ent/backupconfig"
-	entrun "homelab-manager/backend/ent/backuprun"
-	entsnapshot "homelab-manager/backend/ent/backupsnapshot"
-	"homelab-manager/backend/internal/domain"
-	"homelab-manager/backend/internal/ports"
+	"monoops/backend/ent"
+	entconfig "monoops/backend/ent/backupconfig"
+	entrun "monoops/backend/ent/backuprun"
+	entsnapshot "monoops/backend/ent/backupsnapshot"
+	"monoops/backend/internal/domain"
+	"monoops/backend/internal/ports"
 
 	"github.com/google/uuid"
 )

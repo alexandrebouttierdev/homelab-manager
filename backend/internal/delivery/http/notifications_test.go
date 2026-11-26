@@ -10,12 +10,12 @@ import (
 	"sync"
 	"testing"
 
-	"homelab-manager/backend/internal/adapters/notify"
-	"homelab-manager/backend/internal/adapters/secretbox"
-	"homelab-manager/backend/internal/adapters/sqlite"
-	"homelab-manager/backend/internal/domain"
-	"homelab-manager/backend/internal/ports"
-	"homelab-manager/backend/internal/usecase"
+	"monoops/backend/internal/adapters/notify"
+	"monoops/backend/internal/adapters/secretbox"
+	"monoops/backend/internal/adapters/sqlite"
+	"monoops/backend/internal/domain"
+	"monoops/backend/internal/ports"
+	"monoops/backend/internal/usecase"
 
 	"go.uber.org/zap"
 )
@@ -173,7 +173,7 @@ func TestNotificationChannelManagementAndTest(t *testing.T) {
 	}
 	receiver.mu.Lock()
 	if len(receiver.bodies) != 1 || !strings.Contains(string(receiver.bodies[0]), `"test":true`) ||
-		receiver.headers[0].Get("X-Homelab-Signature") != domain.SignWebhook([]byte(secret), mustInt(t, receiver.headers[0].Get("X-Homelab-Timestamp")), receiver.bodies[0]) {
+		receiver.headers[0].Get("X-MonoOps-Signature") != domain.SignWebhook([]byte(secret), mustInt(t, receiver.headers[0].Get("X-MonoOps-Timestamp")), receiver.bodies[0]) {
 		t.Fatalf("webhook received %d bodies, headers %v", len(receiver.bodies), receiver.headers)
 	}
 	receiver.status = http.StatusInternalServerError
@@ -240,7 +240,7 @@ func TestNotificationChannelsWithoutTheSecretsKey(t *testing.T) {
 	if response := call(router, http.MethodPost, "/api/v1/notification-channels", withToken, admin); response.Code != http.StatusServiceUnavailable || errorCode(t, response) != "SECRETS_UNAVAILABLE" {
 		t.Fatalf("create with a secret = %d %s", response.Code, response.Body)
 	}
-	withoutToken := `{"name":"n","type":"ntfy","enabled":true,"minSeverity":"info","renotifyMinutes":0,"settings":{"serverUrl":"https://ntfy.sh","topic":"homelab"}}`
+	withoutToken := `{"name":"n","type":"ntfy","enabled":true,"minSeverity":"info","renotifyMinutes":0,"settings":{"serverUrl":"https://ntfy.sh","topic":"monoops"}}`
 	if response := call(router, http.MethodPost, "/api/v1/notification-channels", withoutToken, admin); response.Code != http.StatusCreated {
 		t.Fatalf("create without secret = %d %s", response.Code, response.Body)
 	}

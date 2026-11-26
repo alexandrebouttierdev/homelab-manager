@@ -15,7 +15,7 @@ type RefreshContextValue = {
 }
 
 const RefreshContext = createContext<RefreshContextValue | null>(null)
-const storageKey = 'homelab-manager-refresh'
+const storageKey = 'monoops-refresh'
 
 function readInitialInterval(): number {
   if (typeof window === 'undefined') return 15_000

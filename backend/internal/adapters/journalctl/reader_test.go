@@ -14,8 +14,8 @@ import (
 	"testing"
 	"time"
 
-	"homelab-manager/backend/internal/domain"
-	"homelab-manager/backend/internal/ports"
+	"monoops/backend/internal/domain"
+	"monoops/backend/internal/ports"
 )
 
 func TestArguments(t *testing.T) {
@@ -158,8 +158,8 @@ func readAll(t *testing.T, reader *Reader, request ports.JournalRead) ([]domain.
 }
 
 func TestTheManagerEnvironmentIsNotPassedOn(t *testing.T) {
-	t.Setenv("HOMELAB_ADMIN_PASSWORD", "must-not-leak")
-	reader := fakeJournalctl(t, `printf '{"__CURSOR":"c","MESSAGE":"%s|%s"}\n' "$HOMELAB_ADMIN_PASSWORD" "$LANG"`)
+	t.Setenv("MONOOPS_ADMIN_PASSWORD", "must-not-leak")
+	reader := fakeJournalctl(t, `printf '{"__CURSOR":"c","MESSAGE":"%s|%s"}\n' "$MONOOPS_ADMIN_PASSWORD" "$LANG"`)
 	records, err := readAll(t, reader, ports.JournalRead{Filter: domain.JournalFilter{Priority: 6}, Limit: 1})
 	if err != nil || len(records) != 1 {
 		t.Fatalf("records %v, err %v", records, err)

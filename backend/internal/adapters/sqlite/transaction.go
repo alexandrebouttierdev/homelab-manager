@@ -4,9 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"homelab-manager/backend/ent"
-	entevent "homelab-manager/backend/ent/event"
-	"homelab-manager/backend/internal/domain"
+	"monoops/backend/ent"
+	entevent "monoops/backend/ent/event"
+	"monoops/backend/internal/domain"
 )
 
 // withTx runs fn in a transaction, committed only when fn succeeds. fn must

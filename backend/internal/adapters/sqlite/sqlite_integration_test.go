@@ -10,8 +10,8 @@ import (
 	"testing"
 	"time"
 
-	"homelab-manager/backend/internal/domain"
-	"homelab-manager/backend/migrations"
+	"monoops/backend/internal/domain"
+	"monoops/backend/migrations"
 
 	"github.com/google/uuid"
 )
@@ -141,7 +141,7 @@ func TestSQLiteIntegration(t *testing.T) {
 
 func TestOpenReappliesMigrationsAndKeepsData(t *testing.T) {
 	ctx := context.Background()
-	path := filepath.Join(t.TempDir(), "state", "homelab.db")
+	path := filepath.Join(t.TempDir(), "state", "monoops.db")
 
 	first, err := Open(ctx, path)
 	if err != nil {
@@ -312,7 +312,7 @@ func TestConcurrentWritersAndReaders(t *testing.T) {
 
 func openTestDatabase(t *testing.T, ctx context.Context) *Database {
 	t.Helper()
-	database, err := Open(ctx, filepath.Join(t.TempDir(), "homelab-manager.db"))
+	database, err := Open(ctx, filepath.Join(t.TempDir(), "monoops.db"))
 	if err != nil {
 		t.Fatalf("open SQLite database: %v", err)
 	}

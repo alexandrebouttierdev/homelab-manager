@@ -1,6 +1,8 @@
 # Renommage en gOps — inventaire et plan (en attente)
 
-> **État :** demandé le 23 novembre 2026, **reporté à la demande de l'utilisateur**. Rien n'est renommé tant que les décisions R-1 à R-4 ne sont pas tranchées. Inventaire fait sur le code à la livraison de la phase 1C.
+> **État : abandonné.** Le 26 novembre 2026, le projet a été renommé **MonoOps**, et non gOps. Décisions retenues : `monoops` en minuscules pour le module Go, le binaire du Manager, son compte, ses chemins et son unité ; `monoops-<composant>` pour les autres unités et binaires ; préfixe d'environnement `MONOOPS_` ; le mot « Manager » reste le nom du composant serveur ; coupure nette, sans migration, aucune installation n'étant en service. L'inventaire ci-dessous a servi de liste de contrôle.
+>
+> État d'origine : demandé le 23 novembre 2026, reporté à la demande de l'utilisateur. Inventaire fait sur le code à la livraison de la phase 1C.
 
 **Objectif :** remplacer le nom « Homelab Manager » par « gOps » dans le code, le déploiement, l'interface et la documentation, avec une procédure de migration pour les installations existantes.
 

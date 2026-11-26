@@ -68,7 +68,7 @@ func TestSQLiteIntegration(t *testing.T) {
 	now := time.Now().UTC().Truncate(time.Microsecond)
 	old := now.Add(-48 * time.Hour)
 	systemSample := domain.MetricSample{
-		ID: uuid.New(), Name: "cpu.percent", Value: 12.5, Unit: "percent", RecordedAt: old,
+		Name: "cpu.percent", Value: 12.5, Unit: "percent", RecordedAt: old,
 	}
 	if err := repository.SaveSystemMetrics(ctx, []domain.MetricSample{systemSample}); err != nil {
 		t.Fatalf("save system metrics: %v", err)
@@ -98,7 +98,7 @@ func TestSQLiteIntegration(t *testing.T) {
 	}
 
 	containerSample := domain.MetricSample{
-		ID: uuid.New(), ContainerID: &container.ID, Name: "cpu.percent",
+		ContainerID: &container.ID, Name: "cpu.percent",
 		Value: 4.25, Unit: "percent", RecordedAt: old,
 	}
 	if err := repository.SaveContainerMetrics(ctx, []domain.MetricSample{containerSample}); err != nil {
@@ -122,7 +122,14 @@ func TestSQLiteIntegration(t *testing.T) {
 		t.Fatalf("list container events = (%v, %v), want discovery and restart events", events, err)
 	}
 
-	deletedMetrics, err := repository.DeleteMetricsBefore(ctx, now.Add(-24*time.Hour), 10)
+	// Raw points are only purged once rolled up; their rollups stay.
+	if deleted, err := repository.DeleteMetricsBefore(ctx, now.Add(-24*time.Hour), old.Add(-time.Hour), 10); err != nil || deleted != 0 {
+		t.Fatalf("delete points not rolled up = (%d, %v), want 0", deleted, err)
+	}
+	if err := repository.RollupMetrics(ctx, now); err != nil {
+		t.Fatalf("roll up: %v", err)
+	}
+	deletedMetrics, err := repository.DeleteMetricsBefore(ctx, now.Add(-24*time.Hour), old.Add(-time.Hour), 10)
 	if err != nil || deletedMetrics != 2 {
 		t.Fatalf("delete old metrics = (%d, %v), want 2", deletedMetrics, err)
 	}
@@ -226,7 +233,7 @@ func TestMetricRangesAreTimezoneIndependent(t *testing.T) {
 			recordedAt = recordedAt.Add(500 * time.Millisecond) // fractional seconds
 		}
 		samples = append(samples, domain.MetricSample{
-			ID: uuid.New(), Name: "memory.used_percent", Value: float64(i), Unit: "percent", RecordedAt: recordedAt,
+			Name: "memory.used_percent", Value: float64(i), Unit: "percent", RecordedAt: recordedAt,
 		})
 	}
 	if err := repository.SaveSystemMetrics(ctx, samples); err != nil {
@@ -255,7 +262,10 @@ func TestMetricRangesAreTimezoneIndependent(t *testing.T) {
 		}
 	}
 
-	deleted, err := repository.DeleteMetricsBefore(ctx, base.Add(time.Hour).In(paris), 100)
+	if err := repository.RollupMetrics(ctx, base.Add(3*time.Hour)); err != nil {
+		t.Fatalf("roll up: %v", err)
+	}
+	deleted, err := repository.DeleteMetricsBefore(ctx, base.Add(time.Hour).In(paris), base.Add(-time.Hour), 100)
 	if err != nil || deleted != 2 {
 		t.Fatalf("delete before = (%d, %v), want 2", deleted, err)
 	}
@@ -278,8 +288,10 @@ func TestConcurrentWritersAndReaders(t *testing.T) {
 			for batch := range batches {
 				samples := make([]domain.MetricSample, 0, perBatch)
 				for i := range perBatch {
+					// One series per writer: a series has one point per millisecond.
 					samples = append(samples, domain.MetricSample{
-						ID: uuid.New(), Name: "cpu.percent", Value: float64(worker), Unit: "percent",
+						Name: "cpu.percent", Value: float64(worker), Unit: "percent",
+						Labels:     map[string]string{"core": strconv.Itoa(worker)},
 						RecordedAt: start.Add(time.Duration(batch*perBatch+i) * time.Millisecond),
 					})
 				}
@@ -337,7 +349,7 @@ func TestLatestMetricsReturnsTheWholeLatestCycle(t *testing.T) {
 		samples := make([]domain.MetricSample, 0, seriesPerCycle)
 		for series := range seriesPerCycle {
 			samples = append(samples, domain.MetricSample{
-				ID: uuid.New(), Name: "network.rx_bytes", Value: float64(cycle), Unit: "bytes",
+				Name: "network.rx_bytes", Value: float64(cycle), Unit: "bytes",
 				Labels: map[string]string{"interface": "veth" + strconv.Itoa(series)}, RecordedAt: recordedAt,
 			})
 		}
@@ -372,9 +384,9 @@ func TestLatestMetricsReturnsTheWholeLatestCycle(t *testing.T) {
 		t.Fatalf("get container: %v", err)
 	}
 	if err := repository.SaveContainerMetrics(ctx, []domain.MetricSample{
-		{ID: uuid.New(), ContainerID: &container.ID, Name: "cpu.percent", Value: 1, Unit: "percent", RecordedAt: now.Add(-15 * time.Second)},
-		{ID: uuid.New(), ContainerID: &container.ID, Name: "cpu.percent", Value: 2, Unit: "percent", RecordedAt: now},
-		{ID: uuid.New(), ContainerID: &container.ID, Name: "restart.count", Value: 0, Unit: "count", RecordedAt: now},
+		{ContainerID: &container.ID, Name: "cpu.percent", Value: 1, Unit: "percent", RecordedAt: now.Add(-15 * time.Second)},
+		{ContainerID: &container.ID, Name: "cpu.percent", Value: 2, Unit: "percent", RecordedAt: now},
+		{ContainerID: &container.ID, Name: "restart.count", Value: 0, Unit: "count", RecordedAt: now},
 	}); err != nil {
 		t.Fatalf("save container metrics: %v", err)
 	}
@@ -397,8 +409,8 @@ func TestAggregatedHistoryAndLabelFilter(t *testing.T) {
 	for i := range 60 {
 		at := start.Add(time.Duration(i) * 10 * time.Second)
 		samples = append(samples,
-			domain.MetricSample{ID: uuid.New(), Name: "cpu.percent", Value: float64(i), Unit: "percent", Labels: map[string]string{"core": "all"}, RecordedAt: at},
-			domain.MetricSample{ID: uuid.New(), Name: "cpu.percent", Value: float64(100 + i), Unit: "percent", Labels: map[string]string{"core": "0"}, RecordedAt: at},
+			domain.MetricSample{Name: "cpu.percent", Value: float64(i), Unit: "percent", Labels: map[string]string{"core": "all"}, RecordedAt: at},
+			domain.MetricSample{Name: "cpu.percent", Value: float64(100 + i), Unit: "percent", Labels: map[string]string{"core": "0"}, RecordedAt: at},
 		)
 	}
 	if err := repository.SaveSystemMetrics(ctx, samples); err != nil {

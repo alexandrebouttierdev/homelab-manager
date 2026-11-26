@@ -5,7 +5,7 @@ import { Card, CardBody, CardFooter, CardHeader } from '../../components/ui/Card
 import type { MonitoringSettings } from '../../lib/api/monitoring'
 import { useRetentionForm } from './useRetentionForm'
 
-const numberFormat = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 1 })
+const numberFormat = new Intl.NumberFormat('fr-FR', { maximumFractionDigits: 0 })
 
 export function RetentionForm({ settings }: { settings: MonitoringSettings }) {
   const {
@@ -58,7 +58,7 @@ export function RetentionForm({ settings }: { settings: MonitoringSettings }) {
             </div>
             {estimate !== null && (
               <p className="text-xs text-text-secondary">
-                Taille estimée de la base : ≈ {numberFormat.format(estimate)} Go avec une collecte
+                Taille estimée de la base : ≈ {numberFormat.format(estimate)} Mo avec une collecte
                 toutes les {settings.systemCollectIntervalSeconds} s.
               </p>
             )}

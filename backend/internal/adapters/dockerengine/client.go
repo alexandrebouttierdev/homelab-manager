@@ -137,12 +137,12 @@ func (c *Client) ContainerStats(ctx context.Context, dockerID string) ([]domain.
 	samples := make([]domain.MetricSample, 0, 20)
 	add := func(name string, value float64, unit string) {
 		samples = append(samples, domain.MetricSample{
-			ID: uuid.New(), Name: name, Value: value, Unit: unit, RecordedAt: now,
+			Name: name, Value: value, Unit: unit, RecordedAt: now,
 		})
 	}
 	addLabeled := func(name string, value float64, unit string, labels map[string]string) {
 		samples = append(samples, domain.MetricSample{
-			ID: uuid.New(), Name: name, Value: value, Unit: unit, Labels: labels, RecordedAt: now,
+			Name: name, Value: value, Unit: unit, Labels: labels, RecordedAt: now,
 		})
 	}
 	if value, ok := CPUPercent(stats); ok {

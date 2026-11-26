@@ -16,7 +16,6 @@ import (
 	"monoops/backend/ent/backuprun"
 	"monoops/backend/ent/backupsnapshot"
 	"monoops/backend/ent/container"
-	"monoops/backend/ent/containermetricsample"
 	"monoops/backend/ent/event"
 	"monoops/backend/ent/failedunit"
 	"monoops/backend/ent/hostinfo"
@@ -26,7 +25,6 @@ import (
 	"monoops/backend/ent/recoverycode"
 	"monoops/backend/ent/securitypolicy"
 	"monoops/backend/ent/session"
-	"monoops/backend/ent/systemmetricsample"
 	"monoops/backend/ent/totpsecret"
 	"monoops/backend/ent/user"
 	"monoops/backend/ent/vulnerabilityfinding"
@@ -98,32 +96,30 @@ var (
 func checkColumn(t, c string) error {
 	initCheck.Do(func() {
 		columnCheck = sql.NewColumnCheck(map[string]func(string) bool{
-			apitoken.Table:              apitoken.ValidColumn,
-			alert.Table:                 alert.ValidColumn,
-			alertrule.Table:             alertrule.ValidColumn,
-			alertsilence.Table:          alertsilence.ValidColumn,
-			appsetting.Table:            appsetting.ValidColumn,
-			auditlog.Table:              auditlog.ValidColumn,
-			backupconfig.Table:          backupconfig.ValidColumn,
-			backuprun.Table:             backuprun.ValidColumn,
-			backupsnapshot.Table:        backupsnapshot.ValidColumn,
-			container.Table:             container.ValidColumn,
-			containermetricsample.Table: containermetricsample.ValidColumn,
-			event.Table:                 event.ValidColumn,
-			failedunit.Table:            failedunit.ValidColumn,
-			hostinfo.Table:              hostinfo.ValidColumn,
-			loginfailure.Table:          loginfailure.ValidColumn,
-			maintenancetask.Table:       maintenancetask.ValidColumn,
-			notificationchannel.Table:   notificationchannel.ValidColumn,
-			recoverycode.Table:          recoverycode.ValidColumn,
-			securitypolicy.Table:        securitypolicy.ValidColumn,
-			session.Table:               session.ValidColumn,
-			systemmetricsample.Table:    systemmetricsample.ValidColumn,
-			totpsecret.Table:            totpsecret.ValidColumn,
-			user.Table:                  user.ValidColumn,
-			vulnerabilityfinding.Table:  vulnerabilityfinding.ValidColumn,
-			vulnerabilityscan.Table:     vulnerabilityscan.ValidColumn,
-			webauthncredential.Table:    webauthncredential.ValidColumn,
+			apitoken.Table:             apitoken.ValidColumn,
+			alert.Table:                alert.ValidColumn,
+			alertrule.Table:            alertrule.ValidColumn,
+			alertsilence.Table:         alertsilence.ValidColumn,
+			appsetting.Table:           appsetting.ValidColumn,
+			auditlog.Table:             auditlog.ValidColumn,
+			backupconfig.Table:         backupconfig.ValidColumn,
+			backuprun.Table:            backuprun.ValidColumn,
+			backupsnapshot.Table:       backupsnapshot.ValidColumn,
+			container.Table:            container.ValidColumn,
+			event.Table:                event.ValidColumn,
+			failedunit.Table:           failedunit.ValidColumn,
+			hostinfo.Table:             hostinfo.ValidColumn,
+			loginfailure.Table:         loginfailure.ValidColumn,
+			maintenancetask.Table:      maintenancetask.ValidColumn,
+			notificationchannel.Table:  notificationchannel.ValidColumn,
+			recoverycode.Table:         recoverycode.ValidColumn,
+			securitypolicy.Table:       securitypolicy.ValidColumn,
+			session.Table:              session.ValidColumn,
+			totpsecret.Table:           totpsecret.ValidColumn,
+			user.Table:                 user.ValidColumn,
+			vulnerabilityfinding.Table: vulnerabilityfinding.ValidColumn,
+			vulnerabilityscan.Table:    vulnerabilityscan.ValidColumn,
+			webauthncredential.Table:   webauthncredential.ValidColumn,
 		})
 	})
 	return columnCheck(t, c)

@@ -275,11 +275,11 @@ func TestLatestContainerMetricsKeepsTheLatestFreshCycleOfEachContainer(t *testin
 	}
 	web, db, old := ids["web-docker"], ids["db-docker"], ids["old-docker"]
 	if err := repository.SaveContainerMetrics(ctx, []domain.MetricSample{
-		{ID: uuid.New(), ContainerID: &web, Name: "cpu.percent", Value: 1, Unit: "percent", RecordedAt: now.Add(-20 * time.Second)},
-		{ID: uuid.New(), ContainerID: &web, Name: "cpu.percent", Value: 2, Unit: "percent", RecordedAt: now},
-		{ID: uuid.New(), ContainerID: &web, Name: "network.errors", Value: 3, Unit: "count", Labels: map[string]string{"interface": "eth0"}, RecordedAt: now},
-		{ID: uuid.New(), ContainerID: &db, Name: "cpu.percent", Value: 7, Unit: "percent", RecordedAt: now.Add(-10 * time.Second)},
-		{ID: uuid.New(), ContainerID: &old, Name: "cpu.percent", Value: 9, Unit: "percent", RecordedAt: now.Add(-10 * time.Minute)},
+		{ContainerID: &web, Name: "cpu.percent", Value: 1, Unit: "percent", RecordedAt: now.Add(-20 * time.Second)},
+		{ContainerID: &web, Name: "cpu.percent", Value: 2, Unit: "percent", RecordedAt: now},
+		{ContainerID: &web, Name: "network.errors", Value: 3, Unit: "count", Labels: map[string]string{"interface": "eth0"}, RecordedAt: now},
+		{ContainerID: &db, Name: "cpu.percent", Value: 7, Unit: "percent", RecordedAt: now.Add(-10 * time.Second)},
+		{ContainerID: &old, Name: "cpu.percent", Value: 9, Unit: "percent", RecordedAt: now.Add(-10 * time.Minute)},
 	}); err != nil {
 		t.Fatalf("save: %v", err)
 	}

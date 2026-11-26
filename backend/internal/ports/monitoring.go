@@ -41,7 +41,19 @@ type MonitoringRepository interface {
 	// first (ties broken by id, descending), only those after the cursor
 	// in that order when it is not nil.
 	ListEvents(ctx context.Context, containerID *string, from, to time.Time, before *domain.EventCursor, limit int) ([]domain.MonitorEvent, error)
-	DeleteMetricsBefore(context.Context, time.Time, int) (int, error)
+	// RollupMetrics aggregates the points of every 5-minute bucket that
+	// ends at or before until (domain.MetricRollupBucket).
+	RollupMetrics(ctx context.Context, until time.Time) error
+	// ConvertLegacyMetrics moves the history of the former sample tables
+	// into the series storage, a short batch at a time; it returns the rows
+	// converted and whether nothing remains. RollupMetrics must not run
+	// before it is done.
+	ConvertLegacyMetrics(ctx context.Context, rawSince time.Time) (int, bool, error)
+	// DeleteMetricsBefore deletes at most limit rows: raw points older than
+	// rawBefore (once rolled up), then rollups ended before rollupBefore.
+	DeleteMetricsBefore(ctx context.Context, rawBefore, rollupBefore time.Time, limit int) (int, error)
+	// DeleteUnusedSeries deletes the series left without data.
+	DeleteUnusedSeries(ctx context.Context) (int, error)
 	DeleteEventsBefore(context.Context, time.Time, int) (int, error)
 }
 

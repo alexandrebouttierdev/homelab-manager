@@ -871,29 +871,6 @@ func UpdatedAtLTE(v time.Time) predicate.Container {
 	return predicate.Container(sql.FieldLTE(FieldUpdatedAt, v))
 }
 
-// HasMetrics applies the HasEdge predicate on the "metrics" edge.
-func HasMetrics() predicate.Container {
-	return predicate.Container(func(s *sql.Selector) {
-		step := sqlgraph.NewStep(
-			sqlgraph.From(Table, FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, MetricsTable, MetricsColumn),
-		)
-		sqlgraph.HasNeighbors(s, step)
-	})
-}
-
-// HasMetricsWith applies the HasEdge predicate on the "metrics" edge with a given conditions (other predicates).
-func HasMetricsWith(preds ...predicate.ContainerMetricSample) predicate.Container {
-	return predicate.Container(func(s *sql.Selector) {
-		step := newMetricsStep()
-		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
-			for _, p := range preds {
-				p(s)
-			}
-		})
-	})
-}
-
 // HasEvents applies the HasEdge predicate on the "events" edge.
 func HasEvents() predicate.Container {
 	return predicate.Container(func(s *sql.Selector) {

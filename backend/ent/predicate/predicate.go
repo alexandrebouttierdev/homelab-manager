@@ -36,9 +36,6 @@ type BackupSnapshot func(*sql.Selector)
 // Container is the predicate function for container builders.
 type Container func(*sql.Selector)
 
-// ContainerMetricSample is the predicate function for containermetricsample builders.
-type ContainerMetricSample func(*sql.Selector)
-
 // Event is the predicate function for event builders.
 type Event func(*sql.Selector)
 
@@ -65,9 +62,6 @@ type SecurityPolicy func(*sql.Selector)
 
 // Session is the predicate function for session builders.
 type Session func(*sql.Selector)
-
-// SystemMetricSample is the predicate function for systemmetricsample builders.
-type SystemMetricSample func(*sql.Selector)
 
 // TotpSecret is the predicate function for totpsecret builders.
 type TotpSecret func(*sql.Selector)

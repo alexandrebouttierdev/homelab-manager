@@ -48,7 +48,7 @@ Ce document est le contrat exact de l'API implémentée. Toute différence entre
 | `GET /api/v1/host` | oui | Identité de l'hôte (§ 4.3) |
 | `GET /api/v1/host/metrics/current` | oui | Dernier cycle hôte (§ 5.2) |
 | `GET /api/v1/host/metrics/{metricName}` | oui | Historique brut ou agrégé (§ 5.3) |
-| `GET /api/v1/host/temperatures` | oui | Températures du dernier cycle (§ 5.2) |
+| `GET /api/v1/host/temperatures` | oui | Dernière lecture des températures (§ 5.2) |
 | `GET /api/v1/containers` | oui | Inventaire (§ 6.1) |
 | `GET /api/v1/containers/{containerID}` | oui | Détail (§ 6.1) |
 | `GET /api/v1/containers/{containerID}/metrics/current` | oui | Dernier cycle du conteneur (§ 5.2) |
@@ -875,7 +875,7 @@ Catalogue : `journal-vacuum`, « Nettoyage du journal système », qui démarre 
 { "name": "cpu.percent", "value": 21.4, "unit": "percent", "labels": { "core": "all" }, "recordedAt": "2026-11-21T20:58:00Z" }
 ```
 
-`labels` vaut `null` pour une série sans label. Une série est identifiée par `name` + `labels`. Tous les échantillons d'un même cycle portent le même `recordedAt` : un par cycle système, un par conteneur et par cycle de statistiques.
+`labels` vaut `null` pour une série sans label. Une série est identifiée par `name` + `labels`. Tous les échantillons d'un même cycle portent le même `recordedAt` : un par cycle système, un par conteneur et par cycle de statistiques. `recordedAt` est précis à la milliseconde ; une série a au plus un échantillon par milliseconde.
 
 ### 5.2 Valeurs courantes
 
@@ -885,11 +885,11 @@ Catalogue : `journal-vacuum`, « Nettoyage du journal système », qui démarre 
 { "samples": [ ... ], "status": "ok", "lastSuccessAt": "2026-11-21T20:58:00Z" }
 ```
 
-- `samples` contient tous les échantillons du dernier cycle de l'hôte (ou du conteneur) enregistré depuis moins de 5 minutes, sinon `[]`. Au plus 5 000 échantillons.
+- `samples` contient tous les échantillons du dernier cycle de l'hôte (ou du conteneur) enregistré depuis moins de 5 minutes, sinon `[]`. Au plus 5 000 échantillons, triés par nom. Les températures n'étant lues qu'une fois par minute, un cycle hôte qui n'en a pas reçoit celles de la dernière lecture de moins de 5 minutes, avec leur propre `recordedAt`.
 - `status` et `lastSuccessAt` sont ceux du collecteur système (hôte) ou de la découverte Docker (conteneur), selon le § 4.1.
 - Un conteneur arrêté n'a pas de statistiques : son dernier cycle ne contient que `restart.count`.
 
-`GET /api/v1/host/temperatures` : `{ "samples": [...] }`, limité aux échantillons `temperature.celsius` du dernier cycle hôte.
+`GET /api/v1/host/temperatures` : `{ "samples": [...] }`, limité aux échantillons `temperature.celsius` de la vue courante de l'hôte, donc de la dernière lecture des capteurs.
 
 ### 5.3 Historique
 
@@ -902,7 +902,7 @@ Catalogue : `journal-vacuum`, « Nettoyage du journal système », qui démarre 
 - `cursor` : toute valeur non vide → `400 VALIDATION_ERROR` (l'historique n'est pas paginé ; `limit` et `step` le bornent).
 - Tout autre paramètre, ou paramètre répété autre que `label` → `400 VALIDATION_ERROR`.
 
-**Brut (`step=raw`)** — si l'intervalle contient plus de `limit` échantillons, seuls les `limit` plus récents sont renvoyés, dans l'ordre chronologique. Une série de l'hôte produit 360 points par heure à l'intervalle par défaut.
+**Brut (`step=raw`)** — si l'intervalle contient plus de `limit` échantillons, seuls les `limit` plus récents sont renvoyés, dans l'ordre chronologique. Une série de l'hôte produit 360 points par heure à l'intervalle par défaut (les températures 60). Les points bruts ne sont conservés que 24 heures : au-delà, `raw` ne renvoie rien et l'historique se lit agrégé.
 
 **Agrégé (`1m`, `5m`, `1h`)** — un échantillon par série (`name` + `labels`) et par intervalle non vide, intervalles alignés sur l'époque Unix en UTC :
 
@@ -911,6 +911,8 @@ Catalogue : `journal-vacuum`, « Nettoyage du journal système », qui démarre 
 ```
 
 `value` est la moyenne, `recordedAt` le début de l'intervalle ; tri chronologique, puis par labels. Si le résultat dépasse `limit`, la requête échoue en `400 TOO_MANY_POINTS` au lieu de tronquer. `min`, `max` et `count` n'existent que sur les échantillons agrégés.
+
+Les agrégats sont calculés sur les points bruts tant qu'ils existent, puis sur les moyennes sur 5 minutes stockées (METRICS_COLLECTION.md § 4), avec le même résultat : `value`, `min`, `max` et `count` portent sur tous les points de l'intervalle. Une moyenne ne se découpe pas : sur des données de plus de 24 h, `1m` renvoie un échantillon par 5 minutes, et une moyenne compte entière si elle commence dans `[from, to)`.
 
 **Pas recommandés au client** : ≤ 1 h → `raw` ; ≤ 6 h → `1m` ; ≤ 24 h → `5m` ; au-delà → `1h`. L'interface applique cette règle, filtre la série affichée par `label`, et passe au pas supérieur si la réponse brute atteint `limit` ou si l'API renvoie `TOO_MANY_POINTS`.
 

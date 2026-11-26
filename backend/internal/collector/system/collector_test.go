@@ -3,12 +3,16 @@ package system
 import (
 	"context"
 	"errors"
+	"slices"
 	"testing"
 	"time"
+
+	"monoops/backend/internal/domain"
 
 	"github.com/shirou/gopsutil/v4/cpu"
 	"github.com/shirou/gopsutil/v4/disk"
 	netstat "github.com/shirou/gopsutil/v4/net"
+	"github.com/shirou/gopsutil/v4/sensors"
 )
 
 func TestCollectReturnsContextCancellation(t *testing.T) {
@@ -90,5 +94,47 @@ func TestAppendCPUUsageNeedsTwoCycles(t *testing.T) {
 	}, record)
 	if values["cpu.percent/all"] != 20 || values["cpu.percent/0"] != 20 {
 		t.Fatalf("second cycle = %v, want 20 %% for all and core 0", values)
+	}
+}
+
+// Temperatures are read every minute, not at every cycle.
+func TestCollectReadsTemperaturesEveryMinute(t *testing.T) {
+	collector := New()
+	reads := 0
+	collector.temperatures = func() ([]sensors.TemperatureStat, error) {
+		reads++
+		return []sensors.TemperatureStat{{SensorKey: "coretemp_core_0", Temperature: 50}}, nil
+	}
+	start := time.Date(2026, 11, 26, 10, 0, 0, 0, time.UTC)
+	temperaturesAt := make([]int, 0)
+	for cycle := range 13 {
+		at := start.Add(time.Duration(cycle) * 10 * time.Second)
+		// Ticks come a few milliseconds early or late.
+		if cycle > 0 {
+			at = at.Add(-5 * time.Millisecond)
+		}
+		collector.now = func() time.Time { return at }
+		_, samples, err := collector.Collect(context.Background())
+		if err != nil {
+			t.Fatalf("collect: %v", err)
+		}
+		for _, sample := range samples {
+			if sample.Name == domain.TemperatureMetric {
+				temperaturesAt = append(temperaturesAt, cycle)
+			}
+		}
+	}
+	if want := []int{0, 6, 12}; !slices.Equal(temperaturesAt, want) || reads != 3 {
+		t.Fatalf("temperatures in cycles %v (%d reads), want %v", temperaturesAt, reads, want)
+	}
+}
+
+func TestSensorLabelsTellApartSensorsSharingAKey(t *testing.T) {
+	readings := []sensors.TemperatureStat{
+		{SensorKey: "dell_smm"}, {SensorKey: "nvme_composite"}, {SensorKey: "dell_smm"}, {SensorKey: "dell_smm"},
+	}
+	got := sensorLabels(readings)
+	if want := []string{"dell_smm", "nvme_composite", "dell_smm_2", "dell_smm_3"}; !slices.Equal(got, want) {
+		t.Fatalf("labels = %v, want %v", got, want)
 	}
 }

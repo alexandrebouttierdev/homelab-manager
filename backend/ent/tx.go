@@ -32,8 +32,6 @@ type Tx struct {
 	BackupSnapshot *BackupSnapshotClient
 	// Container is the client for interacting with the Container builders.
 	Container *ContainerClient
-	// ContainerMetricSample is the client for interacting with the ContainerMetricSample builders.
-	ContainerMetricSample *ContainerMetricSampleClient
 	// Event is the client for interacting with the Event builders.
 	Event *EventClient
 	// FailedUnit is the client for interacting with the FailedUnit builders.
@@ -52,8 +50,6 @@ type Tx struct {
 	SecurityPolicy *SecurityPolicyClient
 	// Session is the client for interacting with the Session builders.
 	Session *SessionClient
-	// SystemMetricSample is the client for interacting with the SystemMetricSample builders.
-	SystemMetricSample *SystemMetricSampleClient
 	// TotpSecret is the client for interacting with the TotpSecret builders.
 	TotpSecret *TotpSecretClient
 	// User is the client for interacting with the User builders.
@@ -205,7 +201,6 @@ func (tx *Tx) init() {
 	tx.BackupRun = NewBackupRunClient(tx.config)
 	tx.BackupSnapshot = NewBackupSnapshotClient(tx.config)
 	tx.Container = NewContainerClient(tx.config)
-	tx.ContainerMetricSample = NewContainerMetricSampleClient(tx.config)
 	tx.Event = NewEventClient(tx.config)
 	tx.FailedUnit = NewFailedUnitClient(tx.config)
 	tx.HostInfo = NewHostInfoClient(tx.config)
@@ -215,7 +210,6 @@ func (tx *Tx) init() {
 	tx.RecoveryCode = NewRecoveryCodeClient(tx.config)
 	tx.SecurityPolicy = NewSecurityPolicyClient(tx.config)
 	tx.Session = NewSessionClient(tx.config)
-	tx.SystemMetricSample = NewSystemMetricSampleClient(tx.config)
 	tx.TotpSecret = NewTotpSecretClient(tx.config)
 	tx.User = NewUserClient(tx.config)
 	tx.VulnerabilityFinding = NewVulnerabilityFindingClient(tx.config)

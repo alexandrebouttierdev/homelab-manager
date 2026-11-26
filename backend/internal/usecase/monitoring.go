@@ -9,7 +9,6 @@ import (
 	"monoops/backend/internal/domain"
 	"monoops/backend/internal/ports"
 
-	"github.com/google/uuid"
 	"go.uber.org/zap"
 )
 
@@ -32,6 +31,12 @@ type MonitoringUsecase struct {
 	settings ports.SettingsRepository
 	// purgeNow asks the retention worker to run immediately (buffer of one).
 	purgeNow chan struct{}
+	// rollupNow asks the rollup worker to go on at once: the conversion of
+	// the former history is not over (buffer of one).
+	rollupNow chan struct{}
+	// legacyConverted counts the converted rows of the former history; it
+	// belongs to the rollup worker.
+	legacyConverted int
 
 	mu             sync.RWMutex
 	systemStatus   domain.CollectorStatus
@@ -73,6 +78,12 @@ const (
 	// dockerInventoryInterval: images, volumes and networks change rarely
 	// and their listing costs more than the containers one.
 	dockerInventoryInterval = time.Minute
+	// rollupInterval: the 5-minute rollups are computed once per bucket.
+	rollupInterval = domain.MetricRollupBucket
+	// rollupLag leaves the cycles in progress time to be written before
+	// their bucket is rolled up: a cycle is stamped when it starts and
+	// written within its 30 s deadline.
+	rollupLag = 2 * time.Minute
 )
 
 // Collector status values exposed by the API.
@@ -88,6 +99,7 @@ func NewMonitoringUsecase(system ports.SystemCollector, docker ports.DockerSourc
 		system: system, docker: docker, repo: repository, config: config, logger: logger,
 		now:             time.Now,
 		purgeNow:        make(chan struct{}, 1),
+		rollupNow:       make(chan struct{}, 1),
 		systemStatus:    domain.CollectorStatus{Status: StatusStarting},
 		dockerStatus:    domain.CollectorStatus{Status: StatusStarting},
 		databaseStatus:  domain.CollectorStatus{Status: StatusStarting},
@@ -104,12 +116,13 @@ func (u *MonitoringUsecase) WithSettings(settings ports.SettingsRepository) *Mon
 func (u *MonitoringUsecase) Run(ctx context.Context) {
 	u.loadRetention(ctx)
 	var workers sync.WaitGroup
-	workers.Add(5)
+	workers.Add(6)
 	go u.runPeriodic(ctx, &workers, u.config.SystemInterval, "system", u.collectSystem, nil)
 	go u.runPeriodic(ctx, &workers, u.config.DockerScanInterval, "docker discovery", u.discoverContainers, nil)
 	go u.runPeriodic(ctx, &workers, u.config.DockerStatsInterval, "docker stats", u.collectContainerMetrics, nil)
 	go u.runPeriodic(ctx, &workers, dockerInventoryInterval, "docker inventory", u.collectInventory, nil)
 	go u.runPeriodic(ctx, &workers, retentionInterval, "metrics retention", u.purgeMetrics, u.purgeNow)
+	go u.runPeriodic(ctx, &workers, rollupInterval, "metrics rollup", u.rollupMetrics, u.rollupNow)
 	<-ctx.Done()
 	workers.Wait()
 }
@@ -330,22 +343,57 @@ func (u *MonitoringUsecase) collectContainerMetrics(ctx context.Context) error {
 func restartCountSample(container domain.Container, recordedAt time.Time) domain.MetricSample {
 	containerID := container.ID
 	return domain.MetricSample{
-		ID: uuid.New(), ContainerID: &containerID, Name: "restart.count",
+		ContainerID: &containerID, Name: "restart.count",
 		Value: float64(container.RestartCount), Unit: "count", RecordedAt: recordedAt,
 	}
+}
+
+// rollupMetrics converts the former history first, then rolls up the
+// completed buckets. A conversion stopped by the cycle deadline goes on at
+// once in the next cycle.
+func (u *MonitoringUsecase) rollupMetrics(ctx context.Context) error {
+	now := u.now().UTC()
+	converted, done, err := u.repo.ConvertLegacyMetrics(ctx, now.Add(-domain.RawMetricsRetention))
+	if converted > 0 && u.legacyConverted == 0 {
+		u.logger.Info("Converting the metric history to the series storage")
+	}
+	u.legacyConverted += converted
+	if !done {
+		if errors.Is(err, context.DeadlineExceeded) {
+			select {
+			case u.rollupNow <- struct{}{}:
+			default:
+			}
+			return nil
+		}
+		u.setDatabaseStatus(StatusUnavailable, nil)
+		return err
+	}
+	if u.legacyConverted > 0 {
+		u.logger.Info("Metric history converted", zap.Int("rows", u.legacyConverted))
+		u.legacyConverted = 0
+	}
+	if err := u.repo.RollupMetrics(ctx, now.Add(-rollupLag)); err != nil {
+		u.setDatabaseStatus(StatusUnavailable, nil)
+		return err
+	}
+	return nil
 }
 
 func (u *MonitoringUsecase) purgeMetrics(ctx context.Context) error {
 	// Small batches keep each write short (the single SQLite connection is
 	// shared); the loop drains the whole backlog unless the cycle deadline
-	// expires, in which case the next run continues.
+	// expires, in which case the next run continues. Raw points are kept
+	// domain.RawMetricsRetention at most, rollups and events the retention.
 	retention, _ := u.retention()
-	before := u.now().UTC().Add(-retention)
+	now := u.now().UTC()
+	before := now.Add(-retention)
+	rawBefore := now.Add(-min(retention, domain.RawMetricsRetention))
 	for {
 		if err := ctx.Err(); err != nil {
 			return err
 		}
-		deletedMetrics, err := u.repo.DeleteMetricsBefore(ctx, before, purgeBatchSize)
+		deletedMetrics, err := u.repo.DeleteMetricsBefore(ctx, rawBefore, before, purgeBatchSize)
 		if err != nil {
 			u.setDatabaseStatus(StatusUnavailable, nil)
 			return err
@@ -359,8 +407,12 @@ func (u *MonitoringUsecase) purgeMetrics(ctx context.Context) error {
 			break
 		}
 	}
-	now := u.now().UTC()
-	u.setDatabaseStatus(StatusOK, &now)
+	if _, err := u.repo.DeleteUnusedSeries(ctx); err != nil {
+		u.setDatabaseStatus(StatusUnavailable, nil)
+		return err
+	}
+	finished := u.now().UTC()
+	u.setDatabaseStatus(StatusOK, &finished)
 	return nil
 }
 

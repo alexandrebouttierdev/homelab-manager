@@ -90,7 +90,7 @@ Limites connues, à ne pas présenter comme fonctionnelles :
 
 Tranchées le 22 novembre 2026 :
 
-1. **Volume de stockage** : rétention par défaut ramenée à 7 jours (≈ 2 Go à l'intervalle de 10 s) et réglable par l'utilisateur dans l'interface.
+1. **Volume de stockage** : rétention par défaut ramenée à 7 jours et réglable par l'utilisateur dans l'interface. Depuis le 26 novembre 2026, les mesures brutes sont gardées 24 h et l'historique au-delà est fait de moyennes sur 5 minutes stockées, dans un format compact (≈ 46 Mo pour 7 jours au lieu de ≈ 2 Go, METRICS_COLLECTION.md § 4).
 2. **Agrégation des historiques** : livrée (API_CONTRACTS.md § 5.3).
 3. **Entrées « à venir »** : spécifiées dans SPEC_ADMINISTRATION.md ; « Applications PaaS » retirée (Coolify).
 

@@ -47,19 +47,10 @@ const (
 	FieldMounts = "mounts"
 	// FieldUpdatedAt holds the string denoting the updated_at field in the database.
 	FieldUpdatedAt = "updated_at"
-	// EdgeMetrics holds the string denoting the metrics edge name in mutations.
-	EdgeMetrics = "metrics"
 	// EdgeEvents holds the string denoting the events edge name in mutations.
 	EdgeEvents = "events"
 	// Table holds the table name of the container in the database.
 	Table = "containers"
-	// MetricsTable is the table that holds the metrics relation/edge.
-	MetricsTable = "container_metric_samples"
-	// MetricsInverseTable is the table name for the ContainerMetricSample entity.
-	// It exists in this package in order to avoid circular dependency with the "containermetricsample" package.
-	MetricsInverseTable = "container_metric_samples"
-	// MetricsColumn is the table column denoting the metrics relation/edge.
-	MetricsColumn = "container_id"
 	// EventsTable is the table that holds the events relation/edge.
 	EventsTable = "events"
 	// EventsInverseTable is the table name for the Event entity.
@@ -194,20 +185,6 @@ func ByUpdatedAt(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldUpdatedAt, opts...).ToFunc()
 }
 
-// ByMetricsCount orders the results by metrics count.
-func ByMetricsCount(opts ...sql.OrderTermOption) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborsCount(s, newMetricsStep(), opts...)
-	}
-}
-
-// ByMetrics orders the results by metrics terms.
-func ByMetrics(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
-	return func(s *sql.Selector) {
-		sqlgraph.OrderByNeighborTerms(s, newMetricsStep(), append([]sql.OrderTerm{term}, terms...)...)
-	}
-}
-
 // ByEventsCount orders the results by events count.
 func ByEventsCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -220,13 +197,6 @@ func ByEvents(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	return func(s *sql.Selector) {
 		sqlgraph.OrderByNeighborTerms(s, newEventsStep(), append([]sql.OrderTerm{term}, terms...)...)
 	}
-}
-func newMetricsStep() *sqlgraph.Step {
-	return sqlgraph.NewStep(
-		sqlgraph.From(Table, FieldID),
-		sqlgraph.To(MetricsInverseTable, FieldID),
-		sqlgraph.Edge(sqlgraph.O2M, false, MetricsTable, MetricsColumn),
-	)
 }
 func newEventsStep() *sqlgraph.Step {
 	return sqlgraph.NewStep(

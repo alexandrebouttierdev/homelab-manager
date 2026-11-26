@@ -13,7 +13,6 @@ import (
 	"monoops/backend/ent/backuprun"
 	"monoops/backend/ent/backupsnapshot"
 	"monoops/backend/ent/container"
-	"monoops/backend/ent/containermetricsample"
 	"monoops/backend/ent/event"
 	"monoops/backend/ent/failedunit"
 	"monoops/backend/ent/hostinfo"
@@ -24,7 +23,6 @@ import (
 	"monoops/backend/ent/schema"
 	"monoops/backend/ent/securitypolicy"
 	"monoops/backend/ent/session"
-	"monoops/backend/ent/systemmetricsample"
 	"monoops/backend/ent/totpsecret"
 	"monoops/backend/ent/user"
 	"monoops/backend/ent/vulnerabilityfinding"
@@ -377,20 +375,6 @@ func init() {
 	containerDescID := containerFields[0].Descriptor()
 	// container.DefaultID holds the default value on creation for the id field.
 	container.DefaultID = containerDescID.Default.(func() uuid.UUID)
-	containermetricsampleFields := schema.ContainerMetricSample{}.Fields()
-	_ = containermetricsampleFields
-	// containermetricsampleDescName is the schema descriptor for name field.
-	containermetricsampleDescName := containermetricsampleFields[2].Descriptor()
-	// containermetricsample.NameValidator is a validator for the "name" field. It is called by the builders before save.
-	containermetricsample.NameValidator = containermetricsampleDescName.Validators[0].(func(string) error)
-	// containermetricsampleDescRecordedAt is the schema descriptor for recorded_at field.
-	containermetricsampleDescRecordedAt := containermetricsampleFields[6].Descriptor()
-	// containermetricsample.DefaultRecordedAt holds the default value on creation for the recorded_at field.
-	containermetricsample.DefaultRecordedAt = containermetricsampleDescRecordedAt.Default.(func() time.Time)
-	// containermetricsampleDescID is the schema descriptor for id field.
-	containermetricsampleDescID := containermetricsampleFields[0].Descriptor()
-	// containermetricsample.DefaultID holds the default value on creation for the id field.
-	containermetricsample.DefaultID = containermetricsampleDescID.Default.(func() uuid.UUID)
 	eventFields := schema.Event{}.Fields()
 	_ = eventFields
 	// eventDescType is the schema descriptor for type field.
@@ -575,20 +559,6 @@ func init() {
 	sessionDescID := sessionFields[0].Descriptor()
 	// session.DefaultID holds the default value on creation for the id field.
 	session.DefaultID = sessionDescID.Default.(func() uuid.UUID)
-	systemmetricsampleFields := schema.SystemMetricSample{}.Fields()
-	_ = systemmetricsampleFields
-	// systemmetricsampleDescName is the schema descriptor for name field.
-	systemmetricsampleDescName := systemmetricsampleFields[1].Descriptor()
-	// systemmetricsample.NameValidator is a validator for the "name" field. It is called by the builders before save.
-	systemmetricsample.NameValidator = systemmetricsampleDescName.Validators[0].(func(string) error)
-	// systemmetricsampleDescRecordedAt is the schema descriptor for recorded_at field.
-	systemmetricsampleDescRecordedAt := systemmetricsampleFields[5].Descriptor()
-	// systemmetricsample.DefaultRecordedAt holds the default value on creation for the recorded_at field.
-	systemmetricsample.DefaultRecordedAt = systemmetricsampleDescRecordedAt.Default.(func() time.Time)
-	// systemmetricsampleDescID is the schema descriptor for id field.
-	systemmetricsampleDescID := systemmetricsampleFields[0].Descriptor()
-	// systemmetricsample.DefaultID holds the default value on creation for the id field.
-	systemmetricsample.DefaultID = systemmetricsampleDescID.Default.(func() uuid.UUID)
 	totpsecretFields := schema.TotpSecret{}.Fields()
 	_ = totpsecretFields
 	// totpsecretDescLastUsedStep is the schema descriptor for last_used_step field.

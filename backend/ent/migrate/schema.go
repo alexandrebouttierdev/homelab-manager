@@ -239,30 +239,6 @@ var (
 		Columns:    ContainersColumns,
 		PrimaryKey: []*schema.Column{ContainersColumns[0]},
 	}
-	// ContainerMetricSamplesColumns holds the columns for the "container_metric_samples" table.
-	ContainerMetricSamplesColumns = []*schema.Column{
-		{Name: "id", Type: field.TypeUUID},
-		{Name: "name", Type: field.TypeString},
-		{Name: "value", Type: field.TypeFloat64},
-		{Name: "unit", Type: field.TypeString, Nullable: true},
-		{Name: "labels", Type: field.TypeJSON, Nullable: true},
-		{Name: "recorded_at", Type: field.TypeTime},
-		{Name: "container_id", Type: field.TypeUUID},
-	}
-	// ContainerMetricSamplesTable holds the schema information for the "container_metric_samples" table.
-	ContainerMetricSamplesTable = &schema.Table{
-		Name:       "container_metric_samples",
-		Columns:    ContainerMetricSamplesColumns,
-		PrimaryKey: []*schema.Column{ContainerMetricSamplesColumns[0]},
-		ForeignKeys: []*schema.ForeignKey{
-			{
-				Symbol:     "container_metric_samples_containers_metrics",
-				Columns:    []*schema.Column{ContainerMetricSamplesColumns[6]},
-				RefColumns: []*schema.Column{ContainersColumns[0]},
-				OnDelete:   schema.NoAction,
-			},
-		},
-	}
 	// EventsColumns holds the columns for the "events" table.
 	EventsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -431,21 +407,6 @@ var (
 			},
 		},
 	}
-	// SystemMetricSamplesColumns holds the columns for the "system_metric_samples" table.
-	SystemMetricSamplesColumns = []*schema.Column{
-		{Name: "id", Type: field.TypeUUID},
-		{Name: "name", Type: field.TypeString},
-		{Name: "value", Type: field.TypeFloat64},
-		{Name: "unit", Type: field.TypeString, Nullable: true},
-		{Name: "labels", Type: field.TypeJSON, Nullable: true},
-		{Name: "recorded_at", Type: field.TypeTime},
-	}
-	// SystemMetricSamplesTable holds the schema information for the "system_metric_samples" table.
-	SystemMetricSamplesTable = &schema.Table{
-		Name:       "system_metric_samples",
-		Columns:    SystemMetricSamplesColumns,
-		PrimaryKey: []*schema.Column{SystemMetricSamplesColumns[0]},
-	}
 	// TotpSecretsColumns holds the columns for the "totp_secrets" table.
 	TotpSecretsColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeUUID},
@@ -564,7 +525,6 @@ var (
 		BackupRunsTable,
 		BackupSnapshotsTable,
 		ContainersTable,
-		ContainerMetricSamplesTable,
 		EventsTable,
 		FailedUnitsTable,
 		HostInfosTable,
@@ -574,7 +534,6 @@ var (
 		RecoveryCodesTable,
 		SecurityPoliciesTable,
 		SessionsTable,
-		SystemMetricSamplesTable,
 		TotpSecretsTable,
 		UsersTable,
 		VulnerabilityFindingsTable,
@@ -584,7 +543,6 @@ var (
 )
 
 func init() {
-	ContainerMetricSamplesTable.ForeignKeys[0].RefTable = ContainersTable
 	EventsTable.ForeignKeys[0].RefTable = ContainersTable
 	SessionsTable.ForeignKeys[0].RefTable = UsersTable
 }

@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"monoops/backend/ent/container"
-	"monoops/backend/ent/containermetricsample"
 	"monoops/backend/ent/event"
 	"monoops/backend/ent/predicate"
 	"time"
@@ -305,21 +304,6 @@ func (_u *ContainerUpdate) SetNillableUpdatedAt(v *time.Time) *ContainerUpdate {
 	return _u
 }
 
-// AddMetricIDs adds the "metrics" edge to the ContainerMetricSample entity by IDs.
-func (_u *ContainerUpdate) AddMetricIDs(ids ...uuid.UUID) *ContainerUpdate {
-	_u.mutation.AddMetricIDs(ids...)
-	return _u
-}
-
-// AddMetrics adds the "metrics" edges to the ContainerMetricSample entity.
-func (_u *ContainerUpdate) AddMetrics(v ...*ContainerMetricSample) *ContainerUpdate {
-	ids := make([]uuid.UUID, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
-	}
-	return _u.AddMetricIDs(ids...)
-}
-
 // AddEventIDs adds the "events" edge to the Event entity by IDs.
 func (_u *ContainerUpdate) AddEventIDs(ids ...uuid.UUID) *ContainerUpdate {
 	_u.mutation.AddEventIDs(ids...)
@@ -338,27 +322,6 @@ func (_u *ContainerUpdate) AddEvents(v ...*Event) *ContainerUpdate {
 // Mutation returns the ContainerMutation object of the builder.
 func (_u *ContainerUpdate) Mutation() *ContainerMutation {
 	return _u.mutation
-}
-
-// ClearMetrics clears all "metrics" edges to the ContainerMetricSample entity.
-func (_u *ContainerUpdate) ClearMetrics() *ContainerUpdate {
-	_u.mutation.ClearMetrics()
-	return _u
-}
-
-// RemoveMetricIDs removes the "metrics" edge to ContainerMetricSample entities by IDs.
-func (_u *ContainerUpdate) RemoveMetricIDs(ids ...uuid.UUID) *ContainerUpdate {
-	_u.mutation.RemoveMetricIDs(ids...)
-	return _u
-}
-
-// RemoveMetrics removes "metrics" edges to ContainerMetricSample entities.
-func (_u *ContainerUpdate) RemoveMetrics(v ...*ContainerMetricSample) *ContainerUpdate {
-	ids := make([]uuid.UUID, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
-	}
-	return _u.RemoveMetricIDs(ids...)
 }
 
 // ClearEvents clears all "events" edges to the Event entity.
@@ -535,51 +498,6 @@ func (_u *ContainerUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(container.FieldUpdatedAt, field.TypeTime, value)
-	}
-	if _u.mutation.MetricsCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   container.MetricsTable,
-			Columns: []string{container.MetricsColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(containermetricsample.FieldID, field.TypeUUID),
-			},
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := _u.mutation.RemovedMetricsIDs(); len(nodes) > 0 && !_u.mutation.MetricsCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   container.MetricsTable,
-			Columns: []string{container.MetricsColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(containermetricsample.FieldID, field.TypeUUID),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := _u.mutation.MetricsIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   container.MetricsTable,
-			Columns: []string{container.MetricsColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(containermetricsample.FieldID, field.TypeUUID),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if _u.mutation.EventsCleared() {
 		edge := &sqlgraph.EdgeSpec{
@@ -919,21 +837,6 @@ func (_u *ContainerUpdateOne) SetNillableUpdatedAt(v *time.Time) *ContainerUpdat
 	return _u
 }
 
-// AddMetricIDs adds the "metrics" edge to the ContainerMetricSample entity by IDs.
-func (_u *ContainerUpdateOne) AddMetricIDs(ids ...uuid.UUID) *ContainerUpdateOne {
-	_u.mutation.AddMetricIDs(ids...)
-	return _u
-}
-
-// AddMetrics adds the "metrics" edges to the ContainerMetricSample entity.
-func (_u *ContainerUpdateOne) AddMetrics(v ...*ContainerMetricSample) *ContainerUpdateOne {
-	ids := make([]uuid.UUID, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
-	}
-	return _u.AddMetricIDs(ids...)
-}
-
 // AddEventIDs adds the "events" edge to the Event entity by IDs.
 func (_u *ContainerUpdateOne) AddEventIDs(ids ...uuid.UUID) *ContainerUpdateOne {
 	_u.mutation.AddEventIDs(ids...)
@@ -952,27 +855,6 @@ func (_u *ContainerUpdateOne) AddEvents(v ...*Event) *ContainerUpdateOne {
 // Mutation returns the ContainerMutation object of the builder.
 func (_u *ContainerUpdateOne) Mutation() *ContainerMutation {
 	return _u.mutation
-}
-
-// ClearMetrics clears all "metrics" edges to the ContainerMetricSample entity.
-func (_u *ContainerUpdateOne) ClearMetrics() *ContainerUpdateOne {
-	_u.mutation.ClearMetrics()
-	return _u
-}
-
-// RemoveMetricIDs removes the "metrics" edge to ContainerMetricSample entities by IDs.
-func (_u *ContainerUpdateOne) RemoveMetricIDs(ids ...uuid.UUID) *ContainerUpdateOne {
-	_u.mutation.RemoveMetricIDs(ids...)
-	return _u
-}
-
-// RemoveMetrics removes "metrics" edges to ContainerMetricSample entities.
-func (_u *ContainerUpdateOne) RemoveMetrics(v ...*ContainerMetricSample) *ContainerUpdateOne {
-	ids := make([]uuid.UUID, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
-	}
-	return _u.RemoveMetricIDs(ids...)
 }
 
 // ClearEvents clears all "events" edges to the Event entity.
@@ -1179,51 +1061,6 @@ func (_u *ContainerUpdateOne) sqlSave(ctx context.Context) (_node *Container, er
 	}
 	if value, ok := _u.mutation.UpdatedAt(); ok {
 		_spec.SetField(container.FieldUpdatedAt, field.TypeTime, value)
-	}
-	if _u.mutation.MetricsCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   container.MetricsTable,
-			Columns: []string{container.MetricsColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(containermetricsample.FieldID, field.TypeUUID),
-			},
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := _u.mutation.RemovedMetricsIDs(); len(nodes) > 0 && !_u.mutation.MetricsCleared() {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   container.MetricsTable,
-			Columns: []string{container.MetricsColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(containermetricsample.FieldID, field.TypeUUID),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
-	}
-	if nodes := _u.mutation.MetricsIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   container.MetricsTable,
-			Columns: []string{container.MetricsColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(containermetricsample.FieldID, field.TypeUUID),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
 	if _u.mutation.EventsCleared() {
 		edge := &sqlgraph.EdgeSpec{

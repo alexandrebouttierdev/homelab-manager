@@ -11,7 +11,6 @@ import (
 
 	"monoops/backend/internal/domain"
 
-	"github.com/google/uuid"
 	"github.com/shirou/gopsutil/v4/cpu"
 	"github.com/shirou/gopsutil/v4/disk"
 	"github.com/shirou/gopsutil/v4/host"
@@ -36,6 +35,10 @@ type Collector struct {
 	previousNet  map[string]netstat.IOCountersStat
 	previousDisk map[string]disk.IOCountersStat
 	previousCPU  map[string]cpu.TimesStat
+	// temperatures reads the sensors; they are read every
+	// domain.TemperatureInterval only, at lastTemperatureAt last.
+	temperatures      func() ([]sensors.TemperatureStat, error)
+	lastTemperatureAt time.Time
 }
 
 func New() *Collector {
@@ -43,7 +46,40 @@ func New() *Collector {
 		now: time.Now, previousNet: make(map[string]netstat.IOCountersStat),
 		previousDisk: make(map[string]disk.IOCountersStat),
 		previousCPU:  make(map[string]cpu.TimesStat),
+		temperatures: sensors.SensorsTemperatures,
 	}
+}
+
+// temperatureTolerance lets a cycle that comes a little early still read
+// the sensors: with a 10 s interval, every sixth cycle reads them.
+const temperatureTolerance = time.Second
+
+// dueTemperatures tells whether the sensors must be read at now, and then
+// records the reading.
+func (c *Collector) dueTemperatures(now time.Time) bool {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+	if !c.lastTemperatureAt.IsZero() && now.Sub(c.lastTemperatureAt) < domain.TemperatureInterval-temperatureTolerance {
+		return false
+	}
+	c.lastTemperatureAt = now
+	return true
+}
+
+// sensorLabels gives each reading its own sensor label: several sensors can
+// share a key (for example the fans and probes of dell_smm), the second one
+// becomes key_2, the third key_3, in the order of the kernel.
+func sensorLabels(readings []sensors.TemperatureStat) []string {
+	labels := make([]string, len(readings))
+	seen := make(map[string]int, len(readings))
+	for i, reading := range readings {
+		seen[reading.SensorKey]++
+		labels[i] = reading.SensorKey
+		if count := seen[reading.SensorKey]; count > 1 {
+			labels[i] = fmt.Sprintf("%s_%d", reading.SensorKey, count)
+		}
+	}
+	return labels
 }
 
 // cpuUsagePercent applies 100 × (Δtotal − Δidle) / Δtotal, where idle includes
@@ -70,7 +106,7 @@ func (c *Collector) Collect(ctx context.Context) (domain.HostInfo, []domain.Metr
 	appendSample := func(name string, value float64, unit string, labels map[string]string) {
 		if !math.IsNaN(value) && !math.IsInf(value, 0) {
 			snapshot.Samples = append(snapshot.Samples, domain.MetricSample{
-				ID: uuid.New(), Name: name, Value: value, Unit: unit, Labels: labels, RecordedAt: now,
+				Name: name, Value: value, Unit: unit, Labels: labels, RecordedAt: now,
 			})
 		}
 	}
@@ -176,9 +212,11 @@ func (c *Collector) Collect(ctx context.Context) (domain.HostInfo, []domain.Metr
 			}
 		}
 	}
-	if readings, err := sensors.SensorsTemperatures(); err == nil {
-		for _, reading := range readings {
-			appendSample("temperature.celsius", reading.Temperature, "celsius", map[string]string{"sensor": reading.SensorKey})
+	if c.dueTemperatures(now) {
+		if readings, err := c.temperatures(); err == nil {
+			for i, label := range sensorLabels(readings) {
+				appendSample(domain.TemperatureMetric, readings[i].Temperature, "celsius", map[string]string{"sensor": label})
+			}
 		}
 	}
 	if err := ctx.Err(); err != nil {

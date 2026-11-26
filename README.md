@@ -113,7 +113,7 @@ Aucune valeur inventée : une donnée absente s'affiche comme indisponible, un m
 |---|---|
 | **Système** | Linux avec systemd, `amd64` ou `arm64`. Testé sur **Debian 13** |
 | **Docker** | Docker Engine, pour la supervision des conteneurs (sans lui, la collecte Docker est indisponible et le reste fonctionne) |
-| **Disque** | ≈ 300 Mo par jour d'historique à l'intervalle par défaut, soit ≈ 2 Go pour 7 jours de rétention ; ≈ 3,5 Go de plus pour la base de Grype si le module Vulnérabilités est installé |
+| **Disque** | ≈ 50 Mo d'historique pour 7 jours de rétention à l'intervalle par défaut (24 h de mesures brutes, puis des moyennes sur 5 minutes), plus ≈ 3 Mo par conteneur ; ≈ 3,5 Go de plus pour la base de Grype si le module Vulnérabilités est installé |
 | **Modules optionnels** | `polkitd`, et selon le module `restic`, `grype`, `openssh-client` (voir [Modules optionnels](#modules-optionnels)) |
 
 ### 1. Obtenir l'archive
@@ -586,6 +586,14 @@ sudo -u monoops sqlite3 /var/lib/monoops/monoops.db \
 
 Pour restaurer : arrêter `monoops.service`, remplacer `monoops.db` par la sauvegarde, supprimer les éventuels `monoops.db-wal`/`-shm`, rétablir le propriétaire `monoops` et le mode `0600`, puis redémarrer. Sauvegarder avant toute mise à niveau.
 
+**Après la mise à jour vers le stockage par séries** (migration `021`), le Manager convertit l'ancien historique en arrière-plan pendant quelques minutes ; le journal indique « Metric history converted » à la fin. Le fichier garde sa taille, SQLite réutilisant l'espace libéré ; pour le rendre au disque, une fois la conversion terminée (il faut un espace libre égal à la taille de la base) :
+
+```bash
+sudo systemctl stop monoops
+sudo -u monoops sqlite3 /var/lib/monoops/monoops.db "VACUUM;"
+sudo systemctl start monoops
+```
+
 Si la base ne peut pas être ouverte (répertoire non accessible en écriture, disque plein, migration en échec), le Manager répond sur `/health` et rapporte son état dégradé sur `/api/v1/health`, mais l'authentification et la supervision persistée ne sont pas disponibles. Corriger la cause puis redémarrer le Manager.
 
 ### Récupérer un accès
@@ -619,7 +627,7 @@ sudo systemctl start monoops
 
 - Une seule machine supervisée : celle du Manager. Pas d'agent distant.
 - Historiques limités à 2 000 points par requête ; l'interface choisit le pas selon la période.
-- À l'intervalle par défaut (10 s), la base croît d'environ 300 Mo par jour jusqu'à la rétention.
+- Les mesures brutes ne sont gardées que 24 h ; au-delà, l'historique a une résolution de 5 minutes.
 - SQLite n'accepte qu'un écrivain à la fois : le Manager sérialise ses accès sur une connexion unique, ce qui convient à une seule machine.
 - Les rafraîchissements automatiques d'un onglet ouvert comptent comme une activité de session ; le journal d'audit n'est pas purgé.
 - Le passage de PostgreSQL à SQLite n'a pas migré les données : une ancienne installation PostgreSQL repart d'une base vide.

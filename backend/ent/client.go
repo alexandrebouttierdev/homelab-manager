@@ -21,7 +21,6 @@ import (
 	"monoops/backend/ent/backuprun"
 	"monoops/backend/ent/backupsnapshot"
 	"monoops/backend/ent/container"
-	"monoops/backend/ent/containermetricsample"
 	"monoops/backend/ent/event"
 	"monoops/backend/ent/failedunit"
 	"monoops/backend/ent/hostinfo"
@@ -31,7 +30,6 @@ import (
 	"monoops/backend/ent/recoverycode"
 	"monoops/backend/ent/securitypolicy"
 	"monoops/backend/ent/session"
-	"monoops/backend/ent/systemmetricsample"
 	"monoops/backend/ent/totpsecret"
 	"monoops/backend/ent/user"
 	"monoops/backend/ent/vulnerabilityfinding"
@@ -70,8 +68,6 @@ type Client struct {
 	BackupSnapshot *BackupSnapshotClient
 	// Container is the client for interacting with the Container builders.
 	Container *ContainerClient
-	// ContainerMetricSample is the client for interacting with the ContainerMetricSample builders.
-	ContainerMetricSample *ContainerMetricSampleClient
 	// Event is the client for interacting with the Event builders.
 	Event *EventClient
 	// FailedUnit is the client for interacting with the FailedUnit builders.
@@ -90,8 +86,6 @@ type Client struct {
 	SecurityPolicy *SecurityPolicyClient
 	// Session is the client for interacting with the Session builders.
 	Session *SessionClient
-	// SystemMetricSample is the client for interacting with the SystemMetricSample builders.
-	SystemMetricSample *SystemMetricSampleClient
 	// TotpSecret is the client for interacting with the TotpSecret builders.
 	TotpSecret *TotpSecretClient
 	// User is the client for interacting with the User builders.
@@ -123,7 +117,6 @@ func (c *Client) init() {
 	c.BackupRun = NewBackupRunClient(c.config)
 	c.BackupSnapshot = NewBackupSnapshotClient(c.config)
 	c.Container = NewContainerClient(c.config)
-	c.ContainerMetricSample = NewContainerMetricSampleClient(c.config)
 	c.Event = NewEventClient(c.config)
 	c.FailedUnit = NewFailedUnitClient(c.config)
 	c.HostInfo = NewHostInfoClient(c.config)
@@ -133,7 +126,6 @@ func (c *Client) init() {
 	c.RecoveryCode = NewRecoveryCodeClient(c.config)
 	c.SecurityPolicy = NewSecurityPolicyClient(c.config)
 	c.Session = NewSessionClient(c.config)
-	c.SystemMetricSample = NewSystemMetricSampleClient(c.config)
 	c.TotpSecret = NewTotpSecretClient(c.config)
 	c.User = NewUserClient(c.config)
 	c.VulnerabilityFinding = NewVulnerabilityFindingClient(c.config)
@@ -229,34 +221,32 @@ func (c *Client) Tx(ctx context.Context) (*Tx, error) {
 	cfg := c.config
 	cfg.driver = tx
 	return &Tx{
-		ctx:                   ctx,
-		config:                cfg,
-		APIToken:              NewAPITokenClient(cfg),
-		Alert:                 NewAlertClient(cfg),
-		AlertRule:             NewAlertRuleClient(cfg),
-		AlertSilence:          NewAlertSilenceClient(cfg),
-		AppSetting:            NewAppSettingClient(cfg),
-		AuditLog:              NewAuditLogClient(cfg),
-		BackupConfig:          NewBackupConfigClient(cfg),
-		BackupRun:             NewBackupRunClient(cfg),
-		BackupSnapshot:        NewBackupSnapshotClient(cfg),
-		Container:             NewContainerClient(cfg),
-		ContainerMetricSample: NewContainerMetricSampleClient(cfg),
-		Event:                 NewEventClient(cfg),
-		FailedUnit:            NewFailedUnitClient(cfg),
-		HostInfo:              NewHostInfoClient(cfg),
-		LoginFailure:          NewLoginFailureClient(cfg),
-		MaintenanceTask:       NewMaintenanceTaskClient(cfg),
-		NotificationChannel:   NewNotificationChannelClient(cfg),
-		RecoveryCode:          NewRecoveryCodeClient(cfg),
-		SecurityPolicy:        NewSecurityPolicyClient(cfg),
-		Session:               NewSessionClient(cfg),
-		SystemMetricSample:    NewSystemMetricSampleClient(cfg),
-		TotpSecret:            NewTotpSecretClient(cfg),
-		User:                  NewUserClient(cfg),
-		VulnerabilityFinding:  NewVulnerabilityFindingClient(cfg),
-		VulnerabilityScan:     NewVulnerabilityScanClient(cfg),
-		WebauthnCredential:    NewWebauthnCredentialClient(cfg),
+		ctx:                  ctx,
+		config:               cfg,
+		APIToken:             NewAPITokenClient(cfg),
+		Alert:                NewAlertClient(cfg),
+		AlertRule:            NewAlertRuleClient(cfg),
+		AlertSilence:         NewAlertSilenceClient(cfg),
+		AppSetting:           NewAppSettingClient(cfg),
+		AuditLog:             NewAuditLogClient(cfg),
+		BackupConfig:         NewBackupConfigClient(cfg),
+		BackupRun:            NewBackupRunClient(cfg),
+		BackupSnapshot:       NewBackupSnapshotClient(cfg),
+		Container:            NewContainerClient(cfg),
+		Event:                NewEventClient(cfg),
+		FailedUnit:           NewFailedUnitClient(cfg),
+		HostInfo:             NewHostInfoClient(cfg),
+		LoginFailure:         NewLoginFailureClient(cfg),
+		MaintenanceTask:      NewMaintenanceTaskClient(cfg),
+		NotificationChannel:  NewNotificationChannelClient(cfg),
+		RecoveryCode:         NewRecoveryCodeClient(cfg),
+		SecurityPolicy:       NewSecurityPolicyClient(cfg),
+		Session:              NewSessionClient(cfg),
+		TotpSecret:           NewTotpSecretClient(cfg),
+		User:                 NewUserClient(cfg),
+		VulnerabilityFinding: NewVulnerabilityFindingClient(cfg),
+		VulnerabilityScan:    NewVulnerabilityScanClient(cfg),
+		WebauthnCredential:   NewWebauthnCredentialClient(cfg),
 	}, nil
 }
 
@@ -274,34 +264,32 @@ func (c *Client) BeginTx(ctx context.Context, opts *sql.TxOptions) (*Tx, error) 
 	cfg := c.config
 	cfg.driver = &txDriver{tx: tx, drv: c.driver}
 	return &Tx{
-		ctx:                   ctx,
-		config:                cfg,
-		APIToken:              NewAPITokenClient(cfg),
-		Alert:                 NewAlertClient(cfg),
-		AlertRule:             NewAlertRuleClient(cfg),
-		AlertSilence:          NewAlertSilenceClient(cfg),
-		AppSetting:            NewAppSettingClient(cfg),
-		AuditLog:              NewAuditLogClient(cfg),
-		BackupConfig:          NewBackupConfigClient(cfg),
-		BackupRun:             NewBackupRunClient(cfg),
-		BackupSnapshot:        NewBackupSnapshotClient(cfg),
-		Container:             NewContainerClient(cfg),
-		ContainerMetricSample: NewContainerMetricSampleClient(cfg),
-		Event:                 NewEventClient(cfg),
-		FailedUnit:            NewFailedUnitClient(cfg),
-		HostInfo:              NewHostInfoClient(cfg),
-		LoginFailure:          NewLoginFailureClient(cfg),
-		MaintenanceTask:       NewMaintenanceTaskClient(cfg),
-		NotificationChannel:   NewNotificationChannelClient(cfg),
-		RecoveryCode:          NewRecoveryCodeClient(cfg),
-		SecurityPolicy:        NewSecurityPolicyClient(cfg),
-		Session:               NewSessionClient(cfg),
-		SystemMetricSample:    NewSystemMetricSampleClient(cfg),
-		TotpSecret:            NewTotpSecretClient(cfg),
-		User:                  NewUserClient(cfg),
-		VulnerabilityFinding:  NewVulnerabilityFindingClient(cfg),
-		VulnerabilityScan:     NewVulnerabilityScanClient(cfg),
-		WebauthnCredential:    NewWebauthnCredentialClient(cfg),
+		ctx:                  ctx,
+		config:               cfg,
+		APIToken:             NewAPITokenClient(cfg),
+		Alert:                NewAlertClient(cfg),
+		AlertRule:            NewAlertRuleClient(cfg),
+		AlertSilence:         NewAlertSilenceClient(cfg),
+		AppSetting:           NewAppSettingClient(cfg),
+		AuditLog:             NewAuditLogClient(cfg),
+		BackupConfig:         NewBackupConfigClient(cfg),
+		BackupRun:            NewBackupRunClient(cfg),
+		BackupSnapshot:       NewBackupSnapshotClient(cfg),
+		Container:            NewContainerClient(cfg),
+		Event:                NewEventClient(cfg),
+		FailedUnit:           NewFailedUnitClient(cfg),
+		HostInfo:             NewHostInfoClient(cfg),
+		LoginFailure:         NewLoginFailureClient(cfg),
+		MaintenanceTask:      NewMaintenanceTaskClient(cfg),
+		NotificationChannel:  NewNotificationChannelClient(cfg),
+		RecoveryCode:         NewRecoveryCodeClient(cfg),
+		SecurityPolicy:       NewSecurityPolicyClient(cfg),
+		Session:              NewSessionClient(cfg),
+		TotpSecret:           NewTotpSecretClient(cfg),
+		User:                 NewUserClient(cfg),
+		VulnerabilityFinding: NewVulnerabilityFindingClient(cfg),
+		VulnerabilityScan:    NewVulnerabilityScanClient(cfg),
+		WebauthnCredential:   NewWebauthnCredentialClient(cfg),
 	}, nil
 }
 
@@ -332,11 +320,11 @@ func (c *Client) Close() error {
 func (c *Client) Use(hooks ...Hook) {
 	for _, n := range []interface{ Use(...Hook) }{
 		c.APIToken, c.Alert, c.AlertRule, c.AlertSilence, c.AppSetting, c.AuditLog,
-		c.BackupConfig, c.BackupRun, c.BackupSnapshot, c.Container,
-		c.ContainerMetricSample, c.Event, c.FailedUnit, c.HostInfo, c.LoginFailure,
-		c.MaintenanceTask, c.NotificationChannel, c.RecoveryCode, c.SecurityPolicy,
-		c.Session, c.SystemMetricSample, c.TotpSecret, c.User, c.VulnerabilityFinding,
-		c.VulnerabilityScan, c.WebauthnCredential,
+		c.BackupConfig, c.BackupRun, c.BackupSnapshot, c.Container, c.Event,
+		c.FailedUnit, c.HostInfo, c.LoginFailure, c.MaintenanceTask,
+		c.NotificationChannel, c.RecoveryCode, c.SecurityPolicy, c.Session,
+		c.TotpSecret, c.User, c.VulnerabilityFinding, c.VulnerabilityScan,
+		c.WebauthnCredential,
 	} {
 		n.Use(hooks...)
 	}
@@ -347,11 +335,11 @@ func (c *Client) Use(hooks ...Hook) {
 func (c *Client) Intercept(interceptors ...Interceptor) {
 	for _, n := range []interface{ Intercept(...Interceptor) }{
 		c.APIToken, c.Alert, c.AlertRule, c.AlertSilence, c.AppSetting, c.AuditLog,
-		c.BackupConfig, c.BackupRun, c.BackupSnapshot, c.Container,
-		c.ContainerMetricSample, c.Event, c.FailedUnit, c.HostInfo, c.LoginFailure,
-		c.MaintenanceTask, c.NotificationChannel, c.RecoveryCode, c.SecurityPolicy,
-		c.Session, c.SystemMetricSample, c.TotpSecret, c.User, c.VulnerabilityFinding,
-		c.VulnerabilityScan, c.WebauthnCredential,
+		c.BackupConfig, c.BackupRun, c.BackupSnapshot, c.Container, c.Event,
+		c.FailedUnit, c.HostInfo, c.LoginFailure, c.MaintenanceTask,
+		c.NotificationChannel, c.RecoveryCode, c.SecurityPolicy, c.Session,
+		c.TotpSecret, c.User, c.VulnerabilityFinding, c.VulnerabilityScan,
+		c.WebauthnCredential,
 	} {
 		n.Intercept(interceptors...)
 	}
@@ -380,8 +368,6 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.BackupSnapshot.mutate(ctx, m)
 	case *ContainerMutation:
 		return c.Container.mutate(ctx, m)
-	case *ContainerMetricSampleMutation:
-		return c.ContainerMetricSample.mutate(ctx, m)
 	case *EventMutation:
 		return c.Event.mutate(ctx, m)
 	case *FailedUnitMutation:
@@ -400,8 +386,6 @@ func (c *Client) Mutate(ctx context.Context, m Mutation) (Value, error) {
 		return c.SecurityPolicy.mutate(ctx, m)
 	case *SessionMutation:
 		return c.Session.mutate(ctx, m)
-	case *SystemMetricSampleMutation:
-		return c.SystemMetricSample.mutate(ctx, m)
 	case *TotpSecretMutation:
 		return c.TotpSecret.mutate(ctx, m)
 	case *UserMutation:
@@ -1722,22 +1706,6 @@ func (c *ContainerClient) GetX(ctx context.Context, id uuid.UUID) *Container {
 	return obj
 }
 
-// QueryMetrics queries the metrics edge of a Container.
-func (c *ContainerClient) QueryMetrics(_m *Container) *ContainerMetricSampleQuery {
-	query := (&ContainerMetricSampleClient{config: c.config}).Query()
-	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
-		id := _m.ID
-		step := sqlgraph.NewStep(
-			sqlgraph.From(container.Table, container.FieldID, id),
-			sqlgraph.To(containermetricsample.Table, containermetricsample.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, container.MetricsTable, container.MetricsColumn),
-		)
-		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
-		return fromV, nil
-	}
-	return query
-}
-
 // QueryEvents queries the events edge of a Container.
 func (c *ContainerClient) QueryEvents(_m *Container) *EventQuery {
 	query := (&EventClient{config: c.config}).Query()
@@ -1776,155 +1744,6 @@ func (c *ContainerClient) mutate(ctx context.Context, m *ContainerMutation) (Val
 		return (&ContainerDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
 	default:
 		return nil, fmt.Errorf("ent: unknown Container mutation op: %q", m.Op())
-	}
-}
-
-// ContainerMetricSampleClient is a client for the ContainerMetricSample schema.
-type ContainerMetricSampleClient struct {
-	config
-}
-
-// NewContainerMetricSampleClient returns a client for the ContainerMetricSample from the given config.
-func NewContainerMetricSampleClient(c config) *ContainerMetricSampleClient {
-	return &ContainerMetricSampleClient{config: c}
-}
-
-// Use adds a list of mutation hooks to the hooks stack.
-// A call to `Use(f, g, h)` equals to `containermetricsample.Hooks(f(g(h())))`.
-func (c *ContainerMetricSampleClient) Use(hooks ...Hook) {
-	c.hooks.ContainerMetricSample = append(c.hooks.ContainerMetricSample, hooks...)
-}
-
-// Intercept adds a list of query interceptors to the interceptors stack.
-// A call to `Intercept(f, g, h)` equals to `containermetricsample.Intercept(f(g(h())))`.
-func (c *ContainerMetricSampleClient) Intercept(interceptors ...Interceptor) {
-	c.inters.ContainerMetricSample = append(c.inters.ContainerMetricSample, interceptors...)
-}
-
-// Create returns a builder for creating a ContainerMetricSample entity.
-func (c *ContainerMetricSampleClient) Create() *ContainerMetricSampleCreate {
-	mutation := newContainerMetricSampleMutation(c.config, OpCreate)
-	return &ContainerMetricSampleCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// CreateBulk returns a builder for creating a bulk of ContainerMetricSample entities.
-func (c *ContainerMetricSampleClient) CreateBulk(builders ...*ContainerMetricSampleCreate) *ContainerMetricSampleCreateBulk {
-	return &ContainerMetricSampleCreateBulk{config: c.config, builders: builders}
-}
-
-// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
-// a builder and applies setFunc on it.
-func (c *ContainerMetricSampleClient) MapCreateBulk(slice any, setFunc func(*ContainerMetricSampleCreate, int)) *ContainerMetricSampleCreateBulk {
-	rv := reflect.ValueOf(slice)
-	if rv.Kind() != reflect.Slice {
-		return &ContainerMetricSampleCreateBulk{err: fmt.Errorf("calling to ContainerMetricSampleClient.MapCreateBulk with wrong type %T, need slice", slice)}
-	}
-	builders := make([]*ContainerMetricSampleCreate, rv.Len())
-	for i := 0; i < rv.Len(); i++ {
-		builders[i] = c.Create()
-		setFunc(builders[i], i)
-	}
-	return &ContainerMetricSampleCreateBulk{config: c.config, builders: builders}
-}
-
-// Update returns an update builder for ContainerMetricSample.
-func (c *ContainerMetricSampleClient) Update() *ContainerMetricSampleUpdate {
-	mutation := newContainerMetricSampleMutation(c.config, OpUpdate)
-	return &ContainerMetricSampleUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// UpdateOne returns an update builder for the given entity.
-func (c *ContainerMetricSampleClient) UpdateOne(_m *ContainerMetricSample) *ContainerMetricSampleUpdateOne {
-	mutation := newContainerMetricSampleMutation(c.config, OpUpdateOne, withContainerMetricSample(_m))
-	return &ContainerMetricSampleUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// UpdateOneID returns an update builder for the given id.
-func (c *ContainerMetricSampleClient) UpdateOneID(id uuid.UUID) *ContainerMetricSampleUpdateOne {
-	mutation := newContainerMetricSampleMutation(c.config, OpUpdateOne, withContainerMetricSampleID(id))
-	return &ContainerMetricSampleUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// Delete returns a delete builder for ContainerMetricSample.
-func (c *ContainerMetricSampleClient) Delete() *ContainerMetricSampleDelete {
-	mutation := newContainerMetricSampleMutation(c.config, OpDelete)
-	return &ContainerMetricSampleDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// DeleteOne returns a builder for deleting the given entity.
-func (c *ContainerMetricSampleClient) DeleteOne(_m *ContainerMetricSample) *ContainerMetricSampleDeleteOne {
-	return c.DeleteOneID(_m.ID)
-}
-
-// DeleteOneID returns a builder for deleting the given entity by its id.
-func (c *ContainerMetricSampleClient) DeleteOneID(id uuid.UUID) *ContainerMetricSampleDeleteOne {
-	builder := c.Delete().Where(containermetricsample.ID(id))
-	builder.mutation.id = &id
-	builder.mutation.op = OpDeleteOne
-	return &ContainerMetricSampleDeleteOne{builder}
-}
-
-// Query returns a query builder for ContainerMetricSample.
-func (c *ContainerMetricSampleClient) Query() *ContainerMetricSampleQuery {
-	return &ContainerMetricSampleQuery{
-		config: c.config,
-		ctx:    &QueryContext{Type: TypeContainerMetricSample},
-		inters: c.Interceptors(),
-	}
-}
-
-// Get returns a ContainerMetricSample entity by its id.
-func (c *ContainerMetricSampleClient) Get(ctx context.Context, id uuid.UUID) (*ContainerMetricSample, error) {
-	return c.Query().Where(containermetricsample.ID(id)).Only(ctx)
-}
-
-// GetX is like Get, but panics if an error occurs.
-func (c *ContainerMetricSampleClient) GetX(ctx context.Context, id uuid.UUID) *ContainerMetricSample {
-	obj, err := c.Get(ctx, id)
-	if err != nil {
-		panic(err)
-	}
-	return obj
-}
-
-// QueryContainer queries the container edge of a ContainerMetricSample.
-func (c *ContainerMetricSampleClient) QueryContainer(_m *ContainerMetricSample) *ContainerQuery {
-	query := (&ContainerClient{config: c.config}).Query()
-	query.path = func(context.Context) (fromV *sql.Selector, _ error) {
-		id := _m.ID
-		step := sqlgraph.NewStep(
-			sqlgraph.From(containermetricsample.Table, containermetricsample.FieldID, id),
-			sqlgraph.To(container.Table, container.FieldID),
-			sqlgraph.Edge(sqlgraph.M2O, true, containermetricsample.ContainerTable, containermetricsample.ContainerColumn),
-		)
-		fromV = sqlgraph.Neighbors(_m.driver.Dialect(), step)
-		return fromV, nil
-	}
-	return query
-}
-
-// Hooks returns the client hooks.
-func (c *ContainerMetricSampleClient) Hooks() []Hook {
-	return c.hooks.ContainerMetricSample
-}
-
-// Interceptors returns the client interceptors.
-func (c *ContainerMetricSampleClient) Interceptors() []Interceptor {
-	return c.inters.ContainerMetricSample
-}
-
-func (c *ContainerMetricSampleClient) mutate(ctx context.Context, m *ContainerMetricSampleMutation) (Value, error) {
-	switch m.Op() {
-	case OpCreate:
-		return (&ContainerMetricSampleCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
-	case OpUpdate:
-		return (&ContainerMetricSampleUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
-	case OpUpdateOne:
-		return (&ContainerMetricSampleUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
-	case OpDelete, OpDeleteOne:
-		return (&ContainerMetricSampleDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
-	default:
-		return nil, fmt.Errorf("ent: unknown ContainerMetricSample mutation op: %q", m.Op())
 	}
 }
 
@@ -3157,139 +2976,6 @@ func (c *SessionClient) mutate(ctx context.Context, m *SessionMutation) (Value, 
 	}
 }
 
-// SystemMetricSampleClient is a client for the SystemMetricSample schema.
-type SystemMetricSampleClient struct {
-	config
-}
-
-// NewSystemMetricSampleClient returns a client for the SystemMetricSample from the given config.
-func NewSystemMetricSampleClient(c config) *SystemMetricSampleClient {
-	return &SystemMetricSampleClient{config: c}
-}
-
-// Use adds a list of mutation hooks to the hooks stack.
-// A call to `Use(f, g, h)` equals to `systemmetricsample.Hooks(f(g(h())))`.
-func (c *SystemMetricSampleClient) Use(hooks ...Hook) {
-	c.hooks.SystemMetricSample = append(c.hooks.SystemMetricSample, hooks...)
-}
-
-// Intercept adds a list of query interceptors to the interceptors stack.
-// A call to `Intercept(f, g, h)` equals to `systemmetricsample.Intercept(f(g(h())))`.
-func (c *SystemMetricSampleClient) Intercept(interceptors ...Interceptor) {
-	c.inters.SystemMetricSample = append(c.inters.SystemMetricSample, interceptors...)
-}
-
-// Create returns a builder for creating a SystemMetricSample entity.
-func (c *SystemMetricSampleClient) Create() *SystemMetricSampleCreate {
-	mutation := newSystemMetricSampleMutation(c.config, OpCreate)
-	return &SystemMetricSampleCreate{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// CreateBulk returns a builder for creating a bulk of SystemMetricSample entities.
-func (c *SystemMetricSampleClient) CreateBulk(builders ...*SystemMetricSampleCreate) *SystemMetricSampleCreateBulk {
-	return &SystemMetricSampleCreateBulk{config: c.config, builders: builders}
-}
-
-// MapCreateBulk creates a bulk creation builder from the given slice. For each item in the slice, the function creates
-// a builder and applies setFunc on it.
-func (c *SystemMetricSampleClient) MapCreateBulk(slice any, setFunc func(*SystemMetricSampleCreate, int)) *SystemMetricSampleCreateBulk {
-	rv := reflect.ValueOf(slice)
-	if rv.Kind() != reflect.Slice {
-		return &SystemMetricSampleCreateBulk{err: fmt.Errorf("calling to SystemMetricSampleClient.MapCreateBulk with wrong type %T, need slice", slice)}
-	}
-	builders := make([]*SystemMetricSampleCreate, rv.Len())
-	for i := 0; i < rv.Len(); i++ {
-		builders[i] = c.Create()
-		setFunc(builders[i], i)
-	}
-	return &SystemMetricSampleCreateBulk{config: c.config, builders: builders}
-}
-
-// Update returns an update builder for SystemMetricSample.
-func (c *SystemMetricSampleClient) Update() *SystemMetricSampleUpdate {
-	mutation := newSystemMetricSampleMutation(c.config, OpUpdate)
-	return &SystemMetricSampleUpdate{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// UpdateOne returns an update builder for the given entity.
-func (c *SystemMetricSampleClient) UpdateOne(_m *SystemMetricSample) *SystemMetricSampleUpdateOne {
-	mutation := newSystemMetricSampleMutation(c.config, OpUpdateOne, withSystemMetricSample(_m))
-	return &SystemMetricSampleUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// UpdateOneID returns an update builder for the given id.
-func (c *SystemMetricSampleClient) UpdateOneID(id uuid.UUID) *SystemMetricSampleUpdateOne {
-	mutation := newSystemMetricSampleMutation(c.config, OpUpdateOne, withSystemMetricSampleID(id))
-	return &SystemMetricSampleUpdateOne{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// Delete returns a delete builder for SystemMetricSample.
-func (c *SystemMetricSampleClient) Delete() *SystemMetricSampleDelete {
-	mutation := newSystemMetricSampleMutation(c.config, OpDelete)
-	return &SystemMetricSampleDelete{config: c.config, hooks: c.Hooks(), mutation: mutation}
-}
-
-// DeleteOne returns a builder for deleting the given entity.
-func (c *SystemMetricSampleClient) DeleteOne(_m *SystemMetricSample) *SystemMetricSampleDeleteOne {
-	return c.DeleteOneID(_m.ID)
-}
-
-// DeleteOneID returns a builder for deleting the given entity by its id.
-func (c *SystemMetricSampleClient) DeleteOneID(id uuid.UUID) *SystemMetricSampleDeleteOne {
-	builder := c.Delete().Where(systemmetricsample.ID(id))
-	builder.mutation.id = &id
-	builder.mutation.op = OpDeleteOne
-	return &SystemMetricSampleDeleteOne{builder}
-}
-
-// Query returns a query builder for SystemMetricSample.
-func (c *SystemMetricSampleClient) Query() *SystemMetricSampleQuery {
-	return &SystemMetricSampleQuery{
-		config: c.config,
-		ctx:    &QueryContext{Type: TypeSystemMetricSample},
-		inters: c.Interceptors(),
-	}
-}
-
-// Get returns a SystemMetricSample entity by its id.
-func (c *SystemMetricSampleClient) Get(ctx context.Context, id uuid.UUID) (*SystemMetricSample, error) {
-	return c.Query().Where(systemmetricsample.ID(id)).Only(ctx)
-}
-
-// GetX is like Get, but panics if an error occurs.
-func (c *SystemMetricSampleClient) GetX(ctx context.Context, id uuid.UUID) *SystemMetricSample {
-	obj, err := c.Get(ctx, id)
-	if err != nil {
-		panic(err)
-	}
-	return obj
-}
-
-// Hooks returns the client hooks.
-func (c *SystemMetricSampleClient) Hooks() []Hook {
-	return c.hooks.SystemMetricSample
-}
-
-// Interceptors returns the client interceptors.
-func (c *SystemMetricSampleClient) Interceptors() []Interceptor {
-	return c.inters.SystemMetricSample
-}
-
-func (c *SystemMetricSampleClient) mutate(ctx context.Context, m *SystemMetricSampleMutation) (Value, error) {
-	switch m.Op() {
-	case OpCreate:
-		return (&SystemMetricSampleCreate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
-	case OpUpdate:
-		return (&SystemMetricSampleUpdate{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
-	case OpUpdateOne:
-		return (&SystemMetricSampleUpdateOne{config: c.config, hooks: c.Hooks(), mutation: m}).Save(ctx)
-	case OpDelete, OpDeleteOne:
-		return (&SystemMetricSampleDelete{config: c.config, hooks: c.Hooks(), mutation: m}).Exec(ctx)
-	default:
-		return nil, fmt.Errorf("ent: unknown SystemMetricSample mutation op: %q", m.Op())
-	}
-}
-
 // TotpSecretClient is a client for the TotpSecret schema.
 type TotpSecretClient struct {
 	config
@@ -3975,16 +3661,16 @@ func (c *WebauthnCredentialClient) mutate(ctx context.Context, m *WebauthnCreden
 type (
 	hooks struct {
 		APIToken, Alert, AlertRule, AlertSilence, AppSetting, AuditLog, BackupConfig,
-		BackupRun, BackupSnapshot, Container, ContainerMetricSample, Event, FailedUnit,
-		HostInfo, LoginFailure, MaintenanceTask, NotificationChannel, RecoveryCode,
-		SecurityPolicy, Session, SystemMetricSample, TotpSecret, User,
-		VulnerabilityFinding, VulnerabilityScan, WebauthnCredential []ent.Hook
+		BackupRun, BackupSnapshot, Container, Event, FailedUnit, HostInfo,
+		LoginFailure, MaintenanceTask, NotificationChannel, RecoveryCode,
+		SecurityPolicy, Session, TotpSecret, User, VulnerabilityFinding,
+		VulnerabilityScan, WebauthnCredential []ent.Hook
 	}
 	inters struct {
 		APIToken, Alert, AlertRule, AlertSilence, AppSetting, AuditLog, BackupConfig,
-		BackupRun, BackupSnapshot, Container, ContainerMetricSample, Event, FailedUnit,
-		HostInfo, LoginFailure, MaintenanceTask, NotificationChannel, RecoveryCode,
-		SecurityPolicy, Session, SystemMetricSample, TotpSecret, User,
-		VulnerabilityFinding, VulnerabilityScan, WebauthnCredential []ent.Interceptor
+		BackupRun, BackupSnapshot, Container, Event, FailedUnit, HostInfo,
+		LoginFailure, MaintenanceTask, NotificationChannel, RecoveryCode,
+		SecurityPolicy, Session, TotpSecret, User, VulnerabilityFinding,
+		VulnerabilityScan, WebauthnCredential []ent.Interceptor
 	}
 )

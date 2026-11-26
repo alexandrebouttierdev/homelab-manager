@@ -7,7 +7,6 @@ import (
 	"errors"
 	"fmt"
 	"monoops/backend/ent/container"
-	"monoops/backend/ent/containermetricsample"
 	"monoops/backend/ent/event"
 	"time"
 
@@ -203,21 +202,6 @@ func (_c *ContainerCreate) SetNillableID(v *uuid.UUID) *ContainerCreate {
 		_c.SetID(*v)
 	}
 	return _c
-}
-
-// AddMetricIDs adds the "metrics" edge to the ContainerMetricSample entity by IDs.
-func (_c *ContainerCreate) AddMetricIDs(ids ...uuid.UUID) *ContainerCreate {
-	_c.mutation.AddMetricIDs(ids...)
-	return _c
-}
-
-// AddMetrics adds the "metrics" edges to the ContainerMetricSample entity.
-func (_c *ContainerCreate) AddMetrics(v ...*ContainerMetricSample) *ContainerCreate {
-	ids := make([]uuid.UUID, len(v))
-	for i := range v {
-		ids[i] = v[i].ID
-	}
-	return _c.AddMetricIDs(ids...)
 }
 
 // AddEventIDs adds the "events" edge to the Event entity by IDs.
@@ -436,22 +420,6 @@ func (_c *ContainerCreate) createSpec() (*Container, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.UpdatedAt(); ok {
 		_spec.SetField(container.FieldUpdatedAt, field.TypeTime, value)
 		_node.UpdatedAt = value
-	}
-	if nodes := _c.mutation.MetricsIDs(); len(nodes) > 0 {
-		edge := &sqlgraph.EdgeSpec{
-			Rel:     sqlgraph.O2M,
-			Inverse: false,
-			Table:   container.MetricsTable,
-			Columns: []string{container.MetricsColumn},
-			Bidi:    false,
-			Target: &sqlgraph.EdgeTarget{
-				IDSpec: sqlgraph.NewFieldSpec(containermetricsample.FieldID, field.TypeUUID),
-			},
-		}
-		for _, k := range nodes {
-			edge.Target.Nodes = append(edge.Target.Nodes, k)
-		}
-		_spec.Edges = append(_spec.Edges, edge)
 	}
 	if nodes := _c.mutation.EventsIDs(); len(nodes) > 0 {
 		edge := &sqlgraph.EdgeSpec{

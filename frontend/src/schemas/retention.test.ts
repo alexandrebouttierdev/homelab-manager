@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { estimatedStorageGigabytes, retentionSchema } from './retention'
+import { estimatedStorageMegabytes, retentionSchema } from './retention'
 
 describe('retentionSchema', () => {
   it('accepts whole days between 1 and 365', () => {
@@ -14,10 +14,16 @@ describe('retentionSchema', () => {
   })
 })
 
-describe('estimatedStorageGigabytes', () => {
-  it('matches the measured ~300 MB per day at 10 s', () => {
-    expect(estimatedStorageGigabytes(1, 10)).toBeCloseTo(0.294, 2)
-    expect(estimatedStorageGigabytes(7, 10)).toBeCloseTo(2.06, 1)
-    expect(estimatedStorageGigabytes(7, 30)).toBeCloseTo(0.69, 1)
+describe('estimatedStorageMegabytes', () => {
+  it('counts one day of raw points and the rollups of the whole retention', () => {
+    expect(estimatedStorageMegabytes(1, 10)).toBeCloseTo(36.2, 1)
+    expect(estimatedStorageMegabytes(7, 10)).toBeCloseTo(46.3, 1)
+    expect(estimatedStorageMegabytes(7, 30)).toBeCloseTo(23.2, 1)
+    expect(estimatedStorageMegabytes(365, 10)).toBeCloseTo(644.3, 1)
+  })
+
+  it('is zero for invalid inputs', () => {
+    expect(estimatedStorageMegabytes(0, 10)).toBe(0)
+    expect(estimatedStorageMegabytes(7, 0)).toBe(0)
   })
 })

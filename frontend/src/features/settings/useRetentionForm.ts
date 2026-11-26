@@ -4,7 +4,7 @@ import { useForm, useWatch } from 'react-hook-form'
 import { useSession } from '../../hooks/useSession'
 import { updateRetention, type MonitoringSettings } from '../../lib/api/monitoring'
 import {
-  estimatedStorageGigabytes,
+  estimatedStorageMegabytes,
   retentionSchema,
   type RetentionValues,
 } from '../../schemas/retention'
@@ -33,10 +33,10 @@ export function useRetentionForm(settings: MonitoringSettings) {
     isPending: mutation.isPending,
     errorMessage: mutation.error?.message ?? null,
     saved: mutation.isSuccess && !form.formState.isDirty,
-    /** Estimated database size in GB, or null while the input is invalid. */
+    /** Estimated database size in MB, or null while the input is invalid. */
     estimate:
       Number.isFinite(days) && !invalid
-        ? estimatedStorageGigabytes(days, settings.systemCollectIntervalSeconds)
+        ? estimatedStorageMegabytes(days, settings.systemCollectIntervalSeconds)
         : null,
     customised: settings.metricsRetentionSource === 'user',
     /** Only administrators may change the retention; the server enforces it. */

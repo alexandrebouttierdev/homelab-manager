@@ -12,13 +12,15 @@ Le Backend démarre en arrière-plan des collecteurs locaux indépendants : syst
 | Statistiques Docker | `docker_collect_interval_seconds` | 5–300 s | 15 s |
 | Découverte Docker (inventaire + événements) | `docker_discovery_interval_seconds` | 10–600 s | 30 s |
 | Images, volumes et réseaux Docker (en mémoire) | fixe | — | 60 s |
+| Températures (dans la collecte système) | fixe | — | 60 s |
 | Rétention | `metrics_retention_days`, puis interface | 1–365 jours | 7 jours |
+| Moyennes sur 5 minutes | fixe | — | au démarrage puis toutes les 5 min |
 | Purge | fixe | — | au démarrage puis toutes les heures |
 | Services systemd (inventaire + événements) | fixe | — | 30 s, 25 s au plus par cycle |
 
 Chaque cycle s'exécute une première fois au démarrage, puis à son intervalle, dans sa propre goroutine. Un cycle dispose d'un délai maximal de `min(max(intervalle, 10 s), 30 s)` ; au-delà, son contexte est annulé et l'erreur est journalisée. Une collecte système échouée ne bloque pas Docker, et inversement. Rien n'est mis en file d'attente en mémoire : un cycle manqué est perdu, le suivant repart de l'état courant.
 
-Les écritures SQLite se font par lots de 500 échantillons. La purge supprime par lots de 1 000 lignes (métriques puis événements) jusqu'à épuisement des données expirées ; si son délai expire, la purge suivante reprend.
+Un cycle s'écrit en une transaction, par lots de 500 points. La purge supprime par lots de 1 000 lignes (points bruts, moyennes, puis événements) jusqu'à épuisement des données expirées ; si son délai expire, la purge suivante reprend. Elle supprime ensuite les séries restées sans aucune donnée.
 
 ## 2. Métriques système Linux
 
@@ -83,6 +85,8 @@ Les adresses IP et MAC sont de l'inventaire, pas des mesures. Elles sont aujourd
 
 Lire les capteurs exposés par `/sys/class/thermal`, `hwmon` ou sources locales équivalentes. Les disques ne sont affichés que si leur température est réellement exposée par une interface autorisée ; aucun recours à une commande `smartctl` par cycle n'est supposé. Capteur absent/inaccessible = non disponible.
 
+Les capteurs ne sont lus qu'une fois par minute (le premier cycle, puis le premier cycle qui suit d'au moins 59 s la lecture précédente) : une température varie lentement, et certaines sources (`dell_smm`, interrogé par le BIOS) sont lentes à lire. Les autres cycles n'ont pas d'échantillon `temperature.celsius` ; la vue courante ajoute alors la dernière lecture (API_CONTRACTS.md § 5.2). Plusieurs capteurs peuvent porter la même clé (les sondes d'un même pilote) : le deuxième devient `<clé>_2`, le troisième `<clé>_3`, dans l'ordre du noyau, pour que chacun garde sa série.
+
 Hostname, distribution/version, noyau, uptime et date de démarrage proviennent d'interfaces locales stables. Ne jamais exécuter des commandes shell répétées pour les obtenir.
 
 ## 3. Métriques Docker
@@ -127,8 +131,14 @@ Les bytes de lecture/écriture viennent des entrées read/write de `blkio_stats.
 
 ## 4. Historique, fraîcheur et rétention
 
-Échantillons horodatés en UTC, écrits par lots dans SQLite. Par défaut, 7 jours de données brutes et d'événements sont conservés. La valeur de la configuration (`metrics_retention_days`, 1–365) est la valeur par défaut ; l'utilisateur la remplace depuis Paramètres (API_CONTRACTS.md § 4.4), avec effet immédiat et purge aussitôt. La purge horaire supprime tout ce qui est plus ancien que la rétention, par lots, sur l'index temporel. Les historiques s'agrègent à la lecture (1 min, 5 min, 1 h) ; aucun agrégat n'est stocké.
+Une **série** est un nom, une unité, des labels et sa source (l'hôte ou un conteneur) ; elle n'est enregistrée qu'une fois. Chaque **point brut** ne garde que sa série, son horodatage UTC à la milliseconde et sa valeur ; une série a au plus un point par milliseconde (un doublon dans un cycle est ignoré). Toutes les 5 minutes, les points des intervalles de 5 minutes terminés depuis au moins 2 minutes (le temps d'écrire les cycles en cours) sont résumés en **moyennes** : somme, minimum, maximum et nombre de points, par série et par intervalle aligné sur l'époque Unix. Un repère (`rolled_until`) sépare les points déjà résumés des autres : chaque point est compté une fois, et la purge ne supprime jamais un point brut pas encore résumé.
 
-**Volume attendu.** Mesuré sur une machine à 8 cœurs, 4 systèmes de fichiers, 5 disques, 2 interfaces et 20 capteurs : environ 100 échantillons par cycle, soit **≈ 870 000 lignes par jour à l'intervalle par défaut de 10 s, ≈ 340 octets par ligne index compris, ≈ 300 Mo par jour**. La taille stable de la base est d'environ `300 Mo × rétention en jours` (≈ 2 Go pour les 7 jours par défaut, ≈ 9 Go pour 30 jours), plus environ 10 à 15 échantillons par conteneur en cours d'exécution tous les 15 s. Pour réduire le volume : allonger `system_collect_interval_seconds` (le volume est inversement proportionnel) ou réduire la rétention. L'interface affiche l'estimation de taille correspondant à la rétention saisie.
+- **Points bruts** : conservés 24 heures (ou la rétention si elle est plus courte). Ils servent la vue courante, les alertes et l'historique `raw` (API_CONTRACTS.md § 5.3).
+- **Moyennes sur 5 minutes** : conservées pendant toute la rétention. Les historiques agrégés (`1m`, `5m`, `1h`) les lisent avant le repère et les points bruts après ; un intervalle de 1 h à cheval sur les deux additionne l'un et l'autre. Au-delà des points bruts, la résolution la plus fine est donc de 5 minutes.
+- **Rétention** : par défaut 7 jours de moyennes et d'événements. La valeur de la configuration (`metrics_retention_days`, 1–365) est la valeur par défaut ; l'utilisateur la remplace depuis Paramètres (API_CONTRACTS.md § 4.4), avec effet immédiat et purge aussitôt. La purge horaire supprime, par lots sur les index temporels, les points bruts de plus de 24 h, les moyennes et les événements plus anciens que la rétention.
+
+**Volume attendu.** Mesuré sur 100 séries (≈ 100 échantillons hôte par cycle) : **≈ 40 octets par point brut** et **≈ 58 octets par moyenne**, index compris. À l'intervalle par défaut de 10 s, les points bruts d'une journée occupent ≈ 35 Mo ; les moyennes ajoutent ≈ 1,7 Mo par jour de rétention. La base des métriques hôte se stabilise donc vers **≈ 46 Mo pour 7 jours**, ≈ 85 Mo pour 30 jours et ≈ 650 Mo pour 365 jours. Un conteneur en cours d'exécution ajoute ≈ 3 Mo de points bruts (≈ 13 séries toutes les 15 s) et ≈ 0,2 Mo de moyennes par jour de rétention. Allonger `system_collect_interval_seconds` réduit les points bruts en proportion ; la rétention ne joue plus que sur les moyennes. L'interface affiche l'estimation correspondant à la rétention saisie.
+
+**Ancien historique.** Jusqu'à la migration `021`, chaque échantillon était une ligne avec un UUID, un horodatage texte et 3 index (≈ 340 octets par ligne). Au démarrage qui suit la mise à jour, le Manager convertit ces lignes en arrière-plan, par lots de 2 000 dans des transactions courtes : celles des dernières 24 h deviennent des points bruts, les plus anciennes des moyennes. Les tables vides sont ensuite supprimées. La conversion d'une base de plusieurs Go dure quelques minutes et ne bloque ni le démarrage ni les collectes ; l'historique antérieur à 24 h réapparaît dans les vues agrégées une fois la conversion terminée. Le fichier SQLite ne rétrécit pas tout seul : SQLite réutilise les pages libérées pour les nouvelles données. Pour rendre l'espace au disque, lancer `VACUUM` service arrêté (README).
 
 Les vues courantes affichent `status`/`lastSuccessAt` du collecteur selon API_CONTRACTS.md § 4.1 (`starting`, `ok`, `stale` au-delà de 3 intervalles sans succès, `unavailable`). Une valeur zéro est une mesure réelle égale à zéro, pas une donnée inconnue.

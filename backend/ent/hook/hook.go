@@ -128,18 +128,6 @@ func (f ContainerFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, e
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ContainerMutation", m)
 }
 
-// The ContainerMetricSampleFunc type is an adapter to allow the use of ordinary
-// function as ContainerMetricSample mutator.
-type ContainerMetricSampleFunc func(context.Context, *ent.ContainerMetricSampleMutation) (ent.Value, error)
-
-// Mutate calls f(ctx, m).
-func (f ContainerMetricSampleFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
-	if mv, ok := m.(*ent.ContainerMetricSampleMutation); ok {
-		return f(ctx, mv)
-	}
-	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.ContainerMetricSampleMutation", m)
-}
-
 // The EventFunc type is an adapter to allow the use of ordinary
 // function as Event mutator.
 type EventFunc func(context.Context, *ent.EventMutation) (ent.Value, error)
@@ -246,18 +234,6 @@ func (f SessionFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, err
 		return f(ctx, mv)
 	}
 	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SessionMutation", m)
-}
-
-// The SystemMetricSampleFunc type is an adapter to allow the use of ordinary
-// function as SystemMetricSample mutator.
-type SystemMetricSampleFunc func(context.Context, *ent.SystemMetricSampleMutation) (ent.Value, error)
-
-// Mutate calls f(ctx, m).
-func (f SystemMetricSampleFunc) Mutate(ctx context.Context, m ent.Mutation) (ent.Value, error) {
-	if mv, ok := m.(*ent.SystemMetricSampleMutation); ok {
-		return f(ctx, mv)
-	}
-	return nil, fmt.Errorf("unexpected mutation type %T. expect *ent.SystemMetricSampleMutation", m)
 }
 
 // The TotpSecretFunc type is an adapter to allow the use of ordinary

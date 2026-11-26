@@ -66,9 +66,14 @@ func (testMonitoringRepository) LatestMetrics(context.Context, *string, time.Tim
 func (testMonitoringRepository) ListEvents(context.Context, *string, time.Time, time.Time, *domain.EventCursor, int) ([]domain.MonitorEvent, error) {
 	return nil, nil
 }
-func (testMonitoringRepository) DeleteMetricsBefore(context.Context, time.Time, int) (int, error) {
+func (testMonitoringRepository) RollupMetrics(context.Context, time.Time) error { return nil }
+func (testMonitoringRepository) ConvertLegacyMetrics(context.Context, time.Time) (int, bool, error) {
+	return 0, true, nil
+}
+func (testMonitoringRepository) DeleteMetricsBefore(context.Context, time.Time, time.Time, int) (int, error) {
 	return 0, nil
 }
+func (testMonitoringRepository) DeleteUnusedSeries(context.Context) (int, error) { return 0, nil }
 func (testMonitoringRepository) DeleteEventsBefore(context.Context, time.Time, int) (int, error) {
 	return 0, nil
 }
@@ -188,15 +193,20 @@ func TestContainerRestartCountSharesTheStatsCycle(t *testing.T) {
 
 type backlogRepository struct {
 	testMonitoringRepository
-	metrics, events int
-	before          time.Time
+	metrics, events   int
+	rawBefore, before time.Time
+	unusedSeries      int
 }
 
-func (r *backlogRepository) DeleteMetricsBefore(_ context.Context, before time.Time, limit int) (int, error) {
-	r.before = before
+func (r *backlogRepository) DeleteMetricsBefore(_ context.Context, rawBefore, before time.Time, limit int) (int, error) {
+	r.rawBefore, r.before = rawBefore, before
 	deleted := min(limit, r.metrics)
 	r.metrics -= deleted
 	return deleted, nil
+}
+func (r *backlogRepository) DeleteUnusedSeries(context.Context) (int, error) {
+	r.unusedSeries++
+	return 0, nil
 }
 func (r *backlogRepository) DeleteEventsBefore(_ context.Context, _ time.Time, limit int) (int, error) {
 	deleted := min(limit, r.events)
@@ -221,6 +231,72 @@ func TestPurgeDrainsTheWholeBacklog(t *testing.T) {
 	}
 	if want := now.Add(-30 * 24 * time.Hour); !repository.before.Equal(want) {
 		t.Fatalf("purge cutoff = %v, want %v", repository.before, want)
+	}
+	// Raw points are kept one day, whatever the retention.
+	if want := now.Add(-24 * time.Hour); !repository.rawBefore.Equal(want) {
+		t.Fatalf("raw purge cutoff = %v, want %v", repository.rawBefore, want)
+	}
+	if repository.unusedSeries != 1 {
+		t.Fatalf("unused series purged %d times, want once after the backlog", repository.unusedSeries)
+	}
+}
+
+type rollupRepository struct {
+	testMonitoringRepository
+	// legacyBatches is the number of conversion calls before it is done;
+	// each earlier call reports the cycle deadline.
+	legacyBatches int
+	conversions   int
+	rawSince      time.Time
+	rollupUntil   []time.Time
+}
+
+func (r *rollupRepository) ConvertLegacyMetrics(_ context.Context, rawSince time.Time) (int, bool, error) {
+	r.conversions++
+	r.rawSince = rawSince
+	if r.conversions < r.legacyBatches {
+		return 2000, false, context.DeadlineExceeded
+	}
+	return 0, true, nil
+}
+func (r *rollupRepository) RollupMetrics(_ context.Context, until time.Time) error {
+	r.rollupUntil = append(r.rollupUntil, until)
+	return nil
+}
+
+// The rollups wait for the end of the conversion of the former history,
+// which goes on at once after its cycle deadline.
+func TestRollupWaitsForTheLegacyConversion(t *testing.T) {
+	repository := &rollupRepository{legacyBatches: 2}
+	monitoring := NewMonitoringUsecase(&testSystemCollector{}, unavailableDocker{}, repository,
+		MonitoringConfig{Retention: 7 * 24 * time.Hour}, zap.NewNop())
+	now := time.Date(2026, 11, 26, 12, 0, 0, 0, time.UTC)
+	monitoring.now = func() time.Time { return now }
+
+	if err := monitoring.rollupMetrics(context.Background()); err != nil {
+		t.Fatalf("first cycle: %v", err)
+	}
+	if len(repository.rollupUntil) != 0 {
+		t.Fatal("rollups must not run while the conversion is in progress")
+	}
+	if want := now.Add(-24 * time.Hour); !repository.rawSince.Equal(want) {
+		t.Fatalf("conversion keeps raw points since %v, want %v", repository.rawSince, want)
+	}
+	select {
+	case <-monitoring.rollupNow:
+	default:
+		t.Fatal("an unfinished conversion must ask for the next cycle at once")
+	}
+	if err := monitoring.rollupMetrics(context.Background()); err != nil {
+		t.Fatalf("second cycle: %v", err)
+	}
+	if len(repository.rollupUntil) != 1 || !repository.rollupUntil[0].Equal(now.Add(-2*time.Minute)) {
+		t.Fatalf("rollups until %v, want one run until now - 2 min", repository.rollupUntil)
+	}
+	select {
+	case <-monitoring.rollupNow:
+		t.Fatal("a finished conversion must not ask for another cycle")
+	default:
 	}
 }
 

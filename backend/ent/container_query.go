@@ -8,7 +8,6 @@ import (
 	"fmt"
 	"math"
 	"monoops/backend/ent/container"
-	"monoops/backend/ent/containermetricsample"
 	"monoops/backend/ent/event"
 	"monoops/backend/ent/predicate"
 
@@ -22,12 +21,11 @@ import (
 // ContainerQuery is the builder for querying Container entities.
 type ContainerQuery struct {
 	config
-	ctx         *QueryContext
-	order       []container.OrderOption
-	inters      []Interceptor
-	predicates  []predicate.Container
-	withMetrics *ContainerMetricSampleQuery
-	withEvents  *EventQuery
+	ctx        *QueryContext
+	order      []container.OrderOption
+	inters     []Interceptor
+	predicates []predicate.Container
+	withEvents *EventQuery
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -62,28 +60,6 @@ func (_q *ContainerQuery) Unique(unique bool) *ContainerQuery {
 func (_q *ContainerQuery) Order(o ...container.OrderOption) *ContainerQuery {
 	_q.order = append(_q.order, o...)
 	return _q
-}
-
-// QueryMetrics chains the current query on the "metrics" edge.
-func (_q *ContainerQuery) QueryMetrics() *ContainerMetricSampleQuery {
-	query := (&ContainerMetricSampleClient{config: _q.config}).Query()
-	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
-		if err := _q.prepareQuery(ctx); err != nil {
-			return nil, err
-		}
-		selector := _q.sqlQuery(ctx)
-		if err := selector.Err(); err != nil {
-			return nil, err
-		}
-		step := sqlgraph.NewStep(
-			sqlgraph.From(container.Table, container.FieldID, selector),
-			sqlgraph.To(containermetricsample.Table, containermetricsample.FieldID),
-			sqlgraph.Edge(sqlgraph.O2M, false, container.MetricsTable, container.MetricsColumn),
-		)
-		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
-		return fromU, nil
-	}
-	return query
 }
 
 // QueryEvents chains the current query on the "events" edge.
@@ -295,28 +271,16 @@ func (_q *ContainerQuery) Clone() *ContainerQuery {
 		return nil
 	}
 	return &ContainerQuery{
-		config:      _q.config,
-		ctx:         _q.ctx.Clone(),
-		order:       append([]container.OrderOption{}, _q.order...),
-		inters:      append([]Interceptor{}, _q.inters...),
-		predicates:  append([]predicate.Container{}, _q.predicates...),
-		withMetrics: _q.withMetrics.Clone(),
-		withEvents:  _q.withEvents.Clone(),
+		config:     _q.config,
+		ctx:        _q.ctx.Clone(),
+		order:      append([]container.OrderOption{}, _q.order...),
+		inters:     append([]Interceptor{}, _q.inters...),
+		predicates: append([]predicate.Container{}, _q.predicates...),
+		withEvents: _q.withEvents.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
 	}
-}
-
-// WithMetrics tells the query-builder to eager-load the nodes that are connected to
-// the "metrics" edge. The optional arguments are used to configure the query builder of the edge.
-func (_q *ContainerQuery) WithMetrics(opts ...func(*ContainerMetricSampleQuery)) *ContainerQuery {
-	query := (&ContainerMetricSampleClient{config: _q.config}).Query()
-	for _, opt := range opts {
-		opt(query)
-	}
-	_q.withMetrics = query
-	return _q
 }
 
 // WithEvents tells the query-builder to eager-load the nodes that are connected to
@@ -408,8 +372,7 @@ func (_q *ContainerQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Co
 	var (
 		nodes       = []*Container{}
 		_spec       = _q.querySpec()
-		loadedTypes = [2]bool{
-			_q.withMetrics != nil,
+		loadedTypes = [1]bool{
 			_q.withEvents != nil,
 		}
 	)
@@ -431,13 +394,6 @@ func (_q *ContainerQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Co
 	if len(nodes) == 0 {
 		return nodes, nil
 	}
-	if query := _q.withMetrics; query != nil {
-		if err := _q.loadMetrics(ctx, query, nodes,
-			func(n *Container) { n.Edges.Metrics = []*ContainerMetricSample{} },
-			func(n *Container, e *ContainerMetricSample) { n.Edges.Metrics = append(n.Edges.Metrics, e) }); err != nil {
-			return nil, err
-		}
-	}
 	if query := _q.withEvents; query != nil {
 		if err := _q.loadEvents(ctx, query, nodes,
 			func(n *Container) { n.Edges.Events = []*Event{} },
@@ -448,36 +404,6 @@ func (_q *ContainerQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*Co
 	return nodes, nil
 }
 
-func (_q *ContainerQuery) loadMetrics(ctx context.Context, query *ContainerMetricSampleQuery, nodes []*Container, init func(*Container), assign func(*Container, *ContainerMetricSample)) error {
-	fks := make([]driver.Value, 0, len(nodes))
-	nodeids := make(map[uuid.UUID]*Container)
-	for i := range nodes {
-		fks = append(fks, nodes[i].ID)
-		nodeids[nodes[i].ID] = nodes[i]
-		if init != nil {
-			init(nodes[i])
-		}
-	}
-	if len(query.ctx.Fields) > 0 {
-		query.ctx.AppendFieldOnce(containermetricsample.FieldContainerID)
-	}
-	query.Where(predicate.ContainerMetricSample(func(s *sql.Selector) {
-		s.Where(sql.InValues(s.C(container.MetricsColumn), fks...))
-	}))
-	neighbors, err := query.All(ctx)
-	if err != nil {
-		return err
-	}
-	for _, n := range neighbors {
-		fk := n.ContainerID
-		node, ok := nodeids[fk]
-		if !ok {
-			return fmt.Errorf(`unexpected referenced foreign-key "container_id" returned %v for node %v`, fk, n.ID)
-		}
-		assign(node, n)
-	}
-	return nil
-}
 func (_q *ContainerQuery) loadEvents(ctx context.Context, query *EventQuery, nodes []*Container, init func(*Container), assign func(*Container, *Event)) error {
 	fks := make([]driver.Value, 0, len(nodes))
 	nodeids := make(map[uuid.UUID]*Container)

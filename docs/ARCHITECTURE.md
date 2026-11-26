@@ -75,7 +75,7 @@ En cas d'indisponibilité du démon, conserver le dernier inventaire connu comme
 
 ## 6. Planification, persistance et ressources
 
-- Les cycles système, découverte Docker, stats Docker, inventaire Docker (chaque minute, gardé en mémoire) et rétention (horaire) ont des fréquences indépendantes et bornées, chacun dans une goroutine détenue par `MonitoringUsecase.Run`, arrêtée par annulation de contexte avant la fermeture de la base.
+- Les cycles système, découverte Docker, stats Docker, inventaire Docker (chaque minute, gardé en mémoire), moyennes sur 5 minutes (qui convertissent d'abord l'ancien historique, par lots courts) et rétention (horaire) ont des fréquences indépendantes et bornées, chacun dans une goroutine détenue par `MonitoringUsecase.Run`, arrêtée par annulation de contexte avant la fermeture de la base.
 - La collecte démarre au lancement du Manager, non à la première requête.
 - Une panne ponctuelle d'un sous-système n'empêche pas l'autre collecteur de fonctionner.
 - Les insertions de métriques sont groupées ; les requêtes historiques ont des bornes temporelles et un plafond de résultats ; les vues courantes lisent le dernier cycle complet.

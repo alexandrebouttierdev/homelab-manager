@@ -59,28 +59,17 @@ type Container struct {
 
 // ContainerEdges holds the relations/edges for other nodes in the graph.
 type ContainerEdges struct {
-	// Metrics holds the value of the metrics edge.
-	Metrics []*ContainerMetricSample `json:"metrics,omitempty"`
 	// Events holds the value of the events edge.
 	Events []*Event `json:"events,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [2]bool
-}
-
-// MetricsOrErr returns the Metrics value or an error if the edge
-// was not loaded in eager-loading.
-func (e ContainerEdges) MetricsOrErr() ([]*ContainerMetricSample, error) {
-	if e.loadedTypes[0] {
-		return e.Metrics, nil
-	}
-	return nil, &NotLoadedError{edge: "metrics"}
+	loadedTypes [1]bool
 }
 
 // EventsOrErr returns the Events value or an error if the edge
 // was not loaded in eager-loading.
 func (e ContainerEdges) EventsOrErr() ([]*Event, error) {
-	if e.loadedTypes[1] {
+	if e.loadedTypes[0] {
 		return e.Events, nil
 	}
 	return nil, &NotLoadedError{edge: "events"}
@@ -238,11 +227,6 @@ func (_m *Container) assignValues(columns []string, values []any) error {
 // This includes values selected through modifiers, order, etc.
 func (_m *Container) Value(name string) (ent.Value, error) {
 	return _m.selectValues.Get(name)
-}
-
-// QueryMetrics queries the "metrics" edge of the Container entity.
-func (_m *Container) QueryMetrics() *ContainerMetricSampleQuery {
-	return NewContainerClient(_m.config).QueryMetrics(_m)
 }
 
 // QueryEvents queries the "events" edge of the Container entity.

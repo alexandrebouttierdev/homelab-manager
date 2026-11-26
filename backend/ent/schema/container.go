@@ -33,7 +33,6 @@ func (Container) Fields() []ent.Field {
 
 func (Container) Edges() []ent.Edge {
 	return []ent.Edge{
-		edge.To("metrics", ContainerMetricSample.Type),
 		edge.To("events", Event.Type),
 	}
 }

@@ -116,125 +116,57 @@ Aucune valeur inventée : une donnée absente s'affiche comme indisponible, un m
 | **Disque** | ≈ 50 Mo d'historique pour 7 jours de rétention à l'intervalle par défaut (24 h de mesures brutes, puis des moyennes sur 5 minutes), plus ≈ 3 Mo par conteneur ; ≈ 3,5 Go de plus pour la base de Grype si le module Vulnérabilités est installé |
 | **Modules optionnels** | `polkitd`, et selon le module `restic`, `grype`, `openssh-client` (voir [Modules optionnels](#modules-optionnels)) |
 
-### 1. Obtenir l'archive
+### Installer ou mettre à jour
 
-Chaque archive contient, pour une architecture, les trois binaires statiques (`monoops`, `monoops-docker-proxy`, `monoops-backup-runner`), l'interface compilée, les unités systemd, la configuration et les règles polkit. Deux façons de l'obtenir :
+L'installateur récupère la dernière release stable, vérifie son SHA-256, installe les binaires et les unités systemd, puis démarre MonoOps. Il détecte l'architecture `amd64` ou `arm64`. Docker est facultatif : sans le groupe système `docker`, le proxy n'est pas activé et le reste de MonoOps demeure disponible.
 
-<details open>
-<summary><b>Depuis une release GitHub</b> (recommandé)</summary>
-
-<br>
+**Prérequis :** Linux avec systemd 254 ou supérieur, accès réseau HTTPS et architecture `amd64` ou `arm64`. Debian 13 est la plateforme de référence.
 
 ```bash
-VERSION=2.3.0   # numéro de la release choisie, sans le « v »
-ARCH=amd64      # ou arm64 (Raspberry Pi 4/5, Mac Apple Silicon…)
-BASE=https://github.com/alexandrebouttierdev/monoops/releases/download/v$VERSION
-curl -fsSLO "$BASE/monoops_${VERSION}_linux_${ARCH}.tar.gz"
-curl -fsSLO "$BASE/SHA256SUMS"
-sha256sum -c --ignore-missing SHA256SUMS
-tar -xzf "monoops_${VERSION}_linux_${ARCH}.tar.gz"
-cd "monoops_${VERSION}_linux_${ARCH}"
+curl -fsSL https://raw.githubusercontent.com/alexandrebouttierdev/monoops/main/install.sh | sudo bash
 ```
 
-Avec la [CLI GitHub](https://cli.github.com/), une fois connecté (`gh auth login`), les deux `curl` deviennent : `gh release download "v$VERSION" -R alexandrebouttierdev/monoops -p "monoops_${VERSION}_linux_${ARCH}.tar.gz" -p SHA256SUMS`.
+L'installation :
+- télécharge uniquement la dernière release stable publiée ;
+- vérifie l'archive avec le fichier `SHA256SUMS` avant extraction ;
+- crée les comptes système nécessaires sans donner le groupe `docker` au Manager ;
+- installe le proxy Docker uniquement si le groupe `docker` existe ;
+- crée la clé chiffrée du coffre si elle n'existe pas ;
+- conserve `/etc/monoops/manager.yaml`, `manager.env`, la clé existante et les données lors d'une mise à jour ;
+- vérifie le démarrage du service et tente un contrôle HTTP local.
 
-</details>
-
-<details>
-<summary><b>Depuis les sources</b> (Go 1.26.11 et Node.js 22)</summary>
-
-<br>
-
-Sur un poste de développement, construire les mêmes archives qu'une release, puis les copier sur la machine :
+Pour tester la version de développement (non recommandée sur un serveur de production) :
 
 ```bash
-git clone https://github.com/alexandrebouttierdev/monoops.git
-cd monoops
-npm --prefix frontend ci
-scripts/release/build.sh 2.3.0 dist     # archives amd64 et arm64 + SHA256SUMS dans dist/
-scp dist/monoops_2.3.0_linux_amd64.tar.gz machine:
+curl -fsSL https://raw.githubusercontent.com/alexandrebouttierdev/monoops/dev/install.sh | sudo bash
 ```
 
-Sur la machine : `tar -xzf monoops_2.3.0_linux_amd64.tar.gz && cd monoops_2.3.0_linux_amd64`.
+### Désinstaller
 
-</details>
-
-Les commandes suivantes se lancent depuis le répertoire extrait.
-
-### 2. Créer les comptes système
-
-Le Manager n'est **pas** membre du groupe `docker` : seul le proxy restreint l'est.
+La désinstallation standard supprime les exécutables, l'interface et les unités MonoOps, mais conserve la configuration, la base SQLite, les sauvegardes et la clé chiffrée :
 
 ```bash
-sudo adduser --system --group --no-create-home monoops
-sudo adduser --system --group --no-create-home monoops-docker-proxy
-sudo usermod -aG docker monoops-docker-proxy   # seulement si Docker est installé
+curl -fsSL https://raw.githubusercontent.com/alexandrebouttierdev/monoops/main/uninstall.sh | sudo bash
 ```
 
-### 3. Installer les fichiers
+Pour supprimer également les données, le script exige une confirmation explicite :
 
 ```bash
-sudo install -m 0755 bin/monoops bin/monoops-docker-proxy bin/monoops-backup-runner /usr/local/bin/
-sudo mkdir -p /opt/monoops/frontend /etc/monoops
-sudo cp -R frontend/dist /opt/monoops/frontend/
-sudo install -m 0644 deployments/config/manager.yaml /etc/monoops/manager.yaml
-sudo install -m 0644 deployments/systemd/*.service deployments/systemd/*.socket /etc/systemd/system/
+curl -fsSL https://raw.githubusercontent.com/alexandrebouttierdev/monoops/main/uninstall.sh | sudo bash -s -- --purge-data
 ```
 
-Les secrets éventuels (`MONOOPS_ADMIN_PASSWORD`, …) vont dans `/etc/monoops/manager.env`, en mode `0600`.
-
-### 4. Créer la clé du coffre de secrets
-
-Elle chiffre les secrets TOTP, les jetons des canaux de notification et les mots de passe des dépôts de sauvegarde. 32 octets aléatoires, chiffrés par `systemd-creds` avec le TPM 2.0 de la machine s'il existe, sinon avec la clé de l'hôte ; l'unité les importe au démarrage et seul le service peut les lire.
-
-```bash
-sudo mkdir -p /etc/credstore.encrypted
-head -c 32 /dev/urandom | base64 | sudo systemd-creds encrypt \
-  --name=monoops-secrets-key - /etc/credstore.encrypted/monoops-secrets-key
-```
-
-> [!NOTE]
-> Sans cette clé, le Manager démarre quand même et la supervision fonctionne, mais la double authentification par application, les canaux à secret et les sauvegardes sont indisponibles. Le journal du service l'indique au démarrage (« No secrets key configured »).
-
-<details>
-<summary><b>Conteneur LXC (Proxmox, OrbStack…) : la clé n'est pas chargée</b></summary>
-
-<br>
-
-Dans un conteneur système LXC, systemd peut désactiver l'import des secrets chiffrés (`ImportCredential=` vidé par `/run/systemd/system/service.d/zzz-lxc-service.conf`) : le journal indique alors « No secrets key configured » malgré l'étape ci-dessus. Utiliser à la place un fichier de clé lisible par le seul service :
-
-```bash
-head -c 32 /dev/urandom | base64 | sudo install -m 0400 -o monoops -g monoops /dev/stdin /etc/monoops/secrets.key
-echo "MONOOPS_SECRETS_KEY_FILE=/etc/monoops/secrets.key" | sudo tee -a /etc/monoops/manager.env
-sudo chmod 0600 /etc/monoops/manager.env
-sudo systemctl restart monoops   # le journal indique « Secrets key loaded »
-```
-
-La clé n'est alors protégée que par les droits du fichier, pas par le TPM. Ce même fichier systemd allège aussi le cloisonnement des services (`ProtectSystem`, `NoNewPrivileges`…) : une machine virtuelle ou une installation directe isole mieux le Manager.
-
-</details>
-
-### 5. Démarrer
-
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable --now monoops-docker-proxy.socket monoops.service
-journalctl -u monoops -n 20   # la version démarrée y est journalisée
-```
-
-### 6. Se connecter
-
-Ouvrir `http://<machine>:8080`. Sans `MONOOPS_ADMIN_PASSWORD`, le premier compte est `admin` / `admin` et **l'interface impose d'en choisir un autre dès la première connexion**. Activer ensuite la double authentification dans « Configuration ».
-
-> [!TIP]
-> **HTTPS** : renseigner `tls_cert_file` et `tls_key_file` dans `manager.yaml` (fichiers lisibles par le compte `monoops`), ou placer le Manager derrière un proxy inverse et mettre `MONOOPS_SESSION_SECURE=true`. HTTPS et un nom de domaine sont indispensables aux passkeys.
+> [!WARNING]
+> `--purge-data` supprime définitivement la base, la configuration, les sauvegardes locales et la clé du coffre. Exportez vos sauvegardes avant de l'utiliser.
 
 ### Mettre à jour
 
-1. [Sauvegarder la base](#sauvegarder-la-base-du-manager).
-2. Arrêter `monoops.service`.
-3. Remplacer les binaires, `/opt/monoops/frontend/dist` et, si le README de la version l'indique, les unités, `tmpfiles.d` et règles polkit des modules installés.
-4. `sudo systemctl daemon-reload && sudo systemctl start monoops`. Les migrations SQLite s'appliquent seules au démarrage.
+Relancer exactement la même commande que pour l'installation :
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/alexandrebouttierdev/monoops/main/install.sh | sudo bash
+```
+
+L'installateur remplace les binaires et l'interface, met à jour les unités systemd, conserve les fichiers de configuration et la clé existants, puis redémarre le service. Les migrations SQLite s'appliquent au démarrage. Il est recommandé de [sauvegarder la base](#sauvegarder-la-base-du-manager) avant toute mise à jour.
 
 ## Modules optionnels
 

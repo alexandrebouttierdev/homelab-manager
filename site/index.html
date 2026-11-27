@@ -1771,87 +1771,37 @@
         <div class="wrap install">
           <div class="section-head">
             <span class="kicker">Installation</span>
-            <h2 id="installation-titre">
-              Une installation native, sans conteneur.
-            </h2>
+            <h2 id="installation-titre">Une installation native, sans conteneur.</h2>
             <p>
-              Chaque release contient les binaires, l'interface, les unités
-              systemd et les règles polkit, pour amd64 et arm64.
+              Un installateur vérifie l'archive, configure systemd et préserve
+              vos données lors des mises à jour. Debian 13, amd64 et arm64.
             </p>
           </div>
           <div class="card terminal">
-            <div
-              class="tabs"
-              role="tablist"
-              aria-label="Source de l'installation"
-            >
-              <button
-                class="tab"
-                type="button"
-                role="tab"
-                id="tab-release"
-                aria-controls="code-release"
-                aria-selected="true"
-              >
-                Depuis une release
-              </button>
-              <button
-                class="tab"
-                type="button"
-                role="tab"
-                id="tab-source"
-                aria-controls="code-source"
-                aria-selected="false"
-                tabindex="-1"
-              >
-                Depuis les sources
-              </button>
+            <div class="tabs" role="tablist" aria-label="Installation MonoOps">
+              <span class="tab" role="presentation">Commande d'installation</span>
               <button class="copy" type="button">Copier</button>
             </div>
-            <pre
-              id="code-release"
-              role="tabpanel"
-              aria-labelledby="tab-release"
-            ><code><span class="c"># Télécharger et vérifier l'archive</span>
-VERSION=<span class="v" data-version>2.5.0</span>
-ARCH=<span class="v">amd64</span>   <span class="c"># ou arm64</span>
-BASE=https://github.com/alexandrebouttierdev/monoops/releases/download/v$VERSION
-curl -fsSLO "$BASE/monoops_${VERSION}_linux_${ARCH}.tar.gz"
-curl -fsSLO "$BASE/SHA256SUMS"
-sha256sum -c --ignore-missing SHA256SUMS
-tar -xzf "monoops_${VERSION}_linux_${ARCH}.tar.gz"</code></pre>
-            <pre
-              id="code-source"
-              role="tabpanel"
-              aria-labelledby="tab-source"
-              hidden
-            ><code><span class="c"># Go 1.26 et Node.js 22 sur le poste de développement</span>
-git clone https://github.com/alexandrebouttierdev/monoops.git
-cd monoops
-npm --prefix frontend ci
-scripts/release/build.sh <span class="v" data-version>2.5.0</span> dist   <span class="c"># archives amd64, arm64 et SHA256SUMS</span></code></pre>
+            <pre id="code-install"><code>curl -fsSL https://raw.githubusercontent.com/alexandrebouttierdev/monoops/main/install.sh | sudo bash</code></pre>
           </div>
           <ol class="steps">
             <li class="card">
-              <small>Étape 1</small><strong>Télécharger et vérifier</strong
-              ><span>L'archive et sa somme SHA-256.</span>
+              <small>Étape 1</small><strong>Téléchargement vérifié</strong>
+              <span>Dernière release stable et contrôle SHA-256 avant extraction.</span>
             </li>
             <li class="card">
-              <small>Étape 2</small><strong>Installer les unités systemd</strong
-              ><span>Comptes système, fichiers, clé du coffre de secrets.</span>
+              <small>Étape 2</small><strong>Installation systemd</strong>
+              <span>Comptes dédiés, clé chiffrée et proxy Docker si Docker est présent.</span>
             </li>
             <li class="card">
-              <small>Étape 3</small><strong>Ouvrir l'interface</strong
-              ><span
-                >Sur http://machine:8080, puis changer le mot de passe
-                initial.</span
-              >
+              <small>Étape 3</small><strong>Prêt à utiliser</strong>
+              <span>Ouvrez http://machine:8080 et changez le mot de passe initial.</span>
             </li>
           </ol>
-          <a
-            href="https://github.com/alexandrebouttierdev/monoops#installation"
-            >Guide d'installation complet →</a
-          >
+          <p>
+            <a href="https://github.com/alexandrebouttierdev/monoops#installation">Guide d'installation complet →</a>
+            · <a href="https://github.com/alexandrebouttierdev/monoops/blob/main/uninstall.sh">Désinstallation</a>
+          </p>
         </div>
       </section>
 
@@ -2000,7 +1950,7 @@ scripts/release/build.sh <span class="v" data-version>2.5.0</span> dist   <span 
         const copy = document.querySelector(".copy");
         copy.addEventListener("click", async () => {
           const block = document.querySelector(
-            ".terminal pre:not([hidden]) code",
+            "#code-install code",
           );
           try {
             await navigator.clipboard.writeText(block.innerText);

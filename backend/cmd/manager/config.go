@@ -243,8 +243,8 @@ func (c Config) validateWebAuthn() error {
 	return nil
 }
 
-// secretsCredentialName is the systemd credential imported by the unit
-// (ImportCredential=), decrypted into $CREDENTIALS_DIRECTORY.
+// secretsCredentialName is the systemd credential decrypted into
+// $CREDENTIALS_DIRECTORY by LoadCredentialEncrypted=.
 const secretsCredentialName = "monoops-secrets-key"
 
 // SecretsKeyPath returns the file holding the master key of the secrets

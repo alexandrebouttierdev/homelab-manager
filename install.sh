@@ -112,7 +112,12 @@ fi
 
 new_frontend="$INSTALL_DIR/.dist-new"
 old_frontend="$INSTALL_DIR/.dist-old"
-rm -rf "$new_frontend" "$old_frontend"
+if [[ ! -d "$INSTALL_DIR/frontend/dist" && -d "$old_frontend" ]]; then
+  mv "$old_frontend" "$INSTALL_DIR/frontend/dist"
+else
+  rm -rf "$old_frontend"
+fi
+rm -rf "$new_frontend"
 install -d -m 0755 "$new_frontend"
 cp -a "$payload/frontend/dist/." "$new_frontend/"
 if [[ -d "$INSTALL_DIR/frontend/dist" ]]; then

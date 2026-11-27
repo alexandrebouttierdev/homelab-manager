@@ -19,6 +19,18 @@ grep -q 'LoadCredentialEncrypted=monoops-secrets-key' "$root/install.sh"
 grep -q 'LoadCredentialEncrypted=monoops-secrets-key' "$root/deployments/systemd/monoops.service"
 grep -q 'LoadCredentialEncrypted' "$root/deployments/config/manager.yaml"
 grep -q 'MONOOPS_SECRETS_KEY_FILE' "$root/README.md"
+# The scanner account and group must exist before tmpfiles applies ownership rules.
+grep -q 'groupadd --system monoops-vulnscan' "$root/install.sh"
+grep -q 'useradd --system --gid monoops-vulnscan' "$root/install.sh"
+grep -q 'systemd-tmpfiles --create monoops-vulnscan.conf' "$root/install.sh"
+account_line="$(grep -n 'groupadd --system monoops-vulnscan' "$root/install.sh" | cut -d: -f1)"
+tmpfiles_line="$(grep -n 'systemd-tmpfiles --create monoops-vulnscan.conf' "$root/install.sh" | cut -d: -f1)"
+(( account_line < tmpfiles_line ))
+
+# The installer ends with a colored success banner (colors disabled for NO_COLOR).
+grep -q 'INSTALLATION TERMINÉE AVEC SUCCÈS' "$root/install.sh"
+grep -q 'green=\$.*1;32m' "$root/install.sh"
+
 grep -q 'rm -rf "$CONFIG_DIR" "$DATA_DIR"' "$root/uninstall.sh"
 grep -q -- '--purge-data' "$root/uninstall.sh"
 

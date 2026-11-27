@@ -15,5 +15,10 @@ go install "golang.org/x/vuln/cmd/govulncheck@${govulncheck_version}"
 # OSV-Scanner v2.7.1 needs Go 1.27.3 to build: go downloads that official
 # toolchain (checksum-verified) for this build only.
 GOTOOLCHAIN=go1.27.3 go install "github.com/google/osv-scanner/v2/cmd/osv-scanner@${osv_scanner_version}"
-"$(go env GOPATH)/bin/govulncheck" -version | head -n 2
-"$(go env GOPATH)/bin/osv-scanner" --version | head -n 1
+
+# Do not pipe these commands directly to head: with pipefail enabled,
+# head can close the pipe early and make the producer exit with SIGPIPE (141).
+govulncheck_output=$("$(go env GOPATH)/bin/govulncheck" -version)
+printf '%s\n' "$govulncheck_output" | sed -n '1,2p'
+osv_scanner_output=$("$(go env GOPATH)/bin/osv-scanner" --version)
+printf '%s\n' "$osv_scanner_output" | sed -n '1p'

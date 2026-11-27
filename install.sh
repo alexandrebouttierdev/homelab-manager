@@ -30,7 +30,7 @@ need_cmd getent
 
 systemd_version="$(systemctl --version | awk 'NR == 1 { print $2 }')"
 [[ "$systemd_version" =~ ^[0-9]+$ ]] || die "Impossible de déterminer la version de systemd."
-(( systemd_version >= 250 )) || die "systemd 250 ou supérieur est requis pour LoadCredentialEncrypted (version détectée : $systemd_version)."
+(( systemd_version >= 254 )) || die "systemd 254 ou supérieur est requis pour LoadCredentialEncrypted (version détectée : $systemd_version)."
 
 case "$(uname -m)" in
   x86_64|amd64) arch="amd64" ;;

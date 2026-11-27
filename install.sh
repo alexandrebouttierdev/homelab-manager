@@ -74,6 +74,141 @@ payload="$tmp/$archive_dir"
 for required in bin/monoops bin/monoops-backup-runner deployments/config/manager.yaml deployments/systemd/monoops.service frontend/dist/index.html; do
   [[ -e "$payload/$required" ]] || die "Fichier absent de l'archive : $required"
 done
+
+# v3.0.1 archives predate the corrected encrypted-credential directive.
+# Patch the extracted unit so this installer can safely upgrade that release
+# without requiring a new release archive first.
+if grep -q '^ImportCredential=monoops-secrets-key
+  [[ -x "$payload/bin/monoops-docker-proxy" ]] || die "Le binaire du proxy Docker est absent."
+fi
+
+log "Préparation des comptes système…"
+if ! getent passwd monoops >/dev/null 2>&1; then
+  useradd --system --user-group --no-create-home --shell /usr/sbin/nologin monoops
+fi
+if $need_docker_proxy; then
+  if ! getent passwd monoops-docker-proxy >/dev/null 2>&1; then
+    useradd --system --user-group --no-create-home --shell /usr/sbin/nologin monoops-docker-proxy
+  fi
+  usermod -aG docker monoops-docker-proxy
+fi
+
+log "Préservation de la configuration et de la clé existantes…"
+install -d -m 0755 "$CONFIG_DIR"
+if [[ ! -e "$CONFIG_DIR/manager.yaml" ]]; then
+  install -m 0644 "$payload/deployments/config/manager.yaml" "$CONFIG_DIR/manager.yaml"
+fi
+if [[ ! -e "$CREDENTIAL_FILE" ]]; then
+  install -d -m 0700 "$CREDENTIAL_DIR"
+  (umask 077; head -c 32 /dev/urandom | base64 | systemd-creds encrypt --name=monoops-secrets-key - "$CREDENTIAL_FILE")
+  chmod 0600 "$CREDENTIAL_FILE"
+else
+  log "Clé systemd existante conservée."
+fi
+
+log "Installation des binaires et de l'interface…"
+install -d -m 0755 /usr/local/bin "$INSTALL_DIR/frontend"
+install -m 0755 "$payload/bin/monoops" /usr/local/bin/monoops
+install -m 0755 "$payload/bin/monoops-backup-runner" /usr/local/bin/monoops-backup-runner
+if $need_docker_proxy; then
+  install -m 0755 "$payload/bin/monoops-docker-proxy" /usr/local/bin/monoops-docker-proxy
+fi
+
+new_frontend="$INSTALL_DIR/.dist-new"
+old_frontend="$INSTALL_DIR/.dist-old"
+if [[ ! -d "$INSTALL_DIR/frontend/dist" && -d "$old_frontend" ]]; then
+  mv "$old_frontend" "$INSTALL_DIR/frontend/dist"
+else
+  rm -rf "$old_frontend"
+fi
+rm -rf "$new_frontend"
+install -d -m 0755 "$new_frontend"
+cp -a "$payload/frontend/dist/." "$new_frontend/"
+if [[ -d "$INSTALL_DIR/frontend/dist" ]]; then
+  mv "$INSTALL_DIR/frontend/dist" "$old_frontend"
+fi
+if ! mv "$new_frontend" "$INSTALL_DIR/frontend/dist"; then
+  [[ ! -d "$old_frontend" ]] || mv "$old_frontend" "$INSTALL_DIR/frontend/dist"
+  die "Impossible de remplacer l'interface ; l'ancienne version a été restaurée."
+fi
+rm -rf "$old_frontend"
+chown -R root:root "$INSTALL_DIR"
+chmod -R a+rX "$INSTALL_DIR"
+
+log "Installation des unités systemd…"
+install -m 0644 "$payload/deployments/systemd/monoops.service" "$SERVICE_DIR/monoops.service"
+for unit in "$payload"/deployments/systemd/*.service; do
+  name="$(basename "$unit")"
+  case "$name" in
+    monoops.service) continue ;;
+    monoops-docker-proxy.service)
+      if $need_docker_proxy; then install -m 0644 "$unit" "$SERVICE_DIR/$name"; fi
+      ;;
+    *) install -m 0644 "$unit" "$SERVICE_DIR/$name" ;;
+  esac
+done
+if $need_docker_proxy; then
+  install -m 0644 "$payload/deployments/systemd/monoops-docker-proxy.socket" "$SERVICE_DIR/monoops-docker-proxy.socket"
+else
+  systemctl disable --now monoops-docker-proxy.socket >/dev/null 2>&1 || true
+  rm -f "$SERVICE_DIR/monoops-docker-proxy.service" "$SERVICE_DIR/monoops-docker-proxy.socket"
+  rm -f /usr/local/bin/monoops-docker-proxy
+  log "Docker non détecté (groupe docker absent) : proxy non activé."
+fi
+
+if compgen -G "$payload/deployments/tmpfiles/*.conf" >/dev/null; then
+  install -d -m 0755 /usr/lib/tmpfiles.d
+  install -m 0644 "$payload"/deployments/tmpfiles/*.conf /usr/lib/tmpfiles.d/
+  systemd-tmpfiles --create >/dev/null
+fi
+if [[ -d "$payload/deployments/systemd/monoops-backup@restore-in-place.service.d" ]]; then
+  install -d -m 0755 "$SERVICE_DIR/monoops-backup@restore-in-place.service.d"
+  install -m 0644 "$payload"/deployments/systemd/monoops-backup@restore-in-place.service.d/*.conf \
+    "$SERVICE_DIR/monoops-backup@restore-in-place.service.d/"
+fi
+if compgen -G "$payload/deployments/polkit/*.rules" >/dev/null; then
+  install -d -m 0755 /etc/polkit-1/rules.d
+  install -m 0644 "$payload"/deployments/polkit/*.rules /etc/polkit-1/rules.d/
+fi
+
+if [[ -f "$CONFIG_DIR/manager.env" ]]; then
+  chmod 0600 "$CONFIG_DIR/manager.env"
+fi
+
+systemctl daemon-reload
+if $need_docker_proxy; then
+  systemctl enable --now monoops-docker-proxy.socket
+fi
+systemctl enable monoops.service
+if systemctl is-active --quiet monoops.service; then
+  systemctl restart monoops.service
+else
+  systemctl start monoops.service
+fi
+
+if ! systemctl is-active --quiet monoops.service; then
+  systemctl --no-pager --full status monoops.service || true
+  journalctl -u monoops.service -n 40 --no-pager || true
+  die "Le service MonoOps n'est pas actif. Consultez les journaux ci-dessus."
+fi
+
+log "MonoOps ${version} est installé et le service est actif."
+if journalctl -u monoops.service -n 80 --no-pager 2>/dev/null | grep -q "Secrets key loaded"; then
+  log "Clé du coffre de secrets chargée."
+else
+  log "AVERTISSEMENT : le journal ne confirme pas le chargement de la clé du coffre. Vérifiez : journalctl -u monoops -n 80"
+fi
+if curl --proto '=http,https' -fsS --max-time 5 http://127.0.0.1:8080/health >/dev/null 2>&1; then
+  log "Contrôle HTTP local réussi : http://127.0.0.1:8080"
+else
+  log "AVERTISSEMENT : contrôle HTTP sur le port 8080 non confirmé. Vérifiez manager.yaml et le journal systemd."
+fi
+log "Compte initial : admin / admin (changement obligatoire à la première connexion, sauf configuration préalable)."
+log "Configuration et données conservées lors des mises à jour : $CONFIG_DIR et /var/lib/monoops."
+ "$payload/deployments/systemd/monoops.service"; then
+  sed -i 's/^ImportCredential=monoops-secrets-key$/LoadCredentialEncrypted=monoops-secrets-key/' \
+    "$payload/deployments/systemd/monoops.service"
+fi
 if $need_docker_proxy; then
   [[ -x "$payload/bin/monoops-docker-proxy" ]] || die "Le binaire du proxy Docker est absent."
 fi

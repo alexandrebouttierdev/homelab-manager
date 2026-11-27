@@ -14,6 +14,8 @@ tag="$(printf '%s\n' "$release_json" | grep -oE '"tag_name"[[:space:]]*:[[:space
 
 # Guardrails: integrity verification, encrypted credentials and data preservation.
 grep -q 'sha256sum --check' "$root/install.sh"
+grep -q 'ImportCredential=monoops-secrets-key' "$root/install.sh"
+grep -q 'LoadCredentialEncrypted=monoops-secrets-key' "$root/install.sh"
 grep -q 'LoadCredentialEncrypted=monoops-secrets-key' "$root/deployments/systemd/monoops.service"
 grep -q 'LoadCredentialEncrypted' "$root/deployments/config/manager.yaml"
 grep -q 'MONOOPS_SECRETS_KEY_FILE' "$root/README.md"

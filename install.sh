@@ -228,9 +228,9 @@ log "Configuration et données conservées lors des mises à jour : $CONFIG_DIR 
 
 # A visible completion banner; respect NO_COLOR and non-interactive output.
 if [[ -t 1 && -z "${NO_COLOR:-}" && "${TERM:-}" != "dumb" ]]; then
-  green='\033[1;32m'
-  cyan='\033[1;36m'
-  reset='\033[0m'
+  green=$'\033[1;32m'
+  cyan=$'\033[1;36m'
+  reset=$'\033[0m'
 else
   green=""
   cyan=""

@@ -41,7 +41,7 @@ rm -f /etc/systemd/system/monoops-vulnscan.service
 rm -f /etc/systemd/system/monoops-backup@restore-in-place.service.d/*.conf
 rmdir /etc/systemd/system/monoops-backup@restore-in-place.service.d 2>/dev/null || true
 rm -f /usr/lib/tmpfiles.d/monoops*.conf /etc/tmpfiles.d/monoops*.conf
-rm -f /usr/share/polkit-1/rules.d/*monoops*.rules
+rm -f /etc/polkit-1/rules.d/*monoops*.rules /usr/share/polkit-1/rules.d/*monoops*.rules
 rm -f /usr/local/bin/monoops /usr/local/bin/monoops-docker-proxy /usr/local/bin/monoops-backup-runner
 rm -rf /opt/monoops
 

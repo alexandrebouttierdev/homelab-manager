@@ -26,6 +26,7 @@ need_cmd awk
 need_cmd sed
 need_cmd install
 need_cmd useradd
+need_cmd usermod
 need_cmd getent
 
 systemd_version="$(systemctl --version | awk 'NR == 1 { print $2 }')"

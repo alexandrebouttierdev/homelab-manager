@@ -120,7 +120,7 @@ Aucune valeur inventée : une donnée absente s'affiche comme indisponible, un m
 
 L'installateur récupère la dernière release stable, vérifie son SHA-256, installe les binaires et les unités systemd, puis démarre MonoOps. Il détecte l'architecture `amd64` ou `arm64`. Docker est facultatif : sans le groupe système `docker`, le proxy n'est pas activé et le reste de MonoOps demeure disponible.
 
-**Prérequis :** Linux avec systemd 250 ou supérieur, accès réseau HTTPS et architecture `amd64` ou `arm64`. Debian 13 est la plateforme de référence.
+**Prérequis :** Linux avec systemd 254 ou supérieur, accès réseau HTTPS et architecture `amd64` ou `arm64`. Debian 13 est la plateforme de référence.
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/alexandrebouttierdev/monoops/main/install.sh | sudo bash

@@ -78,7 +78,11 @@ done
 # v3.0.1 archives predate the corrected encrypted-credential directive.
 # Patch the extracted unit so this installer can safely upgrade that release
 # without requiring a new release archive first.
-if grep -q '^ImportCredential=monoops-secrets-key
+if grep -q '^ImportCredential=monoops-secrets-key$' "$payload/deployments/systemd/monoops.service"; then
+  sed -i 's/^ImportCredential=monoops-secrets-key$/LoadCredentialEncrypted=monoops-secrets-key/' \
+    "$payload/deployments/systemd/monoops.service"
+fi
+if $need_docker_proxy; then
   [[ -x "$payload/bin/monoops-docker-proxy" ]] || die "Le binaire du proxy Docker est absent."
 fi
 

@@ -26,6 +26,7 @@ need_cmd awk
 need_cmd sed
 need_cmd install
 need_cmd useradd
+need_cmd groupadd
 need_cmd usermod
 need_cmd getent
 
@@ -90,6 +91,17 @@ log "Préparation des comptes système…"
 if ! getent passwd monoops >/dev/null 2>&1; then
   useradd --system --user-group --no-create-home --shell /usr/sbin/nologin monoops
 fi
+
+# The vulnerability scanner uses a dedicated unprivileged account. Its group
+# must exist before systemd-tmpfiles applies monoops-vulnscan.conf.
+if ! getent group monoops-vulnscan >/dev/null 2>&1; then
+  groupadd --system monoops-vulnscan
+fi
+if ! getent passwd monoops-vulnscan >/dev/null 2>&1; then
+  useradd --system --gid monoops-vulnscan --no-create-home \
+    --home-dir /var/cache/monoops-vulnscan --shell /usr/sbin/nologin monoops-vulnscan
+fi
+
 if $need_docker_proxy; then
   if ! getent passwd monoops-docker-proxy >/dev/null 2>&1; then
     useradd --system --user-group --no-create-home --shell /usr/sbin/nologin monoops-docker-proxy
@@ -163,7 +175,9 @@ fi
 if compgen -G "$payload/deployments/tmpfiles/*.conf" >/dev/null; then
   install -d -m 0755 /usr/lib/tmpfiles.d
   install -m 0644 "$payload"/deployments/tmpfiles/*.conf /usr/lib/tmpfiles.d/
-  systemd-tmpfiles --create >/dev/null
+  # Apply only MonoOps rules; unrelated host tmpfiles entries may be invalid
+  # and should not interfere with the installation.
+  systemd-tmpfiles --create monoops-vulnscan.conf >/dev/null
 fi
 if [[ -d "$payload/deployments/systemd/monoops-backup@restore-in-place.service.d" ]]; then
   install -d -m 0755 "$SERVICE_DIR/monoops-backup@restore-in-place.service.d"
@@ -202,10 +216,43 @@ if journalctl -u monoops.service -n 80 --no-pager 2>/dev/null | grep -q "Secrets
 else
   log "AVERTISSEMENT : le journal ne confirme pas le chargement de la clé du coffre. Vérifiez : journalctl -u monoops -n 80"
 fi
+health_ok=false
 if curl --proto '=http,https' -fsS --max-time 5 http://127.0.0.1:8080/health >/dev/null 2>&1; then
+  health_ok=true
   log "Contrôle HTTP local réussi : http://127.0.0.1:8080"
 else
   log "AVERTISSEMENT : contrôle HTTP sur le port 8080 non confirmé. Vérifiez manager.yaml et le journal systemd."
 fi
 log "Compte initial : admin / admin (changement obligatoire à la première connexion, sauf configuration préalable)."
 log "Configuration et données conservées lors des mises à jour : $CONFIG_DIR et /var/lib/monoops."
+
+# A visible completion banner; respect NO_COLOR and non-interactive output.
+if [[ -t 1 && -z "${NO_COLOR:-}" && "${TERM:-}" != "dumb" ]]; then
+  green=
+\033[1;32m'
+  cyan=
+\033[1;36m'
+  reset=
+\033[0m'
+else
+  green=""
+  cyan=""
+  reset=""
+fi
+
+printf '\n'
+printf '%s  ██████╗  ██████╗  ██████╗  ██████╗ ███████╗\n' "$green"
+printf '  ██╔══██╗██╔═══██╗██╔═══██╗██╔═══██╗██╔════╝\n'
+printf '  ██████╔╝██║   ██║██║   ██║██║   ██║███████╗\n'
+printf '  ██╔══██╗██║   ██║██║   ██║██║   ██║╚════██║\n'
+printf '  ██████╔╝╚██████╔╝╚██████╔╝╚██████╔╝███████║\n'
+printf '  ╚═════╝  ╚═════╝  ╚═════╝  ╚═════╝ ╚══════╝%s\n' "$reset"
+printf '%s  INSTALLATION TERMINÉE AVEC SUCCÈS%s\n' "$green" "$reset"
+printf '%s  Version : %s | Architecture : %s%s\n' "$cyan" "$version" "$arch" "$reset"
+if $health_ok; then
+  printf '%s  API : opérationnelle — http://127.0.0.1:8080%s\n' "$green" "$reset"
+else
+  printf '%s  API : service actif, contrôle HTTP à vérifier%s\n' "$cyan" "$reset"
+fi
+printf '%s  Service : monoops (systemd)%s\n' "$green" "$reset"
+printf '\n'

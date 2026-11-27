@@ -160,10 +160,13 @@ curl -fsSL https://raw.githubusercontent.com/alexandrebouttierdev/monoops/main/u
 
 ### Mettre à jour
 
-1. [Sauvegarder la base](#sauvegarder-la-base-du-manager).
-2. Arrêter `monoops.service`.
-3. Remplacer les binaires, `/opt/monoops/frontend/dist` et, si le README de la version l'indique, les unités, `tmpfiles.d` et règles polkit des modules installés.
-4. `sudo systemctl daemon-reload && sudo systemctl start monoops`. Les migrations SQLite s'appliquent seules au démarrage.
+Relancer exactement la même commande que pour l'installation :
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/alexandrebouttierdev/monoops/main/install.sh | sudo bash
+```
+
+L'installateur remplace les binaires et l'interface, met à jour les unités systemd, conserve les fichiers de configuration et la clé existants, puis redémarre le service. Les migrations SQLite s'appliquent au démarrage. Il est recommandé de [sauvegarder la base](#sauvegarder-la-base-du-manager) avant toute mise à jour.
 
 ## Modules optionnels
 

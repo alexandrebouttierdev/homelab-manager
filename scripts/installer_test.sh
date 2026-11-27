@@ -29,6 +29,12 @@ tmpfiles_line="$(grep -n 'systemd-tmpfiles --create monoops-vulnscan.conf' "$roo
 
 # The installer ends with a colored success banner (colors disabled for NO_COLOR).
 grep -q 'INSTALLATION TERMINÉE AVEC SUCCÈS' "$root/install.sh"
+grep -q '███╗   ███╗' "$root/install.sh"
+grep -q 'Dashboard : %s' "$root/install.sh"
+grep -q 'Identifiant par défaut : admin' "$root/install.sh"
+grep -q 'Mot de passe par défaut : admin' "$root/install.sh"
+grep -q 'Configuration : %s' "$root/install.sh"
+grep -q 'Données : /var/lib/monoops' "$root/install.sh"
 grep -q 'green=\$.*1;32m' "$root/install.sh"
 
 grep -q 'rm -rf "$CONFIG_DIR" "$DATA_DIR"' "$root/uninstall.sh"

@@ -49,7 +49,7 @@ trap cleanup EXIT
 
 log "Recherche de la dernière release stable…"
 release_json="$(curl --proto '=https' --tlsv1.2 -fsSL --retry 3 "$API_URL")"
-tag="$(printf '%s\n' "$release_json" | sed -n 's/^[[:space:]]*"tag_name":[[:space:]]*"\(v[0-9][0-9.]*\)",$/\1/p' | head -n 1)"
+tag="$(printf '%s\n' "$release_json" | grep -oE '"tag_name"[[:space:]]*:[[:space:]]*"v[0-9]+\.[0-9]+\.[0-9]+"' | head -n 1 | sed -E 's/.*"(v[0-9]+\.[0-9]+\.[0-9]+)"/\1/')"
 [[ "$tag" =~ ^v[0-9]+\.[0-9]+\.[0-9]+$ ]] || die "La dernière release stable n'a pas de tag SemVer reconnu."
 version="${tag#v}"
 archive="monoops_${version}_linux_${arch}.tar.gz"

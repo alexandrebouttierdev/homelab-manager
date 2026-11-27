@@ -110,11 +110,18 @@ if $need_docker_proxy; then
 fi
 
 new_frontend="$INSTALL_DIR/.dist-new"
-rm -rf "$new_frontend"
+old_frontend="$INSTALL_DIR/.dist-old"
+rm -rf "$new_frontend" "$old_frontend"
 install -d -m 0755 "$new_frontend"
 cp -a "$payload/frontend/dist/." "$new_frontend/"
-rm -rf "$INSTALL_DIR/frontend/dist"
-mv "$new_frontend" "$INSTALL_DIR/frontend/dist"
+if [[ -d "$INSTALL_DIR/frontend/dist" ]]; then
+  mv "$INSTALL_DIR/frontend/dist" "$old_frontend"
+fi
+if ! mv "$new_frontend" "$INSTALL_DIR/frontend/dist"; then
+  [[ ! -d "$old_frontend" ]] || mv "$old_frontend" "$INSTALL_DIR/frontend/dist"
+  die "Impossible de remplacer l'interface ; l'ancienne version a été restaurée."
+fi
+rm -rf "$old_frontend"
 chown -R root:root "$INSTALL_DIR"
 chmod -R a+rX "$INSTALL_DIR"
 
@@ -144,9 +151,14 @@ if compgen -G "$payload/deployments/tmpfiles/*.conf" >/dev/null; then
   install -m 0644 "$payload"/deployments/tmpfiles/*.conf /usr/lib/tmpfiles.d/
   systemd-tmpfiles --create >/dev/null
 fi
+if [[ -d "$payload/deployments/systemd/monoops-backup@restore-in-place.service.d" ]]; then
+  install -d -m 0755 "$SERVICE_DIR/monoops-backup@restore-in-place.service.d"
+  install -m 0644 "$payload"/deployments/systemd/monoops-backup@restore-in-place.service.d/*.conf \
+    "$SERVICE_DIR/monoops-backup@restore-in-place.service.d/"
+fi
 if compgen -G "$payload/deployments/polkit/*.rules" >/dev/null; then
-  install -d -m 0755 /usr/share/polkit-1/rules.d
-  install -m 0644 "$payload"/deployments/polkit/*.rules /usr/share/polkit-1/rules.d/
+  install -d -m 0755 /etc/polkit-1/rules.d
+  install -m 0644 "$payload"/deployments/polkit/*.rules /etc/polkit-1/rules.d/
 fi
 
 if [[ -f "$CONFIG_DIR/manager.env" ]]; then

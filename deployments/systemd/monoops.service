@@ -33,10 +33,10 @@ ReadWritePaths=-/var/lib/monoops-backup/jobs
 StateDirectoryMode=0700
 UMask=0077
 EnvironmentFile=-/etc/monoops/manager.env
-# Master key of the secrets box (TOTP), encrypted with systemd-creds in
-# /etc/credstore.encrypted/ (see README). A missing credential does not
-# prevent the start: TOTP is then unavailable, recovery codes still work.
-ImportCredential=monoops-secrets-key
+# Master key of the secrets box, encrypted with systemd-creds.
+# systemd 250+ decrypts it into $CREDENTIALS_DIRECTORY at service start.
+# If the file is absent, the Manager still starts without secret-backed features.
+LoadCredentialEncrypted=monoops-secrets-key:/etc/credstore.encrypted/monoops-secrets-key
 
 [Install]
 WantedBy=multi-user.target

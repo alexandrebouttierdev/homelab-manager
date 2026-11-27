@@ -22,7 +22,7 @@ import (
 
 const (
 	driverName  = "sqlite"
-	pingTimeout = 2 * time.Second
+	pingTimeout = 10 * time.Second
 	// busyTimeout bounds how long a statement waits for a lock held by
 	// another process (for example an operator running a backup).
 	busyTimeout = 5 * time.Second

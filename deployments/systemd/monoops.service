@@ -36,7 +36,7 @@ EnvironmentFile=-/etc/monoops/manager.env
 # Master key of the secrets box, encrypted with systemd-creds.
 # systemd 250+ decrypts it into $CREDENTIALS_DIRECTORY at service start.
 # If the file is absent, the Manager still starts without secret-backed features.
-LoadCredentialEncrypted=monoops-secrets-key:/etc/credstore.encrypted/monoops-secrets-key
+LoadCredentialEncrypted=monoops-secrets-key
 
 [Install]
 WantedBy=multi-user.target

@@ -18,7 +18,7 @@ docker_actions_enabled: false
 # (D-6) : exige aussi la règle polkit deployments/polkit/50-monoops-system.rules.
 system_preferences_enabled: false
 # Clé maître du coffre de secrets (TOTP). Vide : la clé importée par systemd
-# (ImportCredential=monoops-secrets-key, voir README).
+# (LoadCredentialEncrypted=monoops-secrets-key:..., voir README).
 secrets_key_file: ""
 # Passkeys et clés FIDO2 (phase 8B) : nom de domaine de l'interface (pas une
 # adresse IP) et ses adresses exactes en HTTPS. Vide : WebAuthn désactivé.

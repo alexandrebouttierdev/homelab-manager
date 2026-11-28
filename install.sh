@@ -239,6 +239,7 @@ else
   reset=""
 fi
 
+
 printf '%s  █   █   ███   █   █   ███    ███   ████    ████%s\n' "$cyan" "$reset"
 printf '%s  ██ ██  █   █  ██  █  █   █  █   █  █   █  █%s\n' "$cyan" "$reset"
 printf '%s  █ █ █  █   █  █ █ █  █   █  █   █  █   █  █%s\n' "$cyan" "$reset"
@@ -246,12 +247,6 @@ printf '%s  █   █  █   █  █  ██  █   █  █   █  ███�
 printf '%s  █   █  █   █  █   █  █   █  █   █  █          █%s\n' "$cyan" "$reset"
 printf '%s  █   █  █   █  █   █  █   █  █   █  █          █%s\n' "$cyan" "$reset"
 printf '%s  █   █   ███   █   █   ███    ███   █      ████%s\n' "$cyan" "$reset"
-printf '%s  INSTALLATION TERMINÉE AVEC SUCCÈS%s\n' "$green" "$reset"
-printf '%s  Version : %s | Architecture : %s%s\n' "$cyan" "$version" "$arch" "$reset"
-printf '%s  Dashboard : %s%s\n' "$cyan" "$dashboard_url" "$reset"
-printf '%s  Identifiant par défaut : admin%s\n' "$cyan" "$reset"
-printf '%s  Mot de passe par défaut : admin%s\n' "$cyan" "$reset"
-printf '%s  Sécurité : changez le mot de passe dès la première connexion.%s\n' "$green" "$reset"
 if $health_ok; then
   printf '%s  API : opérationnelle%s\n' "$green" "$reset"
 else

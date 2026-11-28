@@ -29,7 +29,7 @@ tmpfiles_line="$(grep -n 'systemd-tmpfiles --create monoops-vulnscan.conf' "$roo
 
 # The installer ends with the current status banner; credentials are never printed.
 grep -q '██ ██' "$root/install.sh"
-grep -q '█   █  ███' "$root/install.sh"
+grep -Fq '█   █   ███' "$root/install.sh"
 grep -q 'API : opérationnelle' "$root/install.sh"
 grep -q 'Service : monoops (systemd)' "$root/install.sh"
 grep -q 'Configuration : %s' "$root/install.sh"

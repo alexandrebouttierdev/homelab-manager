@@ -27,17 +27,16 @@ account_line="$(grep -n 'groupadd --system monoops-vulnscan' "$root/install.sh" 
 tmpfiles_line="$(grep -n 'systemd-tmpfiles --create monoops-vulnscan.conf' "$root/install.sh" | cut -d: -f1)"
 (( account_line < tmpfiles_line ))
 
-# The installer ends with a colored success banner (colors disabled for NO_COLOR).
-grep -q 'INSTALLATION TERMINÉE AVEC SUCCÈS' "$root/install.sh"
+# The installer ends with the current status banner; credentials are never printed.
 grep -q '██ ██' "$root/install.sh"
-grep -q '█   █  ███' "$root/install.sh"
-grep -q 'Dashboard : %s' "$root/install.sh"
-grep -q 'Identifiant par défaut : admin' "$root/install.sh"
-grep -q 'Mot de passe par défaut : admin' "$root/install.sh"
+grep -Fq '█   █   ███' "$root/install.sh"
+grep -q 'API : opérationnelle' "$root/install.sh"
+grep -q 'Service : monoops (systemd)' "$root/install.sh"
 grep -q 'Configuration : %s' "$root/install.sh"
 grep -q 'Données : /var/lib/monoops' "$root/install.sh"
-grep -q 'green=\$.*1;32m' "$root/install.sh"
-
+grep -Fq "green=\$'\\033[1;32m'" "$root/install.sh"
+! grep -q 'Mot de passe par défaut : admin' "$root/install.sh"
+! grep -q 'Identifiant par défaut : admin' "$root/install.sh"
 grep -q 'rm -rf "$CONFIG_DIR" "$DATA_DIR"' "$root/uninstall.sh"
 grep -q -- '--purge-data' "$root/uninstall.sh"
 
